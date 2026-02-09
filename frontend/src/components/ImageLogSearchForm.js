@@ -1,0 +1,265 @@
+import React, { useState } from 'react';
+import './SearchForm.css';
+
+const ImageLogSearchForm = ({ onSearch }) => {
+  // 오늘 날짜의 00:00:00부터 23:59:59까지 기본값 설정
+  const getTodayDateTime = (hours, minutes, seconds) => {
+    const today = new Date();
+    const year = today.getFullYear();
+    const month = String(today.getMonth() + 1).padStart(2, '0');
+    const day = String(today.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}T${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+  };
+
+  const [formData, setFormData] = useState({
+    startDate: getTodayDateTime(0, 0, 0), // 오늘 00:00:00
+    endDate: getTodayDateTime(23, 59, 59), // 오늘 23:59:59
+    application: '',
+    servicegroup: '',
+    service: '',
+    datastring: '',
+    headerstring: '',
+    keywords: '',
+    showDecryptOption: false
+  });
+
+  const [errors, setErrors] = useState({});
+
+  // 폼 데이터 변경 처리
+  const handleInputChange = (e) => {
+    const { name, value, type, checked } = e.target;
+    
+    setFormData(prev => ({
+      ...prev,
+      [name]: type === 'checkbox' ? checked : value
+    }));
+
+    // 에러 제거
+    if (errors[name]) {
+      setErrors(prev => ({
+        ...prev,
+        [name]: ''
+      }));
+    }
+  };
+
+  // 키워드 입력 시 복호화 옵션 활성화
+  const handleKeywordsChange = (e) => {
+    const value = e.target.value;
+    setFormData(prev => ({
+      ...prev,
+      keywords: value,
+      showDecryptOption: value.trim() !== ''
+    }));
+  };
+
+  // 검색 실행
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    // 필수 필드 검증
+    const newErrors = {};
+    if (!formData.startDate) newErrors.startDate = '시작일시는 필수입니다.';
+    if (!formData.endDate) newErrors.endDate = '종료일시는 필수입니다.';
+
+    if (Object.keys(newErrors).length > 0) {
+      setErrors(newErrors);
+      return;
+    }
+
+    // 키워드 배열로 변환
+    const keywordsArray = formData.keywords
+      ? formData.keywords.split(',').map(keyword => keyword.trim()).filter(keyword => keyword)
+      : [];
+
+    // 날짜 형식 변환 (YYYY-MM-DDTHH:mm:ss -> yyyy-MM-dd HH:mm:ss 형식)
+    const formatDateForAPI = (dateStr) => {
+      if (!dateStr) return '';
+      const date = new Date(dateStr);
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const day = String(date.getDate()).padStart(2, '0');
+      const hours = String(date.getHours()).padStart(2, '0');
+      const minutes = String(date.getMinutes()).padStart(2, '0');
+      const seconds = String(date.getSeconds()).padStart(2, '0');
+      return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
+    };
+
+    const searchParams = {
+      ...formData,
+      startDate: formatDateForAPI(formData.startDate),
+      endDate: formatDateForAPI(formData.endDate),
+      keywords: keywordsArray,
+      // datastring과 headerstring 값이 제대로 전달되도록 명시적으로 설정
+      datastring: formData.datastring ? String(formData.datastring).trim() : '',
+      headerstring: formData.headerstring ? String(formData.headerstring).trim() : '',
+      application: formData.application ? String(formData.application).trim() : '',
+      servicegroup: formData.servicegroup ? String(formData.servicegroup).trim() : '',
+      service: formData.service ? String(formData.service).trim() : ''
+    };
+    
+    if (typeof onSearch === 'function') {
+      onSearch(searchParams);
+    } else {
+      console.error('onSearch 함수가 없습니다!');
+    }
+  };
+
+  // 폼 초기화
+  const handleReset = () => {
+    setFormData({
+      startDate: getTodayDateTime(0, 0, 0), // 오늘 00:00:00
+      endDate: getTodayDateTime(23, 59, 59), // 오늘 23:59:59
+      application: '',
+      servicegroup: '',
+      service: '',
+      datastring: '',
+      headerstring: '',
+      keywords: '',
+      showDecryptOption: false
+    });
+    setErrors({});
+  };
+
+  return (
+    <div className="search-form-container">
+      <form onSubmit={handleSubmit} className="search-form">
+        <div className="form-row-single">
+          <div className="form-group">
+            <label htmlFor="startDate">
+              시작일시 <span className="required">*</span>
+            </label>
+            <input
+              type="datetime-local"
+              id="startDate"
+              name="startDate"
+              value={formData.startDate}
+              onChange={handleInputChange}
+              className={errors.startDate ? 'error' : ''}
+              step="1"
+            />
+            {errors.startDate && <span className="error-message">{errors.startDate}</span>}
+          </div>
+
+          <div className="form-group">
+            <label htmlFor="endDate">
+              종료일시 <span className="required">*</span>
+            </label>
+            <input
+              type="datetime-local"
+              id="endDate"
+              name="endDate"
+              value={formData.endDate}
+              onChange={handleInputChange}
+              className={errors.endDate ? 'error' : ''}
+              step="1"
+            />
+            {errors.endDate && <span className="error-message">{errors.endDate}</span>}
+          </div>
+
+          <div className="form-group">
+            <label htmlFor="application">시스템 명</label>
+            <input
+              type="text"
+              id="application"
+              name="application"
+              value={formData.application}
+              onChange={handleInputChange}
+              placeholder="시스템 명"
+            />
+          </div>
+
+          <div className="form-group">
+            <label htmlFor="servicegroup">서비스그룹</label>
+            <input
+              type="text"
+              id="servicegroup"
+              name="servicegroup"
+              value={formData.servicegroup}
+              onChange={handleInputChange}
+              placeholder="서비스그룹"
+            />
+          </div>
+
+          <div className="form-group">
+            <label htmlFor="service">서비스명</label>
+            <input
+              type="text"
+              id="service"
+              name="service"
+              value={formData.service}
+              onChange={handleInputChange}
+              placeholder="서비스명"
+            />
+          </div>
+
+          <div className="form-group">
+            <label htmlFor="datastring">데이터</label>
+            <input
+              type="text"
+              id="datastring"
+              name="datastring"
+              value={formData.datastring || ''}
+              onChange={handleInputChange}
+              placeholder="데이터 검색"
+              autoComplete="off"
+            />
+          </div>
+
+          <div className="form-group">
+            <label htmlFor="headerstring">헤더</label>
+            <input
+              type="text"
+              id="headerstring"
+              name="headerstring"
+              value={formData.headerstring}
+              onChange={handleInputChange}
+              placeholder="헤더 검색"
+            />
+          </div>
+
+          <div className="form-group">
+            <label htmlFor="keywords">키워드 검색</label>
+            <input
+              type="text"
+              id="keywords"
+              name="keywords"
+              value={formData.keywords}
+              onChange={handleKeywordsChange}
+              placeholder="키워드1, 키워드2, 키워드3 (OR 조건으로 검색)"
+            />
+          </div>
+        </div>
+
+        {formData.showDecryptOption && (
+          <div className="form-row">
+            <div className="form-group checkbox-group">
+              <label>
+                <input
+                  type="checkbox"
+                  name="decryptData"
+                  checked={formData.decryptData || false}
+                  onChange={handleInputChange}
+                />
+                키워드 검색 시 복호화 여부 체크
+              </label>
+            </div>
+          </div>
+        )}
+
+        <div className="form-actions">
+          <button type="submit" className="btn btn-primary">
+            검색
+          </button>
+          <button type="button" className="btn btn-secondary" onClick={handleReset}>
+            초기화
+          </button>
+        </div>
+      </form>
+    </div>
+  );
+};
+
+export default ImageLogSearchForm;
+

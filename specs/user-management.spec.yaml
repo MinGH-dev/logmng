@@ -1,0 +1,1033 @@
+# 사용자 관리 및 권한 관리 기능 설계 문서
+# 작성일: 2026-02-03
+# 버전: 1.0
+
+---
+metadata:
+  title: "사용자 관리 및 권한 관리 기능 설계"
+  version: "1.0"
+  author: "System"
+  created: "2026-02-03"
+  status: "draft"
+  target_release: "MVP"
+
+---
+# 1. 개요 및 목표
+
+## 1.1 목표
+- 사용자 추가/변경/삭제 기능 제공
+- 관리자 권한 기반 접근 제어
+- 전산요청서 PDF 업로드 및 이력 관리 (변경 불가)
+- 전산요청서 업로드 시 사유 입력 필수
+- 8자리 숫자 사번 기반 로그인 ID 체계
+- 패스워드 관리 (현재: 별도 등록, 향후: AD 연동)
+- 인사배치 연동을 통한 사용자 자동 추가/삭제 (권한 회수)
+
+## 1.2 비목표
+- AD 연동 구현 (현재 단계에서는 제외, 향후 작업)
+- 복잡한 권한 레벨 체계 (관리자/일반 사용자 2단계)
+- 패스워드 복구 기능 (초기 릴리즈 제외)
+- 사용자 그룹/조직 관리 (초기 릴리즈 제외)
+
+## 1.3 범위
+- 백엔드: 사용자 CRUD API, 권한 체크 미들웨어, 파일 업로드 처리, 인사배치 연동 배치 작업
+- 프론트엔드: 사용자 관리 UI, 전산요청서 업로드 UI, 동기화 이력 조회 UI
+- 데이터베이스: 사용자 테이블, 전산요청서 파일 저장, 동기화 이력 테이블
+- 외부 연동: 오라클 DB View 테이블 연동
+
+---
+# 2. 현재 상태 분석
+
+## 2.1 현재 사용자 관련 기능
+- ActivityLog에서 userId 기반 사용자 추적
+- getUserList() 함수로 활동 로그 기반 사용자 목록 조회
+- 실제 사용자 정보 저장/관리 기능 없음
+- 인증/인가 기능 없음
+
+## 2.2 문제점
+- 사용자 정보가 활동 로그에만 의존
+- 권한 관리 기능 없음
+- 사용자 정보의 일관성 보장 어려움
+- 관리자/일반 사용자 구분 불가
+
+## 2.3 개선 필요사항
+- 사용자 정보 전용 데이터 모델 필요
+- 권한 체계 도입 (관리자/일반 사용자)
+- 사용자 CRUD API 구현
+- 전산요청서 관리 기능
+- 인사배치 연동을 통한 사용자 자동 관리 기능
+
+---
+# 3. 사용자 모델 설계
+
+## 3.1 사용자 데이터 구조
+```javascript
+{
+  userId: string,           // 8자리 숫자 사번 (PK)
+  password: string,         // 해시된 패스워드 (BCrypt)
+  name: string,             // 사용자 이름
+  email: string,            // 이메일 (선택)
+  department: string,       // 부서 (선택)
+  role: string,             // 'ADMIN' | 'USER' (기본값: 'USER')
+  isActive: boolean,        // 활성화 여부 (기본값: true)
+  createdAt: timestamp,     // 생성일시
+  updatedAt: timestamp,     // 수정일시
+  createdBy: string,        // 생성자 userId
+  updatedBy: string         // 수정자 userId
+}
+```
+
+## 3.2 전산요청서 데이터 구조
+```javascript
+{
+  id: string,               // 요청서 ID (UUID)
+  userId: string,           // 대상 사용자 userId
+  requestType: string,      // 'CREATE' | 'UPDATE' | 'DELETE'
+  fileName: string,         // 원본 파일명
+  filePath: string,         // 저장된 파일 경로
+  fileSize: number,         // 파일 크기 (bytes)
+  reason: string,            // 사유 (텍스트, 필수)
+  uploadedAt: timestamp,    // 업로드 일시
+  uploadedBy: string        // 업로드한 관리자 userId
+}
+```
+
+**중요: 전산요청서는 이력 관리 (Immutable)**
+- 전산요청서는 생성 후 변경/삭제 불가
+- 파일을 잘못 올렸더라도 임의로 변경 불가
+- 새로운 요청이 필요한 경우 새로운 전산요청서를 추가로 업로드
+- 모든 전산요청서는 이력으로 보관되어 감사 추적 가능
+
+## 3.3 데이터베이스 스키마
+```sql
+-- 사용자 테이블
+CREATE TABLE users (
+  user_id VARCHAR(8) PRIMARY KEY,
+  password VARCHAR(255) NOT NULL,
+  name VARCHAR(100) NOT NULL,
+  email VARCHAR(255),
+  department VARCHAR(100),
+  role VARCHAR(20) DEFAULT 'USER' CHECK (role IN ('ADMIN', 'USER')),
+  is_active BOOLEAN DEFAULT true,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  created_by VARCHAR(8),
+  updated_by VARCHAR(8)
+);
+
+-- 전산요청서 테이블 (이력 관리, 변경 불가)
+CREATE TABLE user_request_documents (
+  id VARCHAR(36) PRIMARY KEY,
+  user_id VARCHAR(8) NOT NULL,
+  request_type VARCHAR(20) NOT NULL CHECK (request_type IN ('CREATE', 'UPDATE', 'DELETE')),
+  file_name VARCHAR(255) NOT NULL,
+  file_path VARCHAR(500) NOT NULL,
+  file_size BIGINT NOT NULL,
+  reason TEXT NOT NULL,  -- 사유 (필수)
+  uploaded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  uploaded_by VARCHAR(8) NOT NULL,
+  FOREIGN KEY (user_id) REFERENCES users(user_id),
+  FOREIGN KEY (uploaded_by) REFERENCES users(user_id)
+);
+-- 주의: 이 테이블의 레코드는 생성 후 변경/삭제 불가 (이력 관리)
+
+-- 인덱스
+CREATE INDEX idx_users_role ON users(role);
+CREATE INDEX idx_users_is_active ON users(is_active);
+CREATE INDEX idx_request_docs_user_id ON user_request_documents(user_id);
+CREATE INDEX idx_request_docs_uploaded_at ON user_request_documents(uploaded_at);
+```
+
+---
+# 4. 권한 관리 설계
+
+## 4.1 권한 레벨
+- **ADMIN**: 모든 사용자 관리 기능 사용 가능
+  - 사용자 추가/변경/삭제
+  - 전산요청서 업로드
+  - 모든 로그 조회
+- **USER**: 일반 사용자
+  - 본인 정보 조회/수정 (제한적)
+  - 로그 조회 (권한 범위 내)
+
+## 4.2 권한 체크 미들웨어
+```javascript
+// 관리자 권한 체크
+function requireAdmin(req, res, next) {
+  const user = req.user; // 인증 미들웨어에서 설정
+  if (!user || user.role !== 'ADMIN') {
+    return res.status(403).json({
+      success: false,
+      error: 'Forbidden',
+      message: '관리자 권한이 필요합니다.'
+    });
+  }
+  next();
+}
+
+// 활성 사용자 체크
+function requireActiveUser(req, res, next) {
+  const user = req.user;
+  if (!user || !user.isActive) {
+    return res.status(403).json({
+      success: false,
+      error: 'Forbidden',
+      message: '비활성화된 사용자입니다.'
+    });
+  }
+  next();
+}
+```
+
+## 4.3 초기 관리자 계정
+- TODO: 초기 관리자 계정 생성 방법 결정
+  - 옵션 1: 환경변수로 초기 관리자 정보 설정
+  - 옵션 2: 마이그레이션 스크립트로 생성
+  - 옵션 3: 첫 사용자 자동 관리자 지정
+
+---
+# 5. API 설계
+
+## 5.1 사용자 관리 API
+
+### POST /api/users
+사용자 생성 (관리자 전용)
+```yaml
+request:
+  headers:
+    Authorization: Bearer <token>
+  body:
+    userId: string (8자리 숫자, 필수)
+    password: string (필수, 최소 8자)
+    name: string (필수)
+    email: string (선택)
+    department: string (선택)
+    role: string ('ADMIN' | 'USER', 기본값: 'USER')
+  multipart/form-data:
+    requestDocument: file (PDF, 필수, 최대 10MB)
+    reason: string (사유, 필수, 최대 1000자)
+
+response:
+  success: boolean
+  data:
+    userId: string
+    name: string
+    email: string
+    department: string
+    role: string
+    createdAt: timestamp
+    requestDocument:
+      id: string
+      fileName: string
+      uploadedAt: timestamp
+  error: string (optional)
+```
+
+### GET /api/users
+사용자 목록 조회 (관리자 전용)
+```yaml
+request:
+  headers:
+    Authorization: Bearer <token>
+  query:
+    page: number (기본값: 1)
+    pageSize: number (기본값: 20)
+    role: string ('ADMIN' | 'USER', 선택)
+    isActive: boolean (선택)
+    search: string (userId 또는 name 검색, 선택)
+
+response:
+  success: boolean
+  data:
+    users: array
+      - userId: string
+        name: string
+        email: string
+        department: string
+        role: string
+        isActive: boolean
+        createdAt: timestamp
+        updatedAt: timestamp
+    pagination:
+      currentPage: number
+      totalPages: number
+      totalCount: number
+      pageSize: number
+```
+
+### GET /api/users/:userId
+사용자 상세 조회
+```yaml
+request:
+  headers:
+    Authorization: Bearer <token>
+  params:
+    userId: string (8자리 숫자)
+
+response:
+  success: boolean
+  data:
+    userId: string
+    name: string
+    email: string
+    department: string
+    role: string
+    isActive: boolean
+    createdAt: timestamp
+    updatedAt: timestamp
+    createdBy: string
+    updatedBy: string
+  error: string (optional)
+```
+
+### PUT /api/users/:userId
+사용자 정보 수정 (관리자 전용)
+```yaml
+request:
+  headers:
+    Authorization: Bearer <token>
+  params:
+    userId: string (8자리 숫자)
+  body:
+    name: string (선택)
+    email: string (선택)
+    department: string (선택)
+    role: string ('ADMIN' | 'USER', 선택)
+    isActive: boolean (선택)
+    password: string (선택, 변경 시에만)
+  multipart/form-data:
+    requestDocument: file (PDF, 필수, 최대 10MB)
+    reason: string (사유, 필수, 최대 1000자)
+
+response:
+  success: boolean
+  data:
+    userId: string
+    name: string
+    email: string
+    department: string
+    role: string
+    isActive: boolean
+    updatedAt: timestamp
+    requestDocument:
+      id: string
+      fileName: string
+      uploadedAt: timestamp
+  error: string (optional)
+```
+
+### DELETE /api/users/:userId
+사용자 삭제 (관리자 전용)
+```yaml
+request:
+  headers:
+    Authorization: Bearer <token>
+  params:
+    userId: string (8자리 숫자)
+  multipart/form-data:
+    requestDocument: file (PDF, 필수, 최대 10MB)
+    reason: string (사유, 필수, 최대 1000자)
+
+response:
+  success: boolean
+  message: string
+  data:
+    requestDocument:
+      id: string
+      fileName: string
+      uploadedAt: timestamp
+  error: string (optional)
+```
+
+## 5.2 전산요청서 API
+
+### GET /api/users/:userId/request-documents
+사용자별 전산요청서 목록 조회 (관리자 전용)
+```yaml
+request:
+  headers:
+    Authorization: Bearer <token>
+  params:
+    userId: string (8자리 숫자)
+  query:
+    requestType: string ('CREATE' | 'UPDATE' | 'DELETE', 선택)
+
+response:
+  success: boolean
+  data:
+    documents: array
+      - id: string
+        requestType: string
+        fileName: string
+        fileSize: number
+        reason: string
+        uploadedAt: timestamp
+        uploadedBy: string
+        uploadedByName: string (업로드한 관리자 이름)
+```
+
+### GET /api/users/request-documents/:documentId/download
+전산요청서 다운로드 (관리자 전용)
+```yaml
+request:
+  headers:
+    Authorization: Bearer <token>
+  params:
+    documentId: string (UUID)
+
+response:
+  Content-Type: application/pdf
+  Content-Disposition: attachment; filename="<원본파일명>"
+  body: PDF 파일 바이너리
+```
+
+## 5.3 인증 API (향후 확장용)
+
+### TODO: 로그인 API 설계
+- POST /api/auth/login
+  - userId (8자리 숫자) + password로 로그인
+  - JWT 토큰 발급
+  - 향후 AD 연동 시 확장
+
+### TODO: 인증 미들웨어
+- JWT 토큰 검증
+- 사용자 정보 로드 (req.user 설정)
+
+## 5.4 인사배치 연동 API
+
+### POST /api/users/hr-sync
+인사배치 수동 동기화 실행 (관리자 전용)
+```yaml
+request:
+  headers:
+    Authorization: Bearer <token>
+  body:
+    syncType: string ('FULL' | 'INCREMENTAL', 기본값: 'FULL')
+    force: boolean (기존 실행 중인 동기화 강제 종료 여부, 기본값: false)
+
+response:
+  success: boolean
+  data:
+    syncHistoryId: string
+    status: string ('RUNNING')
+    message: string
+  error: string (optional)
+```
+
+### GET /api/users/hr-sync/history
+동기화 이력 조회 (관리자 전용)
+```yaml
+request:
+  headers:
+    Authorization: Bearer <token>
+  query:
+    page: number (기본값: 1)
+    pageSize: number (기본값: 20)
+    syncStatus: string ('RUNNING' | 'SUCCESS' | 'FAILED', 선택)
+    startDate: string (YYYY-MM-DD, 선택)
+    endDate: string (YYYY-MM-DD, 선택)
+
+response:
+  success: boolean
+  data:
+    history: array
+      - id: string
+        syncType: string
+        syncStatus: string
+        startedAt: timestamp
+        completedAt: timestamp
+        totalRecords: number
+        createdCount: number
+        updatedCount: number
+        deactivatedCount: number
+        errorCount: number
+        errorMessage: string
+    pagination:
+      currentPage: number
+      totalPages: number
+      totalCount: number
+      pageSize: number
+```
+
+### GET /api/users/hr-sync/history/:historyId
+동기화 상세 이력 조회 (관리자 전용)
+```yaml
+request:
+  headers:
+    Authorization: Bearer <token>
+  params:
+    historyId: string (UUID)
+
+response:
+  success: boolean
+  data:
+    history: object
+      id: string
+      syncType: string
+      syncStatus: string
+      startedAt: timestamp
+      completedAt: timestamp
+      totalRecords: number
+      createdCount: number
+      updatedCount: number
+      deactivatedCount: number
+      errorCount: number
+      errorMessage: string
+    details: array
+      - id: string
+        userId: string
+        action: string
+        hrData: object
+        errorMessage: string
+        processedAt: timestamp
+```
+
+### GET /api/users/hr-sync/status
+현재 동기화 상태 조회
+```yaml
+request:
+  headers:
+    Authorization: Bearer <token>
+
+response:
+  success: boolean
+  data:
+    isRunning: boolean
+    currentSyncHistoryId: string (optional)
+    lastSyncAt: timestamp (optional)
+    lastSyncStatus: string (optional)
+```
+
+---
+# 6. 인사배치 연동 설계
+
+## 6.1 오라클 DB 연동
+
+### 6.1.1 연결 정보
+- 데이터베이스: Oracle Database
+- 연결 방식: JDBC 또는 node-oracledb
+- View 테이블: TODO: 실제 View 테이블명 확인 필요
+- 연결 풀: 최대 연결 수 설정 필요
+
+### 6.1.2 View 테이블 스키마 (예상)
+```sql
+-- TODO: 실제 View 테이블 구조 확인 필요
+-- 예상 구조:
+CREATE OR REPLACE VIEW HR_USER_VIEW AS
+SELECT 
+  EMP_NO VARCHAR2(8),           -- 사번 (8자리 숫자)
+  EMP_NAME VARCHAR2(100),       -- 이름
+  EMAIL VARCHAR2(255),          -- 이메일
+  DEPT_CODE VARCHAR2(20),       -- 부서 코드
+  DEPT_NAME VARCHAR2(100),      -- 부서명
+  POSITION_CODE VARCHAR2(20),   -- 직급 코드
+  POSITION_NAME VARCHAR2(100),  -- 직급명
+  STATUS VARCHAR2(20),          -- 상태 (ACTIVE, INACTIVE, RETIRED 등)
+  UPDATE_DATE DATE              -- 최종 수정일
+FROM HR_EMPLOYEE_MASTER;
+```
+
+### 6.1.3 필요한 필드 매핑
+```javascript
+{
+  // 오라클 View → 시스템 users 테이블 매핑
+  EMP_NO → userId (8자리 숫자)
+  EMP_NAME → name
+  EMAIL → email
+  DEPT_NAME → department
+  STATUS → isActive (ACTIVE면 true, 그 외 false)
+  UPDATE_DATE → 동기화 시점 확인용
+}
+```
+
+## 6.2 동기화 프로세스
+
+### 6.2.1 전체 동기화 (FULL SYNC)
+1. 오라클 DB View에서 전체 사용자 데이터 조회
+2. 시스템 users 테이블과 비교
+3. 신규 사용자: 자동 생성 (role='USER', password는 임시 생성 또는 AD 연동 대기)
+4. 기존 사용자: 정보 업데이트 (이름, 이메일, 부서 등)
+5. 삭제된 사용자: isActive=false로 설정 (권한 회수)
+6. 동기화 이력 저장
+
+### 6.2.2 증분 동기화 (INCREMENTAL SYNC)
+1. 마지막 동기화 이후 UPDATE_DATE가 변경된 사용자만 조회
+2. 변경사항 반영
+3. 동기화 이력 저장
+
+### 6.2.3 동기화 규칙
+- **신규 사용자 추가**:
+  - 오라클에 존재하지만 시스템에 없는 사용자
+  - 자동으로 role='USER'로 생성
+  - password는 임시 생성 (향후 AD 연동 시 자동 처리)
+  - createdBy='SYSTEM'으로 기록
+  
+- **사용자 정보 업데이트**:
+  - 이름, 이메일, 부서 정보 업데이트
+  - updatedBy='SYSTEM'으로 기록
+  
+- **사용자 비활성화**:
+  - 오라클에서 삭제되었거나 STATUS가 INACTIVE인 경우
+  - isActive=false로 설정
+  - 실제 삭제는 하지 않음 (이력 보존)
+  - updatedBy='SYSTEM'으로 기록
+
+- **관리자 계정 보호**:
+  - role='ADMIN'인 사용자는 자동 동기화에서 제외
+  - 관리자 계정은 수동으로만 관리
+
+## 6.3 배치 스케줄링
+
+### 6.3.1 스케줄 설정
+- 실행 주기: TODO: 일정 확인 필요 (예: 매일 새벽 2시)
+- 실행 방식: cron job 또는 node-cron
+- 중복 실행 방지: 동시 실행 체크
+
+### 6.3.2 배치 작업 설정
+```javascript
+// node-cron 예시
+const cron = require('node-cron');
+
+// 매일 새벽 2시에 전체 동기화
+cron.schedule('0 2 * * *', async () => {
+  await hrSyncService.syncUsers('FULL');
+});
+
+// 매시간 증분 동기화 (선택)
+cron.schedule('0 * * * *', async () => {
+  await hrSyncService.syncUsers('INCREMENTAL');
+});
+```
+
+## 6.4 오류 처리
+
+### 6.4.1 오류 유형
+- 오라클 DB 연결 실패
+- View 테이블 조회 실패
+- 데이터 매핑 오류
+- 사용자 생성/업데이트 실패
+
+### 6.4.2 오류 처리 전략
+- 연결 실패: 재시도 로직 (최대 3회)
+- 개별 사용자 처리 실패: 에러 로그 기록 후 다음 사용자 계속 처리
+- 전체 동기화 실패: 상태를 'FAILED'로 기록, 에러 메시지 저장
+- 부분 실패: 성공한 건수와 실패한 건수 모두 기록
+
+## 6.5 동기화 이력 관리
+
+### 6.5.1 이력 저장 항목
+- 동기화 시작/종료 시간
+- 동기화 타입 (FULL/INCREMENTAL)
+- 처리된 총 레코드 수
+- 생성/업데이트/비활성화 건수
+- 오류 건수 및 오류 메시지
+- 개별 사용자 처리 상세 내역
+
+### 6.5.2 이력 보관 정책
+- TODO: 보관 기간 결정 (예: 90일)
+- 오래된 이력은 자동 삭제 또는 아카이브
+
+---
+# 7. 파일 업로드 설계
+
+## 6.1 파일 저장 구조
+```
+backend/src/data/request-documents/
+  ├── {userId}/
+  │   ├── {documentId}.pdf
+  │   └── ...
+  └── ...
+```
+
+## 6.2 파일 업로드 제약사항
+- 파일 형식: PDF만 허용
+- 최대 파일 크기: 10MB
+- 파일명: 원본 파일명 저장, 중복 시 타임스탬프 추가
+- 보안: 관리자 권한 체크 필수
+- **이력 관리**: 파일 업로드 후 변경/삭제 불가 (Immutable)
+  - 잘못 업로드한 경우에도 파일 변경 불가
+  - 새로운 요청이 필요한 경우 새로운 전산요청서를 추가로 업로드
+  - 모든 전산요청서는 이력으로 보관되어 감사 추적 가능
+
+## 6.3 파일 검증
+- MIME 타입 검증 (application/pdf)
+- 파일 확장자 검증 (.pdf)
+- 파일 크기 검증
+- PDF 파일 무결성 검증 (선택)
+
+---
+# 8. 입력 검증 및 오류 처리
+
+## 7.1 사용자 ID 검증
+- 8자리 숫자만 허용
+- 정규식: `^[0-9]{8}$`
+- 중복 체크 (생성 시)
+
+## 7.2 패스워드 검증
+- 최소 길이: 8자
+- TODO: 패스워드 복잡도 정책 결정
+  - 대문자/소문자/숫자/특수문자 조합 필수 여부
+  - 금지된 패스워드 목록
+
+## 7.3 전산요청서 검증
+- 파일 존재 여부 체크
+- 파일 형식 체크 (PDF)
+- 파일 크기 체크 (10MB 이하)
+- 사유(reason) 필수 체크 (최대 1000자)
+
+## 7.4 오류 코드
+```javascript
+{
+  // 사용자 관련
+  USER_NOT_FOUND: 'USER_001',
+  USER_ALREADY_EXISTS: 'USER_002',
+  INVALID_USER_ID_FORMAT: 'USER_003',
+  INVALID_PASSWORD: 'USER_004',
+  
+  // 권한 관련
+  UNAUTHORIZED: 'AUTH_001',
+  FORBIDDEN: 'AUTH_002',
+  INACTIVE_USER: 'AUTH_003',
+  
+  // 파일 관련
+  FILE_REQUIRED: 'FILE_001',
+  INVALID_FILE_TYPE: 'FILE_002',
+  FILE_TOO_LARGE: 'FILE_003',
+  FILE_UPLOAD_FAILED: 'FILE_004',
+  
+  // 전산요청서 관련
+  REQUEST_DOCUMENT_REQUIRED: 'DOC_001',
+  REQUEST_REASON_REQUIRED: 'DOC_002',
+  REQUEST_REASON_TOO_LONG: 'DOC_003',
+  DOCUMENT_IMMUTABLE: 'DOC_004'  // 전산요청서 변경/삭제 시도 시
+}
+```
+
+---
+# 9. 보안 고려사항
+
+## 8.1 패스워드 보안
+- BCrypt 해싱 (salt rounds: 10)
+- 평문 패스워드 저장 금지
+- 로그에 패스워드 정보 기록 금지
+
+## 8.2 파일 보안
+- 업로드 파일 스캔 (바이러스 검사, 선택)
+- 파일 경로 노출 방지 (직접 접근 차단)
+- 관리자 권한으로만 다운로드 가능
+- 파일 변경/삭제 방지 (이력 관리)
+  - API에서 전산요청서 수정/삭제 엔드포인트 제공하지 않음
+  - 데이터베이스 레벨에서도 변경 방지 (권한 제한)
+
+## 8.3 로깅
+- 사용자 생성/수정/삭제 작업 로깅
+- 전산요청서 업로드 로깅
+- 권한 위반 시도 로깅
+- PII(개인정보) 노출 최소화
+
+---
+# 10. UI 설계
+
+## 9.1 사용자 관리 페이지
+```
+┌─────────────────────────────────────────────────────────┐
+│ 사용자 관리                                              │
+├─────────────────────────────────────────────────────────┤
+│ [검색창] [역할 필터] [활성화 필터] [사용자 추가 버튼]   │
+├─────────────────────────────────────────────────────────┤
+│ 사번      이름      이메일      부서      역할    상태   │
+│ 12345678  홍길동   hong@...   개발팀    USER   활성   │
+│ 87654321  김철수   kim@...    운영팀    ADMIN  활성   │
+└─────────────────────────────────────────────────────────┘
+```
+
+## 9.2 사용자 추가/수정 폼
+```
+┌─────────────────────────────────────────────────────────┐
+│ 사용자 추가                                             │
+├─────────────────────────────────────────────────────────┤
+│ 사번:        [12345678] (8자리 숫자)                   │
+│ 이름:        [홍길동]                                  │
+│ 이메일:      [hong@example.com]                        │
+│ 부서:        [개발팀]                                  │
+│ 역할:        [USER ▼]                                 │
+│ 패스워드:    [********]                                │
+│ 전산요청서:  [파일 선택] [업로드된 파일명.pdf]         │
+│ 사유:        [텍스트 입력 필드 (최대 1000자)]          │
+│             [전산요청서 업로드 사유를 입력하세요]        │
+│                                                         │
+│ [취소] [저장]                                          │
+└─────────────────────────────────────────────────────────┘
+```
+
+**주의사항:**
+- 전산요청서 파일과 사유는 필수 입력
+- 업로드된 전산요청서는 변경/삭제 불가 (이력 관리)
+- 잘못 업로드한 경우 새로운 전산요청서를 추가로 업로드해야 함
+
+## 9.3 전산요청서 업로드 UI
+- 드래그 앤 드롭 지원
+- 파일 선택 버튼
+- 업로드 진행률 표시
+- 파일 미리보기 (선택)
+- 사유 입력 필드 (필수, 최대 1000자)
+- 업로드 후 변경 불가 안내 메시지
+
+## 9.4 전산요청서 이력 조회 UI
+```
+┌─────────────────────────────────────────────────────────┐
+│ 사용자: 12345678 (홍길동) - 전산요청서 이력            │
+├─────────────────────────────────────────────────────────┤
+│ 유형      파일명              사유          업로드일시 │
+│ CREATE    요청서_001.pdf     신규 사용자... 2026-02-03 │
+│ UPDATE    요청서_002.pdf     부서 변경...   2026-02-05 │
+│                                                         │
+│ [다운로드] 버튼 (각 행별)                               │
+└─────────────────────────────────────────────────────────┘
+```
+- 전산요청서 목록은 시간순으로 표시 (최신순)
+- 각 전산요청서는 다운로드만 가능 (변경/삭제 불가)
+
+## 10.4 인사배치 동기화 UI
+```
+┌─────────────────────────────────────────────────────────┐
+│ 인사배치 동기화                                          │
+├─────────────────────────────────────────────────────────┤
+│ [수동 동기화 실행] [전체 동기화] [증분 동기화]          │
+│                                                         │
+│ 최근 동기화: 2026-02-09 02:00:00 (성공)                │
+│ 상태: [실행 중] / [대기 중]                            │
+├─────────────────────────────────────────────────────────┤
+│ 동기화 이력                                              │
+│ 실행일시      타입      상태      생성  업데이트  비활성화│
+│ 2026-02-09   FULL     성공      5     12     2    │
+│ 2026-02-08   FULL     성공      3     8      1    │
+│                                                         │
+│ [상세 보기] 버튼 (각 행별)                             │
+└─────────────────────────────────────────────────────────┘
+```
+
+## 10.5 동기화 상세 이력 UI
+```
+┌─────────────────────────────────────────────────────────┐
+│ 동기화 상세 이력 - 2026-02-09 02:00:00                 │
+├─────────────────────────────────────────────────────────┤
+│ 타입: 전체 동기화 | 상태: 성공                          │
+│ 생성: 5건 | 업데이트: 12건 | 비활성화: 2건 | 오류: 0건 │
+├─────────────────────────────────────────────────────────┤
+│ 사번      이름      작업      부서      결과            │
+│ 12345678  홍길동   생성      개발팀    성공            │
+│ 87654321  김철수   업데이트  운영팀    성공            │
+│ 11111111  이영희   비활성화  마케팅팀  성공            │
+└─────────────────────────────────────────────────────────┘
+```
+
+---
+# 11. 구현 계획
+
+## 10.1 MVP (1차 릴리즈)
+
+### 백엔드
+- [ ] 데이터베이스 스키마 생성 (users, user_request_documents, hr_sync_history, hr_sync_details)
+- [ ] UserModel 구현
+- [ ] UserRequestDocumentModel 구현 (이력 관리, 변경 불가)
+- [ ] HrSyncHistoryModel 구현
+- [ ] HrSyncDetailsModel 구현
+- [ ] 사용자 CRUD API 구현
+- [ ] 전산요청서 업로드/다운로드 API 구현
+- [ ] 전산요청서 이력 조회 API 구현
+- [ ] 인사배치 연동 서비스 구현
+  - [ ] 오라클 DB 연결 모듈
+  - [ ] View 테이블 조회 로직
+  - [ ] 전체 동기화 로직
+  - [ ] 증분 동기화 로직
+  - [ ] 사용자 자동 생성/업데이트/비활성화 로직
+- [ ] 인사배치 동기화 API 구현
+- [ ] 배치 스케줄링 설정 (node-cron)
+- [ ] 사유(reason) 필드 검증 로직
+- [ ] 권한 체크 미들웨어 구현
+- [ ] 파일 업로드 처리 (multer 또는 express-fileupload)
+- [ ] 입력 검증 로직 구현
+- [ ] BCrypt 패스워드 해싱
+- [ ] 초기 관리자 계정 생성 스크립트
+- [ ] 전산요청서 변경/삭제 방지 로직 (API에서 제공하지 않음)
+
+### 프론트엔드
+- [ ] 사용자 관리 페이지 컴포넌트
+- [ ] 사용자 목록 테이블 컴포넌트
+- [ ] 사용자 추가/수정 폼 컴포넌트
+- [ ] 전산요청서 업로드 컴포넌트
+- [ ] 사유 입력 필드 컴포넌트
+- [ ] 전산요청서 이력 조회 컴포넌트
+- [ ] 인사배치 동기화 페이지 컴포넌트
+- [ ] 동기화 이력 조회 컴포넌트
+- [ ] 동기화 상세 이력 컴포넌트
+- [ ] 사용자 API 연동
+- [ ] 인사배치 동기화 API 연동
+- [ ] 권한 체크 (관리자만 접근 가능)
+- [ ] 전산요청서 변경 불가 안내 UI
+
+### 기능 범위
+- 사용자 추가/조회/수정/삭제
+- 전산요청서 PDF 업로드 (필수, 이력 관리)
+- 사유 입력 (필수, 최대 1000자)
+- 전산요청서 이력 조회 및 다운로드
+- 전산요청서 변경/삭제 방지 (Immutable)
+- 인사배치 연동 (오라클 DB View 테이블 연동)
+- 사용자 자동 추가/업데이트/비활성화
+- 배치 스케줄링 (자동 동기화)
+- 동기화 이력 관리 및 조회
+- 관리자 권한 체크
+- 8자리 숫자 사번 검증
+- 패스워드 등록 및 해싱
+
+## 11.2 2차 릴리즈
+- [ ] 로그인 API 구현
+- [ ] JWT 토큰 기반 인증
+- [ ] 세션 관리
+- [ ] 패스워드 변경 기능
+- [ ] 사용자 비활성화 기능
+- [ ] 인사배치 연동 고도화
+  - [ ] 증분 동기화 최적화
+  - [ ] 동기화 성능 개선
+  - [ ] 오류 복구 메커니즘 강화
+
+## 11.3 3차 릴리즈
+- [ ] AD 연동 준비 (인터페이스 설계)
+- [ ] AD 연동 구현
+- [ ] 패스워드 복구 기능
+- [ ] 사용자 활동 로그 연동
+- [ ] 인사배치 연동 실시간 모니터링
+
+---
+# 12. 비기능 요구사항
+
+## 12.1 성능
+- 사용자 목록 조회: 1초 이내 (페이지네이션)
+- 파일 업로드: 10MB 기준 5초 이내
+- 파일 다운로드: 즉시 응답
+- 인사배치 동기화: 
+  - 전체 동기화: 1000명 기준 5분 이내
+  - 증분 동기화: 변경된 사용자만 처리, 1분 이내
+  - 오라클 DB 조회: 타임아웃 30초
+
+## 12.2 보안
+- 패스워드 해싱: BCrypt (salt rounds: 10)
+- 파일 업로드: MIME 타입 검증
+- 권한 체크: 모든 관리자 기능에 적용
+- SQL Injection 방지: PreparedStatement 사용
+- 오라클 DB 연결: 
+  - 연결 정보는 환경변수로 관리
+  - 연결 풀 사용 (최대 연결 수 제한)
+  - 읽기 전용 계정 사용 권장
+
+## 12.3 사용성
+- 파일 업로드 진행률 표시
+- 입력 검증 실시간 피드백
+- 오류 메시지 명확성
+- 동기화 진행 상황 실시간 표시
+- 동기화 이력 상세 정보 제공
+
+---
+# 13. 테스트 계획
+
+## 13.1 단위 테스트
+- 사용자 ID 검증 로직
+- 패스워드 해싱/검증
+- 파일 업로드 검증
+- 권한 체크 로직
+- 오라클 DB 연결 모듈
+- 데이터 매핑 로직
+- 동기화 프로세스 로직
+
+## 13.2 통합 테스트
+- 사용자 CRUD API 테스트
+- 전산요청서 업로드/다운로드 테스트
+- 전산요청서 이력 조회 테스트
+- 사유 필드 검증 테스트
+- 전산요청서 변경/삭제 방지 테스트
+- 권한 체크 미들웨어 테스트
+- 인사배치 동기화 API 테스트
+- 오라클 DB 연동 테스트 (테스트 DB 사용)
+- 전체 동기화 프로세스 테스트
+- 증분 동기화 프로세스 테스트
+- 배치 스케줄링 테스트
+
+## 13.3 E2E 테스트
+- 사용자 추가 플로우 (전산요청서 + 사유 포함)
+- 사용자 수정 플로우 (전산요청서 + 사유 포함)
+- 사용자 삭제 플로우 (전산요청서 + 사유 포함)
+- 전산요청서 이력 조회 플로우
+- 전산요청서 변경/삭제 시도 테스트 (실패 확인)
+- 권한 위반 시도 테스트
+- 인사배치 수동 동기화 실행 플로우
+- 동기화 이력 조회 플로우
+- 동기화 상세 이력 조회 플로우
+- 자동 배치 동기화 실행 확인
+
+---
+# 14. 마이그레이션 계획
+
+## 13.1 기존 사용자 데이터
+- TODO: 기존 ActivityLog의 userId를 기반으로 사용자 목록 생성 여부 결정
+- 옵션 1: 기존 userId를 기반으로 사용자 생성 (패스워드 임시 생성)
+- 옵션 2: 기존 데이터는 유지하고 새 사용자만 관리
+
+## 13.2 초기 관리자 계정
+- 환경변수 또는 설정 파일로 초기 관리자 정보 설정
+- 첫 실행 시 자동 생성 또는 마이그레이션 스크립트 실행
+
+---
+# 15. 참고사항
+
+## 15.1 기술 스택
+- 백엔드: Node.js, Express
+- 데이터베이스: PostgreSQL (시스템 DB), Oracle Database (인사배치 DB)
+- 오라클 DB 연동: node-oracledb 또는 oracledb
+- 배치 스케줄링: node-cron
+- 파일 업로드: multer 또는 express-fileupload
+- 패스워드 해싱: bcrypt
+- TODO: 인증 라이브러리 결정 (jsonwebtoken 등)
+
+## 15.2 의존성
+- bcrypt: 패스워드 해싱
+- multer 또는 express-fileupload: 파일 업로드
+- pg: PostgreSQL 클라이언트
+- oracledb 또는 node-oracledb: Oracle Database 클라이언트
+- node-cron: 배치 스케줄링
+- uuid: 전산요청서 ID 생성
+
+## 15.3 제약사항
+- 파일 저장: 로컬 파일 시스템 (향후 객체 스토리지로 확장 가능)
+- 브라우저 호환성: Chrome, Firefox, Safari 최신 2버전
+- 최대 파일 크기: 10MB
+- 오라클 DB 연결: 네트워크 지연 고려 필요
+- 동기화 실행: 동시 실행 불가 (중복 실행 방지)
+
+---
+# 16. TODO 및 미결정 사항
+
+## 16.1 미결정 사항
+- [ ] 초기 관리자 계정 생성 방법
+- [ ] 패스워드 복잡도 정책 (대문자/소문자/숫자/특수문자 조합 필수 여부)
+- [ ] 기존 ActivityLog의 userId 기반 사용자 생성 여부
+- [ ] 인증 라이브러리 선택 (jsonwebtoken 등)
+- [ ] 파일 저장 위치 및 백업 정책
+- [ ] 전산요청서 보관 기간
+- [ ] 사유 필드 최대 길이 (현재: 1000자, 조정 가능)
+- [ ] 오라클 DB View 테이블명 및 실제 스키마 구조 확인
+- [ ] 오라클 DB 연결 정보 (호스트, 포트, 서비스명, 계정 정보)
+- [ ] 배치 동기화 실행 주기 (매일/매시간 등)
+- [ ] 동기화 이력 보관 기간
+- [ ] 신규 사용자 자동 생성 시 임시 패스워드 정책
+- [ ] 관리자 계정 자동 동기화 제외 여부 확인
+
+## 16.2 향후 작업
+- [ ] AD 연동 인터페이스 설계
+- [ ] 로그인 API 구현
+- [ ] JWT 토큰 기반 인증 구현
+- [ ] 패스워드 복구 기능
+- [ ] 사용자 활동 로그 연동
+- [ ] 인사배치 연동 실시간 모니터링 대시보드
+- [ ] 동기화 실패 시 알림 기능 (이메일/슬랙 등)
+

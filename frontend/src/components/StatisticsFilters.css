@@ -1,0 +1,42 @@
+.statistics-filters {
+  margin-bottom: 20px;
+  padding: 15px;
+  background-color: #f9f9f9;
+  border-radius: 8px;
+}
+
+.statistics-filters h3 {
+  margin-bottom: 15px;
+  font-size: 16px;
+  color: #333;
+}
+
+.filter-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 15px;
+}
+
+.filter-row label {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  font-size: 14px;
+}
+
+.filter-row select,
+.filter-row input {
+  padding: 6px 10px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 14px;
+}
+
+.filter-row input[type="text"] {
+  width: 100%;
+}
+
+
+
+
+

@@ -1,0 +1,703 @@
+import React, { useState } from 'react';
+import { format } from 'date-fns';
+import './LogTable.css';
+import './ImageLogTable.css';
+import logger from '../utils/logger';
+import { getUserFriendlyErrorMessage } from '../utils/security';
+
+const ImageLogTable = ({ 
+  logs, 
+  loading, 
+  sortField, 
+  sortDirection, 
+  onSort, 
+  currentPage, 
+  totalPages, 
+  onPageChange,
+  keywords = [],
+  searchParams = {} // 검색 파라미터 추가
+}) => {
+  // 정렬 아이콘 렌더링
+  const renderSortIcon = (field) => {
+    if (sortField !== field) {
+      return <span className="sort-icon">↕</span>;
+    }
+    return sortDirection === 'asc' ? 
+      <span className="sort-icon">↑</span> : 
+      <span className="sort-icon">↓</span>;
+  };
+
+  // 시간 포맷팅
+  const formatTime = (timeString) => {
+    if (!timeString) return '';
+    
+    // datetime-local 형식 처리 (YYYY-MM-DDTHH:mm:ss)
+    if (typeof timeString === 'string' && timeString.includes('T')) {
+      try {
+        const date = new Date(timeString);
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const day = String(date.getDate()).padStart(2, '0');
+        const hours = String(date.getHours()).padStart(2, '0');
+        const minutes = String(date.getMinutes()).padStart(2, '0');
+        const seconds = String(date.getSeconds()).padStart(2, '0');
+        return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
+      } catch (error) {
+        return timeString;
+      }
+    }
+    
+    // yyyy-MM-dd HH:mm:ss 형식
+    if (typeof timeString === 'string' && timeString.match(/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/)) {
+      return timeString;
+    }
+    
+    return timeString;
+  };
+
+  // JSON 문자열을 pretty print로 변환
+  const formatJsonString = (text, pretty = false) => {
+    if (!text) return '';
+    
+    try {
+      const parsed = JSON.parse(text);
+      return pretty ? JSON.stringify(parsed, null, 2) : JSON.stringify(parsed);
+    } catch (e) {
+      return text; // JSON이 아니면 원본 반환
+    }
+  };
+  
+  // 키워드 하이라이트 (암호화된 값 전체 하이라이트 포함)
+  const highlightKeywords = (text, keywords, originalText = null, hasEncryptedMatch = false, fieldKeyword = null) => {
+    // 디버깅 로그 (주석 처리 - 너무 많은 로그 방지)
+    // console.log('🔍 highlightKeywords 호출:', {
+    //   text: text?.substring(0, 50),
+    //   keywords,
+    //   originalText: originalText?.substring(0, 50),
+    //   hasEncryptedMatch
+    // });
+    
+    if (!text && !originalText) {
+      return text || '';
+    }
+    
+    // 키워드 배열 구성 (keywords + fieldKeyword)
+    const allKeywords = [];
+    if (keywords && Array.isArray(keywords) && keywords.length > 0) {
+      allKeywords.push(...keywords);
+    }
+    if (fieldKeyword && typeof fieldKeyword === 'string' && fieldKeyword.trim() !== '') {
+      allKeywords.push(fieldKeyword.trim());
+    }
+    
+    if (allKeywords.length === 0) {
+      return text || originalText || '';
+    }
+    
+    // 하이라이트는 항상 원본 텍스트에서 수행 (암호화된 값 패턴을 찾기 위해)
+    const sourceText = originalText || text;
+    if (!sourceText) {
+      return text || '';
+    }
+    
+    let highlightedText = String(sourceText); // 원본 텍스트로 시작
+    
+    // 암호화된 값 패턴: [암호화된문자열]
+    const encryptedPattern = /\[([^\]]+)\]/g;
+    const encryptedMatches = [];
+    
+    // 원본 텍스트에서 모든 암호화된 값 찾기
+    const tempSource = String(sourceText);
+    let match;
+    encryptedPattern.lastIndex = 0; // 정규식 인덱스 리셋
+    while ((match = encryptedPattern.exec(tempSource)) !== null) {
+      encryptedMatches.push({
+        fullMatch: match[0], // 전체 [암호화된문자열]
+        encryptedContent: match[1], // 암호화된 내용만
+        index: match.index,
+        length: match[0].length
+      });
+    }
+    
+    // console.log('🔍 암호화된 값 찾기:', encryptedMatches.length, '개', encryptedMatches);
+    // console.log('🔍 전체 키워드:', allKeywords);
+    
+    // 각 키워드에 대해 처리
+    allKeywords.forEach(keyword => {
+      if (!keyword || typeof keyword !== 'string' || keyword.trim() === '') return;
+      const trimmedKeyword = keyword.trim();
+      const escapedKeyword = trimmedKeyword.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      
+      // console.log('🔍 키워드 처리:', trimmedKeyword);
+      
+      // 1. 암호화된 값 전체 하이라이트
+      // 백엔드에서 메타데이터로 암호화된 값에서 매칭되었는지 알려주거나,
+      // 검색 결과에 포함된 로우라면 암호화된 값에서 매칭되었을 가능성이 높으므로 하이라이트
+      // 키워드가 있고 암호화된 값이 있으면 하이라이트 (hasEncryptedMatch가 false여도)
+      if (encryptedMatches.length > 0 && (hasEncryptedMatch || fieldKeyword)) {
+        // console.log('🔍 암호화된 값 하이라이트 시작', { hasEncryptedMatch, fieldKeyword, encryptedMatchesCount: encryptedMatches.length });
+        encryptedMatches.forEach(encryptedMatch => {
+          const encryptedValue = encryptedMatch.fullMatch;
+          // 이미 하이라이트되지 않은 경우에만 처리
+          if (!highlightedText.includes(`<mark class="encrypted-highlight">${encryptedValue}</mark>`)) {
+            const escapedEncrypted = encryptedValue.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+            const regex = new RegExp(escapedEncrypted, 'g');
+            highlightedText = highlightedText.replace(regex, (match) => {
+              // 이미 하이라이트된 부분인지 확인
+              if (match.includes('<mark')) {
+                return match;
+              }
+              return `<mark class="encrypted-highlight">${match}</mark>`;
+            });
+            // console.log('🔍 암호화된 값 하이라이트 완료:', encryptedValue.substring(0, 30));
+          }
+        });
+      }
+      
+      // 2. 일반 텍스트에서 키워드 하이라이트 (암호화된 값이 아닌 부분)
+      // 먼저 암호화된 값 부분을 임시로 마스킹
+      const placeholders = [];
+      let placeholderIndex = 0;
+      let maskedText = highlightedText;
+      
+      encryptedMatches.forEach((encryptedMatch, idx) => {
+        const placeholder = `__ENCRYPTED_${idx}__`;
+        placeholders.push({
+          placeholder,
+          value: encryptedMatch.fullMatch
+        });
+        maskedText = maskedText.replace(encryptedMatch.fullMatch, placeholder);
+      });
+      
+      // 마스킹된 텍스트에서 키워드 하이라이트
+      const keywordRegex = new RegExp(`(${escapedKeyword})`, 'gi');
+      maskedText = maskedText.replace(keywordRegex, (match, p1) => {
+        return `<mark>${p1}</mark>`;
+      });
+      
+      // 플레이스홀더를 원래 암호화된 값으로 복원
+      placeholders.forEach(({ placeholder, value }) => {
+        maskedText = maskedText.replace(placeholder, value);
+      });
+      
+      highlightedText = maskedText;
+      // console.log('🔍 일반 키워드 하이라이트 완료');
+    });
+    
+    // console.log('🔍 최종 하이라이트 결과:', highlightedText.substring(0, 150));
+    
+    return <span dangerouslySetInnerHTML={{ __html: highlightedText }} />;
+  };
+  
+  // 상세 보기 상태
+  const [selectedLog, setSelectedLog] = useState(null);
+  const [prettyPrint, setPrettyPrint] = useState(true);
+  
+  // Pretty 출력 상태 (각 로그별로 관리)
+  const [prettyLogs, setPrettyLogs] = useState(new Set());
+  
+  // 복호화 상태 (각 로그별로 관리)
+  const [decryptedLogs, setDecryptedLogs] = useState(new Map());
+  const [decryptingLogs, setDecryptingLogs] = useState(new Set());
+  
+  // 상세 보기 열기
+  const handleViewDetail = (log) => {
+    setSelectedLog(log);
+  };
+  
+  // 상세 보기 닫기
+  const handleCloseDetail = () => {
+    setSelectedLog(null);
+  };
+  
+  // Pretty 출력 토글
+  const togglePretty = (guid) => {
+    setPrettyLogs(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(guid)) {
+        newSet.delete(guid);
+      } else {
+        newSet.add(guid);
+      }
+      return newSet;
+    });
+  };
+  
+  // Pretty 출력 여부 확인
+  const isPretty = (guid) => {
+    return prettyLogs.has(guid);
+  };
+  
+  // 복호화 처리
+  const handleDecrypt = async (guid, e) => {
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+    
+    logger.debug('🔓 handleDecrypt 호출:', { guid });
+    
+    if (decryptingLogs.has(guid)) {
+      logger.debug('🔓 이미 복호화 중:', { guid });
+      return; // 이미 복호화 중이면 무시
+    }
+    
+    logger.debug('🔓 복호화 시작:', { guid });
+    setDecryptingLogs(prev => {
+      const newSet = new Set(prev);
+      newSet.add(guid);
+      logger.debug('🔓 decryptingLogs 업데이트:', { guid, newSetSize: newSet.size });
+      return newSet;
+    });
+    
+    try {
+      const apiBaseUrl = process.env.REACT_APP_API_BASE_URL || 'http://localhost:9200/api';
+      logger.debug('🔓 복호화 API 호출:', { apiUrl: `${apiBaseUrl}/logs/decrypt/java_fw_imglog`, guid });
+      const response = await fetch(`${apiBaseUrl}/logs/decrypt/java_fw_imglog`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ guid })
+      });
+      
+      logger.debug('🔓 복호화 API 응답 상태:', { status: response.status });
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        logger.error('🔓 복호화 API 오류:', { status: response.status, error: errorText });
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      
+      const result = await response.json();
+      logger.debug('🔓 복호화 API 결과:', { 
+        success: result.success,
+        hasData: !!result.data,
+        hasDecryptedDatastring: !!result.data?.decrypted_datastring,
+        hasDecryptedHeaderstring: !!result.data?.decrypted_headerstring
+      });
+      
+      if (result.success) {
+        logger.debug('🔓 복호화 성공:', { 
+          guid,
+          hasDecryptedDatastring: !!result.data.decrypted_datastring,
+          hasDecryptedHeaderstring: !!result.data.decrypted_headerstring
+        });
+        setDecryptedLogs(prev => {
+          const newMap = new Map(prev);
+          newMap.set(guid, result.data);
+          logger.debug('🔓 decryptedLogs 업데이트:', { 
+            guid, 
+            newMapSize: newMap.size, 
+            hasData: newMap.has(guid),
+            hasDecryptedDatastring: !!newMap.get(guid)?.decrypted_datastring,
+            hasDecryptedHeaderstring: !!newMap.get(guid)?.decrypted_headerstring
+          });
+          return newMap;
+        });
+      } else {
+        logger.error('🔓 복호화 실패:', { error: result.error });
+        alert(getUserFriendlyErrorMessage('복호화', result.error || result.message));
+      }
+    } catch (error) {
+      logger.error('🔓 복호화 중 오류 발생:', { error: error.message });
+      alert(getUserFriendlyErrorMessage('복호화', error));
+    } finally {
+      setDecryptingLogs(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(guid);
+        return newSet;
+      });
+    }
+  };
+  
+  // 복호화 해제 처리
+  const handleDecryptCancel = (guid) => {
+    setDecryptedLogs(prev => {
+      const newMap = new Map(prev);
+      newMap.delete(guid);
+      return newMap;
+    });
+  };
+  
+  // 복호화된 데이터 가져오기
+  const getDecryptedData = (guid) => {
+    const data = decryptedLogs.get(guid);
+    if (data) {
+      logger.debug('🔓 getDecryptedData 호출:', { guid, hasData: !!data, keys: Object.keys(data) });
+    }
+    return data;
+  };
+  
+  // 복호화 여부 확인
+  const isDecrypted = (guid) => {
+    const result = decryptedLogs.has(guid);
+    if (result) {
+      logger.debug('🔓 isDecrypted 호출:', { guid, result, decryptedLogsSize: decryptedLogs.size });
+    }
+    return result;
+  };
+  
+  // 복호화 중 여부 확인
+  const isDecrypting = (guid) => {
+    return decryptingLogs.has(guid);
+  };
+
+  // 페이지 번호 생성
+  const getPageNumbers = () => {
+    const pages = [];
+    const maxPages = 10;
+    let startPage = Math.max(1, currentPage - Math.floor(maxPages / 2));
+    let endPage = Math.min(totalPages, startPage + maxPages - 1);
+    
+    if (endPage - startPage < maxPages - 1) {
+      startPage = Math.max(1, endPage - maxPages + 1);
+    }
+    
+    for (let i = startPage; i <= endPage; i++) {
+      pages.push(i);
+    }
+    
+    return pages;
+  };
+
+  if (loading) {
+    return (
+      <div className="log-table-container">
+        <div className="loading-container">
+          <div className="loading-spinner"></div>
+          <p>데이터를 불러오는 중...</p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="log-table-container">
+      <div className="table-wrapper">
+        <table className="log-table">
+          <thead>
+            <tr>
+              <th 
+                onClick={() => onSort('insert_time')}
+                className="sortable-header"
+              >
+                insert_time {renderSortIcon('insert_time')}
+              </th>
+              <th 
+                onClick={() => onSort('application')}
+                className="sortable-header"
+              >
+                application {renderSortIcon('application')}
+              </th>
+              <th 
+                onClick={() => onSort('servicegroup')}
+                className="sortable-header"
+              >
+                servicegroup {renderSortIcon('servicegroup')}
+              </th>
+              <th 
+                onClick={() => onSort('service')}
+                className="sortable-header"
+              >
+                service {renderSortIcon('service')}
+              </th>
+              <th 
+                onClick={() => onSort('status')}
+                className="sortable-header"
+              >
+                status {renderSortIcon('status')}
+              </th>
+              <th>guid</th>
+              <th>datastring</th>
+              <th>headerstring</th>
+              <th>Pretty</th>
+              <th>복호화</th>
+            </tr>
+          </thead>
+          <tbody>
+            {logs.length === 0 ? (
+              <tr>
+                <td colSpan="10" className="no-data">
+                  검색 결과가 없습니다.
+                </td>
+              </tr>
+            ) : (
+              logs.map((log, index) => {
+                const logGuid = log.guid || `log-${index}`;
+                const isPrettyMode = isPretty(logGuid);
+                const decryptedData = getDecryptedData(logGuid);
+                const isDecryptedRow = isDecrypted(logGuid);
+                const isDecryptingRow = isDecrypting(logGuid);
+                
+                // 디버깅 로그
+                if (isDecryptedRow || decryptedData) {
+                  logger.debug('🔓 복호화 상태 확인:', {
+                    logGuid,
+                    isDecryptedRow,
+                    hasDecryptedData: !!decryptedData,
+                    decryptedDataKeys: decryptedData ? Object.keys(decryptedData) : []
+                  });
+                }
+                
+                // 원본 데이터 사용 (암호화된 값은 [...] 형태로 표시)
+                // 복호화 버튼을 클릭한 경우에만 복호화된 값 표시
+                let datastringValue = log.datastring || '';
+                let headerstringValue = log.headerstring || '';
+                let originalDatastring = log.datastring || '';
+                let originalHeaderstring = log.headerstring || '';
+                
+                // 복호화된 데이터가 있으면 복호화된 값 사용
+                if (isDecryptedRow && decryptedData) {
+                  logger.debug('🔓 복호화된 데이터 적용:', {
+                    logGuid,
+                    hasOriginalDatastring: !!log.datastring,
+                    hasDecryptedDatastring: !!decryptedData.decrypted_datastring
+                  });
+                  if (decryptedData.decrypted_datastring) {
+                    datastringValue = decryptedData.decrypted_datastring;
+                    // 복호화된 값을 원본으로 사용 (하이라이트를 위해)
+                    originalDatastring = decryptedData.decrypted_datastring;
+                  }
+                  if (decryptedData.decrypted_headerstring) {
+                    headerstringValue = decryptedData.decrypted_headerstring;
+                    // 복호화된 값을 원본으로 사용 (하이라이트를 위해)
+                    originalHeaderstring = decryptedData.decrypted_headerstring;
+                  }
+                }
+                
+                return (
+                  <tr key={`imagelog-${index}-${logGuid}`}>
+                    <td>{formatTime(log.insert_time || log.timestamp)}</td>
+                    <td>{log.application || ''}</td>
+                    <td>{log.servicegroup || ''}</td>
+                    <td>{log.service || ''}</td>
+                    <td>{log.status || ''}</td>
+                    <td>{logGuid}</td>
+                    <td className={`tr-data-cell ${isPrettyMode ? 'pretty-mode' : ''}`}>
+                      {isPrettyMode ? (
+                        <pre className="json-pretty-text">
+                          {formatJsonString(datastringValue, true)}
+                        </pre>
+                      ) : (
+                        <span className="tr-data-text">
+                          {highlightKeywords(
+                            datastringValue, 
+                            keywords, 
+                            originalDatastring,
+                            log._datastring_has_encrypted_match === true,
+                            searchParams?.datastring // datastring 필드 검색 키워드 추가
+                          )}
+                        </span>
+                      )}
+                    </td>
+                    <td className={`tr-data-cell ${isPrettyMode ? 'pretty-mode' : ''}`}>
+                      {isPrettyMode ? (
+                        <pre className="json-pretty-text">
+                          {formatJsonString(headerstringValue, true)}
+                        </pre>
+                      ) : (
+                        <span className="tr-data-text">
+                          {highlightKeywords(
+                            headerstringValue, 
+                            keywords, 
+                            originalHeaderstring,
+                            log._headerstring_has_encrypted_match === true,
+                            searchParams?.headerstring // headerstring 필드 검색 키워드 추가
+                          )}
+                        </span>
+                      )}
+                    </td>
+                    <td className="pretty-action-cell">
+                      <button
+                        className={`pretty-btn ${isPrettyMode ? 'active' : ''}`}
+                        onClick={() => togglePretty(logGuid)}
+                        title={isPrettyMode ? 'Pretty 출력 끄기' : 'Pretty 출력 켜기'}
+                      >
+                        {isPrettyMode ? 'Pretty OFF' : 'Pretty'}
+                      </button>
+                    </td>
+                    <td className="decrypt-action-cell">
+                      {(() => {
+                        // 암호화된 값이 있는지 확인 (datastring, headerstring에 [...] 형태가 있거나, data, header 필드가 있는 경우)
+                        const hasEncryptedData = 
+                          (log.datastring && log.datastring.includes('[') && log.datastring.includes(']')) ||
+                          (log.headerstring && log.headerstring.includes('[') && log.headerstring.includes(']')) ||
+                          (log.data && typeof log.data === 'string' && log.data.length > 0) ||
+                          (log.header && typeof log.header === 'string' && log.header.length > 0);
+                        
+                        if (!hasEncryptedData) {
+                          return <span className="no-encrypted-data">-</span>;
+                        }
+                        
+                        // 복호화 상태에 따라 버튼 텍스트와 동작 변경
+                        if (isDecryptedRow) {
+                          return (
+                            <button
+                              className="decrypt-btn decrypt-cancel-btn"
+                              onClick={(e) => {
+                                logger.debug('🔓 복호화 해제 버튼 클릭:', { logGuid });
+                                e.preventDefault();
+                                e.stopPropagation();
+                                handleDecryptCancel(logGuid);
+                              }}
+                              title="복호화 해제"
+                            >
+                              복호화 해제
+                            </button>
+                          );
+                        }
+                        
+                        return (
+                          <button
+                            className={`decrypt-btn ${isDecryptingRow ? 'decrypting' : ''}`}
+                            onClick={(e) => {
+                              logger.debug('🔓 복호화 버튼 클릭:', { logGuid });
+                              e.preventDefault();
+                              e.stopPropagation();
+                              handleDecrypt(logGuid, e);
+                            }}
+                            disabled={isDecryptingRow}
+                            title="복호화"
+                          >
+                            {isDecryptingRow ? '복호화 중...' : '복호화'}
+                          </button>
+                        );
+                      })()}
+                    </td>
+                  </tr>
+                );
+              })
+            )}
+          </tbody>
+        </table>
+      </div>
+      
+      {totalPages > 1 && (
+        <div className="pagination">
+          <button 
+            onClick={() => onPageChange(1)}
+            disabled={currentPage === 1}
+            className="page-button"
+          >
+            처음
+          </button>
+          <button 
+            onClick={() => onPageChange(currentPage - 1)}
+            disabled={currentPage === 1}
+            className="page-button"
+          >
+            이전
+          </button>
+          
+          {getPageNumbers().map(page => (
+            <button
+              key={page}
+              onClick={() => onPageChange(page)}
+              className={`page-button ${currentPage === page ? 'active' : ''}`}
+            >
+              {page}
+            </button>
+          ))}
+          
+          <button 
+            onClick={() => onPageChange(currentPage + 1)}
+            disabled={currentPage === totalPages}
+            className="page-button"
+          >
+            다음
+          </button>
+          <button 
+            onClick={() => onPageChange(totalPages)}
+            disabled={currentPage === totalPages}
+            className="page-button"
+          >
+            마지막
+          </button>
+        </div>
+      )}
+      
+      {/* 상세 보기 모달 */}
+      {selectedLog && (
+        <div className="detail-modal-overlay" onClick={handleCloseDetail}>
+          <div className="detail-modal-content" onClick={(e) => e.stopPropagation()}>
+            <div className="detail-modal-header">
+              <h2>로그 상세 정보</h2>
+              <button className="close-btn" onClick={handleCloseDetail}>×</button>
+            </div>
+            <div className="detail-modal-body">
+              <div className="detail-section">
+                <h3>기본 정보</h3>
+                <table className="detail-table">
+                  <tbody>
+                    <tr><td>GUID</td><td>{selectedLog.guid || ''}</td></tr>
+                    <tr><td>Application</td><td>{selectedLog.application || ''}</td></tr>
+                    <tr><td>Service Group</td><td>{selectedLog.servicegroup || ''}</td></tr>
+                    <tr><td>Service</td><td>{selectedLog.service || ''}</td></tr>
+                    <tr><td>Status</td><td>{selectedLog.status || ''}</td></tr>
+                    <tr><td>Insert Time</td><td>{formatTime(selectedLog.insert_time || selectedLog.timestamp)}</td></tr>
+                  </tbody>
+                </table>
+              </div>
+              
+              <div className="detail-section">
+                <div className="detail-section-header">
+                  <h3>Data String</h3>
+                  <label className="pretty-print-toggle">
+                    <input 
+                      type="checkbox" 
+                      checked={prettyPrint}
+                      onChange={(e) => setPrettyPrint(e.target.checked)}
+                    />
+                    Pretty Print
+                  </label>
+                </div>
+                <pre className="json-content">
+                  {(() => {
+                    const selectedLogGuid = selectedLog.guid || '';
+                    const decryptedDataForSelected = getDecryptedData(selectedLogGuid);
+                    const datastringToShow = decryptedDataForSelected?.decrypted_datastring 
+                      || selectedLog.datastring 
+                      || selectedLog.decrypted_data 
+                      || selectedLog.data 
+                      || '';
+                    return formatJsonString(datastringToShow, prettyPrint);
+                  })()}
+                </pre>
+              </div>
+              
+              <div className="detail-section">
+                <div className="detail-section-header">
+                  <h3>Header String</h3>
+                  <label className="pretty-print-toggle">
+                    <input 
+                      type="checkbox" 
+                      checked={prettyPrint}
+                      onChange={(e) => setPrettyPrint(e.target.checked)}
+                    />
+                    Pretty Print
+                  </label>
+                </div>
+                <pre className="json-content">
+                  {(() => {
+                    const selectedLogGuid = selectedLog.guid || '';
+                    const decryptedDataForSelected = getDecryptedData(selectedLogGuid);
+                    const headerstringToShow = decryptedDataForSelected?.decrypted_headerstring 
+                      || selectedLog.headerstring 
+                      || selectedLog.decrypted_header 
+                      || selectedLog.header 
+                      || '';
+                    return formatJsonString(headerstringToShow, prettyPrint);
+                  })()}
+                </pre>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+export default ImageLogTable;
+

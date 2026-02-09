@@ -1,0 +1,350 @@
+/* ImageLogTable 전용 스타일 */
+
+/* datastring과 headerstring 필드 너비 확장 */
+.log-table th:nth-child(7), .log-table td:nth-child(7) { /* datastring */
+  min-width: 400px;
+  width: 400px;
+  max-width: 600px;
+  white-space: normal;
+  word-break: break-word;
+}
+
+.log-table th:nth-child(8), .log-table td:nth-child(8) { /* headerstring */
+  min-width: 350px;
+  width: 350px;
+  max-width: 500px;
+  white-space: normal;
+  word-break: break-word;
+}
+
+/* tr-data-cell 기본 스타일 */
+.tr-data-cell {
+  min-width: 300px;
+  max-width: 600px;
+  word-break: break-word;
+  white-space: normal;
+  vertical-align: top;
+  padding: 12px;
+}
+
+.tr-data-text {
+  display: block;
+  max-width: 100%;
+  word-break: break-word;
+  white-space: pre-wrap;
+}
+
+/* Pretty 출력 모드 */
+.tr-data-cell.pretty-mode {
+  text-align: left;
+  min-width: 400px;
+}
+
+.json-pretty-text {
+  background-color: #f8f8f8;
+  border: 1px solid #e0e0e0;
+  border-radius: 4px;
+  padding: 12px;
+  margin: 0;
+  font-family: 'Courier New', monospace;
+  font-size: 12px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  text-align: left;
+  width: 100%;
+  min-width: 350px;
+  max-width: 100%;
+  overflow-x: auto;
+  max-height: 400px;
+  overflow-y: auto;
+  display: block;
+}
+
+/* Pretty 모드 내부 하이라이팅 스타일 */
+.json-pretty-text mark {
+  background-color: #ffeb3b;
+  color: #000;
+  padding: 2px 4px;
+  border-radius: 2px;
+  font-weight: 600;
+}
+
+.json-pretty-text mark.encrypted-highlight {
+  background-color: #ff9800;
+  color: #fff;
+  padding: 2px 4px;
+  border-radius: 2px;
+  font-weight: 600;
+  border: 1px solid #f57c00;
+}
+
+/* 다른 컬럼 너비 조정 (datastring, headerstring 공간 확보) */
+.log-table th:nth-child(1), .log-table td:nth-child(1) { /* insert_time */
+  width: 10%;
+  min-width: 140px;
+}
+
+.log-table th:nth-child(2), .log-table td:nth-child(2) { /* application */
+  width: 8%;
+  min-width: 100px;
+}
+
+.log-table th:nth-child(3), .log-table td:nth-child(3) { /* servicegroup */
+  width: 8%;
+  min-width: 100px;
+}
+
+.log-table th:nth-child(4), .log-table td:nth-child(4) { /* service */
+  width: 10%;
+  min-width: 120px;
+}
+
+.log-table th:nth-child(5), .log-table td:nth-child(5) { /* status */
+  width: 6%;
+  min-width: 80px;
+}
+
+.log-table th:nth-child(6), .log-table td:nth-child(6) { /* guid */
+  width: 12%;
+  min-width: 200px;
+  word-break: break-all;
+}
+
+/* Pretty 버튼 컬럼 */
+.pretty-action-cell {
+  text-align: center;
+  vertical-align: middle;
+  width: 100px;
+  min-width: 100px;
+}
+
+.pretty-btn {
+  padding: 6px 12px;
+  font-size: 12px;
+  background-color: #28a745;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background-color 0.2s;
+}
+
+.pretty-btn:hover {
+  background-color: #218838;
+}
+
+.pretty-btn.active {
+  background-color: #dc3545;
+}
+
+.pretty-btn.active:hover {
+  background-color: #c82333;
+}
+
+
+/* 상세 보기 모달 */
+.detail-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+}
+
+.detail-modal-content {
+  background: white;
+  border-radius: 8px;
+  width: 90%;
+  max-width: 900px;
+  max-height: 90vh;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.detail-modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 20px;
+  border-bottom: 1px solid #e0e0e0;
+  background-color: #f5f5f5;
+}
+
+.detail-modal-header h2 {
+  margin: 0;
+  font-size: 20px;
+}
+
+.close-btn {
+  background: none;
+  border: none;
+  font-size: 28px;
+  cursor: pointer;
+  color: #666;
+  padding: 0;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+}
+
+.close-btn:hover {
+  background-color: #e0e0e0;
+  color: #000;
+}
+
+.detail-modal-body {
+  padding: 20px;
+  overflow-y: auto;
+  flex: 1;
+}
+
+.detail-section {
+  margin-bottom: 24px;
+}
+
+.detail-section:last-child {
+  margin-bottom: 0;
+}
+
+.detail-section h3 {
+  margin: 0 0 12px 0;
+  font-size: 16px;
+  color: #333;
+}
+
+.detail-section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.pretty-print-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.pretty-print-toggle input[type="checkbox"] {
+  cursor: pointer;
+}
+
+.detail-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 16px;
+}
+
+.detail-table td {
+  padding: 8px 12px;
+  border: 1px solid #e0e0e0;
+}
+
+.detail-table td:first-child {
+  background-color: #f5f5f5;
+  font-weight: 600;
+  width: 150px;
+}
+
+.json-content {
+  background-color: #f8f8f8;
+  border: 1px solid #e0e0e0;
+  border-radius: 4px;
+  padding: 12px;
+  margin: 0;
+  overflow-x: auto;
+  font-family: 'Courier New', monospace;
+  font-size: 13px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+/* 복호화 버튼 스타일 */
+.log-table th:nth-child(10), .log-table td:nth-child(10) { /* 복호화 버튼 */
+  width: 12%;
+  min-width: 150px;
+}
+
+.decrypt-action-cell {
+  padding: 8px;
+  text-align: center;
+  vertical-align: middle;
+  width: 100px;
+  min-width: 100px;
+}
+
+.decrypt-btn {
+  padding: 6px 12px;
+  font-size: 12px;
+  background-color: #28a745;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background-color 0.2s;
+}
+
+.decrypt-btn:hover:not(:disabled) {
+  background-color: #218838;
+}
+
+.decrypt-btn:disabled {
+  background-color: #6c757d;
+  cursor: not-allowed;
+}
+
+.decrypt-btn.decrypting {
+  background-color: #ffc107;
+  color: #000;
+}
+
+.decrypt-btn.decrypt-cancel-btn {
+  background-color: #dc3545;
+}
+
+.decrypt-btn.decrypt-cancel-btn:hover {
+  background-color: #c82333;
+}
+
+.no-encrypted-data {
+  color: #6c757d;
+  font-size: 12px;
+}
+
+/* 키워드 하이라이트 스타일 */
+mark {
+  background-color: #ffeb3b;
+  color: #000;
+  padding: 2px 4px;
+  border-radius: 2px;
+  font-weight: 600;
+}
+
+/* 암호화된 값 전체 하이라이트 스타일 */
+mark.encrypted-highlight {
+  background-color: #ff9800;
+  color: #fff;
+  padding: 2px 4px;
+  border-radius: 2px;
+  font-weight: 600;
+  border: 1px solid #f57c00;
+}
+

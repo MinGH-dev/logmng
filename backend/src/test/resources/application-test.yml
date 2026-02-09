@@ -1,0 +1,16 @@
+spring:
+  application:
+    name: logmng-backend-test
+
+server:
+  port: 0  # 랜덤 포트 사용
+
+logging:
+  level:
+    root: WARN
+    com.logmng: DEBUG
+
+
+
+
+

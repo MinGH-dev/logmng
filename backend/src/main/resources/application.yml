@@ -1,0 +1,87 @@
+spring:
+  application:
+    name: logmng-backend
+  
+  # 데이터베이스 설정
+  datasource:
+    url: jdbc:postgresql://localhost:5432/logmng
+    username: logmng
+    password: logmng123
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      maximum-pool-size: 10
+      minimum-idle: 5
+      connection-timeout: 30000
+      idle-timeout: 600000
+      max-lifetime: 1800000
+  
+  # JPA 설정 (선택사항 - 현재는 사용하지 않음)
+  # jpa:
+  #   hibernate:
+  #     ddl-auto: validate
+  #   show-sql: false
+  #   properties:
+  #     hibernate:
+  #       dialect: org.hibernate.dialect.PostgreSQLDialect
+  #       format_sql: true
+  
+  # AOP 설정
+  aop:
+    auto: true
+    proxy-target-class: true
+  
+  # Jackson 설정
+  jackson:
+    serialization:
+      write-dates-as-timestamps: false
+    time-zone: Asia/Seoul
+    date-format: yyyy-MM-dd'T'HH:mm:ss
+
+# Server 설정
+server:
+  port: 9200
+  servlet:
+    context-path: /
+    encoding:
+      charset: UTF-8
+      enabled: true
+      force: true
+
+# Logging 설정
+logging:
+  level:
+    root: INFO
+    com.logmng: DEBUG
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} - %msg%n"
+    file: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
+  file:
+    name: logs/application.log
+    max-size: 10MB
+    max-history: 30
+
+# Actuator 설정
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      show-details: when-authorized
+
+# Application 설정
+app:
+  name: Log Management System
+  version: 1.0.0
+  description: 로그 관리 시스템 백엔드 API
+  security:
+    admin-id: admin
+    admin-pw: admin123
+    encryption-key: ${ENCRYPTION_KEY:12345678901234567890123456789012}
+    authorized-ips: "127.0.0.1,localhost,0:0:0:0:0:0:0:1,::1"
+  decryption:
+    enabled: ${DECRYPTION_ENABLED:true}
+    auto-decrypt-on-keyword-search: ${AUTO_DECRYPT_ON_KEYWORD_SEARCH:true}
+    failure-handling: ${FAILURE_HANDLING:fallback} # skip, fallback, error
+

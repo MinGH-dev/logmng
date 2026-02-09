@@ -1,0 +1,568 @@
+import React, { useState, useEffect } from 'react';
+import { statisticsApi } from '../services/api';
+import { format, subDays, startOfMonth, endOfMonth } from 'date-fns';
+import './ActivityStatistics.css';
+
+const ActivityStatistics = () => {
+  const [activeTab, setActiveTab] = useState('daily'); // 'daily' | 'monthly' | 'user'
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+  const [statistics, setStatistics] = useState(null);
+  
+  // 일별 통계 상태
+  const [startDate, setStartDate] = useState(
+    format(subDays(new Date(), 7), 'yyyy-MM-dd')
+  );
+  const [endDate, setEndDate] = useState(
+    format(new Date(), 'yyyy-MM-dd')
+  );
+  
+  // 월별 통계 상태
+  const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
+  const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth() + 1);
+  
+  // 사용자별 통계 상태
+  const [userId, setUserId] = useState('');
+  const [userStartDate, setUserStartDate] = useState(
+    format(subDays(new Date(), 30), 'yyyy-MM-dd')
+  );
+  const [userEndDate, setUserEndDate] = useState(
+    format(new Date(), 'yyyy-MM-dd')
+  );
+
+  // 일별 통계 조회
+  const fetchDailyStatistics = async () => {
+    if (!startDate || !endDate) {
+      setError('시작일과 종료일을 모두 입력해주세요.');
+      return;
+    }
+
+    if (startDate > endDate) {
+      setError('시작일은 종료일보다 이전이어야 합니다.');
+      return;
+    }
+
+    setLoading(true);
+    setError(null);
+
+    try {
+      console.log('📊 일별 통계 조회 요청:', { startDate, endDate });
+      const response = await statisticsApi.getDailyStatistics(startDate, endDate);
+      
+      if (response.success) {
+        console.log('✅ 일별 통계 조회 완료:', response.data);
+        setStatistics(response.data);
+      } else {
+        setError(response.error || '일별 통계 데이터 조회에 실패했습니다.');
+      }
+    } catch (err) {
+      console.error('일별 통계 조회 중 오류:', err);
+      setError(err.response?.data?.error || err.message || '일별 통계 조회 중 오류가 발생했습니다.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // 월별 통계 조회
+  const fetchMonthlyStatistics = async () => {
+    setLoading(true);
+    setError(null);
+
+    try {
+      console.log('📊 월별 통계 조회 요청:', { year: selectedYear, month: selectedMonth });
+      const response = await statisticsApi.getMonthlyStatistics(selectedYear, selectedMonth);
+      
+      if (response.success) {
+        console.log('✅ 월별 통계 조회 완료:', response.data);
+        setStatistics(response.data);
+      } else {
+        setError(response.error || '월별 통계 데이터 조회에 실패했습니다.');
+      }
+    } catch (err) {
+      console.error('월별 통계 조회 중 오류:', err);
+      setError(err.response?.data?.error || err.message || '월별 통계 조회 중 오류가 발생했습니다.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // 사용자별 통계 조회
+  const fetchUserStatistics = async () => {
+    if (!userId || userId.trim() === '') {
+      setError('사용자 ID를 입력해주세요.');
+      return;
+    }
+
+    if (userStartDate > userEndDate) {
+      setError('시작일은 종료일보다 이전이어야 합니다.');
+      return;
+    }
+
+    setLoading(true);
+    setError(null);
+
+    try {
+      console.log('📊 사용자별 통계 조회 요청:', { userId, startDate: userStartDate, endDate: userEndDate });
+      const response = await statisticsApi.getUserStatistics(userId.trim(), userStartDate, userEndDate);
+      
+      if (response.success) {
+        console.log('✅ 사용자별 통계 조회 완료:', response.data);
+        setStatistics(response.data);
+      } else {
+        setError(response.error || '사용자별 통계 데이터 조회에 실패했습니다.');
+      }
+    } catch (err) {
+      console.error('사용자별 통계 조회 중 오류:', err);
+      setError(err.response?.data?.error || err.message || '사용자별 통계 조회 중 오류가 발생했습니다.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // 탭 변경 시 통계 조회
+  useEffect(() => {
+    if (activeTab === 'daily') {
+      fetchDailyStatistics();
+    } else if (activeTab === 'monthly') {
+      fetchMonthlyStatistics();
+    }
+    // 사용자별은 검색 버튼을 눌러야 조회
+  }, [activeTab]);
+
+  // 검색 핸들러
+  const handleSearch = (e) => {
+    e.preventDefault();
+    if (activeTab === 'daily') {
+      fetchDailyStatistics();
+    } else if (activeTab === 'monthly') {
+      fetchMonthlyStatistics();
+    } else if (activeTab === 'user') {
+      fetchUserStatistics();
+    }
+  };
+
+  // 연도 목록 생성 (최근 5년)
+  const currentYear = new Date().getFullYear();
+  const years = Array.from({ length: 5 }, (_, i) => currentYear - i);
+
+  return (
+    <div className="activity-statistics">
+      <div className="statistics-header">
+        <h2>활동로그 통계</h2>
+        <p className="statistics-description">
+          전체 사용자 대상으로 월별, 일별, 사용자별 통계를 확인할 수 있습니다.
+        </p>
+      </div>
+
+      {/* 탭 메뉴 */}
+      <div className="statistics-tabs">
+        <button
+          className={`tab-button ${activeTab === 'daily' ? 'active' : ''}`}
+          onClick={() => setActiveTab('daily')}
+        >
+          일별 통계
+        </button>
+        <button
+          className={`tab-button ${activeTab === 'monthly' ? 'active' : ''}`}
+          onClick={() => setActiveTab('monthly')}
+        >
+          월별 통계
+        </button>
+        <button
+          className={`tab-button ${activeTab === 'user' ? 'active' : ''}`}
+          onClick={() => setActiveTab('user')}
+        >
+          사용자별 통계
+        </button>
+      </div>
+
+      {/* 필터 영역 */}
+      <div className="statistics-filters">
+        {activeTab === 'daily' && (
+          <form onSubmit={handleSearch} className="filter-form">
+            <div className="date-input-group">
+              <label htmlFor="startDate">시작일</label>
+              <input
+                type="date"
+                id="startDate"
+                value={startDate}
+                onChange={(e) => setStartDate(e.target.value)}
+                max={endDate}
+              />
+            </div>
+            <div className="date-input-group">
+              <label htmlFor="endDate">종료일</label>
+              <input
+                type="date"
+                id="endDate"
+                value={endDate}
+                onChange={(e) => setEndDate(e.target.value)}
+                min={startDate}
+              />
+            </div>
+            <button type="submit" className="search-button" disabled={loading}>
+              {loading ? '조회 중...' : '조회'}
+            </button>
+          </form>
+        )}
+
+        {activeTab === 'monthly' && (
+          <form onSubmit={handleSearch} className="filter-form">
+            <div className="date-input-group">
+              <label htmlFor="year">연도</label>
+              <select
+                id="year"
+                value={selectedYear}
+                onChange={(e) => setSelectedYear(parseInt(e.target.value, 10))}
+              >
+                {years.map(year => (
+                  <option key={year} value={year}>{year}년</option>
+                ))}
+              </select>
+            </div>
+            <div className="date-input-group">
+              <label htmlFor="month">월</label>
+              <select
+                id="month"
+                value={selectedMonth}
+                onChange={(e) => setSelectedMonth(parseInt(e.target.value, 10))}
+              >
+                {Array.from({ length: 12 }, (_, i) => i + 1).map(month => (
+                  <option key={month} value={month}>{month}월</option>
+                ))}
+              </select>
+            </div>
+            <button type="submit" className="search-button" disabled={loading}>
+              {loading ? '조회 중...' : '조회'}
+            </button>
+          </form>
+        )}
+
+        {activeTab === 'user' && (
+          <form onSubmit={handleSearch} className="filter-form">
+            <div className="date-input-group">
+              <label htmlFor="userId">사용자 ID</label>
+              <input
+                type="text"
+                id="userId"
+                value={userId}
+                onChange={(e) => setUserId(e.target.value)}
+                placeholder="사용자 ID 입력"
+                required
+              />
+            </div>
+            <div className="date-input-group">
+              <label htmlFor="userStartDate">시작일</label>
+              <input
+                type="date"
+                id="userStartDate"
+                value={userStartDate}
+                onChange={(e) => setUserStartDate(e.target.value)}
+                max={userEndDate}
+              />
+            </div>
+            <div className="date-input-group">
+              <label htmlFor="userEndDate">종료일</label>
+              <input
+                type="date"
+                id="userEndDate"
+                value={userEndDate}
+                onChange={(e) => setUserEndDate(e.target.value)}
+                min={userStartDate}
+              />
+            </div>
+            <button type="submit" className="search-button" disabled={loading}>
+              {loading ? '조회 중...' : '조회'}
+            </button>
+          </form>
+        )}
+      </div>
+
+      {/* 에러 메시지 */}
+      {error && (
+        <div className="error-message">
+          <span>⚠️</span> {error}
+        </div>
+      )}
+
+      {/* 로딩 상태 */}
+      {loading && (
+        <div className="loading-message">
+          <div className="spinner"></div>
+          <span>통계 데이터를 불러오는 중...</span>
+        </div>
+      )}
+
+      {/* 통계 데이터 표시 */}
+      {!loading && statistics && (
+        <>
+          {/* 일별 통계 */}
+          {activeTab === 'daily' && statistics.summary && (
+            <>
+              <div className="summary-section">
+                <h3>요약 통계</h3>
+                <div className="summary-cards">
+                  <div className="summary-card">
+                    <div className="summary-label">전체 검색 횟수</div>
+                    <div className="summary-value">{statistics.summary.totalSearches.toLocaleString()}</div>
+                  </div>
+                  <div className="summary-card">
+                    <div className="summary-label">전체 복호화 횟수</div>
+                    <div className="summary-value">{statistics.summary.totalDecrypts.toLocaleString()}</div>
+                  </div>
+                  <div className="summary-card">
+                    <div className="summary-label">전체 로그인 횟수</div>
+                    <div className="summary-value">{(statistics.summary.totalLogins || 0).toLocaleString()}</div>
+                  </div>
+                  <div className="summary-card">
+                    <div className="summary-label">활동 사용자 수</div>
+                    <div className="summary-value">{statistics.summary.uniqueUsers.toLocaleString()}</div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="daily-stats-section">
+                <h3>일별 통계</h3>
+                {statistics.dailyStats.length === 0 ? (
+                  <div className="no-data-message">선택한 기간에 활동로그가 없습니다.</div>
+                ) : (
+                  <div className="daily-stats-table-container">
+                    <table className="daily-stats-table">
+                      <thead>
+                        <tr>
+                          <th>날짜</th>
+                          <th>로그인 횟수</th>
+                          <th>검색 횟수</th>
+                          <th>복호화 횟수</th>
+                          <th>사용자별 상세</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {statistics.dailyStats.map((dailyStat, index) => (
+                          <tr key={index}>
+                            <td className="date-cell">{dailyStat.date}</td>
+                            <td className="count-cell">{(dailyStat.totalLogins || 0).toLocaleString()}</td>
+                            <td className="count-cell">{dailyStat.totalSearches.toLocaleString()}</td>
+                            <td className="count-cell">{dailyStat.totalDecrypts.toLocaleString()}</td>
+                            <td className="user-stats-cell">
+                              {dailyStat.userStats && dailyStat.userStats.length === 0 ? (
+                                <span className="no-users">활동 없음</span>
+                              ) : (
+                                <div className="user-stats-list">
+                                  {dailyStat.userStats && dailyStat.userStats.map((userStat, userIndex) => (
+                                    <div key={userIndex} className="user-stat-item">
+                                      <span className="user-id">{userStat.userId}</span>
+                                      <span className="user-counts">
+                                        로그인: {userStat.loginCount || 0}, 검색: {userStat.searchCount}, 복호화: {userStat.decryptCount}
+                                      </span>
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+
+              <div className="user-stats-section">
+                <h3>사용자별 통계 (전체 기간)</h3>
+                {statistics.userStats && statistics.userStats.length === 0 ? (
+                  <div className="no-data-message">선택한 기간에 활동한 사용자가 없습니다.</div>
+                ) : (
+                  <div className="user-stats-table-container">
+                    <table className="user-stats-table">
+                      <thead>
+                        <tr>
+                          <th>사용자 ID</th>
+                          <th>로그인 횟수</th>
+                          <th>검색 횟수</th>
+                          <th>복호화 횟수</th>
+                          <th>총 활동 횟수</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {statistics.userStats && statistics.userStats
+                          .sort((a, b) => {
+                            const totalA = (a.loginCount || 0) + a.searchCount + a.decryptCount;
+                            const totalB = (b.loginCount || 0) + b.searchCount + b.decryptCount;
+                            return totalB - totalA;
+                          })
+                          .map((userStat, index) => (
+                            <tr key={index}>
+                              <td className="user-id-cell">{userStat.userId}</td>
+                              <td className="count-cell">{(userStat.loginCount || 0).toLocaleString()}</td>
+                              <td className="count-cell">{userStat.searchCount.toLocaleString()}</td>
+                              <td className="count-cell">{userStat.decryptCount.toLocaleString()}</td>
+                              <td className="count-cell total-cell">
+                                {((userStat.loginCount || 0) + userStat.searchCount + userStat.decryptCount).toLocaleString()}
+                              </td>
+                            </tr>
+                          ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+            </>
+          )}
+
+          {/* 월별 통계 */}
+          {activeTab === 'monthly' && (
+            <>
+              <div className="summary-section">
+                <h3>월별 요약 통계</h3>
+                <div className="summary-cards">
+                  <div className="summary-card">
+                    <div className="summary-label">전체 검색 횟수</div>
+                    <div className="summary-value">{statistics.totalSearches.toLocaleString()}</div>
+                  </div>
+                  <div className="summary-card">
+                    <div className="summary-label">전체 복호화 횟수</div>
+                    <div className="summary-value">{statistics.totalDecrypts.toLocaleString()}</div>
+                  </div>
+                  <div className="summary-card">
+                    <div className="summary-label">전체 로그인 횟수</div>
+                    <div className="summary-value">{(statistics.totalLogins || 0).toLocaleString()}</div>
+                  </div>
+                  <div className="summary-card">
+                    <div className="summary-label">월</div>
+                    <div className="summary-value">{statistics.month}</div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="daily-stats-section">
+                <h3>일별 통계</h3>
+                {statistics.dailyStats && statistics.dailyStats.length === 0 ? (
+                  <div className="no-data-message">선택한 월에 활동로그가 없습니다.</div>
+                ) : (
+                  <div className="daily-stats-table-container">
+                    <table className="daily-stats-table">
+                      <thead>
+                        <tr>
+                          <th>날짜</th>
+                          <th>로그인 횟수</th>
+                          <th>검색 횟수</th>
+                          <th>복호화 횟수</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {statistics.dailyStats && statistics.dailyStats.map((dailyStat, index) => (
+                          <tr key={index}>
+                            <td className="date-cell">{dailyStat.date}</td>
+                            <td className="count-cell">{(dailyStat.totalLogins || 0).toLocaleString()}</td>
+                            <td className="count-cell">{dailyStat.totalSearches.toLocaleString()}</td>
+                            <td className="count-cell">{dailyStat.totalDecrypts.toLocaleString()}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+
+              <div className="user-stats-section">
+                <h3>사용자별 통계</h3>
+                {statistics.userStats && statistics.userStats.length === 0 ? (
+                  <div className="no-data-message">선택한 월에 활동한 사용자가 없습니다.</div>
+                ) : (
+                  <div className="user-stats-table-container">
+                    <table className="user-stats-table">
+                      <thead>
+                        <tr>
+                          <th>사용자 ID</th>
+                          <th>로그인 횟수</th>
+                          <th>검색 횟수</th>
+                          <th>복호화 횟수</th>
+                          <th>총 활동 횟수</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {statistics.userStats && statistics.userStats
+                          .sort((a, b) => {
+                            const totalA = (a.loginCount || 0) + a.searchCount + a.decryptCount;
+                            const totalB = (b.loginCount || 0) + b.searchCount + b.decryptCount;
+                            return totalB - totalA;
+                          })
+                          .map((userStat, index) => (
+                            <tr key={index}>
+                              <td className="user-id-cell">{userStat.userId}</td>
+                              <td className="count-cell">{(userStat.loginCount || 0).toLocaleString()}</td>
+                              <td className="count-cell">{userStat.searchCount.toLocaleString()}</td>
+                              <td className="count-cell">{userStat.decryptCount.toLocaleString()}</td>
+                              <td className="count-cell total-cell">
+                                {((userStat.loginCount || 0) + userStat.searchCount + userStat.decryptCount).toLocaleString()}
+                              </td>
+                            </tr>
+                          ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+            </>
+          )}
+
+          {/* 사용자별 통계 */}
+          {activeTab === 'user' && (
+            <>
+              <div className="summary-section">
+                <h3>사용자별 요약 통계</h3>
+                <div className="summary-cards">
+                  <div className="summary-card">
+                    <div className="summary-label">사용자 ID</div>
+                    <div className="summary-value">{statistics.userId}</div>
+                  </div>
+                  <div className="summary-card">
+                    <div className="summary-label">검색 횟수</div>
+                    <div className="summary-value">{statistics.totalSearches.toLocaleString()}</div>
+                  </div>
+                  <div className="summary-card">
+                    <div className="summary-label">복호화 횟수</div>
+                    <div className="summary-value">{statistics.totalDecrypts.toLocaleString()}</div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="daily-stats-section">
+                <h3>일별 통계</h3>
+                {statistics.dailyStats && statistics.dailyStats.length === 0 ? (
+                  <div className="no-data-message">선택한 기간에 활동로그가 없습니다.</div>
+                ) : (
+                  <div className="daily-stats-table-container">
+                    <table className="daily-stats-table">
+                      <thead>
+                        <tr>
+                          <th>날짜</th>
+                          <th>로그인 횟수</th>
+                          <th>검색 횟수</th>
+                          <th>복호화 횟수</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {statistics.dailyStats && statistics.dailyStats.map((dailyStat, index) => (
+                          <tr key={index}>
+                            <td className="date-cell">{dailyStat.date}</td>
+                            <td className="count-cell">{(dailyStat.loginCount || 0).toLocaleString()}</td>
+                            <td className="count-cell">{dailyStat.searchCount.toLocaleString()}</td>
+                            <td className="count-cell">{dailyStat.decryptCount.toLocaleString()}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+            </>
+          )}
+        </>
+      )}
+    </div>
+  );
+};
+
+export default ActivityStatistics;
