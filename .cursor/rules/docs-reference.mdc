@@ -1,0 +1,19 @@
+---
+description: Docs reference — workflow order, contract, templates (dev only)
+alwaysApply: true
+---
+
+# Docs Reference
+
+- **Workflow order & gates**: `docs/workflow/WORKFLOW_CHECKLIST.md` (short). **Detail & examples**: `docs/workflow/DEVELOPMENT_WORKFLOW.md`. **TDD vs DDD (methodology)**: `docs/workflow/WORKFLOW_MODES.md`.
+- **Contract (API, DB, ports)**: `docs/contract.md`
+- **Requirement/spec templates**: `docs/template/REQUIREMENT_TEMPLATE.md`, `docs/template/BUGFIX_CHILD_TEMPLATE.md`, `docs/template/ERROR_FIX_RESULT_TEMPLATE.md`
+- **Requirements list**: `docs/requirements/`
+- **Security**: `docs/security-guide.md`
+
+- **Before development**: Complete requirement doc + §3 test plan before any code change. Same for error messages or fix requests — requirement doc + §3 first, then implementation. **DB-only changes**: same order (requirement + §3 → schema/scripts in `backend/src/main/resources/db/`); after schema change state "backend/spec update needed".
+- **After development**: Run unit/integration tests → record in §5. Then run verification (restart + health check) per `.cursor/commands/verify.md`. On failure create bugfix child requirement and retry. For error fixes add §6. When all pass, **commit** per `.cursor/commands/commit-on-complete.md` (do not push unless user requests). See `post-change-test-verify.mdc`, `DEVELOPMENT_WORKFLOW.md`, `verify.md`, `commit-on-complete.md`. Test workflow summary: `.cursor/skills/test-workflow/SKILL.md`.
+- **Todo list**: When using TodoWrite for a dev or error-fix task, the todo order MUST follow `docs/workflow/WORKFLOW_CHECKLIST.md`. See `workflow-todos.mdc`.
+- Why tests/verify are not automatic: `docs/workflow/WHY-TESTS-VERIFY-NOT-AUTO.md`
+- Which subagent to use (including module-specific): `docs/workflow/CURSOR-SUBAGENTS-DESIGN.md` (§1, §1.1, §1.2).
+- How .cursor rules, commands, docs, and scripts connect: `docs/workflow/CURSOR-AND-TOOLS-INTEGRATION.md`.

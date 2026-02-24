@@ -1,0 +1,45 @@
+---
+description: Core principles — response language, parallel tools, tool priority, quality gates, security (dev only)
+alwaysApply: true
+---
+
+# Core Principles
+
+Follow these always. For detailed steps, see docs and other rules.
+
+## Response language
+
+- **User-facing responses** MUST be in the **user's requested language** (e.g. Korean when the user asks in Korean or has "Always respond in 한국어").
+- Internal references (file paths, identifiers, code) stay as-is.
+
+## Parallel tool calls
+
+- When there are **no dependencies**, call multiple tools **in parallel** in a single turn.
+- Use concurrent Read, Grep, Glob, etc. in one message to reduce latency.
+
+## Tool selection priority
+
+- Prefer **Read** over cat/head/tail.
+- Prefer **Grep** over terminal grep/rg.
+- Prefer **StrReplace/Edit** over sed/awk.
+- Prefer **Write** over echo redirection.
+- Prefer **Glob** over find/ls for file discovery.
+
+## Quality gates
+
+- After code changes: run **unit tests** then **verification** (restart + health check). See `post-change-test-verify.mdc`, `verify.md`.
+- When a requirement is **fully resolved** (tests + verify pass, §5/§6 updated): **commit** per `.cursor/commands/commit-on-complete.md` (do not push unless the user requests).
+- For requirements or bugfix: **requirement doc + §3 test plan** before implementation. See `error-first-workflow.mdc`, `WORKFLOW_CHECKLIST.md`.
+- API/DB: follow `docs/contract.md` and specs. See `contract-first.mdc`.
+- **Todo list**: For dev or error-fix tasks, todo items MUST follow the order in `docs/workflow/WORKFLOW_CHECKLIST.md` (requirement + §3 before development). See `workflow-todos.mdc`.
+
+## Error handling
+
+- Report errors clearly in the user's language and suggest recovery.
+- Retry the same operation at most 3 times, then ask for user input.
+
+## Security boundaries
+
+- Do not commit secrets; use env vars and config carefully (e.g. .env).
+- Validate inputs; follow OWASP. See `docs/security-guide.md`.
+- For dangerous Bash (rm -rf /, force push, DB DROP, etc.), confirm with the user. Details: `security-permissions.mdc`.

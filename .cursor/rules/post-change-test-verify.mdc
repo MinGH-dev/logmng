@@ -1,0 +1,33 @@
+---
+description: After code change — run tests and verification; on failure create bugfix child and retry
+alwaysApply: true
+---
+
+# Post-Change Test & Verify (Required)
+
+When finishing work that changed **backend/** or **frontend/** source or config, do the following. Do not skip.
+
+**When this applies**: After any change to backend/frontend source or config; before considering a task "done". Triggers: code change, feature complete, error fix, before verify. See also: `run-tests.md`, `verify.md`, `.cursor/skills/test-workflow/SKILL.md`.
+
+## 1. Unit tests
+
+- **Backend changed**: Run `cd backend && mvn test`. Fix failures and re-run.
+- **Frontend changed**: Run `cd frontend && npm test -- --watchAll=false`. Fix failures and re-run.
+- **Both**: Run both. Record result (pass/fail, summary) in the requirement doc **§5 Test results**.
+
+## 2. Verification (restart and health check)
+
+- Read `.cursor/commands/verify.md` and follow its restart and check steps. For shortcuts: `.cursor/commands/restart-all.md`, `check-backend.md`, `check-frontend-backend.md`.
+- Restart: `./scripts/dev-services.sh {frontend|backend|all} restart` per scope. Wait 5–10s after backend restart.
+- **Health check**: Backend 9200 `curl -s http://localhost:9200/api/health` → 200 + JSON; frontend 3001 `curl -s -o /dev/null -w "%{http_code}" http://localhost:3001` → 2xx; if DB used, `curl -s http://localhost:9200/api/db/test` → `data.connected === true`.
+
+## 3. On failure
+
+- Create **bugfix child requirement**: `docs/requirements/{parentID}-bugfix-{N}.md` (template: `docs/template/BUGFIX_CHILD_TEMPLATE.md`). Fix per that doc, then repeat from step 1 until all pass.
+
+## 4. On success
+
+- Update requirement doc §5 and checklist. For error/bug fixes add **§6 Error remedy result**.
+- **Commit** the changes per `.cursor/commands/commit-on-complete.md` (do not push unless the user requests).
+
+See: `.cursor/commands/verify.md`, `.cursor/commands/commit-on-complete.md`, `run-tests.md`, `docs/workflow/DEVELOPMENT_WORKFLOW.md`, `WORKFLOW_CHECKLIST.md`, `docs/workflow/WHY-TESTS-VERIFY-NOT-AUTO.md`.
