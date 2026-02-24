@@ -96,8 +96,7 @@ const ImageLogTable = ({
     
     let highlightedText = String(sourceText); // 원본 텍스트로 시작
     
-    // 암호화된 값 패턴: 쌍따옴표 안에 있고, 대괄호로 시작한 뒤 대괄호 직후에 쌍따옴표가 오는 경우만
-    // (JSON 문자열 값 "[\"...\"]" 형태만 encrypted로 간주; 배열 [1,2,3] 등은 제외)
+    // 암호화된 값 패턴: 쌍따옴표 안의 문자열 값 "[xxx]" 만 (배열 [1,2,3] 등 쌍따옴표 밖의 [...] 제외). 중첩 "[[]]" 은 안쪽 [x] 만 매칭됨.
     const quotedBracketPattern = /"(\[[^\]]*\])"/g;
     const encryptedMatches = [];
     const tempSource = String(sourceText);
@@ -105,16 +104,12 @@ const ImageLogTable = ({
     quotedBracketPattern.lastIndex = 0;
     while ((match = quotedBracketPattern.exec(tempSource)) !== null) {
       const fullMatch = match[1]; // [....] 부분만 (쌍따옴표 제외)
-      const afterBracket = fullMatch.slice(1); // 대괄호 직후 내용
-      const hasQuoteAfterBracket = afterBracket.indexOf('"') !== -1 || afterBracket.indexOf('\\"') !== -1;
-      if (hasQuoteAfterBracket) {
-        encryptedMatches.push({
-          fullMatch,
-          encryptedContent: fullMatch.slice(1, -1),
-          index: match.index + 1,
-          length: fullMatch.length
-        });
-      }
+      encryptedMatches.push({
+        fullMatch,
+        encryptedContent: fullMatch.slice(1, -1),
+        index: match.index + 1,
+        length: fullMatch.length
+      });
     }
     
     // 각 키워드에 대해 처리
