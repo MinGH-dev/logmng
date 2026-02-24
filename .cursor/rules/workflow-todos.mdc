@@ -29,7 +29,7 @@ When you create a **todo list** (TodoWrite) for a **development task** or **erro
 - `4-tests-and-§5` — Run unit/integration tests, record in §5.
 - `5-verify` — Restart and health check (verify.md); bugfix loop if failed.
 - `6-document` — Update §5/§6, checklist.
-- `7-commit` — Git commit when all resolved (commit-on-complete.md); no push unless user asks.
+- `7-commit` — Git commit when all resolved (commit-on-complete.md); commit message includes requirement (요건 ID + §1 요약); no push unless user asks.
 
 If the task is small (e.g. "add a comment"), you may use fewer todos but still **do not** put implementation before requirement/doc when the task implies a new feature or non-trivial fix.
 

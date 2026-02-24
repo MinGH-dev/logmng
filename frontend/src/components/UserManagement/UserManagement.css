@@ -1,0 +1,65 @@
+.user-management {
+  padding: 1rem;
+  max-width: 900px;
+  margin: 0 auto;
+}
+
+.user-management h2 {
+  margin-bottom: 1rem;
+  font-size: 1.25rem;
+}
+
+.user-management-back {
+  margin-bottom: 1rem;
+}
+
+.user-management-forbidden,
+.user-management-error {
+  color: #c00;
+  margin-bottom: 0.5rem;
+  padding: 0.5rem;
+  background: #fff0f0;
+  border-radius: 4px;
+}
+
+.user-management-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+}
+
+.user-management-table th,
+.user-management-table td {
+  border: 1px solid #ddd;
+  padding: 0.5rem 0.75rem;
+  text-align: left;
+}
+
+.user-management-table th {
+  background: #f5f5f5;
+  font-weight: 600;
+}
+
+.user-management-btn {
+  margin-right: 0.5rem;
+  padding: 0.25rem 0.5rem;
+  font-size: 0.85rem;
+  border-radius: 4px;
+  cursor: pointer;
+  border: 1px solid #666;
+  background: #fff;
+}
+
+.user-management-btn:hover:not(:disabled) {
+  background: #eee;
+}
+
+.user-management-btn.add {
+  border-color: #07c;
+  color: #07c;
+}
+
+.user-management-btn.remove {
+  border-color: #c00;
+  color: #c00;
+}

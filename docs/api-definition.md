@@ -220,7 +220,7 @@
 - **GET** `/api/search-history`
 - **Query**: `page` (기본 1), `pageSize` (기본 20), `sortField` (기본 requested_at), `sortDirection` (기본 desc)
 - **Response (data)**: `SearchHistoryListResponse`
-  - `data`: 배열. 각 항목: `seq` (목록 순번), `id`, `requestedAt`, `expiresAt`, `approvalStatus` (PENDING | APPROVED | EXPIRED | REJECTED), `searchParamsSummary` (요약 문자열 또는 키 필드만), `isExpired` (boolean, 만료 여부)
+  - `data`: 배열. 각 항목: `seq` (목록 순번), `id`, `requestedAt`, `expiresAt`, `approvalStatus` (PENDING | APPROVED | EXPIRED | REJECTED), `searchParamsSummary` (요약 문자열 또는 키 필드만), `isExpired` (boolean, 만료 여부), 결재 이력(선택·nullable): `approvedBy` (string), `approvedAt` (string), `rejectedBy` (string), `rejectedAt` (string), `rejectionReason` (string)
   - `pagination`: `{ currentPage, totalPages, totalCount }`
 - **에러**: 비인증 401
 
@@ -235,16 +235,86 @@
 
 - **GET** `/api/search-history/{id}`
 - **Path**: `id` — 검색 이력 ID (Long)
-- **Response (data)**: `{ "id", "logType", "searchParams": object (전체 검색 조건), "requestedAt", "expiresAt", "approvalStatus" }`
+- **Response (data)**: `id`, `logType`, `searchParams` (object, 전체 검색 조건), `requestedAt`, `expiresAt`, `approvalStatus`, 결재 이력(선택·nullable): `approvedBy`, `approvedAt`, `rejectedBy`, `rejectedAt`, `rejectionReason`
 - **에러**: 403(타 사용자 소유), 404(없음)
+
+### 6.1.5 승인 대기 목록 조회 (결재자·관리자 전용)
+
+- **GET** `/api/search-history/pending`
+- **권한**: 결재자(decrypt_approver에 등록된 사용자) 또는 관리자(role=ADMIN)만 호출 가능. 그 외 403.
+- **Query**: `page` (기본 1), `pageSize` (기본 20)
+- **Response (data)**: `SearchHistoryPendingListResponse`
+  - `data`: 배열. 각 항목: `id`, `requester` (요청자 username), `searchParamsSummary` (요약 문자열), `requestedAt` (yyyy-MM-dd'T'HH:mm:ss), 기타 목록용 필드
+  - `pagination`: `{ currentPage, totalPages, totalCount }`
+- **에러**: 401 비인증, 403 결재자/관리자 아님 → `code: "FORBIDDEN_NOT_APPROVER"` 또는 `"NOT_APPROVER"`
+
+### 6.1.6 검색 이력 승인 (결재자·관리자 전용)
+
+- **POST** `/api/search-history/{id}/approve`
+- **Path**: `id` — 검색 이력 ID (Long)
+- **권한**: 결재자 또는 관리자만 호출 가능. 그 외 403.
+- **Request body**: 없음
+- **Response (data)**: `{ "id": number, "approvalStatus": "APPROVED", "approvedBy": string, "approvedAt": string (yyyy-MM-dd'T'HH:mm:ss) }`
+- **에러**: 401 비인증, 403 결재자/관리자 아님 → `code: "FORBIDDEN_NOT_APPROVER"` 또는 `"NOT_APPROVER"`, 404 해당 이력 없음
+
+### 6.1.7 검색 이력 반려 (결재자·관리자 전용)
+
+- **POST** `/api/search-history/{id}/reject`
+- **Path**: `id` — 검색 이력 ID (Long)
+- **권한**: 결재자 또는 관리자만 호출 가능. 그 외 403.
+- **Request body** (JSON, 선택):
+
+| 필드 | 타입 | 필수 | 설명 |
+|------|------|------|------|
+| rejectionReason | string | X | 반려 사유 |
+
+- **Response (data)**: `{ "id": number, "approvalStatus": "REJECTED", "rejectedBy": string, "rejectedAt": string, "rejectionReason": string \| null }`
+- **에러**: 401 비인증, 403 결재자/관리자 아님 → `code: "FORBIDDEN_NOT_APPROVER"` 또는 `"NOT_APPROVER"`, 404 해당 이력 없음
 
 ---
 
-## 7. 사용자 활동 이력 (Activity Log)
+## 7. 사용자 관리 (관리자 전용)
+
+**Base path**: `/api/users`
+
+모든 API는 **관리자(role=ADMIN)** 만 호출 가능. 그 외 403.
+
+### 7.1 사용자 목록 조회
+
+- **GET** `/api/users`
+- **Response (data)**: 배열. 각 항목:
+  - `userId` (또는 `username`): string — 로그인 ID
+  - `role`: string — "ADMIN" | "USER"
+  - `departmentCode`: string | null — 부서코드
+  - `isApprover`: boolean — decrypt_approver 테이블에 존재 여부(복호화 결재자 여부)
+- **에러**: 401 비인증, 403 관리자 아님 → `code: "FORBIDDEN"` 등
+
+### 7.2 결재자 추가
+
+- **POST** `/api/users/approvers`
+- **Request body** (JSON):
+
+| 필드 | 타입 | 필수 | 설명 |
+|------|------|------|------|
+| userId | string | O | 결재자로 지정할 사용자 ID(username) |
+
+- **Response (data)**: `{ "userId": string, "isApprover": true }` 또는 동일 의미 객체
+- **에러**: 401 비인증, 403 관리자 아님, 404 해당 사용자 없음, 400 이미 결재자 등
+
+### 7.3 결재자 제거
+
+- **DELETE** `/api/users/approvers/{userId}`
+- **Path**: `userId` — 결재자에서 해제할 사용자 ID(username)
+- **Response (data)**: `{ "userId": string, "isApprover": false }` 또는 성공 메시지
+- **에러**: 401 비인증, 403 관리자 아님, 404 해당 사용자 없음
+
+---
+
+## 8. 사용자 활동 이력 (Activity Log)
 
 **Base path**: `/api/activity-log`
 
-### 7.1 활동 이력 검색
+### 8.1 활동 이력 검색
 
 - **POST** `/api/activity-log/search`
 - **Request body** (JSON):
@@ -266,7 +336,7 @@
   - `data`: object[] (활동 이력 목록)
   - `pagination`: `{ currentPage, totalPages, totalCount }`
 
-### 7.2 활동 이력 상세 조회
+### 8.2 활동 이력 상세 조회
 
 - **GET** `/api/activity-log/{id}`
 - **Path**: `id` — Long
@@ -274,11 +344,11 @@
 
 ---
 
-## 8. DB 테스트 (개발/운영 점검용)
+## 9. DB 테스트 (개발/운영 점검용)
 
 **Base path**: `/api/db`
 
-### 8.1 DB 연결 테스트
+### 9.1 DB 연결 테스트
 
 - **GET** `/api/db/test`
 - **Response (data)**: Map
@@ -289,7 +359,7 @@
   - `pb_send_count`, `pb_recv_count`
   - 실패 시: `error`, `errorClass`
 
-### 8.2 테이블 스키마 정보 조회
+### 9.2 테이블 스키마 정보 조회
 
 - **GET** `/api/db/schema`
 - **Response (data)**: Map
@@ -298,35 +368,42 @@
 
 ---
 
-## 9. 복호화 (단일 로우)
+## 10. 복호화 (단일 로우)
 
 **Base path**: `/api/logs/decrypt`
 
-### 9.1 단일 로우 복호화
+### 10.1 단일 로우 복호화
 
 - **POST** `/api/logs/decrypt/{logType}`
 - **Path**: `logType` — 현재 **java_fw_imglog** 만 지원
-- **Request body** (JSON): `{ "guid": string (필수), "status"?: string }`
+- **Request body** (JSON): `{ "guid": string (필수), "status"?: string, "searchHistoryId": number (필수) }` — searchHistoryId는 이번 검색에 대한 승인된 검색 이력 ID. 해당 건이 본인 소유·APPROVED·미만료일 때만 복호화 허용.
 - **Response (data)**: Map (복호화된 필드)
 - **에러**:
+  - 401 미로그인: `code: "UNAUTHORIZED"`
+  - 403 복호화 미승인: `code: "DECRYPTION_NOT_APPROVED"` — searchHistoryId 없거나, 해당 검색 이력이 본인 소유·승인·미만료가 아님.
+  - 403 스냅샷 미포함: `code: "ROW_NOT_IN_APPROVED_SNAPSHOT"` — 승인된 검색 결과(승인 시점 스냅샷)에 포함된 row만 복호화 가능. 해당 guid가 스냅샷에 없음. (참고: `docs/requirements/20260224-decryption-snapshot-final-design-en.md`)
   - java_fw_imglog 외: `code: "UNSUPPORTED_LOG_TYPE"`
   - guid 누락: `code: "MISSING_GUID"`
   - 복호화 실패: `code: "DECRYPTION_FAILED"`
 
 ---
 
-## 10. 에러 코드 요약
+## 11. 에러 코드 요약
 
 | code | 의미 |
 |------|------|
 | LOG_TYPE_NOT_FOUND | 존재하지 않는 로그 타입 |
 | UNSUPPORTED_LOG_TYPE | 해당 로그 타입 미지원 (현재 java_fw_imglog만 지원하는 API) |
+| DECRYPTION_NOT_APPROVED | 복호화 승인 후 이용 가능 (403) |
+| ROW_NOT_IN_APPROVED_SNAPSHOT | 승인된 검색 결과에 포함된 항목만 복호화 가능 (403) |
 | MISSING_GUID | 복호화 시 guid 필수 |
 | DECRYPTION_FAILED | 복호화 처리 실패 |
+| FORBIDDEN_NOT_APPROVER | 승인/반려·대기목록 API 호출 권한 없음(결재자 또는 관리자만 가능) (403) |
+| NOT_APPROVER | 위와 동일 의미. 구현 시 하나로 통일 가능 |
 
 ---
 
-## 11. 참고
+## 12. 참고
 
 - **환경·포트**: `docs/contract.md`
 - **사용자 관리·전산요청서·인사배치 등 (미구현 API)**: `specs/user-management.spec.yaml`

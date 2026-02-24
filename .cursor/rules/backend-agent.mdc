@@ -1,0 +1,23 @@
+---
+description: Backend-only agent — modify backend/ only; API and DB per contract and specs
+globs: "backend/**"
+alwaysApply: false
+---
+
+# Backend Sub-Agent
+
+Apply when working under **backend/**.
+
+## Role
+
+- **Scope**: Modify only under `backend/` (source, config). Do not modify frontend/ or DB schema files (e.g. schema.sql) unless agreed for that task. Main work: API, services, controllers.
+- **API**: Follow paths, methods, request/response in `docs/contract.md` and `specs/*.spec.yaml`. Update spec first when adding new API, then implement.
+- **DB**: Datasource per `application.yml` and contract (port 5432, DB logmng). Keep schema changes consistent with `backend/src/main/resources/db/schema.sql`. Coordinate schema file edits with DB owner.
+
+## When working
+
+1. For API add/change, confirm or update specs/ or contract first, then implement.
+2. Keep DB access logic aligned with existing schema/entities. If schema changes, align code after schema.sql (or migration) is updated.
+3. Ports/URLs per contract "Environment · Ports" (e.g. server.port 9200).
+
+Dev workspace only.

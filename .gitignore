@@ -1,0 +1,21 @@
+# Dependencies & build (tracked elsewhere or regenerable)
+node_modules/
+frontend/build/
+
+# Backend (backend/.gitignore also has target/, .idea/, etc.)
+backend/target/
+
+# Logs
+logs/
+*.log
+
+# Env with secrets (do not commit)
+.env
+.env.local
+.env.*.local
+
+# OS
+.DS_Store
+Thumbs.db
+
+# .cursor, docs, specs are NOT listed here — they remain addable.

@@ -1,0 +1,26 @@
+---
+description: File reading optimization — tiered loading by file size to save tokens
+alwaysApply: false
+---
+
+# File Reading Optimization
+
+Use tiered loading by file size to reduce token use.
+
+## Tiers
+
+- **Small (<200 lines)**: Read full file with Read.
+- **Medium (200–500)**: Read only needed sections with offset/limit. Use Grep to find line numbers first.
+- **Large (500–1000)**: Do not read full file at once. Use Grep to find functions/classes, then Read only those sections (e.g. 50–100 lines per Read).
+- **Very large (>1000)**: Prefer Grep with context (-C). Use SemanticSearch or Read only specific regions if full understanding is required.
+
+## Practice
+
+- Before reading: **Grep** for line numbers of interest, then **Read(offset, limit)** for that range only.
+- When editing: Read only the section to change plus ~20 lines context; use StrReplace/Edit with exact old_string.
+- When exploring: Glob for structure → Grep for entry points → Read only relevant sections.
+- For **schema.sql** or other large DB files: use Grep to find table/constraint names, then Read only those sections; avoid loading the full file at once.
+
+## Token awareness
+
+- ~10–20 tokens per line. A 500-line file ≈ 5K–10K tokens. Prefer targeted reads; split large files into multiple small Reads.

@@ -30,6 +30,14 @@
 - 이력에서 "재 조회" 시 저장된 검색 조건으로 검색이 다시 실행된다.
 - (실제 결재자 승인 프로세스는 별도 요건에서 구현; 본 요건에서는 승인 상태 저장·표시·재요청 플로우만 구현)
 
+### 결재 이력 관리 (2026-02-24 보강)
+
+- **승인 요청 이력**: 위와 같이 `search_history`로 관리됨.
+- **결재 이력**: 누가·언제 승인/반려했는지 이력을 남겨 감사·추적이 가능하도록 한다.
+  - 저장 항목: 결재자(approver) user_id, 결재 일시(approved_at / rejected_at), 반려 시 사유(rejection_reason, 선택).
+  - 검색 이력 목록·상세 API 응답에 결재 이력(결재자, 결재일시, 반려 사유)을 포함하여 화면에서 확인 가능하게 한다.
+  - 테스트용으로 결재자 없이 즉시 승인하는 경우: `approved_by` = 요청자 본인 또는 시스템 표시용 값, `approved_at` = requested_at 동일 또는 저장 시점.
+
 ---
 
 ## 2. 설계
@@ -109,10 +117,15 @@
 | requested_at | TIMESTAMP NOT NULL | 승인 요청 일시 (또는 검색 실행 일시) |
 | expires_at | TIMESTAMP | 승인 유효 만료 일시 (requested_at + 1일) |
 | approval_status | VARCHAR(20) NOT NULL | PENDING, APPROVED, EXPIRED, REJECTED |
+| approved_by | VARCHAR(100) | 결재자 user_id (승인 시) |
+| approved_at | TIMESTAMP | 결재(승인) 일시 |
+| rejected_by | VARCHAR(100) | 결재자 user_id (반려 시) |
+| rejected_at | TIMESTAMP | 결재(반려) 일시 |
+| rejection_reason | TEXT | 반려 사유 (선택) |
 | created_at | TIMESTAMP DEFAULT CURRENT_TIMESTAMP | |
 | updated_at | TIMESTAMP DEFAULT CURRENT_TIMESTAMP | |
 
-- 인덱스: `user_id`, `requested_at`, `(user_id, requested_at DESC)`.
+- 인덱스: `user_id`, `requested_at`, `(user_id, requested_at DESC)`. 결재 이력 조회용 `approved_at`, `rejected_at` 인덱스는 필요 시 추가.
 
 ---
 
@@ -129,6 +142,8 @@
 | TC-05 | 예외 | 비인증 사용자가 이력 목록 조회 | 401 또는 403 | 통합 |
 | TC-06 | 예외 | 다른 사용자의 이력 ID로 재요청 | 403 또는 404 | 통합/단위 |
 | TC-07 | 엣지 | requested_at 기준 24시간 경과 건 목록 조회 | approval_status EXPIRED 또는 만료 플래그 true | 단위/통합 |
+| TC-08 | 정상 | 승인된 건 목록/상세 조회 | approved_by, approved_at 포함 | 통합 |
+| TC-09 | 정상 | 반려된 건(추후 구현 시) 상세 조회 | rejected_by, rejected_at, rejection_reason 포함 | 통합 |
 
 ### 테스트 시나리오
 
@@ -206,6 +221,13 @@ cd frontend && npm test -- --watchAll=false
 ### 발견된 이슈 및 해결 방법
 - 백엔드 JUnit 발견 실패: 기존 프로젝트 설정 이슈. 본 요건 범위 외.
 - DB: `search_history` 테이블은 `schema.sql`에 추가됨. 신규 환경에서는 `backend/src/main/resources/db/schema.sql` 적용 또는 setup 스크립트 실행 필요.
+
+### 결재 이력 보강 (2026-02-24)
+- 요구사항 보강: 결재 이력(승인/반려한 사람·일시·반려 사유) 관리 반영.
+- DB: `search_history`에 `approved_by`, `approved_at`, `rejected_by`, `rejected_at`, `rejection_reason` 컬럼 추가(schema.sql 및 migrate-search-history-approval-columns.sql).
+- Backend: create 시 APPROVED면 approved_by=요청자·approved_at 저장; list/detail 응답에 결재 이력 필드 포함.
+- Frontend: 검색 이력 목록에 "결재 이력" 컬럼 추가(승인/반려 시 결재자·일시 표시).
+- Subagent 활용: Requirements(요건 갱신) → DB(스키마·마이그레이션) → Backend(저장·조회) → Frontend(목록 표시) 순으로 개발.
 
 ### 다음 단계
 - 복호화 승인/결재 본 기능(결재자 승인 프로세스) 요건 수립 및 구현

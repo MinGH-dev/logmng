@@ -1,0 +1,21 @@
+---
+description: "[Unused] Use Cursor Settings Subagents; project uses Cursor built-in Subagents only"
+alwaysApply: false
+---
+
+# [Unused] Sub-Agent Invocation
+
+**This rule is not used.** Use **Cursor Settings → Subagents** to create Frontend/Backend/DB and paste prompts from `docs/cursor-subagents/*.md`. Design: `docs/workflow/CURSOR-SUBAGENTS-DESIGN.md`.
+
+---
+
+# Sub-Agent Invocation (Reference only)
+
+When the user asks to delegate to frontend / backend / DB sub-agent:
+
+1. **Determine role** from the request.
+2. **Build prompt**: Read `.cursor/subagents/frontend-prompt.md` or `backend-prompt.md` or `db-prompt.md`, append the user's task under "## 수행할 작업".
+3. **Call** `mcp_task` with `subagent_type` (e.g. `generalPurpose` or `explore`), `description`, and full `prompt`.
+4. **Summarize** the sub-agent result for the user.
+
+See `.cursor/subagents/README.md`.

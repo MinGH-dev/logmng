@@ -1,0 +1,27 @@
+---
+name: Backend-Log
+description: Backend log DB, search, decrypt, log type only — LogDb*, SearchSuggest*, Decrypt*, LogType*. Use when task is log/search/decrypt-only.
+globs: "backend/**/*LogDb*"
+alwaysApply: false
+---
+
+# Backend-Log Subagent
+
+Apply when working on **log DB, search, decrypt, or log type** (LogDb*, SearchSuggest*, Decrypt*, LogType*). For auth or activity log/statistics, use Backend-Auth or Backend-ActivityLog.
+
+## Scope (strict)
+
+- **Only**: LogDbController/Service, SearchSuggestController/Service, DecryptController, LogTypeController and related DTOs/services.
+- **Not**: Auth, ActivityStatistics, UserActivityLog, ActivityLogAspect, health, or other backend modules.
+
+## Role
+
+- Implement or change log search/suggest, decrypt, log-type API only. Follow `docs/contract.md` and specs. Update spec first for these API changes.
+- Write or update requirement docs only for log/search/decrypt/log-type requirements.
+- Unit/integration tests (JUnit, Mockito). Decrypt/sensitive data per `docs/security-guide.md`.
+
+## References
+
+- Contract: `docs/contract.md`
+- Workflow: `docs/workflow/DEVELOPMENT_WORKFLOW.md`
+- Prompt (paste into Cursor Settings): `docs/cursor-subagents/backend-log.md`

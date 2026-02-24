@@ -323,10 +323,10 @@ specs/요건명.spec.yaml
    - 체크리스트 완료
 
 2. **코드 커밋 (요구사항 해결 완료 시)**  
-   검증 통과 및 §5·§6 반영 후, `.cursor/commands/commit-on-complete.md`에 따라 커밋한다. push는 사용자가 요청할 때만 수행.
+   검증 통과 및 §5·§6 반영 후, `.cursor/commands/commit-on-complete.md`에 따라 커밋한다. **커밋 메시지에는 요구사항 내용**을 넣는다(요건 문서 ID `yyyyMMdd-name` 및 §1 요약 또는 기대 결과 한 줄). push는 사용자가 요청할 때만 수행.
    ```bash
    git add <변경된 경로>
-   git commit -m "feat: 요건명 - 요건 설명"
+   git commit -m "feat: <scope> - <§1 요약 또는 기대 결과> (요건 yyyyMMdd-name)"
    ```
 
 3. 배포 준비 (해당 시)

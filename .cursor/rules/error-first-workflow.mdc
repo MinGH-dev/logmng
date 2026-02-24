@@ -1,0 +1,20 @@
+---
+description: Error-first — when input is mainly error message/log, require requirement doc + §3 before development
+alwaysApply: true
+---
+
+# Error-First Workflow
+
+When the user message is **mainly** an error message, stack trace, or a request like "fix this error" (and they did not say e.g. "only change the code"):
+
+## Must do
+
+1. **First**: Gather/analyze requirements → write **requirement doc** `docs/requirements/yyyyMMdd-name.md` (§1 user requirement, §2 design) → define **§3 test approach (test cases)**.
+2. **Only then**: Propose or do development (code change, API, frontend change).
+
+## Must not do
+
+- Do **not** propose only implementation todos or code changes (e.g. "implement stats API", "change api.js") from the error message alone.
+- Do **not** move to development without a requirement doc and §3 test plan.
+
+See: `docs/workflow/WORKFLOW_CHECKLIST.md`, `docs/workflow/ERROR-FIX-WORKFLOW-FLOWCHART.md`, `docs/template/REQUIREMENT_TEMPLATE.md`.

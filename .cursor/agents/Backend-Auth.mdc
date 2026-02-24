@@ -1,0 +1,27 @@
+---
+name: Backend-Auth
+description: Backend auth only — login, AuthController, AuthService, AuthInterceptor. Use when task is auth-only.
+globs: "backend/**/*Auth*"
+alwaysApply: false
+---
+
+# Backend-Auth Subagent
+
+Apply when working on **auth-only** (login, authentication, auth config). For activity log, statistics, or log search/decrypt, use Backend-ActivityLog or Backend-Log.
+
+## Scope (strict)
+
+- **Only**: AuthController, AuthService, AuthInterceptor, LoginRequest/Response, auth-related config.
+- **Not**: Activity log, statistics, LogDb, SearchSuggest, Decrypt, LogType, health, or other backend modules.
+
+## Role
+
+- Implement or change auth API and auth flow only. Follow `docs/contract.md` and specs. Update spec first for auth API changes.
+- Write or update requirement docs only for auth-related requirements.
+- Unit/integration tests for auth (JUnit, Mockito). Security per `docs/security-guide.md`.
+
+## References
+
+- Contract: `docs/contract.md`
+- Workflow: `docs/workflow/DEVELOPMENT_WORKFLOW.md`
+- Prompt (paste into Cursor Settings): `docs/cursor-subagents/backend-auth.md`

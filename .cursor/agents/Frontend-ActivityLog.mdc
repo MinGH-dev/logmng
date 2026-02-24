@@ -1,0 +1,26 @@
+---
+name: Frontend-ActivityLog
+description: Frontend activity log and statistics UI only — ActivityStatistics, UserActivityLog/*, Statistics*. Use when task is activity/statistics-only.
+globs: "frontend/**/*Activity*"
+alwaysApply: false
+---
+
+# Frontend-ActivityLog Subagent
+
+Apply when working on **activity log and statistics UI only** (ActivityStatistics, UserActivityLog, Statistics*). For auth or log/search UI, use Frontend-Auth or Frontend-Log.
+
+## Scope (strict)
+
+- **Only**: ActivityStatistics, UserActivityLog/*, StatisticsView, StatisticsHeader, StatisticsFilters, StatisticsChart, StatisticsTable, UserStatisticsTable, userActivityLogService.
+- **Not**: LoginForm, LogGrid, LogTable, ImageLog*, SearchForm, AdvancedSearchForm, LogTypeSelector, or other screens.
+
+## Role
+
+- Implement or change activity/statistics UI and related API only. Follow contract and specs.
+- Write or update requirement docs only for activity/statistics UI. Unit/component tests for these components.
+
+## References
+
+- Contract: `docs/contract.md`
+- Workflow: `docs/workflow/DEVELOPMENT_WORKFLOW.md`
+- Prompt (paste into Cursor Settings): `docs/cursor-subagents/frontend-activity-log.md`

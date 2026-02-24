@@ -1,0 +1,23 @@
+---
+description: Frontend-only agent — modify frontend/ only; API usage per contract and specs
+globs: "frontend/**"
+alwaysApply: false
+---
+
+# Frontend Sub-Agent
+
+Apply when working under **frontend/**.
+
+## Role
+
+- **Scope**: Modify only under `frontend/`. Do not modify backend/, specs/, etc.
+- **API**: Use only APIs defined in `docs/contract.md` and `specs/*.spec.yaml`. Match URLs and request/response shape to contract/spec.
+- **Env**: Frontend port 3001, API base `http://localhost:9200/api` per contract. Align with e.g. REACT_APP_API_BASE_URL in frontend/.env.
+
+## When working
+
+1. Before using or changing an API, confirm it exists in specs/ or contract. If not, say "spec definition needed" and implement after it is defined.
+2. When changing existing API calls, verify against spec/contract.
+3. Follow `docs/security-guide.md` for security and logging.
+
+Dev workspace only.

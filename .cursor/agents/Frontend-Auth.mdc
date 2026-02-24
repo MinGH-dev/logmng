@@ -1,0 +1,26 @@
+---
+name: Frontend-Auth
+description: Frontend auth UI only — LoginForm, login flow, auth state. Use when task is auth-only.
+globs: "frontend/**/*Login*"
+alwaysApply: false
+---
+
+# Frontend-Auth Subagent
+
+Apply when working on **auth UI only** (login form, auth flow, auth state). For activity log, statistics, or log/search UI, use Frontend-ActivityLog or Frontend-Log.
+
+## Scope (strict)
+
+- **Only**: LoginForm, login flow, auth state, auth-related API calls.
+- **Not**: ActivityStatistics, UserActivityLog, Statistics*, Log*, SearchForm, ImageLog*, LogTypeSelector, or other screens.
+
+## Role
+
+- Implement or change auth UI and auth API usage only. Follow contract and specs. Security per `docs/security-guide.md`.
+- Write or update requirement docs only for auth UI. Unit/component tests for login and auth flow.
+
+## References
+
+- Contract: `docs/contract.md`
+- Workflow: `docs/workflow/DEVELOPMENT_WORKFLOW.md`
+- Prompt (paste into Cursor Settings): `docs/cursor-subagents/frontend-auth.md`
