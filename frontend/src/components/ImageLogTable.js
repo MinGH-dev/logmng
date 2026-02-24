@@ -15,7 +15,8 @@ const ImageLogTable = ({
   totalPages, 
   onPageChange,
   keywords = [],
-  searchParams = {} // 검색 파라미터 추가
+  searchParams = {}, // 검색 파라미터 추가
+  searchHistoryId = null // 이번 검색에 대한 복호화 승인 이력 ID (있을 때만 복호화 허용)
 }) => {
   // 정렬 아이콘 렌더링
   const renderSortIcon = (field) => {
@@ -95,21 +96,25 @@ const ImageLogTable = ({
     
     let highlightedText = String(sourceText); // 원본 텍스트로 시작
     
-    // 암호화된 값 패턴: [암호화된문자열]
-    const encryptedPattern = /\[([^\]]+)\]/g;
+    // 암호화된 값 패턴: 쌍따옴표 안에 있고, 대괄호로 시작한 뒤 대괄호 직후에 쌍따옴표가 오는 경우만
+    // (JSON 문자열 값 "[\"...\"]" 형태만 encrypted로 간주; 배열 [1,2,3] 등은 제외)
+    const quotedBracketPattern = /"(\[[^\]]*\])"/g;
     const encryptedMatches = [];
-    
-    // 원본 텍스트에서 모든 암호화된 값 찾기
     const tempSource = String(sourceText);
     let match;
-    encryptedPattern.lastIndex = 0; // 정규식 인덱스 리셋
-    while ((match = encryptedPattern.exec(tempSource)) !== null) {
-      encryptedMatches.push({
-        fullMatch: match[0], // 전체 [암호화된문자열]
-        encryptedContent: match[1], // 암호화된 내용만
-        index: match.index,
-        length: match[0].length
-      });
+    quotedBracketPattern.lastIndex = 0;
+    while ((match = quotedBracketPattern.exec(tempSource)) !== null) {
+      const fullMatch = match[1]; // [....] 부분만 (쌍따옴표 제외)
+      const afterBracket = fullMatch.slice(1); // 대괄호 직후 내용
+      const hasQuoteAfterBracket = afterBracket.indexOf('"') !== -1 || afterBracket.indexOf('\\"') !== -1;
+      if (hasQuoteAfterBracket) {
+        encryptedMatches.push({
+          fullMatch,
+          encryptedContent: fullMatch.slice(1, -1),
+          index: match.index + 1,
+          length: fullMatch.length
+        });
+      }
     }
     
     // 각 키워드에 대해 처리
@@ -247,16 +252,41 @@ const ImageLogTable = ({
     try {
       const apiBaseUrl = process.env.REACT_APP_API_BASE_URL || 'http://localhost:9200/api';
       logger.debug('🔓 복호화 API 호출:', { apiUrl: `${apiBaseUrl}/logs/decrypt/java_fw_imglog`, guid, status });
+      const body = { guid, status };
+      if (searchHistoryId != null) body.searchHistoryId = searchHistoryId;
       const response = await fetch(`${apiBaseUrl}/logs/decrypt/java_fw_imglog`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         credentials: 'include', // 세션 쿠키 전달
-        body: JSON.stringify({ guid, status })
+        body: JSON.stringify(body)
       });
       
       logger.debug('🔓 복호화 API 응답 상태:', { status: response.status });
+      
+      if (response.status === 403) {
+        let result = null;
+        try {
+          const text = await response.text();
+          result = text ? JSON.parse(text) : {};
+        } catch (_) {
+          result = {};
+        }
+        if (result.code === 'DECRYPTION_NOT_APPROVED') {
+          logger.debug('🔓 복호화 승인 미완료:', { code: result.code });
+          alert(getUserFriendlyErrorMessage('복호화', result));
+          return;
+        }
+        if (result.code === 'ROW_NOT_IN_APPROVED_SNAPSHOT') {
+          logger.debug('🔓 승인된 검색 결과에 없는 항목 복호화 시도:', { code: result.code });
+          alert(result.message || '승인된 검색 결과에 포함된 항목만 복호화할 수 있습니다.');
+          return;
+        }
+        // 기타 403: 공통 안내 후 return (body 이미 소비됨)
+        alert(getUserFriendlyErrorMessage('복호화', result));
+        return;
+      }
       
       if (!response.ok) {
         const errorText = await response.text();
