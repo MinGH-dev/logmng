@@ -1,0 +1,41 @@
+---
+description: Todo list MUST follow workflow order — read WORKFLOW_CHECKLIST before TodoWrite for dev/error-fix tasks
+alwaysApply: true
+---
+
+# Workflow-Aligned Todo List
+
+When you create a **todo list** (TodoWrite) for a **development task** or **error-fix task**, the todo items **MUST** follow the order in `docs/workflow/WORKFLOW_CHECKLIST.md`. Do not invent a different order.
+
+## Required behavior
+
+1. **Before** calling TodoWrite for such a task, **read** `docs/workflow/WORKFLOW_CHECKLIST.md` (or have it in context).
+2. **Map** the checklist phases to todo items in the **same order**:
+   - **1** — Requirement gather/analyze → Requirement doc (§1, §2) → **§3 Test plan** (all before any code).
+   - **2** — (If complex) Spec and branch.
+   - **3** — Development (frontend/backend only).
+   - **4** — Unit tests (mvn test / npm test) and integration → **record in §5**.
+   - **5** — Verification (restart + health check per verify.md); on failure create bugfix child and repeat.
+   - **6** — Document (§5, and §6 for error fixes).
+   - **7** — Commit when requirement is fully resolved (per `commit-on-complete.md`).
+3. **Do not** put "development" or "implement" before "requirement doc" or "§3 test plan". The checklist is a **gate**: steps 1–2–3 must be done before step 3 (development).
+4. For **error-fix** tasks: same order — requirement doc + §3 first, then fix, then tests and verification.
+
+## Short reference (use this order in TodoWrite)
+
+- `1-requirement-and-test-plan` — Requirement doc (§1, §2) + §3 test cases (mandatory before code).
+- `2-spec-branch` — (Optional) Spec update, branch.
+- `3-develop` — Implement in frontend/backend. Prefer TDD (test first) or DDD (characterize then improve) per `docs/workflow/WORKFLOW_MODES.md` when relevant.
+- `4-tests-and-§5` — Run unit/integration tests, record in §5.
+- `5-verify` — Restart and health check (verify.md); bugfix loop if failed.
+- `6-document` — Update §5/§6, checklist.
+- `7-commit` — Git commit when all resolved (commit-on-complete.md); no push unless user asks.
+
+If the task is small (e.g. "add a comment"), you may use fewer todos but still **do not** put implementation before requirement/doc when the task implies a new feature or non-trivial fix.
+
+## Reference
+
+- **Checklist**: `docs/workflow/WORKFLOW_CHECKLIST.md`
+- **Detail**: `docs/workflow/DEVELOPMENT_WORKFLOW.md`
+- **Verification**: `.cursor/commands/verify.md`
+- **Commit on complete**: `.cursor/commands/commit-on-complete.md`
