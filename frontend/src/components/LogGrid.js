@@ -4,10 +4,11 @@ import ImageLogSearchForm from './ImageLogSearchForm';
 import AdvancedSearchForm from './AdvancedSearchForm';
 import LogTable from './LogTable';
 import ImageLogTable from './ImageLogTable';
+import { createSearchHistory } from '../services/searchHistoryService';
 import './LogGrid.css';
 import logger from '../utils/logger';
 
-const LogGrid = ({ logType }) => {
+const LogGrid = ({ logType, initialSearchParams, onInitialSearchDone }) => {
   const [logs, setLogs] = useState([]);
   const [loading, setLoading] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
@@ -27,6 +28,9 @@ const LogGrid = ({ logType }) => {
   
   // 검색 모드 상태 (기본: 필드별 검색)
   const [searchMode, setSearchMode] = useState('basic'); // 'basic' | 'advanced'
+  const [lastAdvancedRequest, setLastAdvancedRequest] = useState(null);
+  const [saveHistoryPending, setSaveHistoryPending] = useState(false);
+  const [saveHistoryError, setSaveHistoryError] = useState(null);
   
   // 로그 타입에 따라 기본 정렬 필드 설정 (초기화 시 한 번만)
   useEffect(() => {
@@ -38,6 +42,20 @@ const LogGrid = ({ logType }) => {
       setSortField('log_timestamp');
     }
   }, [logType?.id]); // logType.id가 변경될 때만 실행
+
+  // 검색 이력에서 재조회 시 저장된 조건으로 한 번 검색 실행
+  useEffect(() => {
+    if (!logType || !initialSearchParams || typeof initialSearchParams !== 'object') return;
+    const isAdvanced = initialSearchParams.filters != null || initialSearchParams.queryText != null;
+    if (isAdvanced) {
+      handleAdvancedSearch(initialSearchParams);
+    } else {
+      const params = { ...initialSearchParams, logType: logType.id };
+      handleSearch(params);
+    }
+    if (typeof onInitialSearchDone === 'function') onInitialSearchDone();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [logType?.id, initialSearchParams]);
   
   // logType이 없으면 null 반환
   if (!logType) {
@@ -218,8 +236,27 @@ const LogGrid = ({ logType }) => {
 
   const isImageLog = logType && logType.id === 'java_fw_imglog';
   
+  // 복호화 승인 요청 (현재 검색을 이력에 저장)
+  const handleRequestDecryptionApproval = async () => {
+    setSaveHistoryError(null);
+    setSaveHistoryPending(true);
+    try {
+      const toSave = searchMode === 'advanced' && lastAdvancedRequest
+        ? lastAdvancedRequest
+        : { ...searchParams, logType: logType.id };
+      await createSearchHistory(logType.id, toSave);
+      logger.info('검색 이력에 복호화 승인 요청 저장됨');
+    } catch (e) {
+      logger.error('복호화 승인 요청 저장 실패:', e);
+      setSaveHistoryError(e.message || '저장에 실패했습니다.');
+    } finally {
+      setSaveHistoryPending(false);
+    }
+  };
+
   // 고급 검색 처리
   const handleAdvancedSearch = async (searchRequest) => {
+    setLastAdvancedRequest(searchRequest);
     setLoading(true);
     setSearchParams({});
     setCurrentPage(1);
@@ -294,6 +331,17 @@ const LogGrid = ({ logType }) => {
       ) : (
         <SearchForm onSearch={handleSearch} />
       )}
+      <div className="log-grid-actions">
+        <button
+          type="button"
+          className="decrypt-approval-request-btn"
+          onClick={handleRequestDecryptionApproval}
+          disabled={saveHistoryPending || (Object.keys(searchParams).length === 0 && !lastAdvancedRequest)}
+        >
+          {saveHistoryPending ? '저장 중...' : '복호화 승인 요청'}
+        </button>
+        {saveHistoryError && <span className="decrypt-approval-error">{saveHistoryError}</span>}
+      </div>
       {isImageLog ? (
         <ImageLogTable
           logs={logs}
