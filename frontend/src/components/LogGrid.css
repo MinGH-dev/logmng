@@ -54,4 +54,36 @@
   background-color: #007bff;
   color: white;
   border-color: #007bff;
+}
+
+.log-grid-actions {
+  padding: 12px 20px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  border-bottom: 1px solid #eee;
+}
+
+.decrypt-approval-request-btn {
+  padding: 8px 16px;
+  font-size: 14px;
+  border: 1px solid #0a7ea4;
+  border-radius: 4px;
+  background: #0a7ea4;
+  color: white;
+  cursor: pointer;
+}
+
+.decrypt-approval-request-btn:hover:not(:disabled) {
+  background: #096688;
+}
+
+.decrypt-approval-request-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.decrypt-approval-error {
+  color: #c00;
+  font-size: 13px;
 } 

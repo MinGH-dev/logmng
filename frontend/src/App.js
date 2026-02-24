@@ -5,6 +5,7 @@ import LogTypeSelector from './components/LogTypeSelector';
 import LogGrid from './components/LogGrid';
 import UserActivityLogList from './components/UserActivityLog/UserActivityLogList';
 import ActivityStatistics from './components/ActivityStatistics';
+import SearchHistoryList from './components/SearchHistory/SearchHistoryList';
 import { saveMinimalUserData, getMinimalUserData, clearUserData } from './utils/security';
 import logger from './utils/logger';
 
@@ -13,7 +14,8 @@ function App() {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [selectedLogType, setSelectedLogType] = useState(null);
-  const [currentView, setCurrentView] = useState('main'); // 'main' | 'activity-log' | 'statistics'
+  const [currentView, setCurrentView] = useState('main'); // 'main' | 'activity-log' | 'statistics' | 'search-history'
+  const [initialSearchParams, setInitialSearchParams] = useState(null); // 이력 재조회 시 전달
 
   // 컴포넌트 마운트 시 인증 상태 확인 및 선택된 로그 타입 복원
   useEffect(() => {
@@ -29,23 +31,35 @@ function App() {
     }
   }, []);
 
-  // 인증 상태 확인
+  // 인증 상태 확인 (타임아웃 시 로그인 화면 표시)
+  const AUTH_CHECK_TIMEOUT_MS = 5000;
+
   const checkAuthStatus = async () => {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), AUTH_CHECK_TIMEOUT_MS);
     try {
       const apiBaseUrl = process.env.REACT_APP_API_BASE_URL || 'http://localhost:9200/api';
-      const response = await fetch(`${apiBaseUrl}/auth/check`);
+      const response = await fetch(`${apiBaseUrl}/auth/check`, {
+        credentials: 'include',
+        signal: controller.signal,
+      });
+      clearTimeout(timeoutId);
       const result = await response.json();
-      
-      if (result.success && result.authenticated) {
+
+      if (result.success && result.data?.authenticated) {
         setIsAuthenticated(true);
-        // 로컬 스토리지에서 사용자 정보 복원
         const savedUser = getMinimalUserData();
         if (savedUser) {
           setUser(savedUser);
         }
       }
     } catch (error) {
-      logger.debug('인증 상태 확인 실패:', { error: error.message });
+      clearTimeout(timeoutId);
+      if (error.name === 'AbortError') {
+        logger.debug('인증 상태 확인 타임아웃 — 로그인 화면으로 전환');
+      } else {
+        logger.debug('인증 상태 확인 실패:', { error: error.message });
+      }
     } finally {
       setLoading(false);
     }
@@ -116,6 +130,24 @@ function App() {
     setCurrentView('statistics');
   };
 
+  // 검색 이력 화면으로 이동
+  const handleShowSearchHistory = () => {
+    setCurrentView('search-history');
+  };
+
+  // 검색 이력에서 재조회: 로그 타입 + 검색 조건 설정 후 메인으로
+  const handleReSearchFromHistory = (data) => {
+    if (!data || !data.logType) return;
+    setSelectedLogType({ id: data.logType, name: data.logType });
+    setInitialSearchParams(data.searchParams || null);
+    setCurrentView('main');
+  };
+
+  // LogGrid가 초기 검색 실행 후 호출
+  const handleInitialSearchDone = () => {
+    setInitialSearchParams(null);
+  };
+
   // 로딩 중일 때
   if (loading) {
     return (
@@ -140,7 +172,7 @@ function App() {
         <div className="header-content">
           <h1>로그 관리 시스템</h1>
           <div className="user-info">
-            {currentView === 'activity-log' || currentView === 'statistics' ? (
+            {currentView === 'activity-log' || currentView === 'statistics' || currentView === 'search-history' ? (
               <button onClick={handleBackToMain} className="back-button">
                 ← 메인으로
               </button>
@@ -149,13 +181,16 @@ function App() {
                 ← 로그 타입 선택
               </button>
             ) : null}
-            {currentView !== 'activity-log' && currentView !== 'statistics' && (
+            {currentView !== 'activity-log' && currentView !== 'statistics' && currentView !== 'search-history' && (
               <>
                 <button onClick={handleShowActivityLog} className="activity-log-button">
                   활동 이력
                 </button>
                 <button onClick={handleShowStatistics} className="activity-log-button">
                   활동로그 통계
+                </button>
+                <button onClick={handleShowSearchHistory} className="activity-log-button">
+                  검색 이력
                 </button>
               </>
             )}
@@ -171,10 +206,16 @@ function App() {
           <UserActivityLogList />
         ) : currentView === 'statistics' ? (
           <ActivityStatistics />
+        ) : currentView === 'search-history' ? (
+          <SearchHistoryList onBackToMain={handleBackToMain} onReSearch={handleReSearchFromHistory} />
         ) : !selectedLogType ? (
           <LogTypeSelector onSelectLogType={handleLogTypeSelect} />
         ) : (
-          <LogGrid logType={selectedLogType} />
+          <LogGrid
+            logType={selectedLogType}
+            initialSearchParams={initialSearchParams}
+            onInitialSearchDone={handleInitialSearchDone}
+          />
         )}
       </main>
     </div>

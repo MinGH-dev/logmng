@@ -1,0 +1,333 @@
+# API 정의서
+
+현재 백엔드에 구현된 API 목록 및 요청/응답 규격이다.  
+**베이스 URL**: `http://localhost:9200/api` (환경·포트는 `docs/contract.md` 참고).
+
+---
+
+## 1. 공통 응답 형식
+
+모든 API는 아래 공통 래퍼로 감싼다.
+
+| 필드 | 타입 | 설명 |
+|------|------|------|
+| success | boolean | 성공 여부 |
+| data | object / array | 성공 시 응답 본문 (엔드포인트별 상이) |
+| message | string | (선택) 안내 메시지 |
+| error | string | 실패 시 오류 메시지 |
+| code | string | 실패 시 오류 코드 |
+
+- 성공: `success: true`, `data`에 실제 데이터.
+- 실패: `success: false`, `error`, `code` 사용. HTTP 상태는 400/500 등 적절히 반환.
+
+---
+
+## 2. 인증 (Auth)
+
+**Base path**: `/api/auth`
+
+### 2.1 로그인
+
+- **POST** `/api/auth/login`
+- **Request body** (JSON)
+
+| 필드 | 타입 | 필수 | 설명 |
+|------|------|------|------|
+| username | string | O | 사용자명 |
+| password | string | O | 비밀번호 |
+
+- **Response (data)**: `{ "user": LoginResponse }`
+  - `user.username`: string
+  - `user.loginTime`: string (yyyy-MM-dd'T'HH:mm:ss)
+  - `user.clientIP`: string
+
+### 2.2 로그아웃
+
+- **POST** `/api/auth/logout`
+- **Request body**: 없음
+- **Response (data)**: null
+
+### 2.3 인증 상태 확인
+
+- **GET** `/api/auth/check`
+- **Response (data)**:
+  - `authenticated`: boolean
+  - `message`: string
+
+---
+
+## 3. 헬스 체크
+
+- **GET** `/api/health`
+- **Response (data)**:
+  - `status`: string (예: "OK")
+  - `timestamp`: string (yyyy-MM-dd'T'HH:mm:ss)
+  - `message`: string
+
+---
+
+## 4. 로그 타입 (Log Types)
+
+**Base path**: `/api/log-types`
+
+### 4.1 로그 타입 목록 조회
+
+- **GET** `/api/log-types`
+- **Response (data)**: 배열. 각 항목:
+  - `id`: string (예: "pb_feplog", "java_fw_imglog")
+  - `name`: string
+  - `description`: string
+  - `tables`: string[] (예: ["pb_send", "pb_recv"], ["imagelog"])
+
+### 4.2 로그 타입 상세 조회
+
+- **GET** `/api/log-types/{typeId}`
+- **Path**: `typeId` — "pb_feplog" | "java_fw_imglog"
+- **Response (data)**: 단일 로그 타입 객체 (4.1과 동일 구조)
+- **에러**: 존재하지 않는 typeId 시 `code: "LOG_TYPE_NOT_FOUND"`
+
+### 4.3 로그 타입별 필드 메타데이터 조회
+
+- **GET** `/api/log-types/{typeId}/fields`
+- **Path**: `typeId` — 현재 **java_fw_imglog** 만 지원
+- **Response (data)**: `FieldMetadataResponse[]`
+  - `name`, `label`, `type`, `operatorsAllowed`, `isSortable`, `isFacetable`, `valueSource`, `enumValues`, `suggestApi`, `isEncrypted`
+- **에러**: java_fw_imglog 외 타입 시 `code: "UNSUPPORTED_LOG_TYPE"`
+
+---
+
+## 5. DB 로그 (Logs DB)
+
+**Base path**: `/api/logs/db-refactored`
+
+### 5.1 로그 검색
+
+- **POST** `/api/logs/db-refactored/search`
+- **Request body** (JSON): `LogDbSearchRequest`
+
+| 필드 | 타입 | 필수 | 설명 |
+|------|------|------|------|
+| logType | string | | 기본 "pb_feplog" |
+| startDate | string | | yyyy-MM-dd HH:mm:ss 등 |
+| endDate | string | | yyyy-MM-dd HH:mm:ss 등 (미입력 시 오늘 23:59:59) |
+| mediaCode / media_gb | string | | |
+| trCode / tr_code | string | | |
+| loginId | string | | |
+| accountNumbers | string[] | | |
+| application | string | | 이미지로그 |
+| servicegroup | string | | 이미지로그 |
+| service | string | | 이미지로그 |
+| datastring | string | | 이미지로그 |
+| headerstring | string | | 이미지로그 |
+| keywords | string[] | | 이미지로그 |
+| decryptData | boolean | | 기본 false |
+| page | integer | | 기본 1 |
+| pageSize | integer | | 기본 10 |
+| sortField | string | | 기본 "log_timestamp" |
+| sortDirection | string | | 기본 "desc" |
+| displayTemplate | string | | 기본 "detailed" |
+
+- **Response (data)**: `LogDbSearchResponse`
+  - `data`: object[] (로그 행 목록)
+  - `pagination`: `{ currentPage, totalPages, totalCount }`
+
+### 5.2 로그 상세 조회
+
+- **GET** `/api/logs/db-refactored/{logType}/{type}/{identifier}`
+- **Path**:
+  - pb_feplog: `type` = "send" | "recv", `identifier` = id (Long)
+  - java_fw_imglog: `type` 무시, `identifier` = guid (String)
+- **Response (data)**: Map (로그 한 건 상세)
+
+### 5.3 복호화된 데이터 조회
+
+- **GET** `/api/logs/db-refactored/{logType}/{type}/{identifier}/decrypt`
+- **Path**: 5.2와 동일
+- **Response (data)**: Map (복호화된 필드 포함)
+
+### 5.4 로그 통계 조회
+
+- **POST** `/api/logs/db-refactored/stats`
+- **Request body**: `LogDbSearchRequest` (5.1과 동일)
+- **Response (data)**: 현재 구현 예정 메시지 반환 (`message` 등)
+
+### 5.5 스키마 정보 조회
+
+- **GET** `/api/logs/db-refactored/schema`
+- **Response (data)**: `{ tables: string[], message?: string }`
+
+### 5.6 DB 연결 상태 확인
+
+- **GET** `/api/logs/db-refactored/health`
+- **Response (data)**: `{ status: "OK", message: string }`
+
+### 5.7 고급 검색 (AST 기반)
+
+- **POST** `/api/logs/db-refactored/advanced-search`
+- **Request body** (JSON): `AdvancedSearchRequest`
+
+| 필드 | 타입 | 설명 |
+|------|------|------|
+| logType | string | 현재 **java_fw_imglog** 만 지원 |
+| queryText | string | 선택 |
+| startDate | string | |
+| endDate | string | |
+| filters | FilterCondition[] | field, operator, value |
+| sort | SortCondition[] | field, direction ("asc"\|"desc") |
+| pagination | { page, pageSize } | 기본 page=1, pageSize=50 |
+| decryptData | boolean | 기본 false |
+
+- **Response (data)**: `LogDbSearchResponse` (5.1과 동일)
+- **에러**: java_fw_imglog 외 타입 시 `code: "UNSUPPORTED_LOG_TYPE"`
+
+---
+
+## 6. 검색 추천 (Search Suggest)
+
+- **GET** `/api/search/suggest`
+- **Query**:
+  - `logType`: string (필수) — 현재 **java_fw_imglog** 만 지원
+  - `context`: string — "field" | "operator" | "value"
+  - `prefix`: string (선택)
+  - `fieldName`: string (선택)
+- **Response (data)**: `List<Map<String, Object>>` (추천 목록)
+- **에러**: java_fw_imglog 외 타입 시 `code: "UNSUPPORTED_LOG_TYPE"`
+
+---
+
+## 6.1 검색 이력 (Search History) — 복호화 승인 부가 기능
+
+**Base path**: `/api/search-history`
+
+- 검색 이력은 "복호화 승인 요청"이 발생한 검색을 저장하며, 사용자별 최근 이력 목록·재요청·재조회를 지원한다.
+- 승인 유효 기간: 요청일시 + 1일. 만료 시 재요청 가능.
+
+### 6.1.1 검색 이력 저장
+
+- **POST** `/api/search-history`
+- **Request body** (JSON):
+
+| 필드 | 타입 | 필수 | 설명 |
+|------|------|------|------|
+| logType | string | O | 로그 타입 (pb_feplog, java_fw_imglog 등) |
+| searchParams | object | O | 검색 조건 (LogDbSearchRequest 또는 AdvancedSearchRequest와 동일한 구조의 JSON) |
+
+- **Response (data)**: `{ "id": number, "requestedAt": string (yyyy-MM-dd'T'HH:mm:ss), "expiresAt": string, "approvalStatus": "PENDING" }`
+- **에러**: 비인증 401, logType/searchParams 누락 400
+
+### 6.1.2 검색 이력 목록 조회
+
+- **GET** `/api/search-history`
+- **Query**: `page` (기본 1), `pageSize` (기본 20), `sortField` (기본 requested_at), `sortDirection` (기본 desc)
+- **Response (data)**: `SearchHistoryListResponse`
+  - `data`: 배열. 각 항목: `seq` (목록 순번), `id`, `requestedAt`, `expiresAt`, `approvalStatus` (PENDING | APPROVED | EXPIRED | REJECTED), `searchParamsSummary` (요약 문자열 또는 키 필드만), `isExpired` (boolean, 만료 여부)
+  - `pagination`: `{ currentPage, totalPages, totalCount }`
+- **에러**: 비인증 401
+
+### 6.1.3 검색 이력 재요청 (만료 건)
+
+- **POST** `/api/search-history/{id}/re-request`
+- **Path**: `id` — 검색 이력 ID (Long)
+- **Response (data)**: `{ "id": number, "approvalStatus": "PENDING", "requestedAt": string, "expiresAt": string }`
+- **에러**: 403(타 사용자 소유), 404(없음), 400(이미 PENDING/APPROVED 등 재요청 불가)
+
+### 6.1.4 검색 이력 상세 조회 (재조회용)
+
+- **GET** `/api/search-history/{id}`
+- **Path**: `id` — 검색 이력 ID (Long)
+- **Response (data)**: `{ "id", "logType", "searchParams": object (전체 검색 조건), "requestedAt", "expiresAt", "approvalStatus" }`
+- **에러**: 403(타 사용자 소유), 404(없음)
+
+---
+
+## 7. 사용자 활동 이력 (Activity Log)
+
+**Base path**: `/api/activity-log`
+
+### 7.1 활동 이력 검색
+
+- **POST** `/api/activity-log/search`
+- **Request body** (JSON):
+
+| 필드 | 타입 | 설명 |
+|------|------|------|
+| startDate | string | yyyy-MM-dd HH:mm:ss 등 |
+| endDate | string | |
+| userId | string | |
+| username | string | |
+| actionType | string | |
+| ipAddress | string | |
+| page | integer | 기본 1 |
+| pageSize | integer | 기본 20 |
+| sortField | string | 기본 "created_at" |
+| sortDirection | string | 기본 "desc" |
+
+- **Response (data)**: `UserActivityLogResponse`
+  - `data`: object[] (활동 이력 목록)
+  - `pagination`: `{ currentPage, totalPages, totalCount }`
+
+### 7.2 활동 이력 상세 조회
+
+- **GET** `/api/activity-log/{id}`
+- **Path**: `id` — Long
+- **Response (data)**: Map (활동 이력 한 건 상세)
+
+---
+
+## 8. DB 테스트 (개발/운영 점검용)
+
+**Base path**: `/api/db`
+
+### 8.1 DB 연결 테스트
+
+- **GET** `/api/db/test`
+- **Response (data)**: Map
+  - `connected`: boolean
+  - `databaseProductName`, `databaseProductVersion`, `driverName`, `driverVersion`, `url`, `username`
+  - `readOnly`, `autoCommit`
+  - `pb_send_table_exists`, `pb_recv_table_exists`
+  - `pb_send_count`, `pb_recv_count`
+  - 실패 시: `error`, `errorClass`
+
+### 8.2 테이블 스키마 정보 조회
+
+- **GET** `/api/db/schema`
+- **Response (data)**: Map
+  - `pb_send_columns`, `pb_recv_columns`: 컬럼별 `{ name, type, size, nullable }`
+  - 실패 시: `error`
+
+---
+
+## 9. 복호화 (단일 로우)
+
+**Base path**: `/api/logs/decrypt`
+
+### 9.1 단일 로우 복호화
+
+- **POST** `/api/logs/decrypt/{logType}`
+- **Path**: `logType` — 현재 **java_fw_imglog** 만 지원
+- **Request body** (JSON): `{ "guid": string (필수), "status"?: string }`
+- **Response (data)**: Map (복호화된 필드)
+- **에러**:
+  - java_fw_imglog 외: `code: "UNSUPPORTED_LOG_TYPE"`
+  - guid 누락: `code: "MISSING_GUID"`
+  - 복호화 실패: `code: "DECRYPTION_FAILED"`
+
+---
+
+## 10. 에러 코드 요약
+
+| code | 의미 |
+|------|------|
+| LOG_TYPE_NOT_FOUND | 존재하지 않는 로그 타입 |
+| UNSUPPORTED_LOG_TYPE | 해당 로그 타입 미지원 (현재 java_fw_imglog만 지원하는 API) |
+| MISSING_GUID | 복호화 시 guid 필수 |
+| DECRYPTION_FAILED | 복호화 처리 실패 |
+
+---
+
+## 11. 참고
+
+- **환경·포트**: `docs/contract.md`
+- **사용자 관리·전산요청서·인사배치 등 (미구현 API)**: `specs/user-management.spec.yaml`
+- **정의 위치**: 이 문서는 현재 구현 기준. API 추가/변경 시 이 문서와 `specs/*.spec.yaml`을 먼저 갱신할 것.

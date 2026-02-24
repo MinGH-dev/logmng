@@ -88,6 +88,23 @@ CREATE TRIGGER update_pb_recv_updated_at
     FOR EACH ROW
     EXECUTE FUNCTION update_updated_at_column();
 
+-- 검색 이력 (복호화 승인 부가 기능)
+CREATE TABLE IF NOT EXISTS search_history (
+    id BIGSERIAL PRIMARY KEY,
+    user_id VARCHAR(100) NOT NULL,
+    log_type VARCHAR(50) NOT NULL,
+    search_params TEXT NOT NULL,
+    requested_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    expires_at TIMESTAMP NOT NULL,
+    approval_status VARCHAR(20) NOT NULL DEFAULT 'PENDING',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_search_history_user_id ON search_history(user_id);
+CREATE INDEX IF NOT EXISTS idx_search_history_requested_at ON search_history(requested_at);
+CREATE INDEX IF NOT EXISTS idx_search_history_user_requested ON search_history(user_id, requested_at DESC);
+
 -- 권한 부여
 GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO logmng;
 GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public TO logmng;
