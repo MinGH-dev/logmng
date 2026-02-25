@@ -100,40 +100,52 @@ function AppSidebar({
   };
 
   const menuItemStyles = useMemo(
-    () => ({
-      root: {
-        fontFamily: theme.typography.fontFamily,
-      },
-      button: ({ level, active, rtl }) => {
-        const base = {
+    () => {
+      const topLevelPadding = 12;
+      return {
+        root: {
           fontFamily: theme.typography.fontFamily,
-          '&:hover': {
-            backgroundColor: theme.palette.action.hover,
-          },
-        };
-        const activeStyle = {
-          borderLeft: active ? `3px solid ${theme.palette.primary.main}` : '3px solid transparent',
-          backgroundColor: active ? theme.palette.action.selected : undefined,
-        };
-        if (level === 0) {
-          return { ...base, ...activeStyle };
-        }
-        /** §2.1: Child indent 24px–32px; same as "이력·승인" children */
-        const indentPx = 20 + SUBMENU_INDENT_PX;
-        return {
-          ...base,
-          ...activeStyle,
-          ...(rtl ? { paddingRight: indentPx } : { paddingLeft: indentPx }),
-        };
-      },
-      label: {
-        fontFamily: theme.typography.fontFamily,
-      },
-      /** §2.1: Submenu content indent so "검색하기"/"검색 이력" align with "활동 이력"/"승인 대기" */
-      subMenuContent: {
-        paddingLeft: SUBMENU_INDENT_PX,
-      },
-    }),
+        },
+        /** Same alignment for all top-level rows (로그 검색, 이력·승인, 통계, 관리) */
+        subMenuRoot: {
+          fontFamily: theme.typography.fontFamily,
+        },
+        button: ({ level, active, rtl }) => {
+          const base = {
+            fontFamily: theme.typography.fontFamily,
+            '&:hover': {
+              backgroundColor: theme.palette.action.hover,
+            },
+          };
+          const activeStyle = {
+            borderLeft: active ? `3px solid ${theme.palette.primary.main}` : '3px solid transparent',
+            backgroundColor: active ? theme.palette.action.selected : undefined,
+          };
+          if (level === 0) {
+            return {
+              ...base,
+              ...activeStyle,
+              paddingLeft: topLevelPadding,
+              paddingRight: topLevelPadding,
+            };
+          }
+          /** §2.1: Child indent 24px–32px; same as "이력·승인" children */
+          const indentPx = 20 + SUBMENU_INDENT_PX;
+          return {
+            ...base,
+            ...activeStyle,
+            ...(rtl ? { paddingRight: indentPx } : { paddingLeft: indentPx }),
+          };
+        },
+        label: {
+          fontFamily: theme.typography.fontFamily,
+        },
+        /** §2.1: Submenu content indent so "검색하기"/"검색 이력" align with "활동 이력"/"승인 대기" */
+        subMenuContent: {
+          paddingLeft: SUBMENU_INDENT_PX,
+        },
+      };
+    },
     [theme]
   );
 
@@ -147,14 +159,24 @@ function AppSidebar({
         borderRight: `1px solid ${theme.palette.divider}`,
         height: '100vh',
         position: 'relative',
+        display: 'flex',
+        flexDirection: 'column',
       }}
       transitionDuration={theme.transitions.duration.enteringScreen}
       aria-label="사이드바 메뉴"
     >
-      <Menu
-        menuItemStyles={menuItemStyles}
-        closeOnClick
+      <div
+        style={{
+          flex: 1,
+          minHeight: 0,
+          overflowY: 'auto',
+          height: '100%',
+        }}
       >
+        <Menu
+          menuItemStyles={menuItemStyles}
+          closeOnClick
+        >
         {filteredTree.map((node) => {
           const Icon = node.icon;
           const hasActiveChild = node.children.some((c) => isActive(c));
@@ -190,6 +212,7 @@ function AppSidebar({
           );
         })}
       </Menu>
+      </div>
     </Sidebar>
   );
 }
