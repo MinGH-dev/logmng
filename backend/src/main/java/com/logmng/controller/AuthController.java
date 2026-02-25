@@ -44,12 +44,13 @@ public class AuthController {
         
         LoginResponse loginResponse = authService.login(request, httpRequest);
         
-        // 세션에 사용자 정보 저장 (활동 이력 기록을 위해)
-        jakarta.servlet.http.HttpSession session = httpRequest.getSession(true); // 세션이 없으면 생성
+        // 세션에 사용자 정보 및 role 저장 (결재자/관리자 권한 판단용)
+        jakarta.servlet.http.HttpSession session = httpRequest.getSession(true);
         session.setAttribute("userId", loginResponse.getUsername());
         session.setAttribute("username", loginResponse.getUsername());
-        log.info("✅ 세션에 사용자 정보 저장 완료: userId={}, sessionId={}", 
-                loginResponse.getUsername(), session.getId());
+        session.setAttribute("role", loginResponse.getRole() != null ? loginResponse.getRole() : "USER");
+        log.info("세션 저장 완료: userId={}, role={}, sessionId={}",
+                loginResponse.getUsername(), loginResponse.getRole(), session.getId());
         
         Map<String, LoginResponse> data = new HashMap<>();
         data.put("user", loginResponse);
@@ -79,13 +80,22 @@ public class AuthController {
      * GET /api/auth/check
      */
     @GetMapping("/check")
-    public ResponseEntity<ApiResponse<Map<String, Object>>> checkAuth() {
+    public ResponseEntity<ApiResponse<Map<String, Object>>> checkAuth(HttpServletRequest httpRequest) {
         log.debug("인증 상태 확인 요청");
-        boolean authenticated = authService.checkAuth();
+        boolean authenticated = authService.checkAuth(httpRequest);
         
         Map<String, Object> data = new HashMap<>();
         data.put("authenticated", authenticated);
         data.put("message", authenticated ? "인증되었습니다." : "인증되지 않았습니다.");
+        if (authenticated) {
+            jakarta.servlet.http.HttpSession session = httpRequest.getSession(false);
+            if (session != null) {
+                Object username = session.getAttribute("username");
+                Object role = session.getAttribute("role");
+                if (username != null) data.put("username", username.toString());
+                if (role != null) data.put("role", role.toString());
+            }
+        }
         
         ApiResponse<Map<String, Object>> response = ApiResponse.success(data);
         return ResponseEntity.ok(response);

@@ -16,9 +16,10 @@ const StatisticsFilters = ({
     });
   };
 
-  // 로그 타입 목록 (동적)
+  // 로그 타입 목록: '전체' + 로그인(LOGIN) + API 목록. 백엔드 '전체' = LOGIN + API 목록 합산과 동일하게 맞춤.
   const logTypes = [
     { value: '', label: '전체' },
+    { value: 'LOGIN', label: '로그인' },
     ...(logTypeList || []).map(lt => ({
       value: lt.id,
       label: lt.displayName || lt.name

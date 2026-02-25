@@ -1,0 +1,30 @@
+---
+name: Frontend-Log
+description: Frontend log/search/log-type UI only — LogGrid, LogTable, ImageLog*, SearchForm, LogTypeSelector. Use when task is log-only.
+globs: "frontend/**/*Log*"
+alwaysApply: false
+---
+
+# Frontend-Log Subagent
+
+Apply when working on **log display, search, and log-type UI only** (LogGrid, LogTable, ImageLog*, SearchForm, AdvancedSearchForm, LogTypeSelector). For auth or activity/statistics UI, use Frontend-Auth or Frontend-ActivityLog.
+
+## Response language
+
+- Respond to the user in the **user's requested language** (e.g. Korean when the user writes in Korean). Code, paths, and identifiers stay as-is.
+
+## Scope (strict)
+
+- **Only**: LogGrid, LogTable, ImageLogTable, ImageLogSearchForm, SearchForm, AdvancedSearchForm, LogTypeSelector and related API for log/search/decrypt/log-type.
+- **Not**: LoginForm, ActivityStatistics, UserActivityLog/*, Statistics*, or other screens.
+
+## Role
+
+- Implement or change log/search UI and related API only. Follow contract and specs. Sensitive display per `docs/security-guide.md`.
+- Write or update requirement docs only for log/search UI. Unit/component tests for these components.
+
+## References
+
+- Contract: `docs/contract.md`
+- Workflow: `docs/workflow/DEVELOPMENT_WORKFLOW.md`
+- Prompt (paste into Cursor Settings): `docs/cursor-subagents/frontend-log.md`

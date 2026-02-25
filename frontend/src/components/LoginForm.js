@@ -44,6 +44,10 @@ const LoginForm = ({ onLogin }) => {
     setLoading(true);
     setErrors({});
 
+    const LOGIN_TIMEOUT_MS = 10000; // 10초
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), LOGIN_TIMEOUT_MS);
+
     try {
       const apiBaseUrl = process.env.REACT_APP_API_BASE_URL || 'http://localhost:9200/api';
       const response = await fetch(`${apiBaseUrl}/auth/login`, {
@@ -51,9 +55,11 @@ const LoginForm = ({ onLogin }) => {
         headers: {
           'Content-Type': 'application/json',
         },
-        credentials: 'include', // 세션 쿠키 전달
-        body: JSON.stringify(formData)
+        credentials: 'include',
+        body: JSON.stringify(formData),
+        signal: controller.signal,
       });
+      clearTimeout(timeoutId);
 
       const result = await response.json();
 
@@ -87,17 +93,18 @@ const LoginForm = ({ onLogin }) => {
         setErrors({ general: errorMessage });
       }
     } catch (error) {
+      clearTimeout(timeoutId);
       logger.error('❌ 로그인 요청 중 오류:', { error: error.message });
-      
-      // 네트워크 오류와 기타 오류 구분
+
       if (error.name === 'TypeError' && error.message.includes('fetch')) {
         setErrors({ general: '🌐 서버에 연결할 수 없습니다.\n네트워크 연결을 확인해주세요.' });
       } else if (error.name === 'AbortError') {
-        setErrors({ general: '⏱️ 요청 시간이 초과되었습니다.\n다시 시도해주세요.' });
+        setErrors({ general: '⏱️ 요청 시간이 초과되었습니다.\n서버(백엔드)가 동작 중인지 확인해주세요.' });
       } else {
         setErrors({ general: '🚨 예상치 못한 오류가 발생했습니다.\n페이지를 새로고침하거나 관리자에게 문의하세요.' });
       }
     } finally {
+      clearTimeout(timeoutId);
       setLoading(false);
     }
   };

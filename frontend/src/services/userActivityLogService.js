@@ -6,6 +6,7 @@ const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || 'http://localhost:920
 
 /**
  * 사용자 활동 이력 검색
+ * 401/403 시에도 본문을 파싱해 반환하여 화면에서 "로그인 필요" 메시지를 보여줄 수 있게 함.
  */
 export const searchActivityLogs = async (searchParams) => {
   try {
@@ -18,11 +19,16 @@ export const searchActivityLogs = async (searchParams) => {
       body: JSON.stringify(searchParams),
     });
 
+    const result = await response.json();
+
     if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
+      // 인증 실패 등으로 401/403이면 본문 그대로 반환(화면에서 메시지 표시용)
+      if (response.status === 401 || response.status === 403) {
+        return result;
+      }
+      throw new Error(result.error || `HTTP error! status: ${response.status}`);
     }
 
-    const result = await response.json();
     return result;
   } catch (error) {
     console.error('활동 이력 검색 실패:', error);

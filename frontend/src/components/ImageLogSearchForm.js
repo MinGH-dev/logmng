@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import './SearchForm.css';
 
-const ImageLogSearchForm = ({ onSearch }) => {
+const ImageLogSearchForm = ({ onSearch, initialFormValues }) => {
   // 오늘 날짜의 00:00:00부터 23:59:59까지 기본값 설정
   const getTodayDateTime = (hours, minutes, seconds) => {
     const today = new Date();
@@ -24,6 +24,23 @@ const ImageLogSearchForm = ({ onSearch }) => {
   });
 
   const [errors, setErrors] = useState({});
+
+  // 재조회 등으로 부모가 전달한 초기값이 있으면 폼 상태 동기화 (검색 조건창에 동일 조건 표시)
+  useEffect(() => {
+    if (!initialFormValues || typeof initialFormValues !== 'object') return;
+    const normalized = {
+      startDate: initialFormValues.startDate != null ? String(initialFormValues.startDate) : formData.startDate,
+      endDate: initialFormValues.endDate != null ? String(initialFormValues.endDate) : formData.endDate,
+      application: initialFormValues.application != null ? String(initialFormValues.application) : '',
+      servicegroup: initialFormValues.servicegroup != null ? String(initialFormValues.servicegroup) : '',
+      service: initialFormValues.service != null ? String(initialFormValues.service) : '',
+      datastring: initialFormValues.datastring != null ? String(initialFormValues.datastring) : '',
+      headerstring: initialFormValues.headerstring != null ? String(initialFormValues.headerstring) : '',
+      keywords: initialFormValues.keywords != null ? String(initialFormValues.keywords) : '',
+      showDecryptOption: Boolean(initialFormValues.showDecryptOption)
+    };
+    setFormData(prev => ({ ...prev, ...normalized }));
+  }, [initialFormValues]);
 
   // 폼 데이터 변경 처리
   const handleInputChange = (e) => {

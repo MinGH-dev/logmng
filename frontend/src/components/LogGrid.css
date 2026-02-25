@@ -83,6 +83,12 @@
   cursor: not-allowed;
 }
 
+.decrypt-approval-success {
+  color: #0a7ea4;
+  font-size: 13px;
+  font-weight: 500;
+}
+
 .decrypt-approval-error {
   color: #c00;
   font-size: 13px;

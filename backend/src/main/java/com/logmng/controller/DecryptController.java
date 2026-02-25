@@ -3,11 +3,14 @@ package com.logmng.controller;
 import com.logmng.annotation.ActivityLog;
 import com.logmng.dto.response.ApiResponse;
 import com.logmng.service.LogDbService;
+import com.logmng.service.SearchHistoryService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import jakarta.servlet.http.HttpServletRequest;
 import java.util.Map;
 
 /**
@@ -16,50 +19,85 @@ import java.util.Map;
 @RestController
 @RequestMapping("/api/logs/decrypt")
 public class DecryptController {
-    
+
     private static final Logger log = LoggerFactory.getLogger(DecryptController.class);
     private final LogDbService logDbService;
-    
-    public DecryptController(LogDbService logDbService) {
+    private final SearchHistoryService searchHistoryService;
+
+    public DecryptController(LogDbService logDbService, SearchHistoryService searchHistoryService) {
         this.logDbService = logDbService;
+        this.searchHistoryService = searchHistoryService;
     }
-    
+
     /**
      * 단일 로우 복호화
      * POST /api/logs/decrypt/{logType}
+     * - 로그인 필수(세션 userId). 미로그인 시 401.
+     * - 유효한 복호화 승인(APPROVED, 미만료) 검색 이력이 없으면 403 DECRYPTION_NOT_APPROVED.
      */
     @ActivityLog(actionType = "DECRYPT", description = "단일 로우 복호화", includeParams = true)
     @PostMapping("/{logType}")
     public ResponseEntity<ApiResponse<Map<String, Object>>> decryptRow(
             @PathVariable String logType,
-            @RequestBody Map<String, String> request) {
-        
+            @RequestBody Map<String, String> request,
+            HttpServletRequest httpRequest) {
+
+        String userId = getUserId(httpRequest);
+        if (userId == null || userId.isBlank()) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body(ApiResponse.failure("로그인이 필요합니다.", "UNAUTHORIZED"));
+        }
+        // 복호화는 "현재 검색에 대한 승인"만 허용. searchHistoryId가 해당 사용자·승인·미만료인지 검사.
+        Long searchHistoryId = null;
+        Object sid = request.get("searchHistoryId");
+        if (sid != null) {
+            if (sid instanceof Number) searchHistoryId = ((Number) sid).longValue();
+            else if (sid instanceof String) try { searchHistoryId = Long.parseLong((String) sid); } catch (NumberFormatException ignored) { }
+        }
+        if (searchHistoryId == null || !searchHistoryService.isValidApprovalForUser(searchHistoryId, userId)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body(ApiResponse.failure("복호화 승인 후 이용 가능합니다. 이번 검색에서 '복호화 승인 요청'을 진행해 주세요.", "DECRYPTION_NOT_APPROVED"));
+        }
+
         String guid = request.get("guid");
         String status = request.get("status");
         log.info("🔓 복호화 요청: logType={}, guid={}, status={}", logType, guid, status);
-        
+
         if (!"java_fw_imglog".equals(logType)) {
-            ApiResponse<Map<String, Object>> errorResponse = 
+            ApiResponse<Map<String, Object>> errorResponse =
                     ApiResponse.failure("현재 java_fw_imglog만 지원됩니다.", "UNSUPPORTED_LOG_TYPE");
             return ResponseEntity.badRequest().body(errorResponse);
         }
-        
+
         if (guid == null || guid.trim().isEmpty()) {
-            ApiResponse<Map<String, Object>> errorResponse = 
+            ApiResponse<Map<String, Object>> errorResponse =
                     ApiResponse.failure("GUID는 필수입니다.", "MISSING_GUID");
             return ResponseEntity.badRequest().body(errorResponse);
         }
-        
+
+        // Snapshot check: only rows in the approved search result may be decrypted (20260224-decryption-snapshot-final-design-en)
+        if (!searchHistoryService.isRowInApprovedSnapshot(searchHistoryId, logType, guid)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body(ApiResponse.failure("승인된 검색 결과에 포함된 항목만 복호화할 수 있습니다.", "ROW_NOT_IN_APPROVED_SNAPSHOT"));
+        }
+
         try {
             Map<String, Object> decryptedData = logDbService.decryptRow(logType, guid, status);
             ApiResponse<Map<String, Object>> response = ApiResponse.success(decryptedData);
             return ResponseEntity.ok(response);
         } catch (Exception e) {
             log.error("복호화 중 오류 발생: guid={}, status={}", guid, status, e);
-            ApiResponse<Map<String, Object>> errorResponse = 
+            ApiResponse<Map<String, Object>> errorResponse =
                     ApiResponse.failure("복호화 실패: " + e.getMessage(), "DECRYPTION_FAILED");
             return ResponseEntity.internalServerError().body(errorResponse);
         }
+    }
+
+    private static String getUserId(HttpServletRequest request) {
+        jakarta.servlet.http.HttpSession session = request.getSession(false);
+        if (session == null) return null;
+        Object userId = session.getAttribute("userId");
+        return userId != null ? userId.toString() : null;
     }
 }
 

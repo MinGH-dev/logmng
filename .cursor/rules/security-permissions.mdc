@@ -1,0 +1,29 @@
+---
+description: Security and permissions — do not read/run sensitive or destructive operations without user confirmation
+alwaysApply: true
+---
+
+# Security & Permissions
+
+Do **not** perform the following without explicit user confirmation where noted.
+
+## Do not read
+
+- **Never**: `./secrets/**`, `~/.ssh/**`, `~/.aws/**`, `~/.config/gcloud/**`
+- **Caution**: `./.env`, `./.env.*` — only when necessary; never expose values in responses.
+
+## Do not run (without user confirmation)
+
+- **Destructive file ops**: `rm -rf /`, `rm -rf /*`, `rm -rf ~`, `rm -rf ~/*`, and Windows equivalents.
+- **Dangerous Git**: `git push --force`, `git push -f`, `git push --force-with-lease`, `git reset --hard`, `git clean -fd` / `-fdx`.
+- **Permissions**: `chmod -R 777`, `chmod 777`.
+- **System**: `reboot`, `shutdown`, `dd`, `mkfs`, `fdisk`, `format`.
+- **DB destruction**: `DROP DATABASE`, `DROP TABLE`, `TRUNCATE`, unbounded `DELETE FROM`, `redis-cli FLUSHALL`/`FLUSHDB`, `psql -c DROP`, `mysql -e DROP`.
+- **Process**: `kill -9`, `killall` — confirm process with user before use.
+
+## Prefer asking user before running
+
+- `rm` (especially recursive), `sudo`, `chmod`/`chown`.
+- Reading `.env` — only when strictly needed; never expose values.
+
+See: `docs/security-guide.md`. Keep secrets in env/config; never hardcode in code or commits.

@@ -1,6 +1,7 @@
 package com.logmng.dto.request;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 
@@ -118,14 +119,31 @@ public class UserActivityLogSearchRequest {
     }
     
     /**
-     * endDate를 LocalDateTime으로 변환
+     * endDate를 LocalDateTime으로 변환.
+     * 날짜만(yyyy-MM-dd)이면 당일 23:59:59로 해석하여 당일 전체가 조회되도록 함.
      */
     public LocalDateTime getEndDateAsDateTime() {
-        return parseDateTime(endDate);
+        return parseEndDateTime(endDate);
     }
     
     /**
-     * 날짜 문자열을 LocalDateTime으로 파싱
+     * startDate의 날짜 부분만 반환 (날짜만 비교 시 사용)
+     */
+    public LocalDate getStartDateAsLocalDate() {
+        LocalDateTime dt = getStartDateAsDateTime();
+        return dt != null ? dt.toLocalDate() : null;
+    }
+    
+    /**
+     * endDate의 날짜 부분만 반환 (날짜만 비교 시 사용)
+     */
+    public LocalDate getEndDateAsLocalDate() {
+        LocalDateTime dt = getEndDateAsDateTime();
+        return dt != null ? dt.toLocalDate() : null;
+    }
+    
+    /**
+     * 날짜 문자열을 LocalDateTime으로 파싱 (시작일용: 날짜만이면 00:00:00)
      */
     private LocalDateTime parseDateTime(String dateStr) {
         if (dateStr == null || dateStr.trim().isEmpty()) {
@@ -146,13 +164,33 @@ public class UserActivityLogSearchRequest {
                 return LocalDateTime.parse(trimmed, formatter);
             }
             
-            // yyyy-MM-dd 형식 (날짜만)
+            // yyyy-MM-dd 형식 (날짜만) → 시작일이므로 00:00:00
             if (trimmed.matches("\\d{4}-\\d{2}-\\d{2}")) {
                 DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd");
                 return java.time.LocalDate.parse(trimmed, formatter).atStartOfDay();
             }
             
             return null;
+        } catch (Exception e) {
+            return null;
+        }
+    }
+    
+    /**
+     * 종료일 전용 파싱: 날짜만(yyyy-MM-dd)이면 당일 23:59:59로 반환.
+     */
+    private LocalDateTime parseEndDateTime(String dateStr) {
+        if (dateStr == null || dateStr.trim().isEmpty()) {
+            return null;
+        }
+        try {
+            String trimmed = dateStr.trim();
+            // 날짜만 오면 당일 끝(23:59:59)으로 해석
+            if (trimmed.matches("\\d{4}-\\d{2}-\\d{2}")) {
+                DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd");
+                return java.time.LocalDate.parse(trimmed, formatter).atTime(23, 59, 59);
+            }
+            return parseDateTime(dateStr);
         } catch (Exception e) {
             return null;
         }

@@ -1,0 +1,25 @@
+---
+description: When a requirement or error-fix is requested, follow the agent collaboration sequence so all relevant agents can work together.
+alwaysApply: true
+---
+
+# Agent Collaboration on Requirement
+
+When the user requests a **new requirement**, **feature**, or **error fix** (and does not say "code only" or "skip docs"):
+
+1. **Follow the collaboration sequence** in `docs/workflow/AGENT-COLLABORATION-ON-REQUIREMENT.md`:
+   - **Step 1**: Requirements — requirement doc (§1, §2, §3) first. No code before this.
+   - **Step 2**: Security — if PII, decryption scope, or access control; add §2.1 or security review.
+   - **Step 3**: Contract (API/DB change), DBA (schema), Architecture (performance), **Consistency** (new conventions), **UX** (UI/design) — as needed.
+   - **Step 4**: Backend / Frontend / DB — implement using requirement doc, §3, contract, and any review output.
+   - **Step 4.5**: **Review** (optional) — review change against contract, workflow, quality, CONSISTENCY-STANDARDS; no code edit.
+   - **Step 5**: QA — test scenarios, §5 (and §6 for error fixes), verification.
+   - **Step 6**: **Documentation** (user/ops docs), **Release** (CHANGELOG, release checklist) — as needed.
+
+2. **Single hub**: The requirement doc (`docs/requirements/yyyyMMdd-name.md`) is the shared artifact. Each agent reads or updates only the sections assigned in the collaboration doc.
+
+3. **Handoffs**: When invoking or delegating to another agent (e.g. via Subagent or explicit instruction), state the **input** they get (e.g. "requirement doc draft", "contract updated") and the **output** expected (e.g. "§2.1 security review", "implementation in backend/").
+
+4. **Gate**: Do not start Step 4 (development) until Step 1 (requirement doc + §3 test plan) is complete. Same for error fixes: requirement doc + §3 first (see `error-first-workflow.mdc`).
+
+Reference: `docs/workflow/AGENT-COLLABORATION-ON-REQUIREMENT.md`, `docs/workflow/CURSOR-SUBAGENTS-DESIGN.md` §3.

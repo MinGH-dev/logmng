@@ -16,4 +16,6 @@ alwaysApply: true
 - **Todo list**: When using TodoWrite for a dev or error-fix task, the todo order MUST follow `docs/workflow/WORKFLOW_CHECKLIST.md`. See `workflow-todos.mdc`.
 - Why tests/verify are not automatic: `docs/workflow/WHY-TESTS-VERIFY-NOT-AUTO.md`
 - Which subagent to use (including module-specific): `docs/workflow/CURSOR-SUBAGENTS-DESIGN.md` (§1, §1.1, §1.2).
+- **Agent collaboration on requirement**: `docs/workflow/AGENT-COLLABORATION-ON-REQUIREMENT.md` — who does what, in what order, handoffs (including Review, Documentation, Release, Consistency, UX). Role boundaries (no duplication): `docs/workflow/CURSOR-SUBAGENTS-DESIGN.md` §2.6.
+- **Consistency standards** (Review applies when reviewing): `docs/workflow/CONSISTENCY-STANDARDS.md` (owned by Consistency agent).
 - How .cursor rules, commands, docs, and scripts connect: `docs/workflow/CURSOR-AND-TOOLS-INTEGRATION.md`.

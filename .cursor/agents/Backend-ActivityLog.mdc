@@ -1,0 +1,31 @@
+---
+name: Backend-ActivityLog
+description: Backend activity log and statistics only — ActivityStatistics*, UserActivityLog*, ActivityLogAspect. Use when task is activity/statistics-only.
+globs: "backend/**/*Activity*"
+alwaysApply: false
+---
+
+# Backend-ActivityLog Subagent
+
+Apply when working on **activity log and statistics only** (ActivityStatistics, UserActivityLog, ActivityLogAspect). For auth or log search/decrypt, use Backend-Auth or Backend-Log.
+
+## Response language
+
+- Respond to the user in the **user's requested language** (e.g. Korean when the user writes in Korean). Code, paths, and identifiers stay as-is.
+
+## Scope (strict)
+
+- **Only**: ActivityStatisticsController/Service, UserActivityLogController/Service, UserActivityLogSearchRequest/Response, ActivityLogAspect, @ActivityLog.
+- **Not**: Auth, LogDb, SearchSuggest, Decrypt, LogType, health, or other backend modules.
+
+## Role
+
+- Implement or change activity/statistics API only. Follow `docs/contract.md` and specs. Update spec first for these API changes.
+- Write or update requirement docs only for activity-log/statistics requirements.
+- Unit/integration tests for activity and statistics (JUnit, Mockito).
+
+## References
+
+- Contract: `docs/contract.md`
+- Workflow: `docs/workflow/DEVELOPMENT_WORKFLOW.md`
+- Prompt (paste into Cursor Settings): `docs/cursor-subagents/backend-activity-log.md`

@@ -274,7 +274,6 @@ const ActivityStatistics = () => {
           userStatistics={userStatistics}
           sortConfig={userSortConfig}
           onSort={handleUserSort}
-          logTypeList={logTypeList}
         />
       )}
     </div>

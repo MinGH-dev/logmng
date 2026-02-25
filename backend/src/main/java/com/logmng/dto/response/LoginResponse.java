@@ -15,6 +15,9 @@ public class LoginResponse {
     private LocalDateTime loginTime;
     
     private String clientIP;
+
+    /** Role from app_user (ADMIN | USER). Used for session. */
+    private String role;
     
     public LoginResponse() {
     }
@@ -47,6 +50,14 @@ public class LoginResponse {
     
     public void setClientIP(String clientIP) {
         this.clientIP = clientIP;
+    }
+
+    public String getRole() {
+        return role;
+    }
+
+    public void setRole(String role) {
+        this.role = role;
     }
 }
 

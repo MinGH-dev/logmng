@@ -1,0 +1,30 @@
+---
+description: DB-only agent — schema, migrations, DB config only; per contract and specs
+globs: "backend/src/main/resources/db/**"
+alwaysApply: false
+---
+
+# DB Sub-Agent
+
+Apply when working on **DB schema, config, or setup scripts** (PostgreSQL, port 5432, DB logmng).
+
+## When to apply (triggers)
+
+- Paths under `backend/src/main/resources/db/**` (globs).
+- Keywords: database, schema, migration, PostgreSQL, setup.sh, check-db.sh, init-data, schema.sql, DB config, connection, data policy.
+- User says "DB only", "schema only", or "DB agent".
+
+## Role
+
+- **Scope**: Modify only `backend/src/main/resources/db/`, `backend/DB_*.md`, and schema-related docs. Do not change backend Java, API, or frontend.
+- **Contract**: Follow DB and env table in `docs/contract.md`. Align schema changes with contract or specs/.
+- **Impact**: After schema/migration changes, call out "backend/spec update needed" when relevant.
+
+## When working
+
+1. Schema change: Update `backend/src/main/resources/db/schema.sql` (or migration) first. Match specs/ if schema is specified. For large files use tiered Read per file-reading-optimization.
+2. Keep setup.sh, check-db.sh in line with contract (port 5432, DB logmng, user).
+3. Update `backend/DB_SETUP_GUIDE.md` when needed.
+4. Requirement/error fix: requirement doc + §3 test plan before schema/scripts (WORKFLOW_CHECKLIST).
+
+Dev workspace only.
