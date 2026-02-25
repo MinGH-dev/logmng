@@ -40,10 +40,14 @@ public class LogDbController {
             @RequestBody LogDbSearchRequest request) {
         
         log.info("🔍 DB 로그 검색 요청 수신");
-        log.info("🔍 요청 파라미터 상세: logType={}, startDate={}, endDate={}, application={}, servicegroup={}, service={}, datastring={}, headerstring={}, keywords={}", 
-                request.getLogType(), request.getStartDate(), request.getEndDate(), 
+        String reqLogType = request.getLogType() != null ? request.getLogType() : "pb_feplog";
+        log.info("🔍 요청 파라미터 상세: logType={}, startDate={}, endDate={}, application={}, servicegroup={}, service={}, datastring={}, headerstring={}, keywords={}",
+                reqLogType, request.getStartDate(), request.getEndDate(),
                 request.getApplication(), request.getServicegroup(), request.getService(),
                 request.getDatastring(), request.getHeaderstring(), request.getKeywords());
+        if ("java_fw_imglog".equals(reqLogType)) {
+            log.info("🔍 이미지 로그 검색 분기: searchJavaFwImglog 호출 예정");
+        }
         log.debug("DB 로그 검색 요청: {}", request);
         
         // 날짜가 없으면 기본값 설정 (오늘 하루)

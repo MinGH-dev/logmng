@@ -259,7 +259,13 @@ public class LogDbService {
             // 날짜 조건 (insert_time은 bigint 타임스탬프)
             Long startTimestamp = request.getStartDateAsTimestamp();
             Long endTimestamp = request.getEndDateAsTimestamp();
-            
+            log.info("🔍 이미지로그 검색 날짜 조건: startDate={}, endDate={} -> startTs={}, endTs={} (null이면 날짜 조건 미적용)",
+                    request.getStartDate(), request.getEndDate(), startTimestamp, endTimestamp);
+            if (startTimestamp == null || endTimestamp == null) {
+                log.warn("🔍 이미지로그 검색: startDate 또는 endDate 파싱 실패로 날짜 조건이 일부/전부 미적용됨. raw startDate={}, endDate={}",
+                        request.getStartDate(), request.getEndDate());
+            }
+
             if (startTimestamp != null) {
                 sql.append("AND insert_time >= ? ");
                 params.add(startTimestamp);
