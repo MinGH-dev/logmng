@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useMemo } from 'react';
 import { Sidebar, Menu, MenuItem, SubMenu } from 'react-pro-sidebar';
 import { useTheme } from '@mui/material/styles';
 import {
@@ -14,6 +14,9 @@ import {
   People as PeopleIcon,
   Business as BusinessIcon,
 } from '@mui/icons-material';
+
+/** §2.1: Submenu indent (24px–32px); use 28px to match 8px grid */
+const SUBMENU_INDENT_PX = 28;
 
 const DRAWER_WIDTH_OPEN = 240;
 const DRAWER_WIDTH_COLLAPSED = 64;
@@ -81,6 +84,13 @@ function AppSidebar({
 
   const filteredTree = MENU_TREE.filter((node) => !node.adminOnly || isAdmin);
 
+  /** Controlled open state per SubMenu for aria-expanded (§2.1 a11y) */
+  const [openMenus, setOpenMenus] = useState({});
+  const getSubMenuOpen = (node) =>
+    openMenus[node.id] !== undefined ? openMenus[node.id] : node.children.some((c) => isActive(c));
+  const setSubMenuOpen = (nodeId, open) =>
+    setOpenMenus((prev) => ({ ...prev, [nodeId]: open }));
+
   const handleChildClick = (child) => {
     if (child.view === 'main') {
       onSearchMain();
@@ -89,34 +99,43 @@ function AppSidebar({
     }
   };
 
-  const menuItemStyles = {
-    root: {
-      fontFamily: theme.typography.fontFamily,
-    },
-    button: ({ level, active }) => {
-      const base = {
+  const menuItemStyles = useMemo(
+    () => ({
+      root: {
         fontFamily: theme.typography.fontFamily,
-        '&:hover': {
-          backgroundColor: theme.palette.action.hover,
-        },
-      };
-      if (level === 0) {
-        return {
-          ...base,
+      },
+      button: ({ level, active, rtl }) => {
+        const base = {
+          fontFamily: theme.typography.fontFamily,
+          '&:hover': {
+            backgroundColor: theme.palette.action.hover,
+          },
+        };
+        const activeStyle = {
           borderLeft: active ? `3px solid ${theme.palette.primary.main}` : '3px solid transparent',
           backgroundColor: active ? theme.palette.action.selected : undefined,
         };
-      }
-      return {
-        ...base,
-        borderLeft: active ? `3px solid ${theme.palette.primary.main}` : '3px solid transparent',
-        backgroundColor: active ? theme.palette.action.selected : undefined,
-      };
-    },
-    label: {
-      fontFamily: theme.typography.fontFamily,
-    },
-  };
+        if (level === 0) {
+          return { ...base, ...activeStyle };
+        }
+        /** §2.1: Child indent 24px–32px; same as "이력·승인" children */
+        const indentPx = 20 + SUBMENU_INDENT_PX;
+        return {
+          ...base,
+          ...activeStyle,
+          ...(rtl ? { paddingRight: indentPx } : { paddingLeft: indentPx }),
+        };
+      },
+      label: {
+        fontFamily: theme.typography.fontFamily,
+      },
+      /** §2.1: Submenu content indent so "검색하기"/"검색 이력" align with "활동 이력"/"승인 대기" */
+      subMenuContent: {
+        paddingLeft: SUBMENU_INDENT_PX,
+      },
+    }),
+    [theme]
+  );
 
   return (
     <Sidebar
@@ -139,13 +158,18 @@ function AppSidebar({
         {filteredTree.map((node) => {
           const Icon = node.icon;
           const hasActiveChild = node.children.some((c) => isActive(c));
+          const subMenuOpen = getSubMenuOpen(node);
           return (
             <SubMenu
               key={node.id}
               label={node.label}
               icon={<Icon />}
               defaultOpen={hasActiveChild}
+              open={subMenuOpen}
+              onOpenChange={(open) => setSubMenuOpen(node.id, open)}
               active={hasActiveChild}
+              aria-expanded={subMenuOpen}
+              aria-haspopup="menu"
             >
               {node.children.map((child) => {
                 const SecondIcon = SECOND_ICONS[child.id];
