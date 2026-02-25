@@ -33,6 +33,7 @@
 | 코드/변경 검토(체크리스트 적용) | Review 에이전트, commands: review.md | — | .cursor/commands/review.md, CONSISTENCY-STANDARDS.md |
 | 단위 테스트 실행 | commands: run-tests.md, rules: post-change-test-verify.mdc | 요건 문서 §3·§5 | `mvn test`, `npm test -- --watchAll=false` |
 | 재시작·헬스 확인 | commands: verify.md, check-*.md | .cursor/commands/verify.md | scripts/dev-services.sh |
+| 브라우저 자동화 (QA/UX/Frontend) | agents: QA.mdc, Frontend.mdc, UX.mdc | docs/workflow/BROWSER-AUTOMATION-MCP.md, .cursor/commands/verify.md §3.5 | — (MCP: .cursor/mcp.json) |
 | 서비스 시작/중지 | commands: start-*.md, stop-*.md, restart-*.md | docs/QUICK_START.md | scripts/dev-services.sh |
 
 ---

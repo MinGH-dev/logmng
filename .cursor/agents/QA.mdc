@@ -52,8 +52,8 @@ This avoids verifying against a stale or unbuilt state. See `docs/workflow/SUBAG
 
 When **Frontend or Backend** have completed **build and restart** (confirmed in handoff or by you), **QA performs verification**:
 
-1. Run verification per `.cursor/commands/verify.md` (restart + health check: backend 9200, frontend 3001).
-2. Update requirement doc **§5** (test results); for error fixes also **§6** (Error remedy result).
+1. Run verification per `.cursor/commands/verify.md` (restart + health check: backend 9200, frontend 3001). When a **browser MCP** is available (see `docs/workflow/BROWSER-AUTOMATION-MCP.md` and `.cursor/mcp.json`), optionally run **step 3.5** (browser check): open http://localhost:3001, capture page, optionally 1–2 §3 critical-path actions; record outcome in §5.
+2. Update requirement doc **§5** (test results); for error fixes also **§6** (Error remedy result). If you ran a browser check, add a one-line summary (e.g. "Browser: app load OK, [areas] visible.").
 3. **Commit** per `.cursor/commands/commit-on-complete.md` (do not push unless the user requests). This completes the delegation chain so the main agent does not need to commit.
 4. Hand off to Documentation/Release or Done per `docs/workflow/AGENT-COLLABORATION-ON-REQUIREMENT.md` Step 5 → 6.
 
@@ -69,3 +69,4 @@ When **Frontend or Backend** have completed **build and restart** (confirmed in 
 - Contract: `docs/contract.md`
 - Test workflow skill: `.cursor/skills/test-workflow/SKILL.md`
 - Commands: `run-tests.md`, `verify.md`, `check-backend.md`, `check-db.md`, `check-frontend-backend.md`
+- **Browser verification (optional)**: `.cursor/commands/verify.md` step 3.5; tool mapping and activation: `docs/workflow/BROWSER-AUTOMATION-MCP.md`; project MCP config: `.cursor/mcp.json`.

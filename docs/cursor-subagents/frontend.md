@@ -66,7 +66,7 @@ If the requirement doc **does not fully specify** something that **falls in an e
 When you modify code or config under `frontend/`, **always include in your plan and perform**:
 
 1. **Build**: From project root, `cd frontend && npm run build`. If the build fails due to ESLint only, use `CI=false npm run build` to complete the build; report any ESLint issues in your summary.
-2. **Restart**: **Run restart yourself** from project root: `./scripts/dev-services.sh frontend restart` (or `all restart` if both frontend and backend were involved). Wait a few seconds, then confirm the app is reachable (e.g. http://localhost:3001). Do **not** ask the user to run restart — the subagent performs it.
+2. **Restart**: **Run restart yourself** from project root: `./scripts/dev-services.sh frontend restart` (or `all restart` if both frontend and backend were involved). Wait a few seconds, then confirm the app is reachable (e.g. http://localhost:3001). Do **not** ask the user to run restart — the subagent performs it. Optionally, when a **browser MCP** is available (see `docs/workflow/BROWSER-AUTOMATION-MCP.md`, `.cursor/mcp.json`), run a quick smoke check: navigate to the changed route, `browser_snapshot` to confirm structure, and one or two key interactions (click/fill) to catch regressions before handing off to QA.
 3. **Handoff to QA**: After build and restart, **instruct the QA subagent to perform verification**. Your handoff **must include** a one-line confirmation so QA can gate verification on it, e.g.  
    `Build: cd frontend && CI=false npm run build — exit 0. Restart: ./scripts/dev-services.sh frontend restart — done. QA verification requested.`
 

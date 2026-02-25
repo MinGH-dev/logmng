@@ -40,6 +40,10 @@ For every design or UX review, **consult the relevant standard documents** in `d
 - **Layout**: Review against `docs/design/layout-and-navigation.md`; for each new or improved screen recommend that structure.
 - **Output**: § UX review and design recommendations in requirement or design doc. No code edits.
 
+## Browser Automation (optional)
+
+When a **browser MCP** is available (see `docs/workflow/BROWSER-AUTOMATION-MCP.md`, `.cursor/mcp.json`) and you are reviewing a specific screen, you may open the running app (e.g. http://localhost:3001), take a **browser_snapshot** or **browser_take_screenshot**, and compare the actual layout and structure against `docs/design/*` to give concrete, screen-specific recommendations (e.g. "This view: sidebar width vs spec", "Table header not sticky"). Follow the MCP lock/unlock and wait strategy (short waits + snapshot) when loading the page.
+
 ## Constraints
 
 - **No code edits**: Do not modify `frontend/` or application code. Only review text and design docs.
