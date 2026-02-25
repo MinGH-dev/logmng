@@ -8,14 +8,14 @@ When a **new requirement** or **error-fix request** occurs, agents collaborate i
 
 | Step | Agent(s) | Input | Output | Handoff to |
 |------|-----------|--------|--------|------------|
-| **1** | **Requirements** | User request, error message, or feature need | Requirement doc: `docs/requirements/yyyyMMdd-name.md` with §1, §2, §3. Optional: `specs/*.spec.yaml`. | Step 2 if security-relevant; else Step 3 or 4 |
+| **1** | **Requirements** | User request, error message, or feature need | Requirement doc: `docs/requirements/yyyyMMdd-name.md` with §1, §2, §3. Optional: `specs/*.spec.yaml`. **During authoring**: solicit feedback from relevant expert subagents (see §1.1). | Step 2 if security-relevant; else Step 3 or 4 |
 | **2** | **Security** (if PII / decryption / access control) | Requirement doc §1·§2 | §2.1 Security review or security appendix. | Step 3 or 4 |
 | **3** | **Contract** (if API or DB change) | Requirement doc + security if any | Updated `docs/contract.md`, `specs/*.spec.yaml`. | Step 4 |
 | **3b** | **DBA** (if schema / indexing / JSON design) | Requirement doc, schema or spec | Design review; no code. DB implements. | Step 4 |
 | **3c** | **Architecture** (if performance / scale / caching) | Requirement doc, design or spec | Design review; no code. Backend/DB implement. | Step 4 |
 | **3d** | **Consistency** (if new conventions / error codes) | Requirement doc or new convention need | Updated `docs/workflow/CONSISTENCY-STANDARDS.md`. Review applies it. | Step 4, Review |
 | **3d** | **UX** (if UI / design / a11y) | Requirement doc §1·§2, UI description | § UX review or design recommendations. No code. Frontend implements. | Step 4 |
-| **4** | **Backend / Frontend / DB** | Requirement doc, §3, contract/spec, reviews | Code and config; unit/integration tests; **build and restart** (required). | Step 4.5 or 5 |
+| **4** | **Backend / Frontend / DB** | Requirement doc, §3, contract/spec, reviews | Code and config; unit/integration tests; **build and restart** (required). When detail is missing, **query the owning expert subagent** (see §1.2). | Step 4.5 or 5 |
 | **4.5** | **Review** (optional, before QA) | Implemented change (Step 4) | Review report vs contract, workflow, quality, `CONSISTENCY-STANDARDS.md`. No code. Implementing agent fixes. | Step 5 |
 | **5** | **QA** | Requirement doc §3, implemented feature **after build and restart** | **Verification**: verify checklist, health/behavior check; test scenarios; §5 (and §6 for error fixes). | Step 6 or Done |
 | **6** | **Documentation** (after QA) | Completed feature, requirement doc | Updated user/ops docs (README, QUICK_START, runbooks). No requirement docs, no code. | Done |
@@ -25,6 +25,36 @@ When a **new requirement** or **error-fix request** occurs, agents collaborate i
 - **Optional steps**: Security (PII/decrypt/access); Contract (API/DB change); DBA (schema); Architecture (performance); Consistency (new conventions); UX (UI/design); Review (before QA).
 - **Single source of truth**: Requirement doc is the hub. Each agent updates only its designated sections or owned docs (e.g. Consistency → CONSISTENCY-STANDARDS.md; Review applies it but does not edit it).
 - **Response language**: Agents respond to the user in the **user's requested language** (e.g. Korean when the user writes in Korean). See `.cursor/rules/language-policy.mdc`.
+
+### 1.1 Requirements authoring: feedback from expert subagents
+
+When the **Requirements** subagent writes the requirement doc, it **solicits feedback from relevant expert subagents** before finalizing the doc:
+
+1. **Draft** §1 (user requirement) and §2 (design) from the user request or error message.
+2. **Invoke each relevant expert** (via mcp_task or by instructing the user to switch and pass input):
+   - **Security**: if the requirement involves PII, decryption scope, or access control → request §2.1 or security appendix.
+   - **Contract**: if API or DB contract/spec change → request contract/spec updates or constraints for §2.
+   - **DBA**: if schema, indexing, or data design → request design review or constraints for §2.
+   - **Architecture**: if performance, scalability, or load → request design review or constraints for §2.
+   - **Consistency**: if new conventions or error codes → request standards or constraints for §2.
+   - **UX**: if UI, layout, or a11y → request § UX review or design recommendations for §2.
+3. **Incorporate** the experts' feedback into §1·§2.
+4. **Finalize** §3 (test plan) and the requirement doc.
+5. **When the doc is complete**, the flow continues: Step 2 (Security if needed), Step 3 (Contract/DBA/Architecture/Consistency/UX if needed), then **Step 4** — the **responsible subagent** (Backend, Frontend, or DB) takes over and implements; after implementation, **Step 5** (QA) and so on.
+
+This way the requirement doc reflects expert input **before** implementation starts, and each **responsible subagent** then performs its step in sequence.
+
+### 1.2 Development subagents: query experts when detail is needed
+
+When **Backend**, **Frontend**, or **DB** (Step 4) implement from the requirement doc and need **detailed information** that the doc does not fully specify and that **falls in another agent's domain**, they must **query that expert subagent** instead of assuming:
+
+- **UX** (layout, design, a11y, interaction): e.g. "Requirement doc X §2 — need exact layout/breakpoints for component Y."
+- **Contract** (API shape, request/response, env): e.g. "Requirement doc X — need exact request body and response shape for endpoint Z."
+- **DBA** (schema, indexes, JSON vs relational): e.g. "Requirement doc X — need final column list and index recommendation for table T."
+- **Security** (access rules, PII handling): e.g. "Requirement doc X — need access rule for role R on resource S."
+- **Consistency** (naming, error codes): e.g. "Requirement doc X — need error code and message for case C."
+
+**How to query**: Invoke the expert subagent via **mcp_task** with a short description and the requirement doc path (e.g. "Requirement doc: docs/requirements/yyyyMMdd-name.md. Question: [focused question]. Please return [expected output]."). If mcp_task is unavailable, ask the user to have the main agent invoke that subagent with the same question. **Do not invent** answers in another agent's domain; get the answer from the owning agent, then continue implementation.
 
 ---
 

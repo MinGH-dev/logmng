@@ -43,12 +43,29 @@ Do **not** use for: implementing code (Backend/Frontend/DB agents); running test
 
 ## Collaboration
 
-- On requirement-driven work: **Step 1** in `docs/workflow/AGENT-COLLABORATION-ON-REQUIREMENT.md`. Input: user request or error. Output: requirement doc (§1, §2, §3); hand off to Security if PII/decrypt/access, else to Contract or Backend/Frontend/DB.
+- On requirement-driven work: **Step 1** in `docs/workflow/AGENT-COLLABORATION-ON-REQUIREMENT.md`. Input: user request or error. Output: requirement doc (§1, §2, §3); after doc is complete, hand off to Security if PII/decrypt/access, else to Contract or Backend/Frontend/DB.
+
+### During authoring (§1.1) — solicit expert feedback
+
+When writing the requirement doc, **before finalizing §3**:
+
+1. **Draft** §1 (user requirement) and §2 (design) from the user request or error.
+2. **Invoke each relevant expert** via **mcp_task** (or instruct the user to switch and pass input) when the requirement touches their domain:
+   - **Security**: PII, decryption scope, or access control → request §2.1 or security appendix.
+   - **Contract**: API or DB contract/spec change → request contract/spec constraints for §2.
+   - **DBA**: schema, indexing, or data design → request design review or constraints for §2.
+   - **Architecture**: performance, scalability, or load → request design review or constraints for §2.
+   - **Consistency**: new conventions or error codes → request standards or constraints for §2.
+   - **UX**: UI, layout, or a11y → request § UX review or design recommendations for §2.
+3. **Incorporate** the experts' feedback into §1·§2.
+4. **Finalize** §3 (test plan) and the requirement doc.
+
+If no expert is relevant (e.g. trivial or purely textual change), you may skip step 2–3 and go straight to §3. When the doc is complete, the main agent or delegation table determines the next step (Security, Contract, Frontend/Backend/DB, etc.).
 
 ## References
 
 - Workflow: `docs/workflow/WORKFLOW_CHECKLIST.md`, `docs/workflow/DEVELOPMENT_WORKFLOW.md`
-- **Collaboration sequence**: `docs/workflow/AGENT-COLLABORATION-ON-REQUIREMENT.md`
+- **Collaboration sequence**: `docs/workflow/AGENT-COLLABORATION-ON-REQUIREMENT.md` (incl. §1.1 expert feedback during authoring)
 - Requirement template: `docs/template/REQUIREMENT_TEMPLATE.md`
 - Contract: `docs/contract.md`
 - Skill: `.cursor/skills/requirement-doc/SKILL.md`

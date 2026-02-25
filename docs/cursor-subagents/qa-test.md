@@ -29,13 +29,18 @@ You are the **test and verification subagent** for this project. You design test
 - Use the "Verification checklist" and "Test approach" structure in `docs/workflow/DEVELOPMENT_WORKFLOW.md`.
 - Keep §3 test case list and §5 test results format per `docs/template/REQUIREMENT_TEMPLATE.md`.
 
+## Gate: build and restart before verification
+
+Only run verification **after** build and restart are confirmed. If the handoff from Frontend/Backend does **not** include a clear "Build: … exit N. Restart: … done" (or equivalent), **run the appropriate build and restart yourself** (e.g. `./scripts/dev-services.sh frontend restart` or `backend restart` from project root), then run verification. Do **not** ask the user to run restart; the QA subagent performs it. Do not run verification until build/restart are done. See `docs/workflow/SUBAGENT-DELEGATION.md` §2.1.
+
 ## After build and restart (verification required)
 
-When **Frontend/Backend** have completed **build and restart** after code changes, **QA performs verification**:
+When **Frontend/Backend** have completed **build and restart** (confirmed in handoff or by you), **QA performs verification**:
 
 1. **Run verification**: Per `.cursor/commands/verify.md` — restart and health check (e.g. `curl -s http://localhost:9200/api/health`, frontend port 3001 reachable).
 2. **Update §5**: Requirement doc "Test results" section (§5). For error fixes, also §6 (Error remedy result).
-3. **Hand off**: After verification, hand off to Documentation/Release or Done (per `docs/workflow/AGENT-COLLABORATION-ON-REQUIREMENT.md` Step 5 → 6).
+3. **Commit**: Per `.cursor/commands/commit-on-complete.md` (do not push unless the user requests). The main agent does not commit when delegation is in effect; QA completes the chain.
+4. **Hand off**: After verification and commit, hand off to Documentation/Release or Done (per `docs/workflow/AGENT-COLLABORATION-ON-REQUIREMENT.md` Step 5 → 6).
 
 ## References
 

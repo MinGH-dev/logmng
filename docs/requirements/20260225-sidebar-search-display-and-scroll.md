@@ -136,5 +136,38 @@ UI/레이아웃 요건이므로, §1.1에 따라 **UX** 서브에이전트로 �
 
 ---
 
+## 6. 원인 재분석 및 재조치 (미반영 시)
+
+사용자 보고: "아무것도 바뀌지 않았는데" — 코드 변경·QA 통과에도 화면에서 개선이 보이지 않는 경우 아래를 적용한다.
+
+### 6.1 가능한 원인
+
+**스크롤(문제 2)**  
+- react-pro-sidebar 구조: `Sidebar` → `StyledSidebarContainer`(height: 100%, overflow-y: auto) → 우리 **div**(flex: 1, minHeight: 0, overflowY: auto) → Menu.  
+- **Container의 height: 100%**는 부모(StyledSidebar)에 명시적 높이가 있을 때만 유효. rootStyles로 `height: '100vh'`를 넘기지만, **비‑broken 모드**에서 Sidebar가 `position: relative`라 상위 레이아웃에 따라 높이가 정해지지 않을 수 있음.  
+- 우리 div의 **flex: 1, minHeight: 0**은 **부모가 flex 컨테이너일 때만** 높이 제한을 받음. Container는 flex가 아니므로 div가 내용 높이만큼 늘어나 스크롤이 컨테이너에 걸리지 않을 수 있음.
+
+**계층 표시(문제 1)**  
+- **menuItemStyles.button**의 `level === 0`은 SubMenu의 **트리거(라벨) 행**에 적용되지만, 라이브러리가 첫 번째 SubMenu에 다른 기본 패딩/클래스를 줄 수 있음.  
+- 라이브러리 클래스명: `ps-submenu-root`, `ps-menu-button`. 첫 번째 `.ps-submenu-root`만 다르게 렌더링되면 시각적 불일치가 남을 수 있음.
+
+### 6.2 재조치 방안
+
+**스크롤**  
+- 메뉴를 감싼 래퍼에 **flex/퍼센트에 의존하지 않고** **명시적 높이**를 준다: `maxHeight: '100vh'`, `overflowY: 'auto'`.  
+- 래퍼를 `height: '100vh'`로 고정해도 됨. 이렇게 하면 부모 체인과 무관하게 메뉴 영역만 세로 스크롤된다.
+
+**계층 표시**  
+- 첫 번째 SubMenu("로그 검색")에 **className**을 부여하고, 전역 또는 컴포넌트 내 스타일로 `.ps-menu-button`에 동일 패딩을 강제한다.  
+- 또는 Sidebar에 **customStyles**/라이트웨이트 CSS 주입으로 `.ps-sidebar-container .ps-submenu-root:first-child .ps-menu-button { padding-left: 12px; }` 적용.
+
+### 6.3 재조치 적용 내역 (2026-02-25)
+
+- **AppSidebar.js**: 메뉴 래퍼 div를 `flex: 1, minHeight: 0, height: 100%` 대신 **`maxHeight: '100vh'`, `overflowY: 'auto'`, `overflowX: 'hidden'`** 로 변경. 첫 번째 SubMenu에 `className="sidebar-first-submenu"` 부여.
+- **App.css**: `.sidebar-first-submenu.ps-submenu-root > .ps-menu-button { padding-left: 12px !important; }` 추가 (RTL 대응 포함).
+- 빌드: `CI=false npm run build` → exit 0. 재검증(TC-01, TC-02) 및 필요 시 §5 갱신.
+
+---
+
 **작성일**: 2026-02-25  
-**상태**: 완료
+**상태**: 완료 (§6.3 재조치 반영, 재검증 권장)

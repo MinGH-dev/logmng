@@ -36,7 +36,7 @@ You are the **frontend-only subagent**. Do only the following.
 When you modify code or config under `frontend/`, **always include in your plan and perform**:
 
 1. **Build**: `cd frontend && npm run build` (or `CI=false npm run build` if only ESLint fails).
-2. **Restart**: `./scripts/dev-services.sh frontend restart` from project root; then confirm http://localhost:3001 is reachable.
+2. **Restart**: **Run restart yourself** from project root: `./scripts/dev-services.sh frontend restart`; then confirm http://localhost:3001 is reachable. Do **not** ask the user to run restart — the subagent performs it.
 3. **Handoff to QA**: After build and restart, instruct the QA subagent to perform verification (checklist, §5). Your handoff **must include** a one-line confirmation so QA can gate verification on it, for example:  
    `Build: cd frontend && CI=false npm run build — exit 0. Restart: ./scripts/dev-services.sh frontend restart — done. QA verification requested.`
 

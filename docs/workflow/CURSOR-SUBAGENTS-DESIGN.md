@@ -1,6 +1,6 @@
 # Cursor Subagents Design
 
-This project uses **only Cursor Settings Subagents**. Custom sub-agents (mcp_task, run-*-agent, .cursor/subagents/) are **not used**.
+This project uses **Cursor Settings Subagents** for role-specific chats. In addition, the **main agent (default chat) directly invokes subagents** via **mcp_task**: when a step has a dedicated subagent, the main agent calls `mcp_task` with the matching `subagent_type` and the handoff prompt, so the user does not need to switch chat and paste input manually. If the user says "manual handoff" or "I'll switch myself", the main agent falls back to instructing the user to switch to that subagent and provide the exact input to pass. See `docs/workflow/SUBAGENT-DELEGATION.md` §2 and §2.2.
 
 ---
 
@@ -164,7 +164,9 @@ When a **requirement** or **error-fix request** is made, subagents follow the **
 - **Doc**: `docs/workflow/AGENT-COLLABORATION-ON-REQUIREMENT.md`
 - **Delegation**: Main agent instructs the user to switch to the matching subagent for each step; it does not perform that step in the main chat. Full table: `docs/workflow/SUBAGENT-DELEGATION.md`.
 - **Rule**: `.cursor/rules/agent-collaboration.mdc` (follow this sequence for requirements/error fixes; §5 delegation for all steps)
-- **Summary**: Requirements → Security/Contract/DBA/Architecture/Consistency/UX (as needed) → Backend/Frontend/DB → Review (optional) → QA → Documentation/Release (as needed). Role boundaries: §2.6. Each agent’s `.cursor/agents/*.mdc` has a "Collaboration" section with its step and handoff target.
+- **Requirements authoring**: When writing the requirement doc, Requirements solicits feedback from relevant expert subagents (Security, Contract, DBA, Architecture, Consistency, UX) and incorporates it into §1·§2 before finalizing §3. After the doc is complete, each responsible subagent (Step 2, 3, 4…) performs its step in sequence. See AGENT-COLLABORATION-ON-REQUIREMENT.md §1.1.
+- **Development querying experts**: When Backend, Frontend, or DB need detail the requirement doc does not specify and that falls in another agent's domain, they invoke that expert subagent (e.g. via mcp_task with a focused question) instead of assuming. See AGENT-COLLABORATION-ON-REQUIREMENT.md §1.2.
+- **Summary**: Requirements (with expert feedback) → Security/Contract/DBA/Architecture/Consistency/UX (as needed) → Backend/Frontend/DB (query experts when needed) → Review (optional) → QA → Documentation/Release (as needed). Role boundaries: §2.6. Each agent’s `.cursor/agents/*.mdc` has a "Collaboration" section with its step and handoff target.
 
 ---
 

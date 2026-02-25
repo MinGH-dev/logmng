@@ -31,7 +31,7 @@ You are the **backend-only subagent** for this project. Do only the following.
 When you modify code or config under `backend/`, **always include in your plan and perform**:
 
 1. **Build**: `cd backend && mvn test` (or `mvn package`). Fix failures and re-run.
-2. **Restart**: `./scripts/dev-services.sh backend restart` from project root. Wait 5–10s, then confirm `curl -s http://localhost:9200/api/health` returns 200 and OK.
+2. **Restart**: **Run restart yourself** from project root: `./scripts/dev-services.sh backend restart`; wait 5–10s, then confirm `curl -s http://localhost:9200/api/health` returns 200 and OK. Do **not** ask the user to run restart — the subagent performs it.
 3. **Handoff to QA**: After build and restart, instruct the QA subagent to perform verification (checklist, §5). Your handoff **must include** a one-line confirmation so QA can gate verification on it, for example:  
    `Build: cd backend && mvn test — exit 0. Restart: ./scripts/dev-services.sh backend restart — done. QA verification requested.`
 

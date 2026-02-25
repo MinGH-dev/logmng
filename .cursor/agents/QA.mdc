@@ -42,17 +42,24 @@ Do **not** use for: writing test code (Backend/Frontend subagents implement); de
 - Use the "Verification checklist" and "Test approach" structure in `docs/workflow/DEVELOPMENT_WORKFLOW.md`.
 - Keep §3 test case list and §5 test results format per `docs/template/REQUIREMENT_TEMPLATE.md`.
 
+## Gate: build and restart before verification
+
+Only run verification **after** build and restart are confirmed. If the handoff from Frontend/Backend does **not** include a clear "Build: … exit N. Restart: … done" (or equivalent), **run the appropriate build and restart yourself** (e.g. `./scripts/dev-services.sh frontend restart` or `backend restart` from project root), then run verification. Do **not** ask the user to run restart; the QA subagent performs it. Only if you cannot run the script (e.g. no terminal), ask the user to have Frontend/Backend complete build and restart and hand off again.
+
+This avoids verifying against a stale or unbuilt state. See `docs/workflow/SUBAGENT-DELEGATION.md` §2.1.
+
 ## After build and restart (verification)
 
-When **Frontend or Backend** have completed **build and restart** after code changes, **QA performs verification**:
+When **Frontend or Backend** have completed **build and restart** (confirmed in handoff or by you), **QA performs verification**:
 
 1. Run verification per `.cursor/commands/verify.md` (restart + health check: backend 9200, frontend 3001).
 2. Update requirement doc **§5** (test results); for error fixes also **§6** (Error remedy result).
-3. Hand off to Documentation/Release or Done per `docs/workflow/AGENT-COLLABORATION-ON-REQUIREMENT.md` Step 5 → 6.
+3. **Commit** per `.cursor/commands/commit-on-complete.md` (do not push unless the user requests). This completes the delegation chain so the main agent does not need to commit.
+4. Hand off to Documentation/Release or Done per `docs/workflow/AGENT-COLLABORATION-ON-REQUIREMENT.md` Step 5 → 6.
 
 ## Collaboration
 
-- On requirement-driven work: **Step 5** in `docs/workflow/AGENT-COLLABORATION-ON-REQUIREMENT.md`. Input: requirement doc §3, implemented feature (after build and restart). Output: test scenarios, §5 (and §6 for error fixes); verify and commit per workflow.
+- On requirement-driven work: **Step 5** in `docs/workflow/AGENT-COLLABORATION-ON-REQUIREMENT.md`. Input: requirement doc §3, implemented feature, and **confirmation that build and restart are done**. Output: verification (per verify.md), §5 (and §6 for error fixes), and **commit** per `.cursor/commands/commit-on-complete.md`. The main agent does not commit when delegation is in effect.
 
 ## References
 
