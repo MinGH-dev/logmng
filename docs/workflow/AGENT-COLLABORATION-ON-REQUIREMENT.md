@@ -84,6 +84,9 @@ When **Backend**, **Frontend**, or **DB** (Step 4) implement from the requiremen
 - **Backend / Frontend / DB → Review (optional)**: "Change ready; please review against contract, workflow, and CONSISTENCY-STANDARDS."
 - **Review → Backend / Frontend / DB**: "Review report: [items]. Please fix and re-submit or proceed to QA."
 - **Backend / Frontend / DB → QA**: "Implementation done; **build and restart completed**; requirement doc §2 **변경 파일 목록** confirmed/updated with actual files. Please perform **verification**: run verify checklist, health/behavior check, then add/update §5 (and §6 if error fix)."
+- **QA → Requirements** (on verification failure): "Verification failed; bugfix child created at [path]; **failure scope**: [frontend | backend | db | security | contract | ux | …]. Please formalize the bugfix doc (§1·§2·§3) and **delegate to the responsible expert** by scope. Do not implement."
+- **Requirements → Backend | Frontend | DB | Security | Contract | UX** (by failure scope): "Bugfix child [path]; please fix per doc. When **issue closed** (fix + build/restart done), hand off to **QA** for re-verification. QA will re-run verification; when all pass, QA commits."
+- **Backend / Frontend / DB (after fixing bugfix) → QA**: "Issue closed; build/restart done. Please **re-run verification** (verify checklist, and browser automation if frontend). Update §5; if all pass, commit per commit-on-complete."
 - **QA → Documentation / Release / Done**: "§5 (and §6 if error fix) updated; verification done. Optionally update user docs and CHANGELOG."
 - **Documentation / Release → Done**: "User docs / CHANGELOG updated."
 

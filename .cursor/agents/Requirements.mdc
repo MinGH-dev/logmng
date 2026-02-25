@@ -44,6 +44,8 @@ Do **not** use for: implementing code (Backend/Frontend/DB agents); running test
 ## Collaboration
 
 - On requirement-driven work: **Step 1** in `docs/workflow/AGENT-COLLABORATION-ON-REQUIREMENT.md`. Input: user request or error. Output: requirement doc (§1, §2, §3); after doc is complete, hand off to Security if PII/decrypt/access, else to Contract or Backend/Frontend/DB.
+- **Bugfix child from QA**: When **QA** hands off a **bugfix child** doc after verification failure, QA provides **failure scope** (frontend | backend | db | security | contract | ux | …). **Formalize** the doc: ensure §1 (failure description / user impact), §2 (scope, cause, fix design, tentative change list), and §3 (test plan) are complete. Do **not** implement. Then **delegate to the responsible expert by scope**:
+  - **frontend** → **Frontend** | **backend** → **Backend** | **db** → **DB** | **security** → **Security** (then implementer if needed) | **contract** → **Contract** (then implementer) | **ux** → **UX** (review) then **Frontend**. Instruct the expert: when **issue closed** (fix + build/restart), hand off to **QA** for re-verification; QA re-runs verification and commits when all pass. See `docs/workflow/BROWSER-AUTOMATION-VERIFICATION-POLICY.md` §2.4.
 
 ### During authoring (§1.1) — parallel consensus and orchestration
 
