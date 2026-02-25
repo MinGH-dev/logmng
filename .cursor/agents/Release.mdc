@@ -20,6 +20,10 @@ You are the **release and changelog subagent**. You only maintain **CHANGELOG**,
 - **Version**: Propose or document version bump (e.g. semver) when a release is prepared. Do not edit build files if that would require code change; instead state "bump version in package.json / pom.xml to X.Y.Z".
 - **Release checklist**: Maintain or update the release checklist at `docs/workflow/RELEASE_CHECKLIST.md` — commit, CHANGELOG/version, tag, build, test, **push to remote**, deploy. No execution; only doc.
 
+## When the user asks to push
+
+When the user explicitly requests **push** (e.g. "push해줘", "push 해주세요", "지금까지 변경된 내용 push해줘", "원격에 push"), you **may and should** perform git operations to satisfy that request: (1) check `git status`; (2) if there are uncommitted changes, stage and commit them per `.cursor/commands/commit-on-complete.md` (or a sensible chore message if not requirement-driven); (3) run `git push` (or `git push origin <branch>`). Do not force-push unless the user explicitly requests it. Exclude secrets (e.g. `.env`) from commits.
+
 ## Constraints
 
 - **No code**: Do not modify application code or build scripts; only CHANGELOG and release-related docs.

@@ -22,7 +22,8 @@ When **all** of the following are done for the current requirement or bugfix, **
      - `feat: activity-log - 오늘 필터 및 §5 결과 반영 (요건 20260220-activity-log-today-empty-fix)`
      - `fix: auth - statistics API 401 조치, §6 반영 (요건 20260220-activity-statistics-api-error-fix)`
      - `feat: search-history - 재조회 시 검색 조건 동일 표시, 자세히 보기 (요건 20260224-search-history-reload-and-detail-view)`
-4. **Do not** run `git push`, `git push --force`, or `git push -f` unless the user explicitly requests it.
+4. **Push**: Do **not** run `git push` (or force push) unless the user explicitly requests it.  
+   **When the user does request push** (e.g. "push해줘", "push 해주세요", "원격에 push해줘", "push to remote", "변경 내용 push해줘"), run `git push` (or `git push origin <current-branch>`) **after** the commit. The agent that performed the commit (e.g. QA after verification, or the current agent) should execute the push when the user asked for it.
 
 ## References
 
