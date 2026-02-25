@@ -78,14 +78,21 @@ const UserActivityLogSearchForm = ({ onSearch, loading, initialServerDate }) => 
       ...prev,
       [name]: value
     }));
-    if (errors[name]) setErrors(prev => ({ ...prev, [name]: '' }));
+    if (errors[name] || (name === 'startDate' || name === 'endDate' ? errors.dateRange : false)) {
+      setErrors(prev => {
+        const next = { ...prev, [name]: '' };
+        if (name === 'startDate' || name === 'endDate') next.dateRange = '';
+        return next;
+      });
+    }
   };
 
   const handleSubmit = (e) => {
     e.preventDefault();
     const newErrors = {};
+    // 날짜 범위: 시작 ≤ 종료 (date-search.md) — 시작일/종료일 둘 다 aria-invalid·aria-describedby 적용
     if (formData.startDate && formData.endDate && new Date(formData.startDate) > new Date(formData.endDate)) {
-      newErrors.endDate = '종료일시는 시작일시보다 이전일 수 없습니다.';
+      newErrors.dateRange = '종료일시는 시작일시보다 이전일 수 없습니다.';
     }
     if (Object.keys(newErrors).length > 0) {
       setErrors(newErrors);
@@ -139,9 +146,9 @@ const UserActivityLogSearchForm = ({ onSearch, loading, initialServerDate }) => 
             name="startDate"
             value={formData.startDate}
             onChange={handleInputChange}
-            className={`form-control${errors.startDate ? ' error' : ''}`}
-            aria-invalid={!!errors.startDate}
-            aria-describedby={errors.startDate ? 'startDate-error' : undefined}
+            className={`form-control${errors.startDate || errors.dateRange ? ' error' : ''}`}
+            aria-invalid={!!(errors.startDate || errors.dateRange)}
+            aria-describedby={[errors.startDate && 'startDate-error', errors.dateRange && 'user-activity-log-search-form-date-range-error'].filter(Boolean).join(' ') || undefined}
           />
           {errors.startDate && <span id="startDate-error" className="error-message" role="alert">{errors.startDate}</span>}
         </div>
@@ -154,11 +161,12 @@ const UserActivityLogSearchForm = ({ onSearch, loading, initialServerDate }) => 
             name="endDate"
             value={formData.endDate}
             onChange={handleInputChange}
-            className={`form-control${errors.endDate ? ' error' : ''}`}
-            aria-invalid={!!errors.endDate}
-            aria-describedby={errors.endDate ? 'endDate-error' : undefined}
+            className={`form-control${errors.endDate || errors.dateRange ? ' error' : ''}`}
+            aria-invalid={!!(errors.endDate || errors.dateRange)}
+            aria-describedby={[errors.endDate && 'endDate-error', errors.dateRange && 'user-activity-log-search-form-date-range-error'].filter(Boolean).join(' ') || undefined}
           />
           {errors.endDate && <span id="endDate-error" className="error-message" role="alert">{errors.endDate}</span>}
+          {errors.dateRange && <span id="user-activity-log-search-form-date-range-error" className="error-message" role="alert">{errors.dateRange}</span>}
         </div>
       </div>
 

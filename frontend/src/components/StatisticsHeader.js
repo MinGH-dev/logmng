@@ -1,6 +1,8 @@
 import React from 'react';
 import './StatisticsHeader.css';
 
+const DATE_RANGE_ERROR_ID = 'activity-statistics-date-range-error';
+
 const StatisticsHeader = ({
   statisticsType,
   onTypeChange,
@@ -11,7 +13,9 @@ const StatisticsHeader = ({
   year,
   month,
   onYearChange,
-  onMonthChange
+  onMonthChange,
+  dateRangeInvalid = false,
+  dateRangeErrorId = DATE_RANGE_ERROR_ID
 }) => {
   const currentYear = new Date().getFullYear();
   const years = Array.from({ length: 10 }, (_, i) => currentYear - 5 + i);
@@ -45,6 +49,8 @@ const StatisticsHeader = ({
                 value={startDate}
                 onChange={(e) => onStartDateChange(e.target.value)}
                 aria-label="시작일"
+                aria-invalid={!!dateRangeInvalid}
+                aria-describedby={dateRangeInvalid ? dateRangeErrorId : undefined}
               />
             </div>
             <div className="date-selector-group">
@@ -55,6 +61,8 @@ const StatisticsHeader = ({
                 value={endDate}
                 onChange={(e) => onEndDateChange(e.target.value)}
                 aria-label="종료일"
+                aria-invalid={!!dateRangeInvalid}
+                aria-describedby={dateRangeInvalid ? dateRangeErrorId : undefined}
               />
             </div>
           </>
