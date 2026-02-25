@@ -123,14 +123,15 @@ function AppSidebar({
           '& .MuiDrawer-paper': {
             width: open ? DRAWER_WIDTH_OPEN : DRAWER_WIDTH_COLLAPSED,
             boxSizing: 'border-box',
-            height: '100%',
+            height: '100vh',
+            top: 0,
             display: 'flex',
             flexDirection: 'column',
             transition: theme.transitions.create('width', {
               easing: theme.transitions.easing.sharp,
               duration: theme.transitions.duration.enteringScreen,
             }),
-            overflowX: 'hidden',
+            overflow: 'hidden',
             mt: 0,
             borderRight: `1px solid ${theme.palette.divider}`,
           },
