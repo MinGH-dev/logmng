@@ -157,9 +157,9 @@ function App() {
           display: 'flex',
           width: '100%',
           maxWidth: '100vw',
-          minHeight: '100vh',
+          height: '100vh',
+          overflow: 'hidden',
           bgcolor: 'background.default',
-          overflowX: 'hidden',
         }}
       >
         <AppSidebar
@@ -173,6 +173,7 @@ function App() {
           component="main"
           sx={{
             flex: 1,
+            minHeight: 0,
             display: 'flex',
             flexDirection: 'column',
             minWidth: 0,

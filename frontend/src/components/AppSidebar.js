@@ -158,6 +158,7 @@ function AppSidebar({
       rootStyles={{
         borderRight: `1px solid ${theme.palette.divider}`,
         height: '100vh',
+        overflow: 'hidden',
         position: 'relative',
         display: 'flex',
         flexDirection: 'column',
