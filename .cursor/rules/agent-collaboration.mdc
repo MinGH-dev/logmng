@@ -22,4 +22,14 @@ When the user requests a **new requirement**, **feature**, or **error fix** (and
 
 4. **Gate**: Do not start Step 4 (development) until Step 1 (requirement doc + §3 test plan) is complete. Same for error fixes: requirement doc + §3 first (see `error-first-workflow.mdc`).
 
-Reference: `docs/workflow/AGENT-COLLABORATION-ON-REQUIREMENT.md`, `docs/workflow/CURSOR-SUBAGENTS-DESIGN.md` §3.
+5. **Delegation for all steps**: This project uses **Cursor Settings Subagents**. For any step that has a dedicated subagent, **do not perform that step in the main chat**; instead **instruct the user** to switch to that subagent and pass the described input. Full mapping: `docs/workflow/SUBAGENT-DELEGATION.md`.
+   - **Step 1**: Requirement doc authoring → **Requirements** subagent (user request or error message). The main agent **must not** write the requirement doc when delegation is in effect; only the Requirements subagent performs Step 1.
+   - **Step 2**: Security review (PII/decrypt/access control) → **Security** subagent (requirement doc §1·§2).
+   - **Step 3**: Contract/spec (API or DB) → **Contract**; schema/index design → **DBA**; performance/scale → **Architecture**; new conventions → **Consistency**; UI/design/a11y → **UX** (each when relevant).
+   - **Step 4**: Implementation in `frontend/` → **Frontend**; `backend/` → **Backend**; DB only → **DB**. For UI/layout: optionally **UX** first, then **Frontend**.
+   - **Step 4.5**: Change review (optional) → **Review** subagent.
+   - **Step 5**: Verification, §5/§6 → **QA** subagent (after build and restart). The main agent **must not** run verification or update §5 when delegation is in effect; only QA performs Step 5.
+   - **Step 6**: User/ops docs → **Documentation**; CHANGELOG/release → **Release** subagent.
+   - **Exception**: If the user says "code only here", "skip subagent", or "do it in this chat", you may perform the relevant step(s) in the current chat.
+
+Reference: `docs/workflow/AGENT-COLLABORATION-ON-REQUIREMENT.md`, `docs/workflow/CURSOR-SUBAGENTS-DESIGN.md` §3, `docs/workflow/SUBAGENT-DELEGATION.md`.
