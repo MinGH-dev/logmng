@@ -143,11 +143,22 @@ function AppSidebar({
           sx={{
             flex: 1,
             minHeight: 0,
-            overflowY: 'auto',
-            overflowX: 'hidden',
+            maxHeight: '100vh',
+            display: 'flex',
+            flexDirection: 'column',
+            overflow: 'hidden',
           }}
         >
-          <List disablePadding sx={{ pt: 1 }}>
+          <Box
+            sx={{
+              flex: 1,
+              minHeight: 0,
+              maxHeight: '100vh',
+              overflowY: 'auto',
+              overflowX: 'hidden',
+            }}
+          >
+            <List disablePadding sx={{ pt: 1 }}>
           {filteredTree.map((node) => {
             const Icon = node.icon;
             const isExpandedOpen = expanded[node.id];
@@ -202,7 +213,8 @@ function AppSidebar({
               </React.Fragment>
             );
           })}
-          </List>
+            </List>
+          </Box>
         </Box>
       </Drawer>
       <Popover

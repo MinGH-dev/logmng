@@ -65,9 +65,17 @@
 
 **재수정**: paper의 `height: '100%'`는 MUI Drawer `variant="permanent"` 시 루트가 `position: fixed`라 containing block 높이가 정해지지 않아 스크롤 영역이 제한되지 않음. **조치**: `AppSidebar.js`의 `MuiDrawer-paper`에 `height: '100vh'`, `top: 0` 적용하여 뷰포트 기준 높이 고정 → 내부 Box(flex:1, minHeight:0, overflowY:auto)가 제한된 높이를 받아 세로 스크롤 생성.
 
+**원인 분석·재수정 (2026-02-25)**: 서브에이전트(explore, Frontend) 분석 결과, nav Box가 flex 체인 단절 등으로 제한된 높이를 받지 못해 스크롤 영역이 형성되지 않는 것으로 판단. **조치**: nav Box에 `maxHeight: '100vh'` 추가하여 명시적 높이 한계 부여 → `overflowY: 'auto'`로 세로 스크롤 확실히 생성. 빌드(CI=false) 성공, 프론트 재시작 후 `curl … localhost:3001` → 200. TC-01~TC-03 수동 검증은 브라우저에서 이력승인→활동이력 펼침 후 검색하기·검색이력 스크롤 접근 가능 여부 확인.
+
+**Fix B 적용 (2026-02-25)**: List를 `maxHeight: '100vh'`, `overflowY: 'auto'`인 Box로 감싼 뒤, 빌드·재시작·헬스체크 통과. `curl -s -o /dev/null -w "%{http_code}" http://localhost:3001` → **200**. TC-01~TC-03은 이력승인→활동이력 펼침 후 검색하기·검색이력 스크롤 접근 가능 여부 수동 검증 권장.
+
+**QA 검증 (2026-02-25, 재검증)**: 핸드오프 확인 — Build: `CI=false npm run build` exit 0, Restart: `./scripts/dev-services.sh frontend restart` 완료. 헬스체크: `curl http://localhost:3001` → **200**. Verify: pass (frontend 2xx). TC-01~TC-03: nav·스크롤 Box에 `maxHeight: '100vh'` 적용 후 수동 검증 권장(사이드바 펼침 → 하위 메뉴 펼침 → 세로 스크롤로 모든 상위 메뉴 접근 가능 여부).
+
 ## 6. 에러 해결 결과
 
 - Drawer paper overflow 및 nav 스크롤 적용으로 이력승인→활동이력 펼침 시에도 검색하기·검색이력 스크롤로 접근 가능 확인.
+- **추가 조치**: nav Box에 `maxHeight: '100vh'` 적용(flex 체인 우회). 이력승인→활동이력 펼침 시에도 사이드바 내 세로 스크롤로 검색하기·검색이력 접근 가능해야 함. 수동 검증 권장.
+- **Fix B**: Fix A 적용 후에도 증상 지속되어 List를 스크롤 컨테이너 Box로 감싼 조치(Fix B) 적용. 사이드바 스크롤 동작은 수동 검증 권장.
 
 ---
 
