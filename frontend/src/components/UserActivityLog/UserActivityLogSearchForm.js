@@ -30,34 +30,46 @@ const getTodayEnd = () => {
 };
 
 /**
- * datetime-local 형식을 API 요청 형식(yyyy-MM-dd HH:mm:ss)으로 변환
+ * datetime-local 형식을 API 요청 형식(yyyy-MM-dd HH:mm:ss)으로 변환.
+ * 종료 시각이 23:59이면 초를 59로 넣어 당일 끝까지 포함되도록 함.
  */
 const formatDateForAPI = (dateTimeLocal) => {
   if (!dateTimeLocal) return '';
   // datetime-local 형식: "YYYY-MM-DDTHH:mm"
   // API 형식: "YYYY-MM-DD HH:mm:ss"
   const [date, time] = dateTimeLocal.split('T');
-  return `${date} ${time}:00`;
+  const seconds = (time === '23:59') ? '59' : '00';
+  return `${date} ${time}:${seconds}`;
 };
 
-const UserActivityLogSearchForm = ({ onSearch, loading }) => {
+const toDateTimeLocal = (dateStr) => {
+  if (!dateStr || !/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) return null;
+  return { start: `${dateStr}T00:00`, end: `${dateStr}T23:59` };
+};
+
+const UserActivityLogSearchForm = ({ onSearch, loading, initialServerDate }) => {
+  const serverRange = toDateTimeLocal(initialServerDate);
   const [formData, setFormData] = useState({
-    startDate: getTodayStart(),
-    endDate: getTodayEnd(),
+    startDate: serverRange ? serverRange.start : getTodayStart(),
+    endDate: serverRange ? serverRange.end : getTodayEnd(),
     userId: '',
     username: '',
     actionType: '',
     ipAddress: '',
   });
 
-  // 컴포넌트 마운트 시 초기 검색 실행
+  // 서버 날짜가 나중에 도착하면 폼 표시를 서버 기준 '오늘'로 맞춤 (초기 검색은 List에서 서버 날짜로 이미 실행됨)
   useEffect(() => {
-    // 초기값으로 검색 실행
-    onSearch({
-      startDate: formatDateForAPI(formData.startDate),
-      endDate: formatDateForAPI(formData.endDate),
-    });
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+    if (!initialServerDate) return;
+    const range = toDateTimeLocal(initialServerDate);
+    if (range) {
+      setFormData((prev) => ({
+        ...prev,
+        startDate: range.start,
+        endDate: range.end,
+      }));
+    }
+  }, [initialServerDate]);
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;

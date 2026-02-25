@@ -61,11 +61,10 @@ export const saveMinimalUserData = (userData) => {
     return;
   }
 
-  // 필요한 최소한의 정보만 저장
+  // 필요한 최소한의 정보만 저장 (role: ADMIN | USER — 메뉴 노출용)
   const minimalData = {
     username: userData.username || null,
-    // 민감한 정보는 저장하지 않음
-    // password, email, token 등은 제외
+    role: userData.role || null,
   };
 
   setSecureStorage('user', minimalData);
@@ -114,7 +113,13 @@ export const sanitizeErrorMessage = (error, defaultMessage = '오류가 발생�
  * @param {Error|string} error - 에러 객체 또는 메시지
  * @returns {string} 안전한 에러 메시지
  */
+/** 복호화 승인 미완료 시 사용자 안내 문구 */
+export const DECRYPTION_NOT_APPROVED_MESSAGE = "복호화 승인이 필요합니다. 먼저 '복호화 승인 요청'을 진행해 주세요.";
+
 export const getUserFriendlyErrorMessage = (context, error) => {
+  if (error && typeof error === 'object' && error.code === 'DECRYPTION_NOT_APPROVED') {
+    return DECRYPTION_NOT_APPROVED_MESSAGE;
+  }
   const defaultMessages = {
     '복호화': '복호화 중 오류가 발생했습니다. 관리자에게 문의하세요.',
     '검색': '검색 중 오류가 발생했습니다. 다시 시도해주세요.',

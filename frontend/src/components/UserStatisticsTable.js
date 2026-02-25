@@ -1,7 +1,28 @@
 import React from 'react';
 import './UserStatisticsTable.css';
 
-const UserStatisticsTable = ({ userStatistics, sortConfig, onSort, logTypeList }) => {
+/**
+ * 행에서 집계 검색/복호화 건수 추출.
+ * API가 searchCount/decryptCount를 주면 사용, 아니면 per-log-type 키(*SearchCount, *DecryptCount) 합산.
+ */
+function getSearchDecryptCounts(user) {
+  if (user.searchCount !== undefined && user.decryptCount !== undefined) {
+    return { searchCount: user.searchCount, decryptCount: user.decryptCount };
+  }
+  let searchCount = 0;
+  let decryptCount = 0;
+  Object.keys(user).forEach((key) => {
+    if (key.endsWith('SearchCount')) searchCount += Number(user[key]) || 0;
+    if (key.endsWith('DecryptCount')) decryptCount += Number(user[key]) || 0;
+  });
+  return { searchCount, decryptCount };
+}
+
+/**
+ * 사용자별 통계 테이블.
+ * API 응답: userId, userName, totalCount, loginCount, searchCount, decryptCount (또는 per-log-type 키)
+ */
+const UserStatisticsTable = ({ userStatistics, sortConfig, onSort }) => {
   if (!userStatistics || userStatistics.length === 0) {
     return (
       <div className="user-statistics-table-container">
@@ -10,27 +31,26 @@ const UserStatisticsTable = ({ userStatistics, sortConfig, onSort, logTypeList }
     );
   }
 
-  // SEARCH/DECRYPT 액션을 지원하는 로그 타입만 필터링 (LOGIN 제외)
-  const searchDecryptLogTypes = (logTypeList || []).filter(lt => {
-    if (lt.id === 'LOGIN') return false;
-    const actions = Array.isArray(lt.action) ? lt.action : [lt.action];
-    return actions.includes('SEARCH') || actions.includes('DECRYPT');
-  });
+  // 정렬 시 searchCount/decryptCount 사용 (정규화된 값)
+  const normalized = userStatistics.map((u) => ({
+    ...u,
+    ...getSearchDecryptCounts(u)
+  }));
 
   // 정렬된 데이터 생성
-  const sortedData = [...userStatistics].sort((a, b) => {
+  const sortedData = [...normalized].sort((a, b) => {
     if (!sortConfig.key) return 0;
-    
+
     const aValue = a[sortConfig.key];
     const bValue = b[sortConfig.key];
-    
+
     if (typeof aValue === 'string') {
-      return sortConfig.direction === 'asc' 
-        ? aValue.localeCompare(bValue)
-        : bValue.localeCompare(aValue);
+      return sortConfig.direction === 'asc'
+        ? (aValue || '').localeCompare(bValue || '')
+        : (bValue || '').localeCompare(aValue || '');
     }
-    
-    return sortConfig.direction === 'asc' 
+
+    return sortConfig.direction === 'asc'
       ? (aValue || 0) - (bValue || 0)
       : (bValue || 0) - (aValue || 0);
   });
@@ -43,7 +63,7 @@ const UserStatisticsTable = ({ userStatistics, sortConfig, onSort, logTypeList }
     if (sortConfig.key !== key) {
       return <span className="sort-icon">⇅</span>;
     }
-    return sortConfig.direction === 'asc' 
+    return sortConfig.direction === 'asc'
       ? <span className="sort-icon">↑</span>
       : <span className="sort-icon">↓</span>;
   };
@@ -55,41 +75,24 @@ const UserStatisticsTable = ({ userStatistics, sortConfig, onSort, logTypeList }
         <table className="user-statistics-table">
           <thead>
             <tr>
-              <th rowSpan="2" onClick={() => handleSort('userId')} className="sortable">
+              <th onClick={() => handleSort('userId')} className="sortable">
                 사용자 ID {getSortIcon('userId')}
               </th>
-              <th rowSpan="2" onClick={() => handleSort('userName')} className="sortable">
+              <th onClick={() => handleSort('userName')} className="sortable">
                 사용자명 {getSortIcon('userName')}
               </th>
-              <th rowSpan="2" onClick={() => handleSort('totalCount')} className="sortable">
+              <th onClick={() => handleSort('totalCount')} className="sortable">
                 전체 건수 {getSortIcon('totalCount')}
               </th>
-              <th rowSpan="2" onClick={() => handleSort('loginCount')} className="sortable">
+              <th onClick={() => handleSort('loginCount')} className="sortable">
                 로그인 {getSortIcon('loginCount')}
               </th>
-              {searchDecryptLogTypes.map(lt => (
-                <th key={lt.id} colSpan="2" className="log-type-header">
-                  {lt.displayName || lt.name}
-                </th>
-              ))}
-            </tr>
-            <tr>
-              {searchDecryptLogTypes.map(lt => (
-                <React.Fragment key={lt.id}>
-                  <th 
-                    onClick={() => handleSort(`${lt.id}SearchCount`)} 
-                    className="sortable"
-                  >
-                    검색 {getSortIcon(`${lt.id}SearchCount`)}
-                  </th>
-                  <th 
-                    onClick={() => handleSort(`${lt.id}DecryptCount`)} 
-                    className="sortable"
-                  >
-                    복호화 {getSortIcon(`${lt.id}DecryptCount`)}
-                  </th>
-                </React.Fragment>
-              ))}
+              <th onClick={() => handleSort('searchCount')} className="sortable">
+                검색 {getSortIcon('searchCount')}
+              </th>
+              <th onClick={() => handleSort('decryptCount')} className="sortable">
+                복호화 {getSortIcon('decryptCount')}
+              </th>
             </tr>
           </thead>
           <tbody>
@@ -97,18 +100,10 @@ const UserStatisticsTable = ({ userStatistics, sortConfig, onSort, logTypeList }
               <tr key={user.userId || index}>
                 <td className="user-id-cell">{user.userId || '-'}</td>
                 <td className="user-name-cell">{user.userName || '-'}</td>
-                <td className="count-cell">{user.totalCount || 0}</td>
-                <td className="count-cell">{user.loginCount || 0}</td>
-                {searchDecryptLogTypes.map(lt => (
-                  <React.Fragment key={lt.id}>
-                    <td className="count-cell">
-                      {user[`${lt.id}SearchCount`] || 0}
-                    </td>
-                    <td className="count-cell">
-                      {user[`${lt.id}DecryptCount`] || 0}
-                    </td>
-                  </React.Fragment>
-                ))}
+                <td className="count-cell">{user.totalCount ?? 0}</td>
+                <td className="count-cell">{user.loginCount ?? 0}</td>
+                <td className="count-cell">{user.searchCount ?? 0}</td>
+                <td className="count-cell">{user.decryptCount ?? 0}</td>
               </tr>
             ))}
           </tbody>

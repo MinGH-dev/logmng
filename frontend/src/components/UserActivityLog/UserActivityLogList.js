@@ -6,6 +6,8 @@ import { searchActivityLogs } from '../../services/userActivityLogService';
 import './UserActivityLog.css';
 import logger from '../../utils/logger';
 
+const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || 'http://localhost:9200/api';
+
 const UserActivityLogList = () => {
   const [logs, setLogs] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -14,29 +16,49 @@ const UserActivityLogList = () => {
   const [totalCount, setTotalCount] = useState(0);
   const [selectedLog, setSelectedLog] = useState(null);
   const [searchParams, setSearchParams] = useState({});
+  const [authError, setAuthError] = useState(null);
+  const [serverToday, setServerToday] = useState(null);
 
-  // 초기 로드 - 당일 날짜로 기본 검색
+  // 초기 로드 - 서버 날짜(health) 기준 '오늘'로 검색 (브라우저/서버 타임존 불일치 방지)
   useEffect(() => {
-    const today = new Date();
-    const startDate = new Date(today);
-    startDate.setHours(0, 0, 0, 0);
-    const endDate = new Date(today);
-    endDate.setHours(23, 59, 59, 999);
-    
-    const formatDate = (date) => {
-      const year = date.getFullYear();
-      const month = String(date.getMonth() + 1).padStart(2, '0');
-      const day = String(date.getDate()).padStart(2, '0');
-      const hours = String(date.getHours()).padStart(2, '0');
-      const minutes = String(date.getMinutes()).padStart(2, '0');
-      const seconds = String(date.getSeconds()).padStart(2, '0');
-      return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
-    };
-    
-    handleSearch({
-      startDate: formatDate(startDate),
-      endDate: formatDate(endDate),
-    });
+    let cancelled = false;
+    fetch(`${API_BASE_URL}/health`, { credentials: 'include' })
+      .then((res) => res.json())
+      .then((res) => {
+        if (cancelled) return;
+        const dateStr = res.success && res.data && res.data.timestamp
+          ? String(res.data.timestamp).slice(0, 10)
+          : null;
+        if (dateStr) {
+          setServerToday(dateStr);
+          handleSearch({
+            startDate: `${dateStr} 00:00:00`,
+            endDate: `${dateStr} 23:59:59`,
+          });
+        } else {
+          const today = new Date();
+          const y = today.getFullYear();
+          const m = String(today.getMonth() + 1).padStart(2, '0');
+          const d = String(today.getDate()).padStart(2, '0');
+          handleSearch({
+            startDate: `${y}-${m}-${d} 00:00:00`,
+            endDate: `${y}-${m}-${d} 23:59:59`,
+          });
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          const today = new Date();
+          const y = today.getFullYear();
+          const m = String(today.getMonth() + 1).padStart(2, '0');
+          const d = String(today.getDate()).padStart(2, '0');
+          handleSearch({
+            startDate: `${y}-${m}-${d} 00:00:00`,
+            endDate: `${y}-${m}-${d} 23:59:59`,
+          });
+        }
+      });
+    return () => { cancelled = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -58,6 +80,7 @@ const UserActivityLogList = () => {
       const result = await searchActivityLogs(requestParams);
 
       if (result.success && result.data) {
+        setAuthError(null);
         setLogs(result.data.data || []);
         setTotalPages(result.data.pagination?.totalPages || 1);
         setTotalCount(result.data.pagination?.totalCount || 0);
@@ -65,14 +88,21 @@ const UserActivityLogList = () => {
           count: result.data.data?.length || 0,
           total: result.data.pagination?.totalCount || 0,
         });
+      } else if (result.code === 'UNAUTHORIZED' || (result.error && result.error.includes('로그인'))) {
+        setAuthError(result.error || '로그인이 필요합니다.');
+        setLogs([]);
+        setTotalPages(1);
+        setTotalCount(0);
       } else {
         logger.error('❌ 활동 이력 검색 실패:', result);
+        setAuthError(null);
         setLogs([]);
         setTotalPages(1);
         setTotalCount(0);
       }
     } catch (error) {
       logger.error('❌ 활동 이력 검색 중 오류:', { error: error.message });
+      setAuthError(null);
       setLogs([]);
       setTotalPages(1);
       setTotalCount(0);
@@ -135,7 +165,13 @@ const UserActivityLogList = () => {
         </p>
       </div>
 
-      <UserActivityLogSearchForm onSearch={handleSearch} loading={loading} />
+      <UserActivityLogSearchForm onSearch={handleSearch} loading={loading} initialServerDate={serverToday} />
+
+      {authError && (
+        <div className="activity-log-auth-error" role="alert">
+          {authError} 로그인 후 다시 시도해 주세요.
+        </div>
+      )}
 
       <div className="activity-log-results">
         <div className="results-header">

@@ -3,7 +3,7 @@ import { getUsers, addApprover, removeApprover } from '../../services/userServic
 import logger from '../../utils/logger';
 import './UserManagement.css';
 
-const UserManagement = ({ onBackToMain, user }) => {
+const UserManagement = ({ onBackToMain, onShowDepartmentApprovers, user }) => {
   const [list, setList] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -81,6 +81,11 @@ const UserManagement = ({ onBackToMain, user }) => {
       {onBackToMain && (
         <button type="button" className="user-management-back back-button" onClick={onBackToMain}>
           ← 메인으로
+        </button>
+      )}
+      {onShowDepartmentApprovers && (
+        <button type="button" className="activity-log-button" style={{ marginBottom: '0.5rem' }} onClick={onShowDepartmentApprovers}>
+          부서별 결재자 지정
         </button>
       )}
       {error && <div className="user-management-error">{error}</div>}
