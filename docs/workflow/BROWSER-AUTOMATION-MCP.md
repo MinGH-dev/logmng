@@ -1,6 +1,6 @@
 # Browser Automation MCP (QA / Frontend / UX)
 
-This project uses **browser automation** during verification and for UX/Frontend review. Subagents (QA, Frontend, UX) may use MCP browser tools when available.
+This project uses **browser automation** during verification and for UX/Frontend review. **Policy**: For **all frontend changes**, QA **must** run browser automation (when MCP is available), produce a **detailed verification report**, and on failure **hand off to Frontend** via a bugfix child requirement. See `docs/workflow/BROWSER-AUTOMATION-VERIFICATION-POLICY.md`.
 
 ## 1. Configuration and activation
 
@@ -33,12 +33,23 @@ When using **@modelcontextprotocol/server-puppeteer** (as in `.cursor/mcp.json`)
 
 | Subagent | Document | How they use browser automation |
 |----------|----------|----------------------------------|
-| **QA**   | `.cursor/commands/verify.md` § 3.5 | After health check, optionally open http://localhost:3001, capture page (snapshot/screenshot), optionally run 1–2 §3 critical-path actions; record result in §5. |
-| **Frontend** | `docs/cursor-subagents/frontend.md` | After build/restart, optional smoke: navigate to changed route, capture page, 1–2 key interactions before handoff to QA. |
+| **QA**   | `.cursor/commands/verify.md` § 3.5, `BROWSER-AUTOMATION-VERIFICATION-POLICY.md` | For **frontend** scope: **must** run browser verification (navigate, snapshot, §3 and §3.5 procedures). Write **detailed report** in §5: tool, base URL, per-TC Pass/Fail and note; for each Fail include what was checked, expected, actual. If any Fail → create bugfix child and **hand off to Frontend** to fix, then re-verify. |
+| **Frontend** | `docs/cursor-subagents/frontend.md` | After build/restart, optional smoke: navigate to changed route, capture page, 1–2 key interactions before handoff to QA. When QA hands off a bugfix (browser verification failure), implement fix and hand back to QA for re-verification. |
 | **UX**    | `docs/cursor-subagents/ux-design.md` | When reviewing a screen: open app, take snapshot/screenshot, compare with `docs/design/*` for concrete recommendations. |
 
-## 4. References (for subagents)
+## 4. Verification report format (QA → §5)
 
-- **Verification procedure**: `.cursor/commands/verify.md` — step 3.5 is the optional browser check; use the tool mapping above if your MCP is server-puppeteer.
+When QA runs browser automation, §5 must include:
+
+- **Tool and URL**: e.g. "cursor-ide-browser, base http://localhost:3001".
+- **Per TC (or scenario)**: Table with columns: **ID**, **Result** (Pass/Fail), **Note** (short). For **Fail** add: **Detail** — selector/ref, **expected**, **actual** (so Frontend can fix without guessing).
+- **On failure**: QA creates `docs/requirements/{parentID}-bugfix-{N}.md`, describes the failure and expected fix, and hands off to **Frontend** (via main agent or user). Frontend fixes → build/restart → QA re-runs browser verification.
+
+See `BROWSER-AUTOMATION-VERIFICATION-POLICY.md` §2.3 and §2.4.
+
+## 5. References (for subagents)
+
+- **Verification procedure**: `.cursor/commands/verify.md` — step 3.5 is **required** for frontend scope when MCP is available.
+- **Policy (mandatory browser, report, handoff on failure)**: `docs/workflow/BROWSER-AUTOMATION-VERIFICATION-POLICY.md`.
 - **Subagent prompts** (full text for Cursor Settings): `docs/cursor-subagents/qa-test.md`, `docs/cursor-subagents/frontend.md`, `docs/cursor-subagents/ux-design.md`.
 - **Agent definitions** (short): `.cursor/agents/QA.mdc`, `.cursor/agents/Frontend.mdc`, `.cursor/agents/UX.mdc` — each references this doc and verify.md for browser steps.

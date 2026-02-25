@@ -30,11 +30,13 @@ Run the verification steps: after **test plan + unit/integration tests**, run re
    - **DB** (if used): `curl -s http://localhost:9200/api/db/test` → `data.connected === true`.  
    Check only what was restarted, or all if needed.
 
-3.5. **Browser check (optional, when frontend was restarted and a browser MCP is available)**  
-   - **Purpose**: Confirm the app loads and key UI is visible beyond HTTP 2xx.  
-   - **Steps**: Navigate to `http://localhost:3001`; capture page (snapshot or screenshot); confirm app shell (sidebar, main area, or login). Optionally run 1–2 §3 critical-path actions (e.g. main menu click). Use short waits (1–3 s) and capture again if the page is still loading.  
-   - **Tool names**: If using **cursor-ide-browser**: `browser_navigate` → `browser_lock` → `browser_snapshot` → optional `browser_click` → `browser_unlock`. If using **server-puppeteer** (project default, see `.cursor/mcp.json`): `puppeteer_navigate`, `puppeteer_screenshot`, `puppeteer_click` — see `docs/workflow/BROWSER-AUTOMATION-MCP.md` for mapping.  
-   - **§5**: If run, record in Test results e.g. "Browser: app load OK, [sidebar/main/login] visible; [optional: §3 step X performed]."
+3.5. **Browser check (required when frontend was in scope; optional when backend/DB only)**  
+   - **Policy**: For **frontend** changes, browser check is **required** when a browser MCP is available. See `docs/workflow/BROWSER-AUTOMATION-VERIFICATION-POLICY.md`. For backend/DB-only scope, step 3.5 remains optional.  
+   - **Purpose**: Confirm the app loads and key UI is visible beyond HTTP 2xx; run §3 (and §3.5 if present) test cases that are UI-checkable via Browser MCP.  
+   - **Steps**: Navigate to `http://localhost:3001`; capture page (snapshot or screenshot); confirm app shell (sidebar, main area, or login). Run §3 critical-path actions and, if the requirement doc has **§3.5 브라우저 자동화 검증**, execute those procedures per TC. Use short waits (1–3 s) and capture again if the page is still loading.  
+   - **Tool names**: If using **cursor-ide-browser**: `browser_navigate` → `browser_lock` → `browser_snapshot` → `browser_click` / `browser_fill` / `browser_get_attribute` / `browser_press_key` as needed → `browser_unlock`. If using **server-puppeteer** (project default, see `.cursor/mcp.json`): `puppeteer_navigate`, `puppeteer_screenshot`, `puppeteer_click`, etc. — see `docs/workflow/BROWSER-AUTOMATION-MCP.md` for mapping.  
+   - **§5 — Detailed report**: Record in Test results: (1) tool used and base URL; (2) for each TC or scenario run: **Pass** or **Fail** and a short note; (3) for each **Fail**: what was checked (selector/ref), expected, actual (so the Frontend subagent can fix). See BROWSER-AUTOMATION-VERIFICATION-POLICY.md §2.3.  
+   - **On failure**: If any browser check fails, create a bugfix child requirement and hand off to **Frontend** (or responsible subagent) to fix; re-run verification after fix. See BROWSER-AUTOMATION-VERIFICATION-POLICY.md §2.4.
 
 4. **Result**  
    - **All pass** → Update requirement doc with test results and checklist. For error fixes add "6. Error remedy result". Then **commit** per `.cursor/commands/commit-on-complete.md`. **Done.**  
@@ -53,7 +55,7 @@ Run the verification steps: after **test plan + unit/integration tests**, run re
 - **Bugfix template**: `docs/template/BUGFIX_CHILD_TEMPLATE.md`
 - **Script**: `scripts/dev-services.sh` (frontend | backend | db | all) (start | stop | restart)
 - **How this fits with rules, commands, docs, scripts**: `docs/workflow/CURSOR-AND-TOOLS-INTEGRATION.md`
-- **Browser check**: Optional step 3.5 uses a **browser MCP** (project default: server-puppeteer in `.cursor/mcp.json`). Procedure and tool mapping: `docs/workflow/BROWSER-AUTOMATION-MCP.md`.
+- **Browser check**: Step 3.5 is **required** for frontend scope when a browser MCP is available; optional for backend/DB-only. Policy, detailed report format, and handoff on failure: `docs/workflow/BROWSER-AUTOMATION-VERIFICATION-POLICY.md`. Tool mapping: `docs/workflow/BROWSER-AUTOMATION-MCP.md`.
 
 Apply this procedure using the current requirement doc or changed files as the parent when relevant.
 

@@ -97,6 +97,14 @@
 - 백엔드: `http://localhost:9200`
 - 데이터베이스: [DB 종류]
 
+### 3.5 브라우저 자동화 검증 (선택 — UI/프론트엔드 위주 요건 시)
+
+프론트엔드 변경이 많은 요건(UI, 레이아웃, 폼·테이블·접근성, UX 표준 등)에서는 이 절을 추가하면 QA가 Browser MCP로 TC를 직접 실행할 수 있다.
+
+- **적용 대상 TC**: 위 테스트 케이스 표에서 "수동" 또는 "수동(브라우저)"인 항목 중, 브라우저 자동화로 검증 가능한 TC ID를 나열.
+- **TC별 절차**: 각 TC에 대해 실행 순서와 도구 사용법을 간단히 기술 (예: `browser_navigate` → 로그인 → 메뉴 클릭 → `browser_snapshot`으로 "← 메인으로" 없음 확인).
+- **참고**: `docs/requirements/20260225-ux-standards-compliance-audit.md` §3.5 예시. 정책: `docs/workflow/BROWSER-AUTOMATION-VERIFICATION-POLICY.md`.
+
 ## 4. 체크리스트
 
 ### 프론트엔드 검증
