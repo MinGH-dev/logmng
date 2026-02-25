@@ -152,73 +152,117 @@ const LogTable = ({
         <table className="log-table">
           <thead>
             <tr>
-              <th 
-                onClick={() => onSort('log_timestamp')}
+              <th
+                scope="col"
                 className="sortable-header"
+                aria-sort={sortField === 'log_timestamp' ? (sortDirection === 'asc' ? 'ascending' : 'descending') : 'none'}
+                tabIndex={0}
+                onClick={() => onSort('log_timestamp')}
+                onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onSort('log_timestamp'); } }}
               >
                 log_timestamp {renderSortIcon('log_timestamp')}
               </th>
-              <th 
-                onClick={() => onSort('media_code')}
+              <th
+                scope="col"
                 className="sortable-header"
+                aria-sort={sortField === 'media_code' ? (sortDirection === 'asc' ? 'ascending' : 'descending') : 'none'}
+                tabIndex={0}
+                onClick={() => onSort('media_code')}
+                onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onSort('media_code'); } }}
               >
                 media_code {renderSortIcon('media_code')}
               </th>
-              <th 
-                onClick={() => onSort('tr_code')}
+              <th
+                scope="col"
                 className="sortable-header"
+                aria-sort={sortField === 'tr_code' ? (sortDirection === 'asc' ? 'ascending' : 'descending') : 'none'}
+                tabIndex={0}
+                onClick={() => onSort('tr_code')}
+                onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onSort('tr_code'); } }}
               >
                 tr_code {renderSortIcon('tr_code')}
               </th>
-              <th 
-                onClick={() => onSort('brodid')}
+              <th
+                scope="col"
                 className="sortable-header"
+                aria-sort={sortField === 'brodid' ? (sortDirection === 'asc' ? 'ascending' : 'descending') : 'none'}
+                tabIndex={0}
+                onClick={() => onSort('brodid')}
+                onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onSort('brodid'); } }}
               >
                 brodid {renderSortIcon('brodid')}
               </th>
-              <th 
-                onClick={() => onSort('msg_code')}
+              <th
+                scope="col"
                 className="sortable-header"
+                aria-sort={sortField === 'msg_code' ? (sortDirection === 'asc' ? 'ascending' : 'descending') : 'none'}
+                tabIndex={0}
+                onClick={() => onSort('msg_code')}
+                onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onSort('msg_code'); } }}
               >
                 msg_code {renderSortIcon('msg_code')}
               </th>
-              <th 
-                onClick={() => onSort('bmsg')}
+              <th
+                scope="col"
                 className="sortable-header"
+                aria-sort={sortField === 'bmsg' ? (sortDirection === 'asc' ? 'ascending' : 'descending') : 'none'}
+                tabIndex={0}
+                onClick={() => onSort('bmsg')}
+                onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onSort('bmsg'); } }}
               >
                 bmsg {renderSortIcon('bmsg')}
               </th>
-              <th 
-                onClick={() => onSort('log_ch_cd')}
+              <th
+                scope="col"
                 className="sortable-header"
+                aria-sort={sortField === 'log_ch_cd' ? (sortDirection === 'asc' ? 'ascending' : 'descending') : 'none'}
+                tabIndex={0}
+                onClick={() => onSort('log_ch_cd')}
+                onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onSort('log_ch_cd'); } }}
               >
                 log_ch_cd {renderSortIcon('log_ch_cd')}
               </th>
-              <th 
-                onClick={() => onSort('log_io_cd')}
+              <th
+                scope="col"
                 className="sortable-header"
+                aria-sort={sortField === 'log_io_cd' ? (sortDirection === 'asc' ? 'ascending' : 'descending') : 'none'}
+                tabIndex={0}
+                onClick={() => onSort('log_io_cd')}
+                onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onSort('log_io_cd'); } }}
               >
                 log_io_cd {renderSortIcon('log_io_cd')}
               </th>
-              <th 
-                onClick={() => onSort('pub_ip')}
+              <th
+                scope="col"
                 className="sortable-header"
+                aria-sort={sortField === 'pub_ip' ? (sortDirection === 'asc' ? 'ascending' : 'descending') : 'none'}
+                tabIndex={0}
+                onClick={() => onSort('pub_ip')}
+                onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onSort('pub_ip'); } }}
               >
                 pub_ip {renderSortIcon('pub_ip')}
               </th>
-              <th 
-                onClick={() => onSort('prt_ip')}
+              <th
+                scope="col"
                 className="sortable-header"
+                aria-sort={sortField === 'prt_ip' ? (sortDirection === 'asc' ? 'ascending' : 'descending') : 'none'}
+                tabIndex={0}
+                onClick={() => onSort('prt_ip')}
+                onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onSort('prt_ip'); } }}
               >
                 prt_ip {renderSortIcon('prt_ip')}
               </th>
-              <th 
-                onClick={() => onSort('term_no')}
+              <th
+                scope="col"
                 className="sortable-header"
+                aria-sort={sortField === 'term_no' ? (sortDirection === 'asc' ? 'ascending' : 'descending') : 'none'}
+                tabIndex={0}
+                onClick={() => onSort('term_no')}
+                onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onSort('term_no'); } }}
               >
                 term_no {renderSortIcon('term_no')}
               </th>
-              <th>data</th>
+              <th scope="col">data</th>
             </tr>
           </thead>
           <tbody>

@@ -103,6 +103,11 @@ const ActivityStatistics = () => {
           setLoading(false);
           return;
         }
+        if (startDate > endDate) {
+          setError('종료일은 시작일보다 이전일 수 없습니다.');
+          setLoading(false);
+          return;
+        }
         // 일별 통계와 사용자별 통계를 동시에 조회
         [response, userStatsResponse] = await Promise.all([
           statisticsApi.getDailyStatistics(startDate, endDate, filters),

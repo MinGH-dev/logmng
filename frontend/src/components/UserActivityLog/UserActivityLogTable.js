@@ -2,22 +2,6 @@ import React from 'react';
 import './UserActivityLog.css';
 
 const UserActivityLogTable = ({ logs, onRowClick, loading }) => {
-  if (loading) {
-    return (
-      <div className="activity-log-table-loading">
-        <p>데이터를 불러오는 중...</p>
-      </div>
-    );
-  }
-
-  if (!logs || logs.length === 0) {
-    return (
-      <div className="activity-log-table-empty">
-        <p>조회된 활동 이력이 없습니다.</p>
-      </div>
-    );
-  }
-
   const formatDateTime = (dateTimeStr) => {
     if (!dateTimeStr) return '-';
     try {
@@ -52,20 +36,30 @@ const UserActivityLogTable = ({ logs, onRowClick, loading }) => {
   };
 
   return (
-    <div className="activity-log-table-container">
+    <div className="activity-log-table-container" role="region" aria-label="활동 이력 테이블" aria-busy={loading}>
+      <div className="table-wrapper">
+        {loading ? (
+          <div className="activity-log-table-loading" aria-live="polite">
+            <p>데이터를 불러오는 중...</p>
+          </div>
+        ) : !logs || logs.length === 0 ? (
+          <div className="activity-log-table-empty" aria-live="polite">
+            <p>조회된 활동 이력이 없습니다.</p>
+          </div>
+        ) : (
       <table className="activity-log-table">
         <thead>
           <tr>
-            <th>ID</th>
-            <th>사용자 ID</th>
-            <th>사용자명</th>
-            <th>액션 타입</th>
-            <th>IP 주소</th>
-            <th>요청 경로</th>
-            <th>응답 상태</th>
-            <th>응답 시간</th>
-            <th>결과</th>
-            <th>생성일시</th>
+            <th scope="col">ID</th>
+            <th scope="col">사용자 ID</th>
+            <th scope="col">사용자명</th>
+            <th scope="col">액션 타입</th>
+            <th scope="col">IP 주소</th>
+            <th scope="col">요청 경로</th>
+            <th scope="col">응답 상태</th>
+            <th scope="col">응답 시간</th>
+            <th scope="col">결과</th>
+            <th scope="col">생성일시</th>
           </tr>
         </thead>
         <tbody>
@@ -103,6 +97,8 @@ const UserActivityLogTable = ({ logs, onRowClick, loading }) => {
           ))}
         </tbody>
       </table>
+        )}
+      </div>
     </div>
   );
 };

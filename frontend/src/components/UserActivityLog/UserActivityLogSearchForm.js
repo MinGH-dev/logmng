@@ -57,6 +57,7 @@ const UserActivityLogSearchForm = ({ onSearch, loading, initialServerDate }) => 
     actionType: '',
     ipAddress: '',
   });
+  const [errors, setErrors] = useState({});
 
   // 서버 날짜가 나중에 도착하면 폼 표시를 서버 기준 '오늘'로 맞춤 (초기 검색은 List에서 서버 날짜로 이미 실행됨)
   useEffect(() => {
@@ -77,11 +78,20 @@ const UserActivityLogSearchForm = ({ onSearch, loading, initialServerDate }) => 
       ...prev,
       [name]: value
     }));
+    if (errors[name]) setErrors(prev => ({ ...prev, [name]: '' }));
   };
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    // 날짜 형식을 API 요청 형식으로 변환
+    const newErrors = {};
+    if (formData.startDate && formData.endDate && new Date(formData.startDate) > new Date(formData.endDate)) {
+      newErrors.endDate = '종료일시는 시작일시보다 이전일 수 없습니다.';
+    }
+    if (Object.keys(newErrors).length > 0) {
+      setErrors(newErrors);
+      return;
+    }
+    setErrors({});
     const searchParams = {
       ...formData,
       startDate: formatDateForAPI(formData.startDate),
@@ -100,7 +110,7 @@ const UserActivityLogSearchForm = ({ onSearch, loading, initialServerDate }) => 
       ipAddress: '',
     };
     setFormData(resetData);
-    // 날짜 형식을 API 요청 형식으로 변환하여 검색
+    setErrors({});
     onSearch({
       startDate: formatDateForAPI(resetData.startDate),
       endDate: formatDateForAPI(resetData.endDate),
@@ -129,8 +139,11 @@ const UserActivityLogSearchForm = ({ onSearch, loading, initialServerDate }) => 
             name="startDate"
             value={formData.startDate}
             onChange={handleInputChange}
-            className="form-control"
+            className={`form-control${errors.startDate ? ' error' : ''}`}
+            aria-invalid={!!errors.startDate}
+            aria-describedby={errors.startDate ? 'startDate-error' : undefined}
           />
+          {errors.startDate && <span id="startDate-error" className="error-message" role="alert">{errors.startDate}</span>}
         </div>
 
         <div className="form-group">
@@ -141,8 +154,11 @@ const UserActivityLogSearchForm = ({ onSearch, loading, initialServerDate }) => 
             name="endDate"
             value={formData.endDate}
             onChange={handleInputChange}
-            className="form-control"
+            className={`form-control${errors.endDate ? ' error' : ''}`}
+            aria-invalid={!!errors.endDate}
+            aria-describedby={errors.endDate ? 'endDate-error' : undefined}
           />
+          {errors.endDate && <span id="endDate-error" className="error-message" role="alert">{errors.endDate}</span>}
         </div>
       </div>
 

@@ -404,41 +404,61 @@ const ImageLogTable = ({
         <table className="log-table">
           <thead>
             <tr>
-              <th 
-                onClick={() => onSort('insert_time')}
+              <th
+                scope="col"
                 className="sortable-header"
+                aria-sort={sortField === 'insert_time' ? (sortDirection === 'asc' ? 'ascending' : 'descending') : 'none'}
+                tabIndex={0}
+                onClick={() => onSort('insert_time')}
+                onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onSort('insert_time'); } }}
               >
                 insert_time {renderSortIcon('insert_time')}
               </th>
-              <th 
-                onClick={() => onSort('application')}
+              <th
+                scope="col"
                 className="sortable-header"
+                aria-sort={sortField === 'application' ? (sortDirection === 'asc' ? 'ascending' : 'descending') : 'none'}
+                tabIndex={0}
+                onClick={() => onSort('application')}
+                onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onSort('application'); } }}
               >
                 application {renderSortIcon('application')}
               </th>
-              <th 
-                onClick={() => onSort('servicegroup')}
+              <th
+                scope="col"
                 className="sortable-header"
+                aria-sort={sortField === 'servicegroup' ? (sortDirection === 'asc' ? 'ascending' : 'descending') : 'none'}
+                tabIndex={0}
+                onClick={() => onSort('servicegroup')}
+                onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onSort('servicegroup'); } }}
               >
                 servicegroup {renderSortIcon('servicegroup')}
               </th>
-              <th 
-                onClick={() => onSort('service')}
+              <th
+                scope="col"
                 className="sortable-header"
+                aria-sort={sortField === 'service' ? (sortDirection === 'asc' ? 'ascending' : 'descending') : 'none'}
+                tabIndex={0}
+                onClick={() => onSort('service')}
+                onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onSort('service'); } }}
               >
                 service {renderSortIcon('service')}
               </th>
-              <th 
-                onClick={() => onSort('status')}
+              <th
+                scope="col"
                 className="sortable-header"
+                aria-sort={sortField === 'status' ? (sortDirection === 'asc' ? 'ascending' : 'descending') : 'none'}
+                tabIndex={0}
+                onClick={() => onSort('status')}
+                onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onSort('status'); } }}
               >
                 status {renderSortIcon('status')}
               </th>
-              <th>guid</th>
-              <th>datastring</th>
-              <th>headerstring</th>
-              <th>Pretty</th>
-              <th>복호화</th>
+              <th scope="col">guid</th>
+              <th scope="col">datastring</th>
+              <th scope="col">headerstring</th>
+              <th scope="col">Pretty</th>
+              <th scope="col">복호화</th>
             </tr>
           </thead>
           <tbody>
@@ -555,9 +575,11 @@ const ImageLogTable = ({
                     </td>
                     <td className="pretty-action-cell">
                       <button
+                        type="button"
                         className={`pretty-btn ${isPrettyMode ? 'active' : ''}`}
                         onClick={() => togglePretty(logGuid)}
                         title={isPrettyMode ? 'Pretty 출력 끄기' : 'Pretty 출력 켜기'}
+                        aria-label={isPrettyMode ? 'Pretty 출력 끄기' : 'Pretty 출력 켜기'}
                       >
                         {isPrettyMode ? 'Pretty OFF' : 'Pretty'}
                       </button>
@@ -579,6 +601,7 @@ const ImageLogTable = ({
                         if (isDecryptedRow) {
                           return (
                             <button
+                              type="button"
                               className="decrypt-btn decrypt-cancel-btn"
                               onClick={(e) => {
                                 logger.debug('🔓 복호화 해제 버튼 클릭:', { logGuid, status: logStatus });
@@ -587,6 +610,7 @@ const ImageLogTable = ({
                                 handleDecryptCancel(logGuid, logStatus);
                               }}
                               title="복호화 해제"
+                              aria-label="복호화 해제"
                             >
                               복호화 해제
                             </button>
@@ -595,6 +619,7 @@ const ImageLogTable = ({
                         
                         return (
                           <button
+                            type="button"
                             className={`decrypt-btn ${isDecryptingRow ? 'decrypting' : ''}`}
                             onClick={(e) => {
                               logger.debug('🔓 복호화 버튼 클릭:', { logGuid });
@@ -603,7 +628,8 @@ const ImageLogTable = ({
                               handleDecrypt(logGuid, log.status, e);
                             }}
                             disabled={isDecryptingRow}
-                            title="복호화"
+                            title={isDecryptingRow ? '복호화 중' : '복호화'}
+                            aria-label={isDecryptingRow ? '복호화 중' : '복호화'}
                           >
                             {isDecryptingRow ? '복호화 중...' : '복호화'}
                           </button>

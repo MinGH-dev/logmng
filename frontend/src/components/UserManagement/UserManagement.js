@@ -3,7 +3,7 @@ import { getUsers, addApprover, removeApprover } from '../../services/userServic
 import logger from '../../utils/logger';
 import './UserManagement.css';
 
-const UserManagement = ({ onBackToMain, onShowDepartmentApprovers, user }) => {
+const UserManagement = ({ onShowDepartmentApprovers, user }) => {
   const [list, setList] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -66,11 +66,6 @@ const UserManagement = ({ onBackToMain, onShowDepartmentApprovers, user }) => {
       <div className="user-management">
         <h2>사용자 관리</h2>
         <p className="user-management-forbidden">관리자만 접근할 수 있습니다.</p>
-        {onBackToMain && (
-          <button type="button" className="back-button" onClick={onBackToMain}>
-            ← 메인으로
-          </button>
-        )}
       </div>
     );
   }
@@ -78,11 +73,6 @@ const UserManagement = ({ onBackToMain, onShowDepartmentApprovers, user }) => {
   return (
     <div className="user-management">
       <h2>사용자 관리</h2>
-      {onBackToMain && (
-        <button type="button" className="user-management-back back-button" onClick={onBackToMain}>
-          ← 메인으로
-        </button>
-      )}
       {onShowDepartmentApprovers && (
         <button type="button" className="activity-log-button" style={{ marginBottom: '0.5rem' }} onClick={onShowDepartmentApprovers}>
           부서별 결재자 지정
@@ -94,14 +84,16 @@ const UserManagement = ({ onBackToMain, onShowDepartmentApprovers, user }) => {
       ) : list.length === 0 ? (
         <p>등록된 사용자가 없습니다.</p>
       ) : (
-        <table className="user-management-table">
+        <div className="log-table-container">
+          <div className="table-wrapper">
+        <table className="user-management-table log-table" aria-label="사용자 목록">
           <thead>
             <tr>
-              <th>사용자 ID</th>
-              <th>역할</th>
-              <th>부서코드</th>
-              <th>결재자 여부</th>
-              <th>동작</th>
+              <th scope="col">사용자 ID</th>
+              <th scope="col">역할</th>
+              <th scope="col">부서코드</th>
+              <th scope="col">결재자 여부</th>
+              <th scope="col">동작</th>
             </tr>
           </thead>
           <tbody>
@@ -121,6 +113,7 @@ const UserManagement = ({ onBackToMain, onShowDepartmentApprovers, user }) => {
                         className="user-management-btn remove"
                         onClick={() => handleRemoveApprover(userId)}
                         disabled={actionId === userId}
+                        aria-label={`결재자 해제, ${userId}`}
                       >
                         {actionId === userId ? '처리 중...' : '결재자 해제'}
                       </button>
@@ -130,6 +123,7 @@ const UserManagement = ({ onBackToMain, onShowDepartmentApprovers, user }) => {
                         className="user-management-btn add"
                         onClick={() => handleAddApprover(userId)}
                         disabled={actionId === userId}
+                        aria-label={`결재자 지정, ${userId}`}
                       >
                         {actionId === userId ? '처리 중...' : '결재자 지정'}
                       </button>
@@ -140,6 +134,8 @@ const UserManagement = ({ onBackToMain, onShowDepartmentApprovers, user }) => {
             })}
           </tbody>
         </table>
+          </div>
+        </div>
       )}
     </div>
   );

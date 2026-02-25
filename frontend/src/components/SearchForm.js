@@ -59,6 +59,10 @@ const SearchForm = ({ onSearch }) => {
     if (!formData.startDate) newErrors.startDate = '시작일시는 필수입니다.';
     if (!formData.endDate) newErrors.endDate = '종료일시는 필수입니다.';
     if (!formData.tr_code) newErrors.tr_code = 'TR Code는 필수입니다.';
+    // 날짜 범위: 시작 ≤ 종료 (date-search.md)
+    if (formData.startDate && formData.endDate && new Date(formData.startDate) > new Date(formData.endDate)) {
+      newErrors.endDate = '종료일시는 시작일시보다 이전일 수 없습니다.';
+    }
 
     if (Object.keys(newErrors).length > 0) {
       setErrors(newErrors);
@@ -122,8 +126,10 @@ const SearchForm = ({ onSearch }) => {
               onChange={handleInputChange}
               className={errors.startDate ? 'error' : ''}
               step="1"
+              aria-invalid={!!errors.startDate}
+              aria-describedby={errors.startDate ? 'startDate-error' : undefined}
             />
-            {errors.startDate && <span className="error-message">{errors.startDate}</span>}
+            {errors.startDate && <span id="startDate-error" className="error-message" role="alert">{errors.startDate}</span>}
           </div>
 
           <div className="form-group">
@@ -138,8 +144,10 @@ const SearchForm = ({ onSearch }) => {
               onChange={handleInputChange}
               className={errors.endDate ? 'error' : ''}
               step="1"
+              aria-invalid={!!errors.endDate}
+              aria-describedby={errors.endDate ? 'endDate-error' : undefined}
             />
-            {errors.endDate && <span className="error-message">{errors.endDate}</span>}
+            {errors.endDate && <span id="endDate-error" className="error-message" role="alert">{errors.endDate}</span>}
           </div>
 
           <div className="form-group">
@@ -154,8 +162,10 @@ const SearchForm = ({ onSearch }) => {
               onChange={handleInputChange}
               placeholder="매체코드"
               className={errors.media_gb ? 'error' : ''}
+              aria-invalid={!!errors.media_gb}
+              aria-describedby={errors.media_gb ? 'media_gb-error' : undefined}
             />
-            {errors.media_gb && <span className="error-message">{errors.media_gb}</span>}
+            {errors.media_gb && <span id="media_gb-error" className="error-message" role="alert">{errors.media_gb}</span>}
           </div>
 
           <div className="form-group">
@@ -170,8 +180,10 @@ const SearchForm = ({ onSearch }) => {
               onChange={handleInputChange}
               placeholder="TR Code"
               className={errors.tr_code ? 'error' : ''}
+              aria-invalid={!!errors.tr_code}
+              aria-describedby={errors.tr_code ? 'tr_code-error' : undefined}
             />
-            {errors.tr_code && <span className="error-message">{errors.tr_code}</span>}
+            {errors.tr_code && <span id="tr_code-error" className="error-message" role="alert">{errors.tr_code}</span>}
           </div>
 
           <div className="form-group">

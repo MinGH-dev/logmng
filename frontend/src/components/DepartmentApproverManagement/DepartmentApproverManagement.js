@@ -66,7 +66,7 @@ const DepartmentTree = ({ nodes, selectedCode, onSelect, level = 0 }) => {
   );
 };
 
-const DepartmentApproverManagement = ({ onBackToMain, user }) => {
+const DepartmentApproverManagement = ({ user }) => {
   const [tree, setTree] = useState([]);
   const [selectedDept, setSelectedDept] = useState(null);
   const [approvers, setApprovers] = useState([]);
@@ -196,11 +196,6 @@ const DepartmentApproverManagement = ({ onBackToMain, user }) => {
       <div className="department-approver-management">
         <h2>부서별 결재자 지정</h2>
         <p className="department-approver-forbidden">관리자만 접근할 수 있습니다.</p>
-        {onBackToMain && (
-          <button type="button" className="back-button" onClick={onBackToMain}>
-            ← 메인으로
-          </button>
-        )}
       </div>
     );
   }
@@ -208,11 +203,6 @@ const DepartmentApproverManagement = ({ onBackToMain, user }) => {
   return (
     <div className="department-approver-management">
       <h2>부서별 결재자 지정</h2>
-      {onBackToMain && (
-        <button type="button" className="department-approver-back back-button" onClick={onBackToMain}>
-          ← 메인으로
-        </button>
-      )}
       {error && (
         <div className="user-management-error" role="alert">
           {error}
@@ -265,13 +255,15 @@ const DepartmentApproverManagement = ({ onBackToMain, user }) => {
                     {approvers.length === 0 ? (
                       <p>해당 부서에 지정된 결재자가 없습니다.</p>
                     ) : (
-                      <table className="user-management-table">
+                      <div className="log-table-container">
+                        <div className="table-wrapper">
+                      <table className="user-management-table log-table" aria-label="부서 결재자 목록">
                         <thead>
                           <tr>
-                            <th>사용자 ID</th>
-                            <th>역할</th>
-                            <th>부서코드</th>
-                            <th>동작</th>
+                            <th scope="col">사용자 ID</th>
+                            <th scope="col">역할</th>
+                            <th scope="col">부서코드</th>
+                            <th scope="col">동작</th>
                           </tr>
                         </thead>
                         <tbody>
@@ -298,6 +290,8 @@ const DepartmentApproverManagement = ({ onBackToMain, user }) => {
                           })}
                         </tbody>
                       </table>
+                        </div>
+                      </div>
                     )}
                   </>
                 )}

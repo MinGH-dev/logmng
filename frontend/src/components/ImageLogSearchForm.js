@@ -79,6 +79,10 @@ const ImageLogSearchForm = ({ onSearch, initialFormValues }) => {
     const newErrors = {};
     if (!formData.startDate) newErrors.startDate = '시작일시는 필수입니다.';
     if (!formData.endDate) newErrors.endDate = '종료일시는 필수입니다.';
+    // 날짜 범위: 시작 ≤ 종료 (date-search.md)
+    if (formData.startDate && formData.endDate && new Date(formData.startDate) > new Date(formData.endDate)) {
+      newErrors.endDate = '종료일시는 시작일시보다 이전일 수 없습니다.';
+    }
 
     if (Object.keys(newErrors).length > 0) {
       setErrors(newErrors);
@@ -155,8 +159,10 @@ const ImageLogSearchForm = ({ onSearch, initialFormValues }) => {
               onChange={handleInputChange}
               className={errors.startDate ? 'error' : ''}
               step="1"
+              aria-invalid={!!errors.startDate}
+              aria-describedby={errors.startDate ? 'startDate-error' : undefined}
             />
-            {errors.startDate && <span className="error-message">{errors.startDate}</span>}
+            {errors.startDate && <span id="startDate-error" className="error-message" role="alert">{errors.startDate}</span>}
           </div>
 
           <div className="form-group">
@@ -171,8 +177,10 @@ const ImageLogSearchForm = ({ onSearch, initialFormValues }) => {
               onChange={handleInputChange}
               className={errors.endDate ? 'error' : ''}
               step="1"
+              aria-invalid={!!errors.endDate}
+              aria-describedby={errors.endDate ? 'endDate-error' : undefined}
             />
-            {errors.endDate && <span className="error-message">{errors.endDate}</span>}
+            {errors.endDate && <span id="endDate-error" className="error-message" role="alert">{errors.endDate}</span>}
           </div>
 
           <div className="form-group">
