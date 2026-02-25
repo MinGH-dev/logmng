@@ -2,10 +2,25 @@ import React from 'react';
 import { AppBar as MuiAppBar, Toolbar, IconButton, Typography, Button } from '@mui/material';
 import MenuIcon from '@mui/icons-material/Menu';
 import LogoutIcon from '@mui/icons-material/Logout';
+import { DRAWER_WIDTH_OPEN, DRAWER_WIDTH_COLLAPSED } from './AppSidebar';
 
 function AppBar({ sidebarOpen, onToggleSidebar, username, onLogout }) {
+  const drawerWidth = sidebarOpen ? DRAWER_WIDTH_OPEN : DRAWER_WIDTH_COLLAPSED;
   return (
-    <MuiAppBar position="fixed" sx={{ zIndex: (theme) => theme.zIndex.drawer + 1 }}>
+    <MuiAppBar
+      position="fixed"
+      sx={{
+        left: drawerWidth,
+        right: 0,
+        width: `calc(100vw - ${drawerWidth}px)`,
+        zIndex: (theme) => theme.zIndex.drawer + 1,
+        transition: (theme) =>
+          theme.transitions.create(['left', 'width'], {
+            easing: theme.transitions.easing.sharp,
+            duration: theme.transitions.duration.enteringScreen,
+          }),
+      }}
+    >
       <Toolbar>
         <IconButton
           color="inherit"

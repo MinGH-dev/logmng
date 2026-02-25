@@ -165,25 +165,27 @@ function AppSidebar({
       transitionDuration={theme.transitions.duration.enteringScreen}
       aria-label="사이드바 메뉴"
     >
+      {/* §6.2: Explicit maxHeight so scroll works regardless of parent flex chain (react-pro-sidebar container height:100% may not get a containing block) */}
       <div
         style={{
-          flex: 1,
-          minHeight: 0,
+          maxHeight: '100vh',
           overflowY: 'auto',
-          height: '100%',
+          overflowX: 'hidden',
         }}
       >
         <Menu
           menuItemStyles={menuItemStyles}
           closeOnClick
         >
-        {filteredTree.map((node) => {
+        {filteredTree.map((node, index) => {
           const Icon = node.icon;
           const hasActiveChild = node.children.some((c) => isActive(c));
           const subMenuOpen = getSubMenuOpen(node);
+          const isFirstSubMenu = index === 0;
           return (
             <SubMenu
               key={node.id}
+              className={isFirstSubMenu ? 'sidebar-first-submenu' : undefined}
               label={node.label}
               icon={<Icon />}
               defaultOpen={hasActiveChild}

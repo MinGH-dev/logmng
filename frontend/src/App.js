@@ -186,7 +186,7 @@ function App() {
             username={user?.username}
             onLogout={handleLogout}
           />
-          <Box sx={{ flex: 1, p: 2, mt: 7 }}>
+          <Box sx={{ flex: 1, p: 2, mt: 7, overflowY: 'auto', minHeight: 0 }}>
             {currentView === 'activity-log' && <UserActivityLogList />}
             {currentView === 'statistics' && <ActivityStatistics />}
             {currentView === 'search-history' && (
