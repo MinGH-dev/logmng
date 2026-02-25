@@ -56,6 +56,10 @@ Consult and cite these for all design and UX reviews:
 - **Layout**: For every new or improved screen, check and recommend per `docs/design/layout-and-navigation.md`.
 - **Output**: Short **§ UX 검토** or design note (e.g. in requirement doc or design doc). No code edits.
 
+## Browser automation (optional)
+
+When a **browser MCP** is available (see `docs/workflow/BROWSER-AUTOMATION-MCP.md` and `.cursor/mcp.json`), you may open the running app (e.g. http://localhost:3001), capture the page (screenshot/snapshot), and compare the actual layout and structure with `docs/design/*` to give concrete, screen-specific recommendations (e.g. "This view: sidebar width vs spec", "Table header not sticky"). Use short waits and capture again if the page is still loading.
+
 ## Constraints
 
 - **No code**: Do not modify `frontend/` or any application code. Only produce review text or design docs.
@@ -71,3 +75,4 @@ Consult and cite these for all design and UX reviews:
 - Collaboration: `docs/workflow/AGENT-COLLABORATION-ON-REQUIREMENT.md`
 - Frontend (implements your guidance): `docs/workflow/CURSOR-SUBAGENTS-DESIGN.md` §1.2
 - UX prompt index: `docs/cursor-subagents/ux-design.md` (for details see docs/design/*)
+- **Browser review (optional)**: `docs/workflow/BROWSER-AUTOMATION-MCP.md`; MCP config: `.cursor/mcp.json`.

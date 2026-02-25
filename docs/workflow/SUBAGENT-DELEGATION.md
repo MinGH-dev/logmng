@@ -37,7 +37,7 @@ The main agent **delegates by directly invoking** subagents. It does **not** exe
 2. **For each step** that has a dedicated subagent in the table above:
    - **Do not perform** that step in the main chat: do not write the requirement doc, do not implement, do not run build/restart, do not run verification, do not update §5/§6, do not commit.
    - **Invoke the subagent via mcp_task**: use the `subagent_type` from §2.2, and set `prompt` to the **exact handoff input** (requirement doc path, task description, expected output). Set `description` to a short 3–5 word summary. The subagent runs with that prompt and returns the result.
-3. **Commit**: When delegation is in effect, the main agent does **not** commit. After QA completes verification and §5/§6, the **QA subagent** performs commit per `.cursor/commands/commit-on-complete.md` (push only when the user requests). See §5 below.
+3. **Commit**: When delegation is in effect, the main agent does **not** commit. After QA completes verification and §5/§6, the **QA subagent** performs commit per `.cursor/commands/commit-on-complete.md`. If the user requested push (e.g. "push해줘", "push 해주세요"), include that in the handoff to QA so QA runs `git push` after commit. See §5 below.
 4. **Exception**: If the user explicitly says "code only here", "skip subagent", or "do it in this chat", the main agent may perform the relevant step(s) in the current chat (including build, verify, commit).
 
 ### 2.2 Direct invocation via mcp_task (and fallback)
@@ -83,10 +83,10 @@ So the main agent typically: (1) **invokes the Requirements subagent via mcp_tas
 
 ---
 
-## 5. After QA: commit
+## 5. After QA: commit and push
 
-- **QA subagent** performs verification per `.cursor/commands/verify.md`, updates §5 (and §6 for error fixes), then **performs commit** per `.cursor/commands/commit-on-complete.md` (do not push unless the user requests).
-- The **main agent** does not commit when delegation is in effect. This keeps the main agent as delegation-only and closes the loop in `.cursor` so that build → restart → verify → §5/§6 → commit run organically via subagents.
+- **QA subagent** performs verification per `.cursor/commands/verify.md`, updates §5 (and §6 for error fixes), then **performs commit** per `.cursor/commands/commit-on-complete.md`. **When the user requested push** (e.g. "push해줘", "push 해주세요"), QA runs `git push` after the commit; otherwise QA does not push.
+- The **main agent** does not commit when delegation is in effect. When the user asks to push, the main agent should either (1) include "user requested push" in the handoff to QA so QA commits and pushes, or (2) delegate to **Release** with "commit and push all current changes" if the context is release/chore (e.g. "지금까지 변경된 내용 push해줘").
 
 ---
 

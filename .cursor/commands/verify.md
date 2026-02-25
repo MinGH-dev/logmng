@@ -30,6 +30,12 @@ Run the verification steps: after **test plan + unit/integration tests**, run re
    - **DB** (if used): `curl -s http://localhost:9200/api/db/test` → `data.connected === true`.  
    Check only what was restarted, or all if needed.
 
+3.5. **Browser check (optional, when frontend was restarted and a browser MCP is available)**  
+   - **Purpose**: Confirm the app loads and key UI is visible beyond HTTP 2xx.  
+   - **Steps**: Navigate to `http://localhost:3001`; capture page (snapshot or screenshot); confirm app shell (sidebar, main area, or login). Optionally run 1–2 §3 critical-path actions (e.g. main menu click). Use short waits (1–3 s) and capture again if the page is still loading.  
+   - **Tool names**: If using **cursor-ide-browser**: `browser_navigate` → `browser_lock` → `browser_snapshot` → optional `browser_click` → `browser_unlock`. If using **server-puppeteer** (project default, see `.cursor/mcp.json`): `puppeteer_navigate`, `puppeteer_screenshot`, `puppeteer_click` — see `docs/workflow/BROWSER-AUTOMATION-MCP.md` for mapping.  
+   - **§5**: If run, record in Test results e.g. "Browser: app load OK, [sidebar/main/login] visible; [optional: §3 step X performed]."
+
 4. **Result**  
    - **All pass** → Update requirement doc with test results and checklist. For error fixes add "6. Error remedy result". Then **commit** per `.cursor/commands/commit-on-complete.md`. **Done.**  
    - **Any fail** → Go to 5.
@@ -47,6 +53,7 @@ Run the verification steps: after **test plan + unit/integration tests**, run re
 - **Bugfix template**: `docs/template/BUGFIX_CHILD_TEMPLATE.md`
 - **Script**: `scripts/dev-services.sh` (frontend | backend | db | all) (start | stop | restart)
 - **How this fits with rules, commands, docs, scripts**: `docs/workflow/CURSOR-AND-TOOLS-INTEGRATION.md`
+- **Browser check**: Optional step 3.5 uses a **browser MCP** (project default: server-puppeteer in `.cursor/mcp.json`). Procedure and tool mapping: `docs/workflow/BROWSER-AUTOMATION-MCP.md`.
 
 Apply this procedure using the current requirement doc or changed files as the parent when relevant.
 

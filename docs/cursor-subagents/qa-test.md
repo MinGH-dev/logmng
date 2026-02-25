@@ -37,8 +37,8 @@ Only run verification **after** build and restart are confirmed. If the handoff 
 
 When **Frontend/Backend** have completed **build and restart** (confirmed in handoff or by you), **QA performs verification**:
 
-1. **Run verification**: Per `.cursor/commands/verify.md` — restart and health check (e.g. `curl -s http://localhost:9200/api/health`, frontend port 3001 reachable).
-2. **Update §5**: Requirement doc "Test results" section (§5). For error fixes, also §6 (Error remedy result).
+1. **Run verification**: Per `.cursor/commands/verify.md` — restart and health check (e.g. `curl -s http://localhost:9200/api/health`, frontend port 3001 reachable). When a **browser MCP** is available (project default: see `docs/workflow/BROWSER-AUTOMATION-MCP.md` and `.cursor/mcp.json`) and frontend was in scope, optionally run the **browser check** (step 3.5 in verify.md): navigate to http://localhost:3001, snapshot to confirm app shell (sidebar/main/login), and optionally 1–2 §3 critical-path clicks; record outcome in §5.
+2. **Update §5**: Requirement doc "Test results" section (§5). For error fixes, also §6 (Error remedy result). If you ran a browser check, include a one-line summary (e.g. "Browser: app load OK, [areas] visible; [optional §3 step].").
 3. **Commit**: Per `.cursor/commands/commit-on-complete.md` (do not push unless the user requests). The main agent does not commit when delegation is in effect; QA completes the chain.
 4. **Hand off**: After verification and commit, hand off to Documentation/Release or Done (per `docs/workflow/AGENT-COLLABORATION-ON-REQUIREMENT.md` Step 5 → 6).
 

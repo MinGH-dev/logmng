@@ -36,7 +36,7 @@ You are the **frontend-only subagent**. Do only the following.
 When you modify code or config under `frontend/`, **always include in your plan and perform**:
 
 1. **Build**: `cd frontend && npm run build` (or `CI=false npm run build` if only ESLint fails).
-2. **Restart**: **Run restart yourself** from project root: `./scripts/dev-services.sh frontend restart`; then confirm http://localhost:3001 is reachable. Do **not** ask the user to run restart — the subagent performs it.
+2. **Restart**: **Run restart yourself** from project root: `./scripts/dev-services.sh frontend restart`; then confirm http://localhost:3001 is reachable. Do **not** ask the user to run restart — the subagent performs it. Optionally, when a **browser MCP** is available (see `docs/workflow/BROWSER-AUTOMATION-MCP.md`, `.cursor/mcp.json`), run a quick smoke check: navigate to the changed route, capture page (screenshot/snapshot), 1–2 key interactions to catch regressions before handing off to QA.
 3. **Requirement doc §2 변경 파일 목록**: When implementing from a requirement doc, **confirm or update** that doc's §2 **"변경 파일 목록"** with the **actual** list of files you changed (add/remove/amend vs the tentative list). See `docs/workflow/AGENT-COLLABORATION-ON-REQUIREMENT.md` §1.2.
 4. **Handoff to QA**: After build and restart, instruct the QA subagent to perform verification (checklist, §5). Your handoff **must include** a one-line confirmation so QA can gate verification on it, for example:  
    `Build: cd frontend && CI=false npm run build — exit 0. Restart: ./scripts/dev-services.sh frontend restart — done. Requirement doc §2 변경 파일 목록 확정. QA verification requested.`
@@ -65,3 +65,4 @@ Get the answer from the owning agent, then continue implementation. See `docs/wo
 - Requirement template: `docs/template/REQUIREMENT_TEMPLATE.md`
 - Prompt (paste into Cursor Settings): `docs/cursor-subagents/frontend.md`
 - For module-specific work (Auth, ActivityLog, Log): `docs/workflow/CURSOR-SUBAGENTS-DESIGN.md` §1.2; prompts in `docs/cursor-subagents/frontend-auth.md`, `frontend-activity-log.md`, `frontend-log.md`.
+- **Browser smoke (optional)**: `docs/workflow/BROWSER-AUTOMATION-MCP.md`; MCP config: `.cursor/mcp.json`.
