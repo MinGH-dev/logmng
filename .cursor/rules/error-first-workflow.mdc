@@ -9,7 +9,9 @@ When the user message is **mainly** an error message, stack trace, or a request 
 
 ## Must do
 
-1. **First**: Gather/analyze requirements → write **requirement doc** `docs/requirements/yyyyMMdd-name.md` (§1 user requirement, §2 design) → define **§3 test approach (test cases)**.
+1. **First**: Requirement doc + §3 test plan before any development.
+   - **When using subagent delegation**: Do **not** write the requirement doc in the main chat. **Delegate Step 1 to the Requirements subagent**: instruct the user to switch to the **Requirements** subagent and pass the user request or error message. Output: requirement doc `docs/requirements/yyyyMMdd-name.md` (§1, §2, §3). See `docs/workflow/SUBAGENT-DELEGATION.md`.
+   - **Exception** (user said "code only here" or "do it in this chat"): Gather/analyze requirements → write **requirement doc** (§1 user requirement, §2 design) → define **§3 test approach (test cases)**.
 2. **Only then**: Propose or do development (code change, API, frontend change).
 
 ## Must not do

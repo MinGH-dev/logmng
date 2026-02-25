@@ -44,7 +44,18 @@ When a **new requirement** or **error-fix request** occurs, agents collaborate i
 
 ---
 
-## 3. Where this is referenced
+## 3. Delegation (main agent → subagent)
+
+When the user is in the **default (main) chat**, the main agent **does not perform** work that belongs to a dedicated subagent. Instead it **instructs the user** to switch to that subagent and pass the right input (requirement doc, context, etc.). This applies to **all steps** (1–6): Requirements, Security, Contract, DBA, Architecture, Consistency, UX, Frontend, Backend, DB, Review, QA, Documentation, Release.
+
+- **Full delegation table** (Step → Subagent → what to pass): `docs/workflow/SUBAGENT-DELEGATION.md`
+- **Rule**: `.cursor/rules/agent-collaboration.mdc` §5
+
+Exception: if the user says "code only here", "skip subagent", or "do it in this chat", the main agent may perform the relevant step(s) in the current chat.
+
+---
+
+## 4. Where this is referenced
 
 - **Rules**: `.cursor/rules/agent-collaboration.mdc` — when a requirement or error-fix is requested, follow this sequence.
 - **Commands**: `.cursor/commands/new-requirement.md` — points to this doc for full agent collaboration.
@@ -53,7 +64,7 @@ When a **new requirement** or **error-fix request** occurs, agents collaborate i
 
 ---
 
-## 4. Minimal flow
+## 5. Minimal flow
 
 For small changes or when the user wants a single agent:
 
@@ -65,7 +76,7 @@ Security, Contract, DBA, and Architecture are added when the requirement scope d
 
 ---
 
-## 5. References
+## 6. References
 
 - Checklist order: `docs/workflow/WORKFLOW_CHECKLIST.md`
 - Subagent roles and when to use: `docs/workflow/CURSOR-SUBAGENTS-DESIGN.md`

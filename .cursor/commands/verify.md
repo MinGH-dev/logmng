@@ -2,6 +2,8 @@
 
 Run the verification steps: after **test plan + unit/integration tests**, run restart and checks without asking the user; on failure create a bugfix child requirement and repeat until resolved.
 
+**Step 5 (subagent delegation)**: When the project uses subagent delegation for a requirement, **the QA subagent** performs this procedure (restart + health check + §5/§6 update). The main agent does **not** run verification in the main chat; it delegates to QA. See `docs/workflow/SUBAGENT-DELEGATION.md` (Step 5 → QA).
+
 **Skill**: `.cursor/skills/test-workflow/SKILL.md`. **Order**: run-tests (§3 + run + §5) → then this (restart + health check).
 
 ## 1. Order

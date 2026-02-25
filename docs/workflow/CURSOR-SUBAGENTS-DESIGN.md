@@ -162,7 +162,8 @@ These 5 support collaboration and consistent deliverables. **Role boundaries** a
 When a **requirement** or **error-fix request** is made, subagents follow the **collaboration sequence**. Roles, inputs, outputs, and handoffs are in a **single reference doc**.
 
 - **Doc**: `docs/workflow/AGENT-COLLABORATION-ON-REQUIREMENT.md`
-- **Rule**: `.cursor/rules/agent-collaboration.mdc` (follow this sequence for requirements/error fixes)
+- **Delegation**: Main agent instructs the user to switch to the matching subagent for each step; it does not perform that step in the main chat. Full table: `docs/workflow/SUBAGENT-DELEGATION.md`.
+- **Rule**: `.cursor/rules/agent-collaboration.mdc` (follow this sequence for requirements/error fixes; §5 delegation for all steps)
 - **Summary**: Requirements → Security/Contract/DBA/Architecture/Consistency/UX (as needed) → Backend/Frontend/DB → Review (optional) → QA → Documentation/Release (as needed). Role boundaries: §2.6. Each agent’s `.cursor/agents/*.mdc` has a "Collaboration" section with its step and handoff target.
 
 ---
