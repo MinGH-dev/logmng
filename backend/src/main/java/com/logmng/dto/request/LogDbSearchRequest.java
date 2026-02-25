@@ -159,11 +159,17 @@ public class LogDbSearchRequest {
             
             // yyyy-MM-dd HH:mm:ss 형식 (프론트엔드에서 보내는 형식)
             if (trimmed.matches("\\d{4}-\\d{2}-\\d{2} \\d{2}:\\d{2}:\\d{2}")) {
-                java.time.format.DateTimeFormatter formatter = 
+                java.time.format.DateTimeFormatter formatter =
                     java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
                 return LocalDateTime.parse(trimmed, formatter);
             }
-            
+            // yyyy-MM-dd HH:mm:ss.SSS 형식 (밀리초 포함)
+            if (trimmed.matches("\\d{4}-\\d{2}-\\d{2} \\d{2}:\\d{2}:\\d{2}\\.\\d{1,3}")) {
+                java.time.format.DateTimeFormatter formatter =
+                    java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.SSS");
+                return LocalDateTime.parse(trimmed, formatter);
+            }
+
             // yyyy-MM-dd 형식 (날짜만)
             if (trimmed.matches("\\d{4}-\\d{2}-\\d{2}")) {
                 java.time.format.DateTimeFormatter formatter = 
@@ -191,9 +197,10 @@ public class LogDbSearchRequest {
                 return LocalDateTime.parse(trimmed, java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"));
             }
             
+            log.debug("날짜 파싱 미지원 형식(null 반환): raw={}", dateStr);
             return null;
         } catch (Exception e) {
-            log.warn("날짜 파싱 실패: {}", dateStr, e);
+            log.warn("날짜 파싱 실패: raw={}", dateStr, e);
             return null;
         }
     }
@@ -316,14 +323,16 @@ public class LogDbSearchRequest {
     public Long getStartDateAsTimestamp() {
         LocalDateTime dateTime = getStartDateAsDateTime();
         if (dateTime == null) {
+            log.debug("getStartDateAsTimestamp: startDate 파싱 결과 null (raw startDate={})", startDate);
             return null;
         }
         return dateTime.atZone(java.time.ZoneId.systemDefault()).toInstant().toEpochMilli();
     }
-    
+
     public Long getEndDateAsTimestamp() {
         LocalDateTime dateTime = getEndDateAsDateTime();
         if (dateTime == null) {
+            log.debug("getEndDateAsTimestamp: endDate 파싱 결과 null (raw endDate={})", endDate);
             return null;
         }
         // endDate가 날짜만 있으면 23:59:59.999로 설정

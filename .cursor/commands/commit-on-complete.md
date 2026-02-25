@@ -2,6 +2,8 @@
 
 When **all** of the following are done for the current requirement or bugfix, **commit** the changes. Do not push unless the user asks.
 
+**When subagent delegation is in effect**: The **QA subagent** performs this commit after verification and §5/§6 update (main agent does not commit). See `docs/workflow/SUBAGENT-DELEGATION.md` §2 and §5.
+
 ## When to run
 
 - **After** verification passes (restart + health check per `verify.md`).

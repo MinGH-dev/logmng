@@ -37,3 +37,12 @@
   font-size: 16px;
   margin: 0;
 }
+
+/* §6.2: First SubMenu ("로그 검색") same alignment as other top-level items (react-pro-sidebar) */
+.sidebar-first-submenu.ps-submenu-root > .ps-menu-button {
+  padding-left: 12px !important;
+}
+.sidebar-first-submenu.ps-submenu-root > .ps-menu-button.ps-rtl,
+.ps-rtl .sidebar-first-submenu.ps-submenu-root > .ps-menu-button {
+  padding-right: 12px !important;
+}

@@ -7,7 +7,7 @@ description: Create or update requirement documents using project template and n
 
 **Delegation**: When the project uses subagent delegation (`.cursor/rules/agent-collaboration.mdc`, `docs/workflow/SUBAGENT-DELEGATION.md`), the **main agent** does **not** use this skill to write the requirement doc — it delegates **Step 1 to the Requirements subagent**. This skill is for the **Requirements** subagent, or when the user said "code only here", "skip subagent", or "do it in this chat".
 
-Write requirement docs per the rules below.
+Write requirement docs per the rules below. **Do not write §1 (user scenario, expected outcome) and §2 (codebase summary, problem analysis, solution) from Requirements' sole judgment.** Instead: obtain **parallel** input from experts (Security, Contract, DBA, Architecture, Consistency, UX) and from **Backend/Frontend/DB/QA** (scenario, codebase summary, problem analysis, solution); **orchestrate** (merge) that input into §1·§2; then finalize §3. See `docs/workflow/AGENT-COLLABORATION-ON-REQUIREMENT.md` §1.1. The §2 **"변경 파일 목록"** is **tentative**; the implementing agent (Step 4) **confirms or updates** it when implementation is done (§1.2).
 
 ## Path and name
 

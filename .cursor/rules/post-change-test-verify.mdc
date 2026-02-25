@@ -11,9 +11,9 @@ When finishing work that changed **backend/** or **frontend/** source or config,
 
 ## Delegation (Step 5 → QA)
 
-When the work was done via **subagent delegation** (e.g. Frontend/Backend/DB subagent implemented per a requirement doc), **do not run verification or update §5 in the main chat**. Instead:
+When the work was done via **subagent delegation** (e.g. Frontend/Backend/DB subagent implemented per a requirement doc), **do not run verification, §5, or commit in the main chat**. The main agent is delegation-only in this flow.
 
-- **Delegate Step 5 to the QA subagent**: Instruct the user to switch to the **QA** subagent and pass: (1) the requirement doc (at least §3 test approach), (2) confirmation that **build and restart are done**. QA runs verification per `.cursor/commands/verify.md` and updates §5 (and §6 for error fixes). After QA completes, the main agent may **commit** per `.cursor/commands/commit-on-complete.md`.
+- **Delegate Step 5 to the QA subagent**: Instruct the user to switch to the **QA** subagent and pass: (1) the requirement doc (at least §3 test approach), (2) confirmation that **build and restart are done** (or let QA run them per `docs/workflow/SUBAGENT-DELEGATION.md` §2.1). QA runs verification per `.cursor/commands/verify.md`, updates §5 (and §6 for error fixes), and **QA performs commit** per `.cursor/commands/commit-on-complete.md` (push only when the user requests). The main agent does **not** commit.
 - **Exception**: If the user said "code only here", "skip subagent", or "do it in this chat", the main agent performs sections 1–4 below (run tests, verify, §5, commit).
 
 Reference: `docs/workflow/SUBAGENT-DELEGATION.md` (Step 5 → QA).
