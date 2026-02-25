@@ -27,6 +27,10 @@
    - 환경에 맞는 배포 절차(배포 스크립트, CI/CD, 수동 배포 등) 수행.  
    - 배포 상세는 Documentation/운영 문서 참고.
 
+## 수행 기록 (참고)
+
+- **2026-02-25**: design standards·UX agent 커밋 후 `feat/cursor-commit-on-complete` 푸시 완료. CHANGELOG 2026-02-25 항목 반영. (1–2, 5 수행)
+
 ## 참고
 
 - 로컬만 commit하고 push 안 하는 일반 개발 흐름: `.cursor/commands/commit-on-complete.md` (push는 사용자 요청 시에만).
