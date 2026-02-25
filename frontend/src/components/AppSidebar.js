@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import {
+  Box,
   Drawer,
   List,
   ListItemButton,
@@ -122,6 +123,9 @@ function AppSidebar({
           '& .MuiDrawer-paper': {
             width: open ? DRAWER_WIDTH_OPEN : DRAWER_WIDTH_COLLAPSED,
             boxSizing: 'border-box',
+            height: '100%',
+            display: 'flex',
+            flexDirection: 'column',
             transition: theme.transitions.create('width', {
               easing: theme.transitions.easing.sharp,
               duration: theme.transitions.duration.enteringScreen,
@@ -132,7 +136,17 @@ function AppSidebar({
           },
         }}
       >
-        <List disablePadding sx={{ pt: 1 }}>
+        <Box
+          component="nav"
+          aria-label="사이드바 메뉴"
+          sx={{
+            flex: 1,
+            minHeight: 0,
+            overflowY: 'auto',
+            overflowX: 'hidden',
+          }}
+        >
+          <List disablePadding sx={{ pt: 1 }}>
           {filteredTree.map((node) => {
             const Icon = node.icon;
             const isExpandedOpen = expanded[node.id];
@@ -187,7 +201,8 @@ function AppSidebar({
               </React.Fragment>
             );
           })}
-        </List>
+          </List>
+        </Box>
       </Drawer>
       <Popover
         open={Boolean(popoverAnchor)}
