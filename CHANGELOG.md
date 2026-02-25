@@ -8,6 +8,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### 2026-02-26
 
+- **docs**: Document language policy — tool-facing docs (docs/workflow, docs/template, docs/cursor-subagents) in English; requirements authored in English first, final Korean version after verification; commit message must reference requirement doc for traceability. New `docs/workflow/DOCUMENT-LANGUAGE-POLICY.md`; `.cursor/rules/language-policy.mdc`, `docs/template/REQUIREMENT_TEMPLATE.md`, `docs/template/BUGFIX_CHILD_TEMPLATE.md`, `.cursor/commands/commit-on-complete.md`, `.cursor/skills/requirement-doc/SKILL.md`, and workflow docs updated.
 - **docs**: Browser Automation verification policy — frontend changes require browser verification; detailed report in §5; on failure create bugfix child and hand off to Frontend.
 - **docs**: New policy doc `docs/workflow/BROWSER-AUTOMATION-VERIFICATION-POLICY.md` — analysis of why browser automation wasn’t used initially; policy: mandatory browser verification for frontend, §3.5 when frontend-heavy, detailed report, handoff on failure.
 - **chore**: `.cursor/commands/verify.md` — step 3.5 required for frontend scope; detailed report in §5; on failure create bugfix child and hand off.
