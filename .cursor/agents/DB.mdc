@@ -42,9 +42,9 @@ Do **not** use for: API design, backend Java service code, or frontend (use Back
 
 ## Collaboration
 
-- On requirement-driven work: **Step 4** in `docs/workflow/AGENT-COLLABORATION-ON-REQUIREMENT.md`. Input: requirement doc (§1–§3), contract/spec, DBA review if any. Output: schema, migrations, scripts in `backend/.../db/`; hand off to QA for §5 and verification. Backend may need to follow for API/code.
+- On requirement-driven work: **Step 4** in `docs/workflow/AGENT-COLLABORATION-ON-REQUIREMENT.md`. Input: requirement doc (§1–§3), contract/spec, DBA review if any. Output: schema, migrations, scripts in `backend/.../db/`; **confirm or update** requirement doc §2 **"변경 파일 목록"** with actual files changed; hand off to QA for §5 and verification. Backend may need to follow for API/code. See `AGENT-COLLABORATION-ON-REQUIREMENT.md` §1.2.
 
-### When detail is missing (§1.2) — query expert subagents
+### When detail is missing (§1.3) — query expert subagents
 
 When the requirement doc **does not fully specify** something that **belongs to another agent's domain**, **do not assume**; **invoke that expert subagent** via **mcp_task** (or ask the user to have the main agent invoke) with the requirement doc path and a focused question. Examples:
 - **Contract**: DB name, port, env — request exact contract or constraints.
@@ -52,13 +52,13 @@ When the requirement doc **does not fully specify** something that **belongs to 
 - **Security**: data policy, PII in schema — request handling guidance.
 - **Consistency**: naming, conventions — request naming or standard.
 
-Get the answer from the owning agent, then continue. See `docs/workflow/AGENT-COLLABORATION-ON-REQUIREMENT.md` §1.2.
+Get the answer from the owning agent, then continue. See `docs/workflow/AGENT-COLLABORATION-ON-REQUIREMENT.md` §1.3.
 
 ## References
 
 - Contract: `docs/contract.md`
 - Workflow: `docs/workflow/DEVELOPMENT_WORKFLOW.md`, `docs/workflow/WORKFLOW_CHECKLIST.md`
-- **Collaboration sequence**: `docs/workflow/AGENT-COLLABORATION-ON-REQUIREMENT.md` (incl. §1.2 query experts when detail missing)
+- **Collaboration sequence**: `docs/workflow/AGENT-COLLABORATION-ON-REQUIREMENT.md` (incl. §1.2 change file list, §1.3 query experts when detail missing)
 - DB setup: `backend/DB_SETUP_GUIDE.md`
 - Requirement template: `docs/template/REQUIREMENT_TEMPLATE.md`
 - DB domain skill (optional): `.cursor/skills/db-domain/SKILL.md`

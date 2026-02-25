@@ -8,14 +8,14 @@ When a **new requirement** or **error-fix request** occurs, agents collaborate i
 
 | Step | Agent(s) | Input | Output | Handoff to |
 |------|-----------|--------|--------|------------|
-| **1** | **Requirements** | User request, error message, or feature need | Requirement doc: `docs/requirements/yyyyMMdd-name.md` with §1, §2, §3. Optional: `specs/*.spec.yaml`. **During authoring**: solicit feedback from relevant expert subagents (see §1.1). | Step 2 if security-relevant; else Step 3 or 4 |
+| **1** | **Requirements** | User request, error message, or feature need | Requirement doc with §1, §2, §3. **During authoring**: obtain **parallel** input from experts and Backend/Frontend/DB/QA (scenario, codebase, problem, solution); **orchestrate** into §1·§2; §2 "변경 파일 목록" is **tentative** (see §1.1, §1.2). | Step 2 if security-relevant; else Step 3 or 4 |
 | **2** | **Security** (if PII / decryption / access control) | Requirement doc §1·§2 | §2.1 Security review or security appendix. | Step 3 or 4 |
 | **3** | **Contract** (if API or DB change) | Requirement doc + security if any | Updated `docs/contract.md`, `specs/*.spec.yaml`. | Step 4 |
 | **3b** | **DBA** (if schema / indexing / JSON design) | Requirement doc, schema or spec | Design review; no code. DB implements. | Step 4 |
 | **3c** | **Architecture** (if performance / scale / caching) | Requirement doc, design or spec | Design review; no code. Backend/DB implement. | Step 4 |
 | **3d** | **Consistency** (if new conventions / error codes) | Requirement doc or new convention need | Updated `docs/workflow/CONSISTENCY-STANDARDS.md`. Review applies it. | Step 4, Review |
 | **3d** | **UX** (if UI / design / a11y) | Requirement doc §1·§2, UI description | § UX review or design recommendations. No code. Frontend implements. | Step 4 |
-| **4** | **Backend / Frontend / DB** | Requirement doc, §3, contract/spec, reviews | Code and config; unit/integration tests; **build and restart** (required). When detail is missing, **query the owning expert subagent** (see §1.2). | Step 4.5 or 5 |
+| **4** | **Backend / Frontend / DB** | Requirement doc, §3, contract/spec, reviews | Code and config; unit/integration tests; **build and restart** (required). **Confirm or update** requirement doc §2 **변경 파일 목록** with actual files changed. When detail is missing, **query the owning expert subagent** (see §1.3). | Step 4.5 or 5 |
 | **4.5** | **Review** (optional, before QA) | Implemented change (Step 4) | Review report vs contract, workflow, quality, `CONSISTENCY-STANDARDS.md`. No code. Implementing agent fixes. | Step 5 |
 | **5** | **QA** | Requirement doc §3, implemented feature **after build and restart** | **Verification**: verify checklist, health/behavior check; test scenarios; §5 (and §6 for error fixes). | Step 6 or Done |
 | **6** | **Documentation** (after QA) | Completed feature, requirement doc | Updated user/ops docs (README, QUICK_START, runbooks). No requirement docs, no code. | Done |
@@ -26,25 +26,40 @@ When a **new requirement** or **error-fix request** occurs, agents collaborate i
 - **Single source of truth**: Requirement doc is the hub. Each agent updates only its designated sections or owned docs (e.g. Consistency → CONSISTENCY-STANDARDS.md; Review applies it but does not edit it).
 - **Response language**: Agents respond to the user in the **user's requested language** (e.g. Korean when the user writes in Korean). See `.cursor/rules/language-policy.mdc`.
 
-### 1.1 Requirements authoring: feedback from expert subagents
+### 1.1 Requirements authoring: parallel consensus and orchestration
 
-When the **Requirements** subagent writes the requirement doc, it **solicits feedback from relevant expert subagents** before finalizing the doc:
+When the **Requirements** subagent writes the requirement doc, it **must not write §1 (user scenario, expected outcome) and §2 (codebase summary, problem analysis, solution) from its own judgment alone**. Instead it **obtains input in parallel from experts and from development/DB/QA**, then **orchestrates** (merges) that input into §1·§2.
 
-1. **Draft** §1 (user requirement) and §2 (design) from the user request or error message.
-2. **Invoke each relevant expert** (via mcp_task or by instructing the user to switch and pass input):
-   - **Security**: if the requirement involves PII, decryption scope, or access control → request §2.1 or security appendix.
-   - **Contract**: if API or DB contract/spec change → request contract/spec updates or constraints for §2.
-   - **DBA**: if schema, indexing, or data design → request design review or constraints for §2.
-   - **Architecture**: if performance, scalability, or load → request design review or constraints for §2.
-   - **Consistency**: if new conventions or error codes → request standards or constraints for §2.
-   - **UX**: if UI, layout, or a11y → request § UX review or design recommendations for §2.
-3. **Incorporate** the experts' feedback into §1·§2.
-4. **Finalize** §3 (test plan) and the requirement doc.
-5. **When the doc is complete**, the flow continues: Step 2 (Security if needed), Step 3 (Contract/DBA/Architecture/Consistency/UX if needed), then **Step 4** — the **responsible subagent** (Backend, Frontend, or DB) takes over and implements; after implementation, **Step 5** (QA) and so on.
+1. **Parallel invocation (consensus input)**  
+   Invoke **in parallel** (e.g. multiple mcp_task calls in one turn) the following, as applicable to the user request or error:
+   - **Experts** (when the requirement touches their domain):
+     - **Security**: PII, decryption scope, or access control → request §2.1 or security appendix.
+     - **Contract**: API or DB contract/spec change → request contract/spec constraints for §2.
+     - **DBA**: schema, indexing, or data design → request design review or constraints for §2.
+     - **Architecture**: performance, scalability, or load → request design review or constraints for §2.
+     - **Consistency**: new conventions or error codes → request standards or constraints for §2.
+     - **UX**: UI, layout, or a11y → request UX review or design recommendations for §2.
+   - **Development / DB / QA** (for scenario, codebase, problem, solution):
+     - **Backend** (or Backend-Log, Backend-Auth, etc. when scope is clear): codebase summary for backend area, problem analysis, solution ideas for backend.
+     - **Frontend** (or Frontend-Log, etc. when scope is clear): codebase summary for frontend area, problem analysis, solution ideas for frontend.
+     - **DB**: when schema/DB is involved — codebase summary for DB area, problem analysis, solution ideas for DB.
+     - **QA**: user scenario testability, alignment with §3 test cases, edge/regression suggestions.
+   - Pass to each: user request or error message, and ask for: (a) user scenario / expected outcome input for §1, (b) codebase summary for their area, (c) problem analysis, (d) solution approach. **State clearly that this is for requirement authoring only: do not implement; return only structured input for §1·§2.** Experts may return only (b)–(d) in their domain; QA focuses on (a) and testability.
+2. **Orchestrate**  
+   Merge the collected responses into:
+   - **§1**: user requirement (description), **user scenario**, expected outcome (consensus from experts + Backend/Frontend/DB + QA where provided).
+   - **§2**: **codebase summary** (per area), **problem analysis**, **solution approach**, and **변경 파일 목록 (예상)** — tentative change file list; see §1.2.
+3. **Finalize**  
+   Complete **§3** (test plan) and the requirement doc. When the doc is complete, the flow continues: Step 2 (Security if needed), Step 3 (Contract/DBA/… if needed), then **Step 4** — the responsible subagent implements; after implementation, **Step 5** (QA) and so on.
 
-This way the requirement doc reflects expert input **before** implementation starts, and each **responsible subagent** then performs its step in sequence.
+If the requirement is trivial or purely textual (no codebase/solution), Requirements may skip parallel invocation and write §1·§2 directly, then §3.
 
-### 1.2 Development subagents: query experts when detail is needed
+### 1.2 Change file list: tentative in §2, confirmed in Step 4
+
+- The requirement doc §2 **"변경 파일 목록"** is **tentative (예상)** when authored. Requirements (and parallel inputs) may list **expected** files; the **implementing agent (Step 4)** — Backend, Frontend, DB, or module-specific (e.g. Backend-Log) — **must confirm or update** this list when implementation is complete.
+- The implementing subagent **updates the requirement doc** §2 "변경 파일 목록" with the **actual** list of files it changed (add/remove/amend vs the tentative list). If **multiple** implementing agents work on the same requirement (e.g. Backend and Frontend), each updates the list with the files **it** changed (add or amend its own section). If the requirement doc has **no** "변경 파일 목록" section (e.g. older docs), the implementing agent **adds** it with the actual files changed. This keeps the requirement doc and implementation scope in sync.
+
+### 1.3 Development subagents: query experts when detail is needed
 
 When **Backend**, **Frontend**, or **DB** (Step 4) implement from the requirement doc and need **detailed information** that the doc does not fully specify and that **falls in another agent's domain**, they must **query that expert subagent** instead of assuming:
 
@@ -68,7 +83,7 @@ When **Backend**, **Frontend**, or **DB** (Step 4) implement from the requiremen
 - **UX → Frontend**: "UX review done; implement per recommendations."
 - **Backend / Frontend / DB → Review (optional)**: "Change ready; please review against contract, workflow, and CONSISTENCY-STANDARDS."
 - **Review → Backend / Frontend / DB**: "Review report: [items]. Please fix and re-submit or proceed to QA."
-- **Backend / Frontend / DB → QA**: "Implementation done; **build and restart completed**. Please perform **verification**: run verify checklist, health/behavior check, then add/update §5 (and §6 if error fix)."
+- **Backend / Frontend / DB → QA**: "Implementation done; **build and restart completed**; requirement doc §2 **변경 파일 목록** confirmed/updated with actual files. Please perform **verification**: run verify checklist, health/behavior check, then add/update §5 (and §6 if error fix)."
 - **QA → Documentation / Release / Done**: "§5 (and §6 if error fix) updated; verification done. Optionally update user docs and CHANGELOG."
 - **Documentation / Release → Done**: "User docs / CHANGELOG updated."
 

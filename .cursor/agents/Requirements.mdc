@@ -45,22 +45,24 @@ Do **not** use for: implementing code (Backend/Frontend/DB agents); running test
 
 - On requirement-driven work: **Step 1** in `docs/workflow/AGENT-COLLABORATION-ON-REQUIREMENT.md`. Input: user request or error. Output: requirement doc (§1, §2, §3); after doc is complete, hand off to Security if PII/decrypt/access, else to Contract or Backend/Frontend/DB.
 
-### During authoring (§1.1) — solicit expert feedback
+### During authoring (§1.1) — parallel consensus and orchestration
 
-When writing the requirement doc, **before finalizing §3**:
+Do **not** write §1 (user scenario, expected outcome) and §2 (codebase summary, problem analysis, solution) from your own judgment alone. **Obtain input in parallel** from experts and from Backend/Frontend/DB/QA, then **orchestrate** (merge) that input into §1·§2.
 
-1. **Draft** §1 (user requirement) and §2 (design) from the user request or error.
-2. **Invoke each relevant expert** via **mcp_task** (or instruct the user to switch and pass input) when the requirement touches their domain:
-   - **Security**: PII, decryption scope, or access control → request §2.1 or security appendix.
-   - **Contract**: API or DB contract/spec change → request contract/spec constraints for §2.
-   - **DBA**: schema, indexing, or data design → request design review or constraints for §2.
-   - **Architecture**: performance, scalability, or load → request design review or constraints for §2.
-   - **Consistency**: new conventions or error codes → request standards or constraints for §2.
-   - **UX**: UI, layout, or a11y → request § UX review or design recommendations for §2.
-3. **Incorporate** the experts' feedback into §1·§2.
-4. **Finalize** §3 (test plan) and the requirement doc.
+1. **Parallel invocation**  
+   Invoke **in parallel** (e.g. multiple mcp_task in one turn), as applicable:
+   - **Experts** (when the requirement touches their domain): Security, Contract, DBA, Architecture, Consistency, UX — request §2.1 or constraints for §2 (codebase summary, problem analysis, solution in their domain).
+   - **Backend** (or Backend-Log, Backend-Auth, etc.): codebase summary for backend, problem analysis, solution for backend.
+   - **Frontend** (or Frontend-Log, etc.): codebase summary for frontend, problem analysis, solution for frontend.
+   - **DB**: when schema/DB is involved — codebase summary for DB, problem analysis, solution for DB.
+   - **QA**: user scenario testability, §3 alignment, edge/regression suggestions.
+   - Pass to each: user request or error message; ask for (a) user scenario/expected outcome for §1, (b) codebase summary for their area, (c) problem analysis, (d) solution approach.
+2. **Orchestrate**  
+   Merge responses into **§1** (description, user scenario, expected outcome) and **§2** (codebase summary, problem analysis, solution, **변경 파일 목록 (예상)**). The change file list in §2 is **tentative**; the implementing agent (Step 4) **confirms or updates** it when implementation is done (see `AGENT-COLLABORATION-ON-REQUIREMENT.md` §1.2).
+3. **Finalize**  
+   Complete **§3** (test plan) and the requirement doc.
 
-If no expert is relevant (e.g. trivial or purely textual change), you may skip step 2–3 and go straight to §3. When the doc is complete, the main agent or delegation table determines the next step (Security, Contract, Frontend/Backend/DB, etc.).
+If the requirement is trivial or purely textual, you may skip parallel invocation and write §1·§2 directly, then §3. When the doc is complete, the main agent or delegation table determines the next step.
 
 ## References
 

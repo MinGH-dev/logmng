@@ -37,8 +37,9 @@ When you modify code or config under `frontend/`, **always include in your plan 
 
 1. **Build**: `cd frontend && npm run build` (or `CI=false npm run build` if only ESLint fails).
 2. **Restart**: **Run restart yourself** from project root: `./scripts/dev-services.sh frontend restart`; then confirm http://localhost:3001 is reachable. Do **not** ask the user to run restart — the subagent performs it.
-3. **Handoff to QA**: After build and restart, instruct the QA subagent to perform verification (checklist, §5). Your handoff **must include** a one-line confirmation so QA can gate verification on it, for example:  
-   `Build: cd frontend && CI=false npm run build — exit 0. Restart: ./scripts/dev-services.sh frontend restart — done. QA verification requested.`
+3. **Requirement doc §2 변경 파일 목록**: When implementing from a requirement doc, **confirm or update** that doc's §2 **"변경 파일 목록"** with the **actual** list of files you changed (add/remove/amend vs the tentative list). See `docs/workflow/AGENT-COLLABORATION-ON-REQUIREMENT.md` §1.2.
+4. **Handoff to QA**: After build and restart, instruct the QA subagent to perform verification (checklist, §5). Your handoff **must include** a one-line confirmation so QA can gate verification on it, for example:  
+   `Build: cd frontend && CI=false npm run build — exit 0. Restart: ./scripts/dev-services.sh frontend restart — done. Requirement doc §2 변경 파일 목록 확정. QA verification requested.`
 
 Skip build, restart, and QA handoff if you only produced docs or review text and did not change `frontend/` code.
 
@@ -46,7 +47,7 @@ Skip build, restart, and QA handoff if you only produced docs or review text and
 
 - On requirement-driven work: **Step 4** in `docs/workflow/AGENT-COLLABORATION-ON-REQUIREMENT.md`. Input: requirement doc (§1–§3), contract/spec, security or design review if any. Output: code and tests in `frontend/`; hand off to QA for §5 and verification.
 
-### When detail is missing (§1.2) — query expert subagents
+### When detail is missing (§1.3) — query expert subagents
 
 When the requirement doc **does not fully specify** something that **belongs to another agent's domain**, **do not assume**; **invoke that expert subagent** via **mcp_task** (or ask the user to have the main agent invoke) with the requirement doc path and a focused question. Examples:
 - **UX**: layout, breakpoints, a11y, interaction — request exact layout or design recommendations.
@@ -54,13 +55,13 @@ When the requirement doc **does not fully specify** something that **belongs to 
 - **Security**: access rules, PII in UI — request handling guidance.
 - **Consistency**: naming, error codes — request error code and message for a case.
 
-Get the answer from the owning agent, then continue implementation. See `docs/workflow/AGENT-COLLABORATION-ON-REQUIREMENT.md` §1.2.
+Get the answer from the owning agent, then continue implementation. See `docs/workflow/AGENT-COLLABORATION-ON-REQUIREMENT.md` §1.3.
 
 ## References
 
 - Contract: `docs/contract.md`
 - Workflow: `docs/workflow/DEVELOPMENT_WORKFLOW.md`
-- **Collaboration sequence**: `docs/workflow/AGENT-COLLABORATION-ON-REQUIREMENT.md` (incl. §1.2 query experts when detail missing)
+- **Collaboration sequence**: `docs/workflow/AGENT-COLLABORATION-ON-REQUIREMENT.md` (incl. §1.2 change file list, §1.3 query experts when detail missing)
 - Requirement template: `docs/template/REQUIREMENT_TEMPLATE.md`
 - Prompt (paste into Cursor Settings): `docs/cursor-subagents/frontend.md`
 - For module-specific work (Auth, ActivityLog, Log): `docs/workflow/CURSOR-SUBAGENTS-DESIGN.md` §1.2; prompts in `docs/cursor-subagents/frontend-auth.md`, `frontend-activity-log.md`, `frontend-log.md`.
