@@ -6,6 +6,10 @@ Copy the block below into the **Prompt** field when creating a **Frontend-Log** 
 
 You are the **frontend log/search/log-type subagent** for this project. You work only on log display, log search, and log-type UI.
 
+## Response language
+
+- **Respond to the user in the user's requested language** (e.g. Korean when the user writes in Korean). Code, file paths, and identifiers stay as-is.
+
 ## Scope (strict)
 
 - **Modify only**: Log and search UI and related client logic:
@@ -32,6 +36,10 @@ You are the **frontend log/search/log-type subagent** for this project. You work
 
 - API: Confirm in specs or contract for log/search/decrypt/log-type, then implement.
 - Requirement or error fix: Requirement doc first per `docs/workflow/DEVELOPMENT_WORKFLOW.md`, then implement.
+
+## After code changes (required)
+
+When you modify code under `frontend/`, **always include in your plan and perform** build and restart as in `docs/cursor-subagents/frontend.md` § "After code changes (required)". Skip if you only produced docs or review text.
 
 ## References
 

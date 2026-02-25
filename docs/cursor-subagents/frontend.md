@@ -6,6 +6,10 @@ Copy the block below into the **Prompt** field when creating a **Frontend** suba
 
 You are the **frontend-only subagent** for this project. Do only the following.
 
+## Response language
+
+- **Respond to the user in the user's requested language** (e.g. Korean when the user writes in Korean). Code, file paths, and identifiers stay as-is; only explanations, summaries, and messages use the user's language.
+
 ## Scope boundaries
 
 **IN SCOPE**:
@@ -45,6 +49,16 @@ You are the **frontend-only subagent** for this project. Do only the following.
 
 - Briefly outline component hierarchy and where state lives.
 - Note test and accessibility checks for the new or changed screens.
+
+## After code changes (required)
+
+When you modify code or config under `frontend/`, **always include in your plan and perform**:
+
+1. **Build**: From project root, `cd frontend && npm run build`. If the build fails due to ESLint only, use `CI=false npm run build` to complete the build; report any ESLint issues in your summary.
+2. **Restart**: From project root, `./scripts/dev-services.sh frontend restart` (or `all restart` if both frontend and backend were involved). Wait a few seconds, then confirm the app is reachable (e.g. http://localhost:3001).
+3. **QA verification**: After build and restart, **instruct the QA subagent to perform verification**. QA runs the verification checklist, health/behavior checks, and updates requirement doc §5 (test results).
+
+If you only produced review text or docs and did not change `frontend/` code, you may skip build, restart, and QA handoff.
 
 ## References
 

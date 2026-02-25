@@ -400,10 +400,57 @@
 | DECRYPTION_FAILED | 복호화 처리 실패 |
 | FORBIDDEN_NOT_APPROVER | 승인/반려·대기목록 API 호출 권한 없음(결재자 또는 관리자만 가능) (403) |
 | NOT_APPROVER | 위와 동일 의미. 구현 시 하나로 통일 가능 |
+| DEPARTMENT_NOT_FOUND | 부서 없음 (404) |
+| ALREADY_APPROVER | 해당 부서에 이미 결재자로 등록됨 (400) |
+| FORBIDDEN | 권한 없음(예: 부서/결재자 API는 관리자 전용) (403) |
+| INVALID_INPUT | 부서코드/userId 등 입력값 비어 있음 또는 형식 오류 (400) |
 
 ---
 
-## 12. 참고
+## 12. 부서 계층 및 부서별 결재자 (관리자 전용)
+
+**Base path**: `/api/departments`
+
+부서는 code·parent_code·name으로 계층 구조. 루트는 parent_code null.  
+부서별 결재자 API는 **관리자(role=ADMIN)** 만 호출 가능. 그 외 403.
+
+### 12.1 부서 트리 조회
+
+- **GET** `/api/departments`
+- **Query**: `format` — "tree"(기본) | "flat"
+- **Response (data)**:
+  - tree: 배열, 각 노드 `{ "code", "parentCode", "name", "sortOrder", "children": [] }`. 루트만 최상위, 하위는 children 재귀.
+  - flat: `[{ "code", "parentCode", "name", "sortOrder" }, ...]`
+- **에러**: 401, 403
+
+### 12.2 부서별 결재자 목록
+
+- **GET** `/api/departments/{code}/approvers`
+- **Response (data)**: 배열 `[{ "userId", "username", "departmentCode"?, ... }]`
+- **에러**: 401, 403, 404 → `code: "DEPARTMENT_NOT_FOUND"`
+
+### 12.3 부서별 결재자 추가
+
+- **POST** `/api/departments/{code}/approvers`
+- **Request body**: `{ "userId": string }`
+- **Response (data)**: `{ "userId", "departmentCode", "isApprover": true }`
+- **에러**: 401, 403, 404, 400 이미 해당 부서 결재자 → `code: "DEPARTMENT_NOT_FOUND"`, `"USER_NOT_FOUND"`, `"ALREADY_APPROVER"`
+
+### 12.4 부서별 결재자 제거
+
+- **DELETE** `/api/departments/{code}/approvers/{userId}`
+- **Response (data)**: `{ "userId", "departmentCode", "isApprover": false }` 또는 성공 메시지
+- **에러**: 401, 403, 404
+
+### 12.5 전역 결재자 API와의 관계
+
+- **GET/POST/DELETE** `/api/users`, `/api/users/approvers`, `/api/users/approvers/{userId}` — **유지**. 전역 결재자(department_code NULL)용.
+- 프론트: 전역 결재자 지정 → §7.2·7.3 사용. 부서별 결재자 지정 → §12.2·12.3·12.4 사용.
+- 승인 권한: ADMIN 또는 전역 결재자 또는 요청자 소속 부서(또는 상위 부서) 결재자.
+
+---
+
+## 13. 참고
 
 - **환경·포트**: `docs/contract.md`
 - **사용자 관리·전산요청서·인사배치 등 (미구현 API)**: `specs/user-management.spec.yaml`
