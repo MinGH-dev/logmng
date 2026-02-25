@@ -5,6 +5,7 @@
 ```
 docs/
 ├── README.md (이 파일)
+├── CURSOR-PROMPTING-GUIDE.md    # Cursor 프롬프팅 가이드 — 요청 예시·서브에이전트 활용 (한글)
 ├── contract.md                  # 공통 계약(API·DB·포트) — 에이전트가 항상 참고
 ├── QUICK_START.md               # 빠른 시작 가이드
 ├── security-guide.md            # 프론트엔드 보안 가이드
@@ -162,6 +163,7 @@ Agent가 작업을 완료한 후:
 
 ## 📞 도움말
 
+- **Cursor로 뭘 어떻게 요청할지**: [CURSOR-PROMPTING-GUIDE.md](CURSOR-PROMPTING-GUIDE.md) — 자주 쓰는 요청 예시·서브에이전트 활용
 - 개발 워크플로우: `workflow/DEVELOPMENT_WORKFLOW.md`
 - 오류 수정 요건 → 진행 흐름·Skills/Sub-Agent/Commands 시점: `workflow/ERROR-FIX-WORKFLOW-FLOWCHART.md`
 - 빠른 시작: `QUICK_START.md`
