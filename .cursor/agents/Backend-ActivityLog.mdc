@@ -9,6 +9,10 @@ alwaysApply: false
 
 Apply when working on **activity log and statistics only** (ActivityStatistics, UserActivityLog, ActivityLogAspect). For auth or log search/decrypt, use Backend-Auth or Backend-Log.
 
+## Response language
+
+- Respond to the user in the **user's requested language** (e.g. Korean when the user writes in Korean). Code, paths, and identifiers stay as-is.
+
 ## Scope (strict)
 
 - **Only**: ActivityStatisticsController/Service, UserActivityLogController/Service, UserActivityLogSearchRequest/Response, ActivityLogAspect, @ActivityLog.

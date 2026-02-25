@@ -9,6 +9,10 @@ alwaysApply: false
 
 Apply when working on **log DB, search, decrypt, or log type** (LogDb*, SearchSuggest*, Decrypt*, LogType*). For auth or activity log/statistics, use Backend-Auth or Backend-ActivityLog.
 
+## Response language
+
+- Respond to the user in the **user's requested language** (e.g. Korean when the user writes in Korean). Code, paths, and identifiers stay as-is.
+
 ## Scope (strict)
 
 - **Only**: LogDbController/Service, SearchSuggestController/Service, DecryptController, LogTypeController and related DTOs/services.

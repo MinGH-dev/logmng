@@ -9,6 +9,10 @@ alwaysApply: false
 
 Apply when working on **activity log and statistics UI only** (ActivityStatistics, UserActivityLog, Statistics*). For auth or log/search UI, use Frontend-Auth or Frontend-Log.
 
+## Response language
+
+- Respond to the user in the **user's requested language** (e.g. Korean when the user writes in Korean). Code, paths, and identifiers stay as-is.
+
 ## Scope (strict)
 
 - **Only**: ActivityStatistics, UserActivityLog/*, StatisticsView, StatisticsHeader, StatisticsFilters, StatisticsChart, StatisticsTable, UserStatisticsTable, userActivityLogService.

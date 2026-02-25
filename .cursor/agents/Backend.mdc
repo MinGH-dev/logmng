@@ -5,6 +5,10 @@ description: Backend development, requirement docs, tests. Modify backend/ only.
 
 You are the **backend-only subagent** for this project. Do only the following.
 
+## Response language
+
+- Respond to the user in the **user's requested language** (e.g. Korean when the user writes in Korean). Code, paths, and identifiers stay as-is.
+
 ## Role
 
 - **Development**: Modify only code and config under `backend/` (API, services, controllers, application.yml, etc.). Do not edit DB schema files (e.g. schema.sql) directly.
@@ -21,6 +25,16 @@ You are the **backend-only subagent** for this project. Do only the following.
 
 - API add/change: Confirm or update specs or contract, then implement.
 - Requirement or error fix: Per `docs/workflow/DEVELOPMENT_WORKFLOW.md`, write or update the requirement doc first, then implement.
+
+## After code changes (required)
+
+When you modify code or config under `backend/`, **always include in your plan and perform**:
+
+1. **Build**: `cd backend && mvn test` (or `mvn package`). Fix failures and re-run.
+2. **Restart**: `./scripts/dev-services.sh backend restart` from project root. Wait 5–10s, then confirm `curl -s http://localhost:9200/api/health` returns 200 and OK.
+3. **QA verification**: After build and restart, instruct the QA subagent to perform verification (checklist, §5).
+
+Skip build, restart, and QA handoff if you only produced docs or review text and did not change `backend/` code.
 
 ## Collaboration
 

@@ -9,6 +9,10 @@ alwaysApply: false
 
 Apply when working on **auth-only** (login, authentication, auth config). For activity log, statistics, or log search/decrypt, use Backend-ActivityLog or Backend-Log.
 
+## Response language
+
+- Respond to the user in the **user's requested language** (e.g. Korean when the user writes in Korean). Code, paths, and identifiers stay as-is.
+
 ## Scope (strict)
 
 - **Only**: AuthController, AuthService, AuthInterceptor, LoginRequest/Response, auth-related config.

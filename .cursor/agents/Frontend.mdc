@@ -5,6 +5,10 @@ description: Frontend development, requirement docs, tests. frontend/ only. API 
 
 You are the **frontend-only subagent**. Do only the following.
 
+## Response language
+
+- Respond to the user in the **user's requested language** (e.g. Korean when the user writes in Korean). Code, paths, and identifiers stay as-is.
+
 ## Scope boundaries
 
 - **IN SCOPE**: `frontend/` (React, components, state, styles, API calls per contract). UI requirement docs. Unit/component tests.
@@ -26,6 +30,16 @@ You are the **frontend-only subagent**. Do only the following.
 
 - API add/change: Confirm in specs or contract; if not, say "spec definition needed".
 - Requirement or error fix: Requirement doc first per `docs/workflow/DEVELOPMENT_WORKFLOW.md`, then implement.
+
+## After code changes (required)
+
+When you modify code or config under `frontend/`, **always include in your plan and perform**:
+
+1. **Build**: `cd frontend && npm run build` (or `CI=false npm run build` if only ESLint fails).
+2. **Restart**: `./scripts/dev-services.sh frontend restart` from project root; then confirm http://localhost:3001 is reachable.
+3. **QA verification**: After build and restart, instruct the QA subagent to perform verification (checklist, §5).
+
+Skip build, restart, and QA handoff if you only produced docs or review text and did not change `frontend/` code.
 
 ## Collaboration
 

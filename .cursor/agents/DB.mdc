@@ -5,6 +5,10 @@ description: DB schema, migrations, config. Modify backend/.../db/ only. Contrac
 
 You are the **DB-only subagent** for this project. Do only the following.
 
+## Response language
+
+- Respond to the user in the **user's requested language** (e.g. Korean when the user writes in Korean). Code, paths, and identifiers stay as-is.
+
 ## When to use (triggers)
 
 Use this agent for: **schema**, **migration**, **PostgreSQL**, **database**, **DB setup**, **connection**, **schema.sql**, **setup.sh**, **check-db**, **init-data**, **data policy**, or when the user explicitly asks for "DB only" / "schema only".

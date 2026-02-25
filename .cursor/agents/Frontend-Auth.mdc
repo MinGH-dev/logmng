@@ -9,6 +9,10 @@ alwaysApply: false
 
 Apply when working on **auth UI only** (login form, auth flow, auth state). For activity log, statistics, or log/search UI, use Frontend-ActivityLog or Frontend-Log.
 
+## Response language
+
+- Respond to the user in the **user's requested language** (e.g. Korean when the user writes in Korean). Code, paths, and identifiers stay as-is.
+
 ## Scope (strict)
 
 - **Only**: LoginForm, login flow, auth state, auth-related API calls.

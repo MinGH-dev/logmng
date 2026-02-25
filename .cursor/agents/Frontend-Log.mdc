@@ -9,6 +9,10 @@ alwaysApply: false
 
 Apply when working on **log display, search, and log-type UI only** (LogGrid, LogTable, ImageLog*, SearchForm, AdvancedSearchForm, LogTypeSelector). For auth or activity/statistics UI, use Frontend-Auth or Frontend-ActivityLog.
 
+## Response language
+
+- Respond to the user in the **user's requested language** (e.g. Korean when the user writes in Korean). Code, paths, and identifiers stay as-is.
+
 ## Scope (strict)
 
 - **Only**: LogGrid, LogTable, ImageLogTable, ImageLogSearchForm, SearchForm, AdvancedSearchForm, LogTypeSelector and related API for log/search/decrypt/log-type.
