@@ -1,15 +1,6 @@
-import React, { useState } from 'react';
-import {
-  Box,
-  Drawer,
-  List,
-  ListItemButton,
-  ListItemIcon,
-  ListItemText,
-  Collapse,
-  Popover,
-  useTheme,
-} from '@mui/material';
+import React from 'react';
+import { Sidebar, Menu, MenuItem, SubMenu } from 'react-pro-sidebar';
+import { useTheme } from '@mui/material/styles';
 import {
   Search as SearchIcon,
   History as HistoryIcon,
@@ -82,155 +73,100 @@ function AppSidebar({
   onSearchMain,
 }) {
   const theme = useTheme();
-  const [expanded, setExpanded] = useState({});
-  const [popoverAnchor, setPopoverAnchor] = useState(null);
-  const [popoverParent, setPopoverParent] = useState(null);
 
   const isActive = (item) => {
     if (item.view === 'main') return currentView === 'main';
     return currentView === item.view;
   };
 
-  const handleFirstLevelClick = (node, e) => {
-    if (!open) {
-      setPopoverAnchor(e.currentTarget);
-      setPopoverParent(node);
-    } else {
-      setExpanded((prev) => ({ ...prev, [node.id]: !prev[node.id] }));
-    }
-  };
+  const filteredTree = MENU_TREE.filter((node) => !node.adminOnly || isAdmin);
 
-  const handleSecondLevelClick = (child, e) => {
+  const handleChildClick = (child) => {
     if (child.view === 'main') {
       onSearchMain();
     } else {
       onNavigate(child.view);
     }
-    setPopoverAnchor(null);
   };
 
-  const closePopover = () => setPopoverAnchor(null);
-
-  const filteredTree = MENU_TREE.filter((node) => !node.adminOnly || isAdmin);
+  const menuItemStyles = {
+    root: {
+      fontFamily: theme.typography.fontFamily,
+    },
+    button: ({ level, active }) => {
+      const base = {
+        fontFamily: theme.typography.fontFamily,
+        '&:hover': {
+          backgroundColor: theme.palette.action.hover,
+        },
+      };
+      if (level === 0) {
+        return {
+          ...base,
+          borderLeft: active ? `3px solid ${theme.palette.primary.main}` : '3px solid transparent',
+          backgroundColor: active ? theme.palette.action.selected : undefined,
+        };
+      }
+      return {
+        ...base,
+        borderLeft: active ? `3px solid ${theme.palette.primary.main}` : '3px solid transparent',
+        backgroundColor: active ? theme.palette.action.selected : undefined,
+      };
+    },
+    label: {
+      fontFamily: theme.typography.fontFamily,
+    },
+  };
 
   return (
-    <>
-      <Drawer
-        variant="permanent"
-        sx={{
-          width: open ? DRAWER_WIDTH_OPEN : DRAWER_WIDTH_COLLAPSED,
-          flexShrink: 0,
-          '& .MuiDrawer-paper': {
-            width: open ? DRAWER_WIDTH_OPEN : DRAWER_WIDTH_COLLAPSED,
-            boxSizing: 'border-box',
-            height: '100vh',
-            top: 0,
-            display: 'flex',
-            flexDirection: 'column',
-            transition: theme.transitions.create('width', {
-              easing: theme.transitions.easing.sharp,
-              duration: theme.transitions.duration.enteringScreen,
-            }),
-            overflow: 'hidden',
-            mt: 0,
-            borderRight: `1px solid ${theme.palette.divider}`,
-          },
-        }}
+    <Sidebar
+      collapsed={!open}
+      width={`${DRAWER_WIDTH_OPEN}px`}
+      collapsedWidth={`${DRAWER_WIDTH_COLLAPSED}px`}
+      backgroundColor={theme.palette.background.paper}
+      rootStyles={{
+        borderRight: `1px solid ${theme.palette.divider}`,
+        height: '100vh',
+        position: 'relative',
+      }}
+      transitionDuration={theme.transitions.duration.enteringScreen}
+      aria-label="사이드바 메뉴"
+    >
+      <Menu
+        menuItemStyles={menuItemStyles}
+        closeOnClick
       >
-        <Box
-          component="nav"
-          aria-label="사이드바 메뉴"
-          sx={{
-            flex: 1,
-            minHeight: 0,
-            overflowY: 'auto',
-            overflowX: 'hidden',
-          }}
-        >
-          <List disablePadding sx={{ pt: 1 }}>
-          {filteredTree.map((node) => {
-            const Icon = node.icon;
-            const isExpandedOpen = expanded[node.id];
-            const hasActiveChild = node.children.some((c) => isActive(c));
-
-            return (
-              <React.Fragment key={node.id}>
-                <ListItemButton
-                  onClick={(e) => handleFirstLevelClick(node, e)}
-                  sx={{
-                    minHeight: 48,
-                    justifyContent: open ? 'initial' : 'center',
-                    px: open ? 2 : 1.5,
-                    borderLeft: hasActiveChild ? `3px solid ${theme.palette.primary.main}` : '3px solid transparent',
-                    bgcolor: hasActiveChild ? 'action.selected' : undefined,
-                  }}
-                  aria-expanded={open ? isExpandedOpen : undefined}
-                >
-                  <ListItemIcon sx={{ minWidth: open ? 56 : 0, justifyContent: 'center' }}>
-                    <Icon />
-                  </ListItemIcon>
-                  {open && <ListItemText primary={node.label} primaryTypographyProps={{ noWrap: true }} />}
-                </ListItemButton>
-                {open && (
-                  <Collapse in={isExpandedOpen || hasActiveChild} timeout="auto" unmountOnExit>
-                    <List component="div" disablePadding>
-                      {node.children.map((child) => {
-                        const SecondIcon = SECOND_ICONS[child.id];
-                        const active = isActive(child);
-                        return (
-                          <ListItemButton
-                            key={child.id}
-                            onClick={() => {
-                              if (child.view === 'main') onSearchMain();
-                              else onNavigate(child.view);
-                            }}
-                            sx={{ pl: 4, borderLeft: active ? `3px solid ${theme.palette.primary.main}` : '3px solid transparent', bgcolor: active ? 'action.selected' : undefined }}
-                            aria-current={active ? 'page' : undefined}
-                          >
-                            {SecondIcon && (
-                              <ListItemIcon sx={{ minWidth: 40 }}>
-                                <SecondIcon fontSize="small" />
-                              </ListItemIcon>
-                            )}
-                            <ListItemText primary={child.label} primaryTypographyProps={{ noWrap: true }} />
-                          </ListItemButton>
-                        );
-                      })}
-                    </List>
-                  </Collapse>
-                )}
-              </React.Fragment>
-            );
-          })}
-          </List>
-        </Box>
-      </Drawer>
-      <Popover
-        open={Boolean(popoverAnchor)}
-        anchorEl={popoverAnchor}
-        onClose={closePopover}
-        anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
-        transformOrigin={{ vertical: 'top', horizontal: 'left' }}
-      >
-        {popoverParent && (
-          <List sx={{ py: 0, minWidth: 180 }}>
-            {popoverParent.children.map((child) => {
-              const active = isActive(child);
-              return (
-                <ListItemButton
-                  key={child.id}
-                  onClick={(e) => handleSecondLevelClick(child, e)}
-                  aria-current={active ? 'page' : undefined}
-                  selected={active}
-                >
-                  <ListItemText primary={child.label} />
-                </ListItemButton>
-              );
-            })}
-          </List>
-        )}
-      </Popover>
-    </>
+        {filteredTree.map((node) => {
+          const Icon = node.icon;
+          const hasActiveChild = node.children.some((c) => isActive(c));
+          return (
+            <SubMenu
+              key={node.id}
+              label={node.label}
+              icon={<Icon />}
+              defaultOpen={hasActiveChild}
+              active={hasActiveChild}
+            >
+              {node.children.map((child) => {
+                const SecondIcon = SECOND_ICONS[child.id];
+                const active = isActive(child);
+                return (
+                  <MenuItem
+                    key={child.id}
+                    icon={SecondIcon ? <SecondIcon fontSize="small" /> : undefined}
+                    active={active}
+                    onClick={() => handleChildClick(child)}
+                    aria-current={active ? 'page' : undefined}
+                  >
+                    {child.label}
+                  </MenuItem>
+                );
+              })}
+            </SubMenu>
+          );
+        })}
+      </Menu>
+    </Sidebar>
   );
 }
 
