@@ -39,8 +39,11 @@ psql -U postgres -h $DB_HOST -p $DB_PORT -d $DB_NAME -c "GRANT ALL PRIVILEGES ON
 echo "   ✅ 권한 부여 완료"
 
 # 스키마 생성
+# For existing DBs created before search_history_approved_row was added, run once:
+#   psql -U postgres -h $DB_HOST -p $DB_PORT -d $DB_NAME -f "$(dirname "$0")/migrate-search-history-approved-row.sql"
 echo "4. 테이블 및 인덱스 생성 중..."
 psql -U postgres -h $DB_HOST -p $DB_PORT -d $DB_NAME -f "$(dirname "$0")/schema.sql"
+psql -U postgres -h $DB_HOST -p $DB_PORT -d $DB_NAME -f "$(dirname "$0")/schema_user_activity_log.sql"
 echo "   ✅ 스키마 생성 완료"
 
 # 초기 데이터 삽입

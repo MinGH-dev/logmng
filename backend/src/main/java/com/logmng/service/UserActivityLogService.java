@@ -9,6 +9,7 @@ import org.springframework.stereotype.Service;
 
 import javax.sql.DataSource;
 import java.sql.*;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
@@ -119,17 +120,17 @@ public class UserActivityLogService {
             
             List<Object> params = new ArrayList<>();
             
-            // 날짜 조건
-            LocalDateTime startDateTime = request.getStartDateAsDateTime();
-            LocalDateTime endDateTime = request.getEndDateAsDateTime();
+            // 날짜 조건: DATE(created_at)로 비교하여 타임존/시각 경계 이슈 방지
+            LocalDate startDate = request.getStartDateAsLocalDate();
+            LocalDate endDate = request.getEndDateAsLocalDate();
             
-            if (startDateTime != null) {
-                sql.append("AND created_at >= ? ");
-                params.add(Timestamp.valueOf(startDateTime));
+            if (startDate != null) {
+                sql.append("AND DATE(created_at) >= ? ");
+                params.add(java.sql.Date.valueOf(startDate));
             }
-            if (endDateTime != null) {
-                sql.append("AND created_at <= ? ");
-                params.add(Timestamp.valueOf(endDateTime));
+            if (endDate != null) {
+                sql.append("AND DATE(created_at) <= ? ");
+                params.add(java.sql.Date.valueOf(endDate));
             }
             
             // 사용자 ID 조건

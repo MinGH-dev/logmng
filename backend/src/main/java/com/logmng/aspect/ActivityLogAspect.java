@@ -316,9 +316,15 @@ public class ActivityLogAspect {
             // User-Agent 가져오기
             String userAgent = request.getHeader("User-Agent");
             
+            // 미인증 사용자(anonymous)는 활동 이력에 저장하지 않음 (로그인 사용자만 기록)
+            if (userId == null) {
+                log.debug("활동 이력 저장 생략: 사용자 미인증 (userId 없음)");
+                return;
+            }
+            
             // 활동 이력 저장 (비동기로 처리하지 않고 동기로 처리 - 간단한 구현)
             userActivityLogService.saveActivityLog(
-                    userId != null ? userId : "anonymous",
+                    userId,
                     username,
                     actionType,
                     actionDetail,

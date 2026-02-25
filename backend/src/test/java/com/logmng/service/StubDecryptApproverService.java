@@ -1,0 +1,38 @@
+package com.logmng.service;
+
+import com.logmng.dto.response.UserListItemResponse;
+
+import javax.sql.DataSource;
+import java.util.Collections;
+import java.util.List;
+
+/**
+ * Test stub for DecryptApproverService when Mockito cannot mock the class (e.g. Java 17+).
+ * Used by SearchHistoryServiceTest and DecryptControllerTest.
+ */
+public class StubDecryptApproverService extends DecryptApproverService {
+
+    public StubDecryptApproverService() {
+        super(null, null);
+    }
+
+    @Override
+    public boolean isAdmin(String role) {
+        return false;
+    }
+
+    @Override
+    public boolean isApprover(String userId) {
+        return true;
+    }
+
+    @Override
+    public boolean canApproveForRequester(String approverUserId, String requesterUserId) {
+        return true;
+    }
+
+    @Override
+    public List<UserListItemResponse> listUsers() {
+        return Collections.emptyList();
+    }
+}

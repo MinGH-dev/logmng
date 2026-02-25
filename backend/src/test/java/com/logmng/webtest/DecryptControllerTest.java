@@ -2,6 +2,7 @@ package com.logmng.webtest;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.logmng.controller.DecryptController;
+import com.logmng.service.DecryptApproverService;
 import com.logmng.service.StubLogDbService;
 import com.logmng.service.StubSearchHistoryService;
 import com.logmng.util.CryptoUtil;
@@ -37,7 +38,8 @@ class DecryptControllerTest {
         ReflectionTestUtils.setField(cryptoUtil, "encryptionKey", "test-key-32-bytes-long!!!!!!!!!");
         ReflectionTestUtils.setField(cryptoUtil, "decryptionEnabled", true);
         logDbService = new StubLogDbService(dataSource, cryptoUtil);
-        searchHistoryService = new StubSearchHistoryService(dataSource, logDbService);
+        DecryptApproverService decryptApproverService = new com.logmng.service.StubDecryptApproverService();
+        searchHistoryService = new StubSearchHistoryService(dataSource, logDbService, decryptApproverService);
         DecryptController controller = new DecryptController(logDbService, searchHistoryService);
         mockMvc = MockMvcBuilders.standaloneSetup(controller).build();
     }

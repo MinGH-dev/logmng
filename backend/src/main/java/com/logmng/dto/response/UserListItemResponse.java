@@ -3,11 +3,12 @@ package com.logmng.dto.response;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 /**
- * 사용자 목록 항목 (§7.1): userId, role, departmentCode, isApprover
+ * 사용자 목록 항목 (§7.1, §12.2): userId, username, role, departmentCode, isApprover
  */
 public class UserListItemResponse {
 
     private String userId;
+    private String username;
     private String role;
     private String departmentCode;
     @JsonProperty("isApprover")
@@ -18,6 +19,7 @@ public class UserListItemResponse {
 
     public UserListItemResponse(String userId, String role, String departmentCode, boolean approver) {
         this.userId = userId;
+        this.username = userId;
         this.role = role;
         this.departmentCode = departmentCode;
         this.approver = approver;
@@ -29,6 +31,14 @@ public class UserListItemResponse {
 
     public void setUserId(String userId) {
         this.userId = userId;
+    }
+
+    public String getUsername() {
+        return username;
+    }
+
+    public void setUsername(String username) {
+        this.username = username;
     }
 
     public String getRole() {

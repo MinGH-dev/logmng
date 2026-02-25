@@ -91,38 +91,22 @@
             <artifactId>jackson-datatype-jsr310</artifactId>
         </dependency>
 
-        <!-- Test Dependencies -->
+        <!-- Test Dependencies (JUnit 5 and Mockito via spring-boot-starter-test) -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-test</artifactId>
             <scope>test</scope>
+            <exclusions>
+                <exclusion>
+                    <groupId>org.junit.vintage</groupId>
+                    <artifactId>junit-vintage-engine</artifactId>
+                </exclusion>
+            </exclusions>
         </dependency>
-
+        <!-- H2 for unit tests (avoids mocking DataSource on Java 17+) -->
         <dependency>
-            <groupId>org.junit.jupiter</groupId>
-            <artifactId>junit-jupiter-api</artifactId>
-            <version>${junit.version}</version>
-            <scope>test</scope>
-        </dependency>
-
-        <dependency>
-            <groupId>org.junit.jupiter</groupId>
-            <artifactId>junit-jupiter-engine</artifactId>
-            <version>${junit.version}</version>
-            <scope>test</scope>
-        </dependency>
-
-        <dependency>
-            <groupId>org.mockito</groupId>
-            <artifactId>mockito-core</artifactId>
-            <version>${mockito.version}</version>
-            <scope>test</scope>
-        </dependency>
-
-        <dependency>
-            <groupId>org.mockito</groupId>
-            <artifactId>mockito-junit-jupiter</artifactId>
-            <version>${mockito.version}</version>
+            <groupId>com.h2database</groupId>
+            <artifactId>h2</artifactId>
             <scope>test</scope>
         </dependency>
     </dependencies>
@@ -150,6 +134,9 @@
                     <source>17</source>
                     <target>17</target>
                     <encoding>UTF-8</encoding>
+                    <testExcludes>
+                        <exclude>**/._*</exclude>
+                    </testExcludes>
                 </configuration>
             </plugin>
 
@@ -162,7 +149,58 @@
                         <include>**/*Test.java</include>
                         <include>**/*Tests.java</include>
                     </includes>
+                    <excludes>
+                        <exclude>**/._*</exclude>
+                    </excludes>
+                    <!-- Avoid forked JVM recreating/copying test-classes (macOS ._* files can reappear) -->
+                    <forkCount>0</forkCount>
                 </configuration>
+            </plugin>
+            <!-- Remove macOS resource-fork ._* files so Spring test context does not try to load them -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-antrun-plugin</artifactId>
+                <version>3.1.0</version>
+                <executions>
+                    <execution>
+                        <id>remove-macOS-resource-forks-classes</id>
+                        <phase>process-classes</phase>
+                        <goals>
+                            <goal>run</goal>
+                        </goals>
+                        <configuration>
+                            <target>
+                                <exec executable="find" failonerror="false">
+                                    <arg value="${project.build.outputDirectory}"/>
+                                    <arg value="-type"/>
+                                    <arg value="f"/>
+                                    <arg value="-name"/>
+                                    <arg value="._*"/>
+                                    <arg value="-delete"/>
+                                </exec>
+                            </target>
+                        </configuration>
+                    </execution>
+                    <execution>
+                        <id>remove-macOS-resource-forks-test-classes</id>
+                        <phase>process-test-classes</phase>
+                        <goals>
+                            <goal>run</goal>
+                        </goals>
+                        <configuration>
+                            <target>
+                                <exec executable="find" failonerror="false">
+                                    <arg value="${project.build.testOutputDirectory}"/>
+                                    <arg value="-type"/>
+                                    <arg value="f"/>
+                                    <arg value="-name"/>
+                                    <arg value="._*"/>
+                                    <arg value="-delete"/>
+                                </exec>
+                            </target>
+                        </configuration>
+                    </execution>
+                </executions>
             </plugin>
         </plugins>
     </build>

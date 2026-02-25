@@ -1,8 +1,11 @@
 package com.logmng.controller;
 
+import com.logmng.dto.request.RejectRequest;
 import com.logmng.dto.request.SearchHistoryCreateRequest;
 import com.logmng.dto.response.ApiResponse;
 import com.logmng.dto.response.SearchHistoryListResponse;
+import com.logmng.exception.CustomException;
+import com.logmng.service.DecryptApproverService;
 import com.logmng.service.SearchHistoryService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -16,7 +19,7 @@ import java.util.Map;
 import java.util.NoSuchElementException;
 
 /**
- * 검색 이력 API (복호화 승인 부가 기능)
+ * 검색 이력 API (복호화 승인 부가 기능). §6.1.5–6.1.7
  */
 @RestController
 @RequestMapping("/api/search-history")
@@ -25,9 +28,12 @@ public class SearchHistoryController {
     private static final Logger log = LoggerFactory.getLogger(SearchHistoryController.class);
 
     private final SearchHistoryService searchHistoryService;
+    private final DecryptApproverService decryptApproverService;
 
-    public SearchHistoryController(SearchHistoryService searchHistoryService) {
+    public SearchHistoryController(SearchHistoryService searchHistoryService,
+                                   DecryptApproverService decryptApproverService) {
         this.searchHistoryService = searchHistoryService;
+        this.decryptApproverService = decryptApproverService;
     }
 
     private static String getUserId(HttpServletRequest request) {
@@ -35,6 +41,24 @@ public class SearchHistoryController {
         if (session == null) return null;
         Object userId = session.getAttribute("userId");
         return userId != null ? userId.toString() : null;
+    }
+
+    private static String getRole(HttpServletRequest request) {
+        jakarta.servlet.http.HttpSession session = request.getSession(false);
+        if (session == null) return null;
+        Object role = session.getAttribute("role");
+        return role != null ? role.toString() : null;
+    }
+
+    private void requireApproverOrAdmin(HttpServletRequest request) {
+        String userId = getUserId(request);
+        if (userId == null || userId.isBlank()) {
+            throw CustomException.unauthorized("로그인이 필요합니다.", "UNAUTHORIZED");
+        }
+        String role = getRole(request);
+        if (!decryptApproverService.isAdmin(role) && !decryptApproverService.isApprover(userId)) {
+            throw CustomException.forbidden("승인/반려는 결재자 또는 관리자만 가능합니다.", "FORBIDDEN_NOT_APPROVER");
+        }
     }
 
     /**
@@ -56,6 +80,21 @@ public class SearchHistoryController {
         } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest().body(ApiResponse.failure(e.getMessage(), "BAD_REQUEST"));
         }
+    }
+
+    /**
+     * 승인 대기 목록 (결재자·관리자 전용). GET /api/search-history/pending §6.1.5
+     */
+    @GetMapping("/pending")
+    public ResponseEntity<ApiResponse<SearchHistoryListResponse>> listPending(
+            @RequestParam(defaultValue = "1") int page,
+            @RequestParam(defaultValue = "20") int pageSize,
+            HttpServletRequest httpRequest) {
+        requireApproverOrAdmin(httpRequest);
+        String approverUserId = getUserId(httpRequest);
+        String role = getRole(httpRequest);
+        SearchHistoryListResponse data = searchHistoryService.listPending(approverUserId, role, page, pageSize);
+        return ResponseEntity.ok(ApiResponse.success(data));
     }
 
     /**
@@ -123,6 +162,42 @@ public class SearchHistoryController {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(ApiResponse.failure(e.getMessage(), "NOT_FOUND"));
         } catch (SecurityException e) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).body(ApiResponse.failure(e.getMessage(), "FORBIDDEN"));
+        }
+    }
+
+    /**
+     * 검색 이력 승인 (결재자·관리자 전용). POST /api/search-history/{id}/approve §6.1.6
+     */
+    @PostMapping("/{id}/approve")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> approve(
+            @PathVariable Long id,
+            HttpServletRequest httpRequest) {
+        requireApproverOrAdmin(httpRequest);
+        String userId = getUserId(httpRequest);
+        try {
+            Map<String, Object> data = searchHistoryService.approve(id, userId);
+            return ResponseEntity.ok(ApiResponse.success(data));
+        } catch (CustomException e) {
+            throw e;
+        }
+    }
+
+    /**
+     * 검색 이력 반려 (결재자·관리자 전용). POST /api/search-history/{id}/reject §6.1.7
+     */
+    @PostMapping("/{id}/reject")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> reject(
+            @PathVariable Long id,
+            @RequestBody(required = false) RejectRequest body,
+            HttpServletRequest httpRequest) {
+        requireApproverOrAdmin(httpRequest);
+        String userId = getUserId(httpRequest);
+        String reason = body != null ? body.getRejectionReason() : null;
+        try {
+            Map<String, Object> data = searchHistoryService.reject(id, userId, reason);
+            return ResponseEntity.ok(ApiResponse.success(data));
+        } catch (CustomException e) {
+            throw e;
         }
     }
 }

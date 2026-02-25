@@ -14,8 +14,8 @@ public class StubSearchHistoryService extends SearchHistoryService {
     private boolean validApprovalForUser = true;
     private boolean rowInApprovedSnapshot = false;
 
-    public StubSearchHistoryService(DataSource dataSource, LogDbService logDbService) {
-        super(dataSource, logDbService);
+    public StubSearchHistoryService(DataSource dataSource, LogDbService logDbService, DecryptApproverService decryptApproverService) {
+        super(dataSource, logDbService, decryptApproverService);
     }
 
     public void setValidApprovalForUser(boolean value) {

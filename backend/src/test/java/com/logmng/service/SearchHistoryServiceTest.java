@@ -32,6 +32,7 @@ class SearchHistoryServiceTest {
 
     private DataSource dataSource;
     private StubLogDbService stubLogDbService;
+    private DecryptApproverService decryptApproverService;
     private SearchHistoryService searchHistoryService;
 
     @BeforeEach
@@ -41,7 +42,8 @@ class SearchHistoryServiceTest {
         ReflectionTestUtils.setField(cryptoUtil, "encryptionKey", "test-key-32-bytes-long!!!!!!!!!");
         ReflectionTestUtils.setField(cryptoUtil, "decryptionEnabled", true);
         stubLogDbService = new StubLogDbService(dataSource, cryptoUtil);
-        searchHistoryService = new SearchHistoryService(dataSource, stubLogDbService);
+        decryptApproverService = new StubDecryptApproverService();
+        searchHistoryService = new SearchHistoryService(dataSource, stubLogDbService, decryptApproverService);
     }
 
     private static DataSource createH2DataSource() throws Exception {
@@ -168,14 +170,15 @@ class SearchHistoryServiceTest {
     private static void createSearchHistoryTableAndInsertPending(DataSource ds, long id, String logType, String searchParams) throws Exception {
         try (Connection conn = ds.getConnection(); Statement stmt = conn.createStatement()) {
             stmt.execute("CREATE TABLE IF NOT EXISTS search_history (" +
-                    "id BIGINT PRIMARY KEY, log_type VARCHAR(50), search_params CLOB, approval_status VARCHAR(20), " +
+                    "id BIGINT PRIMARY KEY, user_id VARCHAR(100), log_type VARCHAR(50), search_params CLOB, approval_status VARCHAR(20), " +
                     "approved_by VARCHAR(100), approved_at TIMESTAMP, updated_at TIMESTAMP)");
         }
         try (Connection conn = ds.getConnection();
-             PreparedStatement ps = conn.prepareStatement("INSERT INTO search_history (id, log_type, search_params, approval_status, updated_at) VALUES (?, ?, ?, 'PENDING', CURRENT_TIMESTAMP)")) {
+             PreparedStatement ps = conn.prepareStatement("INSERT INTO search_history (id, user_id, log_type, search_params, approval_status, updated_at) VALUES (?, ?, ?, ?, 'PENDING', CURRENT_TIMESTAMP)")) {
             ps.setLong(1, id);
-            ps.setString(2, logType);
-            ps.setString(3, searchParams);
+            ps.setString(2, "requester1");
+            ps.setString(3, logType);
+            ps.setString(4, searchParams);
             ps.executeUpdate();
         }
     }
