@@ -14,12 +14,12 @@ The `.mdc` files in this folder are **local subagent definitions** that Cursor m
 | Backend-Auth.mdc | Backend **auth only** (AuthController, AuthService, AuthInterceptor). Optional; use when task is auth-only. |
 | Backend-ActivityLog.mdc | Backend **activity log / statistics only** (ActivityStatistics*, UserActivityLog*, ActivityLogAspect). Optional. |
 | Backend-Log.mdc | Backend **log DB / search / decrypt / log type** (LogDb*, SearchSuggest*, Decrypt*, LogType*). Optional. |
-| DB.mdc | DB schema, migrations, config. Modify `backend/.../db/` only. |
+| DB.mdc | **DB (Schema)**: schema, migrations, config. Modify `backend/.../db/` only. |
 | Requirements.mdc | Requirement and spec docs. No code changes. |
 | QA.mdc | Test scenarios, checklists, test result docs. |
 | Contract.mdc | API and contract (`docs/contract.md`, `specs/`) definition and updates. |
 | Security.mdc | Security review (PII, access, decryption scope). No code changes. |
-| DBA.mdc | Schema/design review (DBA perspective). No code changes. |
+| DBA.mdc | **DBA (Review)**: schema/design review (DBA perspective). No code changes. |
 | Architecture.mdc | Performance/scalability review. No code changes. |
 | Review.mdc | Code/change review (contract, workflow, quality, standards). Read-only; no code edit. |
 | Documentation.mdc | User/ops docs (README, QUICK_START, runbooks). No requirement docs, no code. |

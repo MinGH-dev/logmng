@@ -3,18 +3,20 @@
 - **Scope**: Applied only when Cursor has **this folder (dev)** as the workspace root.
 - **rules**, **commands**, **skills**, **agents** are **dev-project only**; not used globally or in other projects.
 
+**명칭·구분**: Rule / Command / Skill / Agent 등 모든 도구의 정의와 네이밍 규칙은 **[.cursor/TERMINOLOGY.md](TERMINOLOGY.md)** 에 정리되어 있습니다. 혼선 방지를 위해 새로 추가할 때도 이 문서를 따르세요.
+
 ## Do not apply globally
 
 - Do not copy or symlink this into **`~/.cursor/`**. For other workspaces, copy only what you need into that project's `.cursor/`.
 
 ## Layout
 
-| Dir | Purpose |
-|-----|--------|
-| **rules/** | Always or conditional rules: docs reference, contract-first, error-first, test/verify, core principles, file-reading optimization, security, language policy, **agent-collaboration** (요구사항 시 에이전트 협업 순서) |
-| **commands/** | Slash commands: verify, run-tests, check-*, plan, fix, review, new-requirement, record-error-fix, start/stop/restart, agent-* |
-| **skills/** | dev-workflow, requirement-doc |
-| **agents/** | Subagent role definitions. **Core**: Backend, Frontend, DB, Contract, QA, Requirements, Security, DBA, Architecture. **추가**: Review, Documentation, Release, Consistency, UX. **Optional by module**: Backend-Auth, Backend-ActivityLog, Backend-Log; Frontend-Auth, Frontend-ActivityLog, Frontend-Log. Prompts: `docs/cursor-subagents/*.md` |
+| Dir | Purpose | Naming (see [TERMINOLOGY.md](TERMINOLOGY.md)) |
+|-----|--------|-----------------------------------------------|
+| **rules/** | Always or conditional rules: docs-reference, contract-first, error-first, test/verify, core principles, security, language policy, **agent-collaboration**. Agent-scoped: *-agent.mdc | `kebab-case.mdc`; agent-scoped: `*-agent.mdc` |
+| **commands/** | Slash commands: verify, run-tests, check-*, start/stop/restart, new-requirement, plan, fix, review, agent-* | `kebab-case.md`; prefix by category (check-*, start-*, …) |
+| **skills/** | Optional capability when task matches: dev-workflow, requirement-doc, test-workflow, db-domain | One folder per skill: `kebab-case/SKILL.md` |
+| **agents/** | Subagent **definitions** (metadata). Prompts live in `docs/cursor-subagents/*.md`. Core + 추가 + optional module (Backend-Log, Frontend-Auth, …) | Definition: `PascalCase.mdc`; prompt file: `docs/cursor-subagents/kebab-case.md` |
 
 ## Principles (summary)
 

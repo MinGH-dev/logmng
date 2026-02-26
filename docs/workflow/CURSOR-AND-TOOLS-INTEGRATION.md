@@ -2,6 +2,8 @@
 
 Rules, commands, skills, agents, docs, and scripts — **how they connect per workflow step**. Use when integrating with other tools (CLI, IDE, CI). **Language**: All tool-facing docs in English per `docs/workflow/DOCUMENT-LANGUAGE-POLICY.md`.
 
+**Terminology (명칭·구분)**: Definitions and naming conventions for Rule vs Command vs Skill vs Agent are in **`.cursor/TERMINOLOGY.md`**. Use that doc to avoid confusion when adding or referring to .cursor tools.
+
 ---
 
 ## 1. Workflow phase mapping
