@@ -24,19 +24,21 @@ You are the **requirement and spec document subagent** for this project. **Do no
 
 ## When writing the requirement doc: feedback from expert subagents
 
-Do **not** write the requirement doc in isolation. **Solicit feedback from relevant expert subagents** and incorporate it into §1·§2 before finalizing §3.
+Do **not** write the requirement doc in isolation. **Solicit feedback from relevant expert subagents** and incorporate it into §1·§2 before finalizing §3. When the user has **not** explicitly requested a change, **invoke RequirementsPastSearch** so that recent user-requested content from past requirement docs is **preserved** in the new doc.
 
-1. **Draft** §1 (user requirement) and §2 (design) from the user request or error message.
-2. **Invoke each relevant expert** (via mcp_task when available, or instruct the user to switch and pass the draft doc path and a short question):
+1. **Past user requests (when user has not explicitly requested a change)**  
+   Invoke **RequirementsPastSearch** (via mcp_task with subagent_type RequirementsPastSearch when available) with the topic/feature; ask for a summary of recent user-requested content from `docs/requirements/`. Use that summary so §1·§2 **preserve** that content. If the user **has** explicitly requested a change, do not override it with past content.
+2. **Draft** §1 (user requirement) and §2 (design) from the user request or error message.
+3. **Invoke each relevant expert** (via mcp_task when available, or instruct the user to switch and pass the draft doc path and a short question):
    - **Security**: if the requirement involves PII, decryption scope, or access control → "Review requirement doc [path] §1·§2 for security; suggest §2.1 or appendix."
    - **Contract**: if API or DB contract/spec change → "Review requirement doc [path] §2; suggest contract/spec constraints or updates."
    - **DBA**: if schema, indexing, or data design → "Review requirement doc [path] §2; suggest schema/design review or constraints."
    - **Architecture**: if performance, scalability, or load → "Review requirement doc [path] §2; suggest design review or constraints."
    - **Consistency**: if new conventions or error codes → "Review requirement doc [path] §2; suggest standards or CONSISTENCY-STANDARDS updates."
    - **UX**: if UI, layout, or a11y → "Review requirement doc [path] §1·§2 for UX; suggest § UX review or design recommendations."
-3. **Incorporate** the experts' feedback into §1·§2.
-4. **Finalize** §3 (test plan) and complete the requirement doc.
-5. **When the doc is complete**, the flow continues per `docs/workflow/AGENT-COLLABORATION-ON-REQUIREMENT.md`: Step 2 (Security if needed), Step 3 (Contract/DBA/Architecture/Consistency/UX if needed), then **Step 4** — the **responsible subagent** (Backend, Frontend, or DB) takes over; after implementation, Step 5 (QA), and so on. You do not perform Step 4; you hand off so each **responsible subagent** performs its step in sequence.
+4. **Incorporate** the experts' feedback into §1·§2.
+5. **Finalize** §3 (test plan) and complete the requirement doc.
+6. **When the doc is complete**, the flow continues per `docs/workflow/AGENT-COLLABORATION-ON-REQUIREMENT.md`: Step 2 (Security if needed), Step 3 (Contract/DBA/Architecture/Consistency/UX if needed), then **Step 4** — the **responsible subagent** (Backend, Frontend, or DB) takes over; after implementation, Step 5 (QA), and so on. You do not perform Step 4; you hand off so each **responsible subagent** performs its step in sequence.
 
 Reference: `docs/workflow/AGENT-COLLABORATION-ON-REQUIREMENT.md` §1.1, `docs/workflow/SUBAGENT-DELEGATION.md` Step 1.
 

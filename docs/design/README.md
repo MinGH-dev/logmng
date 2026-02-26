@@ -8,7 +8,7 @@ This folder contains **abstract, reusable UI design standards** for the project.
 
 | Document | Purpose |
 |----------|---------|
-| [grid-and-table.md](grid-and-table.md) | Data table screens: page structure (header → toolbar → actions → table), table container/wrapper/table classes, sticky header, sortable headers, column rules, pagination, loading/empty. When to use vs form grids. |
+| [grid-and-table.md](grid-and-table.md) | Data table screens: page structure (header → toolbar → actions → table), table container/wrapper/table classes, sticky header, sortable headers, column rules, pagination, page size (default 20, +/- and Enter), **search field assignment from DB schema by attribute** unless user requests otherwise, loading/empty. When to use vs form grids. |
 | [layout-and-navigation.md](layout-and-navigation.md) | App shell: left sidebar + right work area + top user bar; 2-depth menu; current item highlight; collapsible sidebar; MUI (Drawer, List, AppBar). |
 | [buttons.md](buttons.md) | Button types (primary, secondary, danger, disabled), size, placement, icon buttons, accessibility. |
 | [text-input.md](text-input.md) | Single-line and multiline inputs: label, placeholder, error, disabled, width, accessibility. |

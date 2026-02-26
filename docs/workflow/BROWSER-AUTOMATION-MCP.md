@@ -29,6 +29,22 @@ When using **@modelcontextprotocol/server-puppeteer** (as in `.cursor/mcp.json`)
 - **Lock/unlock**: Puppeteer MCP does not use lock/unlock; use a single flow (navigate → interact → done). For SPA loading, wait a few seconds or poll with another `puppeteer_screenshot` before clicking.
 - **Wait strategy**: Prefer short waits (1–3 s) then take another screenshot or action instead of one long wait.
 
+### 2.1 Browser viewport size (why it’s small and how to change it)
+
+The automation browser often opens with a **small window** (e.g. 800×600) because:
+
+- **Puppeteer MCP** (`server-puppeteer` / `project-0-dev-browser`): default viewport is **800×600**. Screenshot defaults are also 800×600 unless overridden.
+- **cursor-ide-browser**: default tab size may be small depending on the embedded view.
+
+You can get a **larger, desktop-like view** as follows:
+
+| MCP | How to set larger viewport |
+|-----|----------------------------|
+| **cursor-ide-browser** | After `browser_navigate`, call **`browser_resize`** with `width` and `height` (e.g. `width: 1920`, `height: 1080`). |
+| **server-puppeteer / project-0-dev-browser** | On **first** `puppeteer_navigate`, pass **`launchOptions`**: `{ "defaultViewport": { "width": 1920, "height": 1080 } }`. Changing `launchOptions` can restart the browser, so use the same options for the whole session. |
+
+Recommended size for verification: **1920×1080** so layout and tables render like a full HD desktop screen. QA and other subagents running browser verification should use this viewport when opening the app (navigate with launchOptions, or navigate then resize) so §3 test cases run in a consistent, readable view.
+
 ## 3. Where subagents use it
 
 | Subagent | Document | How they use browser automation |

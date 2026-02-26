@@ -11,15 +11,16 @@
 dev/
 ├── frontend/          # React (포트 3001)
 ├── backend/           # Spring Boot (포트 9200)
-├── docs/              # 요건·계약·워크플로우·템플릿
+├── docs/              # 개발 관련 문서만 (요건·계약·워크플로우·템플릿)
 │   ├── contract.md    # API·DB·포트 계약
 │   ├── QUICK_START.md # 빠른 시작
-│   ├── workflow/      # 워크플로우·서브에이전트 위임
+│   ├── workflow/      # 워크플로우·위임 표(실행 시 참조)
 │   ├── template/      # 요건·버그픽스 템플릿
 │   ├── requirements/  # 요건 문서 (yyyyMMdd-이름.md)
 │   └── design/        # UX 설계 표준
 ├── scripts/           # 서비스 기동/중지 (dev-services.sh)
 └── .cursor/           # 규칙·커맨드·스킬·에이전트
+    └── delegation-mgmt/   # 서브에이전트 개선·위임 관리 문서(개발 문서와 분리)
 ```
 
 ---
@@ -162,6 +163,8 @@ flowchart TB
 
 상세 표·mcp_task 매핑: [docs/workflow/SUBAGENT-DELEGATION.md](docs/workflow/SUBAGENT-DELEGATION.md)
 
+위임 흐름을 **점진적으로 개선**할 때: [.cursor/delegation-mgmt/](.cursor/delegation-mgmt/) (DelegationManager 서브에이전트·분석·백로그 — 제품 agents/skills/rules/commands와 분리).
+
 ---
 
 ## 📚 문서
@@ -175,6 +178,7 @@ flowchart TB
 | [docs/QUICK_START.md](docs/QUICK_START.md) | 개발 환경·실행·검증 |
 | [docs/contract.md](docs/contract.md) | API·DB·포트 계약 |
 | [docs/CURSOR-PROMPTING-GUIDE.md](docs/CURSOR-PROMPTING-GUIDE.md) | Cursor 프롬프팅 가이드 — 요청 예시·서브에이전트 (필요 시 참고) |
+| [.cursor/delegation-mgmt/](.cursor/delegation-mgmt/) | **위임 관리** — DelegationManager, 부작용·대응 분석, 점진적 개선 백로그 (제품 에이전트와 분리) |
 
 ---
 
