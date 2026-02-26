@@ -6,6 +6,20 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### 2026-02-26
+
+- **UX (공통 사항)**: UX standards compliance audit and common verification — (1) UX standards compliance audit (req `20260225-ux-standards-compliance-audit`): alignment with `docs/design` (layout, grid-and-table, forms-and-filters, date-search, text-input, buttons). (2) Browser automation verification for frontend (TC-01~TC-08, §3.5): mandatory for frontend changes; policy in `docs/workflow/BROWSER-AUTOMATION-VERIFICATION-POLICY.md`. (3) Bugfix-1: date range validation `aria-invalid`/`aria-describedby` (req `20260225-ux-standards-compliance-audit-bugfix-1`). Delivered on `feat/cursor-commit-on-complete`.
+- **docs**: Document language policy — tool-facing docs (docs/workflow, docs/template, docs/cursor-subagents) in English; requirements authored in English first, final Korean version after verification; commit message must reference requirement doc for traceability. New `docs/workflow/DOCUMENT-LANGUAGE-POLICY.md`; `.cursor/rules/language-policy.mdc`, `docs/template/REQUIREMENT_TEMPLATE.md`, `docs/template/BUGFIX_CHILD_TEMPLATE.md`, `.cursor/commands/commit-on-complete.md`, `.cursor/skills/requirement-doc/SKILL.md`, and workflow docs updated.
+- **docs**: Browser Automation verification policy — frontend changes require browser verification; detailed report in §5; on failure create bugfix child and hand off to Frontend.
+- **docs**: New policy doc `docs/workflow/BROWSER-AUTOMATION-VERIFICATION-POLICY.md` — analysis of why browser automation wasn’t used initially; policy: mandatory browser verification for frontend, §3.5 when frontend-heavy, detailed report, handoff on failure.
+- **chore**: `.cursor/commands/verify.md` — step 3.5 required for frontend scope; detailed report in §5; on failure create bugfix child and hand off.
+- **chore**: `.cursor/agents/QA.mdc` — browser verification required for frontend; detailed report; on failure bugfix child + hand off to Frontend.
+- **chore**: `docs/workflow/SUBAGENT-DELEGATION.md` — Step 5 QA row: mandatory browser automation for frontend, detailed report, handoff on failure.
+- **chore**: `docs/workflow/BROWSER-AUTOMATION-MCP.md` — policy link; QA row "must" + report format; §4 verification report format; §2.4 handoff on failure.
+- **chore**: `docs/cursor-subagents/qa-test.md` — same policy; reference to BROWSER-AUTOMATION-VERIFICATION-POLICY.
+- **chore**: `docs/template/REQUIREMENT_TEMPLATE.md` — added §3.5 브라우저 자동화 검증 (optional for frontend-heavy requirements).
+- **chore**: `docs/workflow/CURSOR-AND-TOOLS-INTEGRATION.md` — added BROWSER-AUTOMATION-VERIFICATION-POLICY to browser row.
+
 ### 2026-02-25
 
 - **docs**: design standards in `docs/design/` — grid-and-table, layout-and-navigation, buttons, text-input, date-search, forms-and-filters, README; approval flow for design system.

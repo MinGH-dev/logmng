@@ -1,6 +1,8 @@
 import React from 'react';
 import './StatisticsHeader.css';
 
+const DATE_RANGE_ERROR_ID = 'activity-statistics-date-range-error';
+
 const StatisticsHeader = ({
   statisticsType,
   onTypeChange,
@@ -11,7 +13,9 @@ const StatisticsHeader = ({
   year,
   month,
   onYearChange,
-  onMonthChange
+  onMonthChange,
+  dateRangeInvalid = false,
+  dateRangeErrorId = DATE_RANGE_ERROR_ID
 }) => {
   const currentYear = new Date().getFullYear();
   const years = Array.from({ length: 10 }, (_, i) => currentYear - 5 + i);
@@ -37,22 +41,30 @@ const StatisticsHeader = ({
       <div className="date-selector">
         {statisticsType === 'daily' ? (
           <>
-            <label>
-              시작일:
+            <div className="date-selector-group">
+              <label htmlFor="statistics-start-date">시작일</label>
               <input
+                id="statistics-start-date"
                 type="date"
                 value={startDate}
                 onChange={(e) => onStartDateChange(e.target.value)}
+                aria-label="시작일"
+                aria-invalid={!!dateRangeInvalid}
+                aria-describedby={dateRangeInvalid ? dateRangeErrorId : undefined}
               />
-            </label>
-            <label>
-              종료일:
+            </div>
+            <div className="date-selector-group">
+              <label htmlFor="statistics-end-date">종료일</label>
               <input
+                id="statistics-end-date"
                 type="date"
                 value={endDate}
                 onChange={(e) => onEndDateChange(e.target.value)}
+                aria-label="종료일"
+                aria-invalid={!!dateRangeInvalid}
+                aria-describedby={dateRangeInvalid ? dateRangeErrorId : undefined}
               />
-            </label>
+            </div>
           </>
         ) : (
           <>

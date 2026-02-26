@@ -1,22 +1,20 @@
-# Cursor(.cursor)와 도구·문서 연동 맵
+# Cursor and tools / docs integration map
 
-규칙(rules), 커맨드(commands), 스킬(skills), 에이전트(agents), 문서(docs), 스크립트(scripts)가 **어떤 단계에서 어떻게 연결되는지** 한곳에서 볼 수 있도록 정리했다. 다른 도구(CLI, IDE, CI 등)와의 융합 시 참고.
+Rules, commands, skills, agents, docs, and scripts — **how they connect per workflow step**. Use when integrating with other tools (CLI, IDE, CI). **Language**: All tool-facing docs in English per `docs/workflow/DOCUMENT-LANGUAGE-POLICY.md`.
 
 ---
 
-## 1. 워크플로우 단계별 연동
+## 1. Workflow phase mapping
 
-| 단계 | 규칙 (.cursor/rules) | 커맨드 (.cursor/commands) | 스킬 (.cursor/skills) | 문서 (docs/) | 스크립트/실행 |
-|------|----------------------|---------------------------|------------------------|--------------|----------------|
-| **요건·계획** | docs-reference, error-first-workflow, **workflow-todos**, **agent-collaboration** | plan.md, new-requirement.md, follow-workflow.md | dev-workflow, requirement-doc | WORKFLOW_CHECKLIST.md, DEVELOPMENT_WORKFLOW.md, **AGENT-COLLABORATION-ON-REQUIREMENT.md**, REQUIREMENT_TEMPLATE.md, requirements/ | — |
-| **개발(코드)** | contract-first, backend-agent, frontend-agent, db-agent, (모듈별 *-Auth, *-ActivityLog, *-Log) | agent-*.md (역할 고정용) | dev-workflow | contract.md, specs/, CURSOR-SUBAGENTS-DESIGN.md | — |
-| **테스트** | post-change-test-verify, docs-reference | run-tests.md | dev-workflow | DEVELOPMENT_WORKFLOW.md, 요건 문서 §3·§5 | `cd backend && mvn test`, `cd frontend && npm test -- --watchAll=false` |
-| **검증(재시작·헬스)** | post-change-test-verify | verify.md, check-backend.md, check-frontend.md, check-frontend-backend.md, check-db.md, restart-*.md | — | verify.md 내 절차, BUGFIX_CHILD_TEMPLATE.md | `./scripts/dev-services.sh {frontend\|backend\|db\|all} restart` |
-| **서비스 기동/중지** | — | start-*.md, stop-*.md, restart-*.md | — | QUICK_START.md | `./scripts/dev-services.sh <target> <start\|stop\|restart>` |
-| **PR/리뷰** | core-principles | review.md | — | WORKFLOW_CHECKLIST.md, DEVELOPMENT_WORKFLOW.md | — |
-| **오류 조치 기록** | error-first-workflow, docs-reference | fix.md, record-error-fix.md | requirement-doc | ERROR_FIX_RESULT_TEMPLATE.md, 요건 문서 §6 | — |
-
-- **오류 개선 요청 시 사용자 프롬프트 예시**: `docs/workflow/오류-개선-프롬프팅-예시.md`
+| Phase | Rules (.cursor/rules) | Commands (.cursor/commands) | Skills (.cursor/skills) | Docs (docs/) | Scripts / run |
+|-------|------------------------|-----------------------------|-------------------------|--------------|---------------|
+| **Requirement / plan** | docs-reference, error-first-workflow, workflow-todos, agent-collaboration | plan.md, new-requirement.md, follow-workflow.md | dev-workflow, requirement-doc | WORKFLOW_CHECKLIST.md, DEVELOPMENT_WORKFLOW.md, AGENT-COLLABORATION-ON-REQUIREMENT.md, REQUIREMENT_TEMPLATE.md, DOCUMENT-LANGUAGE-POLICY.md, requirements/ | — |
+| **Development (code)** | contract-first, backend-agent, frontend-agent, db-agent, (module *-Auth, *-ActivityLog, *-Log) | agent-*.md | dev-workflow | contract.md, specs/, CURSOR-SUBAGENTS-DESIGN.md | — |
+| **Test** | post-change-test-verify, docs-reference | run-tests.md | dev-workflow | DEVELOPMENT_WORKFLOW.md, requirement doc §3·§5 | `cd backend && mvn test`, `cd frontend && npm test -- --watchAll=false` |
+| **Verification (restart / health)** | post-change-test-verify | verify.md, check-backend.md, check-frontend.md, check-frontend-backend.md, check-db.md, restart-*.md | — | verify.md procedure, BUGFIX_CHILD_TEMPLATE.md | `./scripts/dev-services.sh {frontend\|backend\|db\|all} restart` |
+| **Service start/stop** | — | start-*.md, stop-*.md, restart-*.md | — | QUICK_START.md | `./scripts/dev-services.sh <target> <start\|stop\|restart>` |
+| **PR / review** | core-principles | review.md | — | WORKFLOW_CHECKLIST.md, DEVELOPMENT_WORKFLOW.md | — |
+| **Error fix recording** | error-first-workflow, docs-reference | fix.md, record-error-fix.md | requirement-doc | ERROR_FIX_RESULT_TEMPLATE.md, requirement doc §6 | — |
 
 ---
 
@@ -33,7 +31,7 @@
 | 코드/변경 검토(체크리스트 적용) | Review 에이전트, commands: review.md | — | .cursor/commands/review.md, CONSISTENCY-STANDARDS.md |
 | 단위 테스트 실행 | commands: run-tests.md, rules: post-change-test-verify.mdc | 요건 문서 §3·§5 | `mvn test`, `npm test -- --watchAll=false` |
 | 재시작·헬스 확인 | commands: verify.md, check-*.md | .cursor/commands/verify.md | scripts/dev-services.sh |
-| 브라우저 자동화 (QA/UX/Frontend) | agents: QA.mdc, Frontend.mdc, UX.mdc | docs/workflow/BROWSER-AUTOMATION-MCP.md, .cursor/commands/verify.md §3.5 | — (MCP: .cursor/mcp.json) |
+| 브라우저 자동화 (QA/UX/Frontend) | agents: QA.mdc, Frontend.mdc, UX.mdc | docs/workflow/BROWSER-AUTOMATION-MCP.md, docs/workflow/BROWSER-AUTOMATION-VERIFICATION-POLICY.md, .cursor/commands/verify.md §3.5 | — (MCP: .cursor/mcp.json) |
 | 서비스 시작/중지 | commands: start-*.md, stop-*.md, restart-*.md | docs/QUICK_START.md | scripts/dev-services.sh |
 
 ---

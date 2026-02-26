@@ -50,10 +50,14 @@
   align-items: center;
 }
 
-.date-selector label {
+.date-selector-group {
   display: flex;
   flex-direction: column;
   gap: 5px;
+}
+
+.date-selector label,
+.date-selector .date-selector-group label {
   font-size: 14px;
 }
 

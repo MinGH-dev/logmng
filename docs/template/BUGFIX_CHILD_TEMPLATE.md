@@ -1,50 +1,54 @@
-# Bugfix 하위 요건 템플릿 (부모 요구사항 추적)
+# Bugfix Child Requirement Template (parent requirement tracking)
 
-**용도**: 검증(재시작·정상 실행 확인) 실패 시, **부모 요구사항**을 기준으로 bugfix를 하위 요건으로 만들어 추적·반복 수정할 때 사용한다.
+**Purpose**: When verification (restart and health/behavior check) fails, create a **bugfix child** under the **parent requirement** to track and iterate until fixes pass.
 
-**파일명 규칙**: `docs/requirements/{부모요건ID}-bugfix-{N}.md`  
-- 예: 부모가 `20260220-activity-statistics-api-fix` 이면 → `20260220-activity-statistics-api-fix-bugfix-1.md`, `...-bugfix-2.md` …
-- N은 해당 부모에 대한 bugfix 순서(1부터).
+**File name**: `docs/requirements/{parentReqID}-bugfix-{N}.md`  
+- Example: parent `20260220-activity-statistics-api-fix` → `20260220-activity-statistics-api-fix-bugfix-1.md`, `...-bugfix-2.md` …
+- N is the bugfix sequence number for that parent (starting from 1).
+
+**Language**: Author in English. See `docs/workflow/DOCUMENT-LANGUAGE-POLICY.md`. Commit message must reference this doc (e.g. `req {parentReqID}-bugfix-{N}`).
 
 ---
 
-## 붙여넣기용 블록
+## Paste block
 
 ```markdown
-# {부모요건ID}-bugfix-{N} — {한 줄 요약}
+# {parentReqID}-bugfix-{N} — {one-line summary}
 
-**부모 요구사항 ID**: `{부모요건ID}`  
-**Bugfix 순번**: N
+**Parent requirement ID**: `{parentReqID}`  
+**Bugfix sequence**: N
 
-## 1. 발견 경로
+## 1. Discovery
 
-- **언제**: 검증 단계 자동 재시작·정상 실행 확인 중 실패
-- **어떤 확인에서 실패**: (예: GET /api/health 200 미반환, 프론트 3001 미응답, DB 연결 실패)
+- **When**: During verification (restart and health/behavior check)
+- **What failed**: (e.g. GET /api/health not 200, frontend 3001 not responding, DB connection failed)
 
-## 2. 오류 범위
+## 2. Error scope
 
-- **레이어**: frontend | backend | db
-- **증상**: (한 줄 요약)
-- **영향**: (어떤 API/화면/기능)
+- **Failure scope**: frontend | backend | db | security | contract | ux — Set by QA. Requirements uses this to delegate to the responsible expert (Frontend, Backend, DB, Security, Contract, UX→Frontend).
+- **Layer**: frontend | backend | db
+- **Symptom**: (one-line summary)
+- **Impact**: (which API / screen / feature)
 
-## 3. 원인 (추정)
+## 3. Cause (estimated)
 
-- [원인 1]
-- [원인 2]
+- [Cause 1]
+- [Cause 2]
 
-## 4. 조치 내용
+## 4. Action
 
-- [변경 파일·수정 요약]
+- [Change file list and fix summary]
 
-## 5. 검증
+## 5. Verification
 
-- 재시작·정상 실행 확인 반복 루프에서 통과할 때까지 이 문서에 결과 기록.
+- Record results in this document until restart and verification pass. Then QA updates §5 and commits (referencing this doc in the commit message).
 ```
 
 ---
 
-## 반복 루프
+## Loop
 
-- 이 bugfix 문서로 수정 후 → **재시작** → **정상 실행 확인** 다시 수행.
-- 또 실패하면 **같은 부모**에 대해 `-bugfix-(N+1).md` 를 새로 만들고 동일 절차 반복.
-- 모든 확인이 통과할 때까지 반복한다.
+- QA hands off to **Requirements** on failure → Requirements delegates by **failure scope** to the responsible expert (Frontend, Backend, DB, Security, Contract, UX, etc.) → Expert fixes and reports **issue closed** to **QA** → QA **re-runs verification**. When all pass, QA updates §5 and **commits** (commit message references this doc).
+- After fixing per this bugfix doc → **restart** → **run verification** again.
+- If verification fails again, create `-bugfix-(N+1).md` for the same parent and repeat.
+- Repeat until all checks pass.

@@ -9,7 +9,7 @@ import './PendingApprovals.css';
 
 const FORBIDDEN_CODES = ['FORBIDDEN_NOT_APPROVER', 'NOT_APPROVER'];
 
-const PendingApprovals = ({ onBackToMain }) => {
+const PendingApprovals = () => {
   const [list, setList] = useState([]);
   const [pagination, setPagination] = useState({ currentPage: 1, totalPages: 1, totalCount: 0 });
   const [loading, setLoading] = useState(false);
@@ -99,11 +99,6 @@ const PendingApprovals = ({ onBackToMain }) => {
   return (
     <div className="pending-approvals">
       <h2>승인 대기</h2>
-      {onBackToMain && (
-        <button type="button" className="pending-approvals-back back-button" onClick={onBackToMain}>
-          ← 메인으로
-        </button>
-      )}
       {error && <div className="pending-approvals-error">{error}</div>}
       {message && <div className="pending-approvals-message">{message}</div>}
       {loading ? (
@@ -112,14 +107,16 @@ const PendingApprovals = ({ onBackToMain }) => {
         <p>승인 대기 중인 요청이 없습니다.</p>
       ) : !error ? (
         <>
-          <table className="pending-approvals-table">
+          <div className="log-table-container">
+            <div className="table-wrapper">
+          <table className="pending-approvals-table log-table" aria-label="승인 대기 목록">
             <thead>
               <tr>
-                <th>ID</th>
-                <th>요청자</th>
-                <th>검색 조건 요약</th>
-                <th>요청일시</th>
-                <th>동작</th>
+                <th scope="col">ID</th>
+                <th scope="col">요청자</th>
+                <th scope="col">검색 조건 요약</th>
+                <th scope="col">요청일시</th>
+                <th scope="col">동작</th>
               </tr>
             </thead>
             <tbody>
@@ -135,6 +132,7 @@ const PendingApprovals = ({ onBackToMain }) => {
                       className="pending-approvals-btn approve"
                       onClick={() => handleApprove(row.id)}
                       disabled={actionId === row.id}
+                      aria-label={actionId === row.id ? '승인 처리 중' : `승인, 요청 ID ${row.id}`}
                     >
                       {actionId === row.id ? '처리 중...' : '승인'}
                     </button>
@@ -143,6 +141,7 @@ const PendingApprovals = ({ onBackToMain }) => {
                       className="pending-approvals-btn reject"
                       onClick={() => openRejectModal(row.id)}
                       disabled={actionId === row.id}
+                      aria-label={`반려, 요청 ID ${row.id}`}
                     >
                       반려
                     </button>
@@ -151,20 +150,24 @@ const PendingApprovals = ({ onBackToMain }) => {
               ))}
             </tbody>
           </table>
-          <div className="pending-approvals-pagination">
+            </div>
+          </div>
+          <div className="pagination pending-approvals-pagination">
             <span>총 {pagination.totalCount}건</span>
             <button
               type="button"
               disabled={page <= 1}
               onClick={() => setPage((p) => Math.max(1, p - 1))}
+              aria-label="이전 페이지"
             >
               이전
             </button>
-            <span>{page} / {pagination.totalPages || 1}</span>
+            <span aria-live="polite">{page} / {pagination.totalPages || 1}</span>
             <button
               type="button"
               disabled={page >= (pagination.totalPages || 1)}
               onClick={() => setPage((p) => p + 1)}
+              aria-label="다음 페이지"
             >
               다음
             </button>

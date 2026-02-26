@@ -32,6 +32,7 @@ const ActivityStatistics = () => {
   const [userStatistics, setUserStatistics] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [dateRangeInvalid, setDateRangeInvalid] = useState(false);
   
   // 콤보박스 데이터
   const [userList, setUserList] = useState([]);
@@ -100,15 +101,24 @@ const ActivityStatistics = () => {
       if (statisticsType === 'daily') {
         if (!startDate || !endDate) {
           setError('시작일과 종료일을 선택해주세요.');
+          setDateRangeInvalid(false);
           setLoading(false);
           return;
         }
+        if (startDate > endDate) {
+          setError('종료일은 시작일보다 이전일 수 없습니다.');
+          setDateRangeInvalid(true);
+          setLoading(false);
+          return;
+        }
+        setDateRangeInvalid(false);
         // 일별 통계와 사용자별 통계를 동시에 조회
         [response, userStatsResponse] = await Promise.all([
           statisticsApi.getDailyStatistics(startDate, endDate, filters),
           statisticsApi.getAllUserStatistics(startDate, endDate, filters)
         ]);
       } else {
+        setDateRangeInvalid(false);
         if (!year || !month) {
           setError('연도와 월을 선택해주세요.');
           setLoading(false);
@@ -128,16 +138,19 @@ const ActivityStatistics = () => {
       
       if (response.success) {
         setStatisticsData(response.data);
+        setDateRangeInvalid(false);
       } else {
         setError(response.error || '통계 조회 중 오류가 발생했습니다.');
+        setDateRangeInvalid(false);
       }
       
       if (userStatsResponse.success) {
         setUserStatistics(userStatsResponse.data || []);
       }
-    } catch (error) {
-      console.error('통계 조회 중 오류:', error);
+    } catch (err) {
+      console.error('통계 조회 중 오류:', err);
       setError('통계 조회 중 오류가 발생했습니다.');
+      setDateRangeInvalid(false);
     } finally {
       setLoading(false);
     }
@@ -203,12 +216,22 @@ const ActivityStatistics = () => {
         onTypeChange={setStatisticsType}
         startDate={startDate}
         endDate={endDate}
-        onStartDateChange={setStartDate}
-        onEndDateChange={setEndDate}
+        onStartDateChange={(v) => {
+          setStartDate(v);
+          setError(null);
+          setDateRangeInvalid(false);
+        }}
+        onEndDateChange={(v) => {
+          setEndDate(v);
+          setError(null);
+          setDateRangeInvalid(false);
+        }}
         year={year}
         month={month}
         onYearChange={setYear}
         onMonthChange={setMonth}
+        dateRangeInvalid={dateRangeInvalid}
+        dateRangeErrorId="activity-statistics-date-range-error"
       />
       
       <StatisticsFilters
@@ -221,7 +244,11 @@ const ActivityStatistics = () => {
       />
       
       {error && (
-        <div className="error-message">
+        <div
+          className="error-message"
+          id={dateRangeInvalid ? 'activity-statistics-date-range-error' : undefined}
+          role="alert"
+        >
           {error}
         </div>
       )}

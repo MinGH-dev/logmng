@@ -1,179 +1,199 @@
-# 요건 문서 템플릿
+# Requirement Document Template
 
-## 사용 방법
+**Language**: Author in **English first**. After **all verification is complete**, add **§ Final version (Korean)** (or create `yyyyMMdd-name-ko.md`) so the requirement is available in Korean. See `docs/workflow/DOCUMENT-LANGUAGE-POLICY.md`.
 
-새로운 요건이 발생하면 이 템플릿을 복사하여 `docs/requirements/yyyyMMdd-요건명.md` 파일을 생성하세요.
+**Commit**: Every commit that closes this requirement **must reference this document** (e.g. `req yyyyMMdd-name` or `docs/requirements/yyyyMMdd-name.md`) so each commit version is traceable. See `.cursor/commands/commit-on-complete.md`.
+
+---
+
+## How to use
+
+Copy this template to create `docs/requirements/yyyyMMdd-short-name.md`. Use lowercase English and hyphens for the file name.
 
 ---
 
 ```markdown
-# yyyyMMdd - 요건명
+# yyyyMMdd - Short name
 
-## 1. 사용자 요건 내용
+## 1. User requirement
 
-### 요건 설명
-[요건에 대한 상세 설명]
+### Requirement description
+[Detailed description of the requirement]
 
-### 사용자 시나리오
-1. [사용자 행동 1]
-2. [사용자 행동 2]
-3. [사용자 행동 3]
-4. **문제**: [발생한 문제 또는 개선이 필요한 부분]
+### User scenario
+1. [User action 1]
+2. [User action 2]
+3. [User action 3]
+4. **Problem**: [Problem or improvement needed]
 
-### 기대 결과
-- [기대 결과 1]
-- [기대 결과 2]
-- [기대 결과 3]
+### Expected outcome
+- [Expected outcome 1]
+- [Expected outcome 2]
+- [Expected outcome 3]
 
-## 2. 설계
+## 2. Design
 
-### 2.1 보안 검토 (선택, 개인정보·복호화·접근통제 관련 시)
-**Security** Subagent로 검토한 경우: 위험·수용 기준·설계 권고를 여기 요약. (참고: `docs/workflow/CURSOR-SUBAGENTS-DESIGN.md`, `docs/workflow/WORKFLOW_CHECKLIST.md`)
+### 2.1 Security review (optional; when PII / decryption / access control)
+When **Security** subagent has reviewed: summarize risks, acceptance criteria, and design recommendations here. Reference: `docs/workflow/CURSOR-SUBAGENTS-DESIGN.md`, `docs/workflow/WORKFLOW_CHECKLIST.md`.
 
-- [ ] 보안 검토 수행 여부 (해당 시 체크)
-- 위험: [예: 복호화 허용 범위가 동일 검색 조건 전체인 경우 신규 로그까지 노출 가능]
-- 수용 기준/권고: [예: 승인 시점 결과 스냅샷으로 제한 여부, 감사 로그 등]
+- [ ] Security review performed (check if applicable)
+- Risks: [e.g. decryption scope may expose new logs]
+- Acceptance / recommendations: [e.g. limit to approved snapshot, audit log]
 
-### 기술 설계
+### Technical design
 
-#### 문제 분석
-1. [문제 1]
-2. [문제 2]
+#### Problem analysis
+1. [Problem 1]
+2. [Problem 2]
 
-#### 해결 방안
+#### Solution approach
 
-**프론트엔드:**
-- [변경 사항 1]
-- [변경 사항 2]
+**Frontend:**
+- [Change 1]
+- [Change 2]
 
-**백엔드:**
-- [변경 사항 1]
-- [변경 사항 2]
+**Backend:**
+- [Change 1]
+- [Change 2]
 
-### 변경 파일 목록
+### Change file list
 
-**(예상. 구현 단계(Step 4)에서 구현 에이전트(Backend/Frontend/DB)가 실제 변경 파일로 확정·갱신함.)**
+**(Tentative. Implementing agent (Step 4) confirms or updates with actual files changed.)**
 
-#### 프론트엔드
-- `경로/파일명.js`
-  - [변경 내용]
+#### Frontend
+- `path/filename.js`
+  - [Change description]
 
-#### 백엔드
-- `경로/파일명.java`
-  - [변경 내용]
+#### Backend
+- `path/filename.java`
+  - [Change description]
 
-### 데이터베이스 변경사항
-[해당 없음 또는 변경 내용]
+### Database changes
+[None or change description]
 
-## 3. 테스트 수행 방안
+## 3. Test approach
 
-### 테스트 케이스 목록 (요건 기준, 필수)
+### Test case list (required)
 
-요건·오류 조치 구분 없이 아래 형식으로 테스트 케이스를 수립한다. 단위/통합 테스트 실행 전에 작성·갱신한다.
+Define test cases before unit/integration test execution. Update when the requirement or error fix changes.
 
-| ID | 구분 | 시나리오(입력·조건) | 기대 결과 | 검증 방법(단위/통합/수동) |
-|----|------|----------------------|-----------|---------------------------|
-| TC-01 | 정상 | [설명] | [기대] | 단위(mvn test / npm test) 또는 통합(curl) |
-| TC-02 | 예외 | [설명] | [기대] | [방법] |
-| TC-03 | 엣지 | [설명] | [기대] | [방법] |
+| ID | Type | Scenario (input / condition) | Expected result | Verification (unit / integration / manual) |
+|----|------|------------------------------|-----------------|--------------------------------------------|
+| TC-01 | Normal | [Description] | [Expected] | Unit (mvn test / npm test) or integration (curl) |
+| TC-02 | Exception | [Description] | [Expected] | [Method] |
+| TC-03 | Edge | [Description] | [Expected] | [Method] |
 
-### 테스트 시나리오
+### Test scenarios
 
-#### 시나리오 1: [시나리오명]
-1. [단계 1]
-2. [단계 2]
-3. [검증 항목]
+#### Scenario 1: [Name]
+1. [Step 1]
+2. [Step 2]
+3. [Verification]
 
-#### 시나리오 2: [시나리오명]
-1. [단계 1]
-2. [단계 2]
-3. [검증 항목]
+#### Scenario 2: [Name]
+1. [Step 1]
+2. [Step 2]
+3. [Verification]
 
-### 테스트 데이터
-- [테스트 데이터 설명]
+### Test data
+- [Test data description]
 
-### 테스트 환경
-- 프론트엔드: `http://localhost:3000`
-- 백엔드: `http://localhost:9200`
-- 데이터베이스: [DB 종류]
+### Test environment
+- Frontend: `http://localhost:3001` (or per contract)
+- Backend: `http://localhost:9200`
+- Database: [DB type]
 
-## 4. 체크리스트
+### 3.5 Browser automation verification (optional — for frontend-heavy requirements)
 
-### 프론트엔드 검증
-- [ ] API 전달 파라미터 검증 완료
-- [ ] UI가 정상적으로 동작하는지 확인
-- [ ] 에러 처리가 적절한지 확인
+For requirements that change UI, layout, forms, tables, or a11y, add this section so QA can run TCs via Browser MCP.
 
-### 백엔드 검증
-- [ ] API 파라미터 테스트 케이스 작성 및 실행
-- [ ] 로그 확인
-- [ ] 성능 확인 (해당 시)
+- **Applicable TCs**: List TC IDs from the test case table that can be verified by browser automation (e.g. manual or manual-browser).
+- **Procedure per TC**: Briefly describe steps (e.g. `browser_navigate` → login → menu click → `browser_snapshot` to confirm no "back to main" link).
+- **Reference**: Example `docs/requirements/20260225-ux-standards-compliance-audit.md` §3.5. Policy: `docs/workflow/BROWSER-AUTOMATION-VERIFICATION-POLICY.md`.
 
-### 통합 테스트
-- [ ] 전체 플로우 테스트 완료
-- [ ] 엣지 케이스 테스트 완료
+## 4. Checklist
 
-### 문서화
-- [ ] 요건 문서 작성 완료
-- [ ] 코드 주석 추가 완료
+### Frontend verification
+- [ ] API parameters validated
+- [ ] UI behavior confirmed
+- [ ] Error handling verified
 
-## 5. 테스트 결과
+### Backend verification
+- [ ] API test cases written and run
+- [ ] Logs checked
+- [ ] Performance checked (if applicable)
 
-### 테스트 수행 일시
-- [날짜 시간]
+### Integration
+- [ ] End-to-end flow tested
+- [ ] Edge cases tested
 
-### 테스트 결과
+### Documentation
+- [ ] Requirement doc completed
+- [ ] Code comments added (if applicable)
 
-#### 프론트엔드 테스트 결과
-[성공/실패]
-- [결과 설명]
+## 5. Test results
 
-#### 백엔드 테스트 결과
-[성공/실패]
-- [결과 설명]
+### Test run date
+- [Date and time]
 
-**테스트 명령어:**
+### Test results
+
+#### Frontend
+[Pass / Fail]
+- [Result description]
+
+#### Backend
+[Pass / Fail]
+- [Result description]
+
+**Commands:**
 ```bash
-[테스트 명령어]
+[Test commands]
 ```
 
-**결과:**
-- [결과 항목 1]
-- [결과 항목 2]
+**Outcome:**
+- [Item 1]
+- [Item 2]
 
-### 발견된 이슈 및 해결 방법
+### Issues found and resolution
 
-#### 이슈 1: [이슈명]
-**원인**: [원인 설명]
+#### Issue 1: [Name]
+**Cause**: [Cause description]
 
-**해결 방법**:
-1. [해결 방법 1]
-2. [해결 방법 2]
+**Resolution**:
+1. [Resolution 1]
+2. [Resolution 2]
 
-### 다음 단계
-1. [다음 단계 1]
-2. [다음 단계 2]
+### Next steps
+1. [Next step 1]
+2. [Next step 2]
 
-## 6. 오류 조치 결과 (원인·조치) — 오류/버그 수정 요건인 경우만
+## 6. Error remedy result (cause and action) — for error/bug fix requirements only
 
-조치가 끝난 뒤 **동일 요구사항 ID(본 문서)** 에 맞춰 원인·조치 결과를 기록한다. 추적을 위해 별도 파일을 만들지 않고 이 문서에만 기록한다.  
-템플릿: `docs/template/ERROR_FIX_RESULT_TEMPLATE.md`  
-커맨드: `/record-error-fix` 로 기록 지시 가능.
+Record root cause and actions under the **same requirement ID (this document)**. Do not create a separate file; keep traceability in this doc.  
+Template: `docs/template/ERROR_FIX_RESULT_TEMPLATE.md`.  
+Command: `/record-error-fix` can be used to record.
 
-- **요구사항 ID**: (본 문서 파일명, 예: yyyyMMdd-요건명)
-- **원인 (Root Cause)**: [발생 원인]
-- **조치 내용 (Actions Taken)**: [변경·설정 요약]
-- **조치 결과 (Result)**: [검증 방법·결과, 재발 방지]
-- **완료 일시**: yyyy-MM-dd HH:mm
+- **Requirement ID**: (this document filename, e.g. yyyyMMdd-short-name)
+- **Root cause**: [Cause]
+- **Actions taken**: [Summary of changes and configuration]
+- **Result**: [Verification method and result, prevention]
+- **Completed**: yyyy-MM-dd HH:mm
 
 ---
 
-**작성자**: [이름]
-**작성일**: yyyy-MM-dd
-**상태**: [진행 중/완료/보류]
+## 7. Final version (Korean) — add after all verification is complete
+
+After QA has completed verification and before or with the final commit, add a **Korean summary** here (or create `docs/requirements/yyyyMMdd-short-name-ko.md`). See `docs/workflow/DOCUMENT-LANGUAGE-POLICY.md` §2.3.
+
+### 요건 요약 (한글)
+- **요건 설명**: [§1 요약]
+- **기대 결과**: [§1 기대 결과 요약]
+- **검증 결과**: [§5 요약, 통과/실패]
+
+---
+
+**Author**: [Name]
+**Date**: yyyy-MM-dd
+**Status**: [In progress / Done / On hold]
 ```
-
-
-
-
-

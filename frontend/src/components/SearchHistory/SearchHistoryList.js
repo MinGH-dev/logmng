@@ -208,16 +208,18 @@ const SearchHistoryList = ({ onBackToMain, onReSearch }) => {
         <p>검색 이력이 없습니다. 복호화 승인 요청을 한 검색이 여기에 표시됩니다.</p>
       ) : (
         <>
-          <table className="search-history-table">
+          <div className="log-table-container">
+            <div className="table-wrapper">
+          <table className="search-history-table log-table" aria-label="검색 이력 목록">
             <thead>
               <tr>
-                <th>순번</th>
-                <th>일시</th>
-                <th>검색 조건</th>
-                <th>복호화 승인 여부</th>
-                <th>결재 이력</th>
-                <th>만료일시</th>
-                <th>동작</th>
+                <th scope="col">순번</th>
+                <th scope="col">일시</th>
+                <th scope="col">검색 조건</th>
+                <th scope="col">복호화 승인 여부</th>
+                <th scope="col">결재 이력</th>
+                <th scope="col">만료일시</th>
+                <th scope="col">동작</th>
               </tr>
             </thead>
             <tbody>
@@ -234,6 +236,7 @@ const SearchHistoryList = ({ onBackToMain, onReSearch }) => {
                       type="button"
                       className="search-history-btn re-search"
                       onClick={() => handleReSearch(row)}
+                      aria-label={`재조회, ID ${row.id}`}
                     >
                       재조회
                     </button>
@@ -241,6 +244,7 @@ const SearchHistoryList = ({ onBackToMain, onReSearch }) => {
                       type="button"
                       className="search-history-btn detail"
                       onClick={() => handleViewDetail(row)}
+                      aria-label={`자세히 보기, ID ${row.id}`}
                     >
                       자세히 보기
                     </button>
@@ -250,6 +254,7 @@ const SearchHistoryList = ({ onBackToMain, onReSearch }) => {
                         className="search-history-btn re-request"
                         onClick={() => handleReRequest(row.id)}
                         disabled={reRequestingId === row.id}
+                        aria-label={reRequestingId === row.id ? '재요청 처리 중' : `재요청, ID ${row.id}`}
                       >
                         {reRequestingId === row.id ? '처리 중...' : '재요청'}
                       </button>
@@ -259,20 +264,24 @@ const SearchHistoryList = ({ onBackToMain, onReSearch }) => {
               ))}
             </tbody>
           </table>
-          <div className="search-history-pagination">
+            </div>
+          </div>
+          <div className="pagination search-history-pagination">
             <span>총 {pagination.totalCount}건</span>
             <button
               type="button"
               disabled={page <= 1}
               onClick={() => setPage((p) => Math.max(1, p - 1))}
+              aria-label="이전 페이지"
             >
               이전
             </button>
-            <span>{page} / {pagination.totalPages || 1}</span>
+            <span aria-live="polite">{page} / {pagination.totalPages || 1}</span>
             <button
               type="button"
               disabled={page >= (pagination.totalPages || 1)}
               onClick={() => setPage((p) => p + 1)}
+              aria-label="다음 페이지"
             >
               다음
             </button>
