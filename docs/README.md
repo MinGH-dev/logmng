@@ -29,7 +29,19 @@ docs/
     └── ...
 ```
 
+## 🎯 처음 읽을 때 (진입 경로)
+
+새 요건·버그 수정을 할 때는 **먼저 워크플로우**를 이해한 뒤 요청하세요.
+
+1. **[WORKFLOW_CHECKLIST.md](workflow/WORKFLOW_CHECKLIST.md)** — 순서·게이트만 확인 (가장 먼저)
+2. **(필요 시)** [DEVELOPMENT_WORKFLOW.md](workflow/DEVELOPMENT_WORKFLOW.md) — 상세·예시
+3. **요청 문장이 막힐 때** [CURSOR-PROMPTING-GUIDE.md](CURSOR-PROMPTING-GUIDE.md) — 예시·서브에이전트 활용
+
+위 순서를 확인한 뒤, 아래 "새로운 요건 요청 시" 절차를 사용하세요.
+
 ## 🚀 새로운 요건 요청 시
+
+위 워크플로우를 확인한 뒤, 아래처럼 요청하세요.
 
 ### 1단계: Agent에게 프롬프트 제공
 
