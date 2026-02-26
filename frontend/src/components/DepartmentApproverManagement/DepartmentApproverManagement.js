@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import {
   getDepartments,
   getDepartmentApprovers,
@@ -12,9 +12,9 @@ import '../UserManagement/UserManagement.css';
 import './DepartmentApproverManagement.css';
 
 const DEPT_APPROVER_COLUMNS = [
-  { key: 'userId', label: '사용자 ID', sortable: false },
-  { key: 'role', label: '역할', sortable: false },
-  { key: 'departmentCode', label: '부서코드', sortable: false },
+  { key: 'userId', label: '사용자 ID', sortable: true },
+  { key: 'role', label: '역할', sortable: true },
+  { key: 'departmentCode', label: '부서코드', sortable: true },
   { key: 'actions', label: '동작', sortable: false },
 ];
 
@@ -199,6 +199,27 @@ const DepartmentApproverManagement = ({ user }) => {
     return id && !alreadyApprover(id);
   });
 
+  const [sortConfig, setSortConfig] = useState({ key: 'userId', direction: 'asc' });
+  const handleSort = (key) => {
+    setSortConfig((prev) => ({
+      key,
+      direction: prev.key === key && prev.direction === 'asc' ? 'desc' : 'asc',
+    }));
+  };
+  const sortedApprovers = useMemo(() => {
+    if (!approvers.length || !sortConfig.key) return approvers;
+    const key = sortConfig.key;
+    const dir = sortConfig.direction === 'asc' ? 1 : -1;
+    return [...approvers].sort((a, b) => {
+      const va = a[key] ?? a[key === 'departmentCode' ? 'department_code' : key];
+      const vb = b[key] ?? b[key === 'departmentCode' ? 'department_code' : key];
+      if (va == null && vb == null) return 0;
+      if (va == null) return dir;
+      if (vb == null) return -dir;
+      return dir * String(va).localeCompare(String(vb));
+    });
+  }, [approvers, sortConfig.key, sortConfig.direction]);
+
   if (!isAdmin) {
     return (
       <div className="department-approver-management">
@@ -262,15 +283,17 @@ const DepartmentApproverManagement = ({ user }) => {
                     </div>
                     <DataTable
                       columns={DEPT_APPROVER_COLUMNS}
+                      sortConfig={sortConfig}
+                      onSort={handleSort}
                       loading={approversLoading}
                       emptyMessage="해당 부서에 지정된 결재자가 없습니다."
                       emptyColSpan={4}
                       ariaLabel="부서 결재자 목록"
                     >
-                      {approvers.length === 0 ? (
+                      {sortedApprovers.length === 0 ? (
                         <EmptyTableBody colSpan={4} message="해당 부서에 지정된 결재자가 없습니다." />
                       ) : (
-                        approvers.map((row) => {
+                        sortedApprovers.map((row) => {
                           const userId = row.userId ?? row.username;
                           return (
                             <tr key={userId}>

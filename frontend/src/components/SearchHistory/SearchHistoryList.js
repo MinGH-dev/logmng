@@ -9,8 +9,8 @@ import './SearchHistory.css';
 import logger from '../../utils/logger';
 
 const SEARCH_HISTORY_COLUMNS = [
-  { key: 'seq', label: '순번', sortable: false },
-  { key: 'requestedAt', label: '일시', sortable: false },
+  { key: 'seq', label: '순번', sortable: true },
+  { key: 'requested_at', label: '일시', sortable: true },
   { key: 'searchParamsSummary', label: '검색 조건', sortable: false },
   { key: 'approvalStatus', label: '복호화 승인 여부', sortable: false },
   { key: 'approvalHistory', label: '결재 이력', sortable: false },
@@ -115,6 +115,8 @@ const SearchHistoryList = ({ onBackToMain, onReSearch }) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(20);
+  const [sortConfig, setSortConfig] = useState({ key: 'requested_at', direction: 'desc' });
   const [reRequestingId, setReRequestingId] = useState(null);
   const [detailModalOpen, setDetailModalOpen] = useState(false);
   const [detailData, setDetailData] = useState(null);
@@ -125,7 +127,7 @@ const SearchHistoryList = ({ onBackToMain, onReSearch }) => {
     setLoading(true);
     setError(null);
     try {
-      const result = await getSearchHistoryList(pageNum, 20, 'requested_at', 'desc');
+      const result = await getSearchHistoryList(pageNum, pageSize, sortConfig.key, sortConfig.direction);
       if (result.success && result.data) {
         setList(result.data.data || []);
         setPagination(result.data.pagination || { currentPage: 1, totalPages: 1, totalCount: 0 });
@@ -141,7 +143,20 @@ const SearchHistoryList = ({ onBackToMain, onReSearch }) => {
 
   useEffect(() => {
     loadList(page);
-  }, [page]);
+  }, [page, pageSize, sortConfig.key, sortConfig.direction]);
+
+  const handleSort = (key) => {
+    setSortConfig((prev) => ({
+      key,
+      direction: prev.key === key && prev.direction === 'asc' ? 'desc' : 'asc',
+    }));
+    setPage(1);
+  };
+
+  const handlePageSizeChange = (newSize) => {
+    setPageSize(newSize);
+    setPage(1);
+  };
 
   const handleReRequest = async (id) => {
     setReRequestingId(id);
@@ -215,6 +230,8 @@ const SearchHistoryList = ({ onBackToMain, onReSearch }) => {
       {error && <div className="search-history-error">{error}</div>}
       <DataTable
         columns={SEARCH_HISTORY_COLUMNS}
+        sortConfig={sortConfig}
+        onSort={handleSort}
         loading={loading}
         emptyMessage="검색 이력이 없습니다. 복호화 승인 요청을 한 검색이 여기에 표시됩니다."
         emptyColSpan={7}
@@ -230,6 +247,8 @@ const SearchHistoryList = ({ onBackToMain, onReSearch }) => {
               }
             : null
         }
+        pageSize={pageSize}
+        onPageSizeChange={handlePageSizeChange}
       >
         {list.length === 0 ? (
           <EmptyTableBody colSpan={7} message="검색 이력이 없습니다. 복호화 승인 요청을 한 검색이 여기에 표시됩니다." />

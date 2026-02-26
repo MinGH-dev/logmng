@@ -173,40 +173,7 @@
 }
 
 /* 로딩/빈 상태는 DataTable.css .loading-container, .no-data 사용 */
-
-/* 페이지네이션 */
-.pagination {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  gap: 15px;
-  margin-top: 20px;
-}
-
-.pagination-button {
-  padding: 8px 16px;
-  border: 1px solid #ddd;
-  border-radius: 4px;
-  background: white;
-  cursor: pointer;
-  font-size: 14px;
-  transition: all 0.2s;
-}
-
-.pagination-button:hover:not(:disabled) {
-  background-color: #f8f9fa;
-  border-color: #007bff;
-}
-
-.pagination-button:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-.pagination-info {
-  font-size: 14px;
-  color: #666;
-}
+/* 페이지네이션: DataTable 내부 .pagination, .page-btn 사용 (grid-and-table.md) */
 
 /* 상세 모달 */
 .activity-log-detail-overlay {

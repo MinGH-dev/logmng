@@ -9,10 +9,10 @@ import logger from '../../utils/logger';
 import './PendingApprovals.css';
 
 const PENDING_COLUMNS = [
-  { key: 'id', label: 'ID', sortable: false },
-  { key: 'requester', label: '요청자', sortable: false },
+  { key: 'id', label: 'ID', sortable: true },
+  { key: 'requester', label: '요청자', sortable: true },
   { key: 'searchParamsSummary', label: '검색 조건 요약', sortable: false },
-  { key: 'requestedAt', label: '요청일시', sortable: false },
+  { key: 'requestedAt', label: '요청일시', sortable: true },
   { key: 'actions', label: '동작', sortable: false },
 ];
 
@@ -25,6 +25,8 @@ const PendingApprovals = () => {
   const [error, setError] = useState(null);
   const [message, setMessage] = useState(null);
   const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(20);
+  const [sortConfig, setSortConfig] = useState({ key: 'requestedAt', direction: 'desc' });
   const [actionId, setActionId] = useState(null);
   const [rejectModal, setRejectModal] = useState(null); // { id, reason }
 
@@ -33,7 +35,7 @@ const PendingApprovals = () => {
     setError(null);
     setMessage(null);
     try {
-      const result = await getPendingList(pageNum, 20);
+      const result = await getPendingList(pageNum, pageSize);
       const data = result.data;
       setList(data?.data || []);
       setPagination(data?.pagination || { currentPage: 1, totalPages: 1, totalCount: 0 });
@@ -52,7 +54,35 @@ const PendingApprovals = () => {
 
   useEffect(() => {
     loadList(page);
-  }, [page]);
+  }, [page, pageSize]);
+
+  const handleSort = (key) => {
+    setSortConfig((prev) => ({
+      key,
+      direction: prev.key === key && prev.direction === 'asc' ? 'desc' : 'asc',
+    }));
+    setPage(1);
+  };
+
+  const handlePageSizeChange = (newSize) => {
+    setPageSize(newSize);
+    setPage(1);
+  };
+
+  const sortedList = React.useMemo(() => {
+    if (!list.length || !sortConfig.key) return list;
+    const key = sortConfig.key;
+    const dir = sortConfig.direction === 'asc' ? 1 : -1;
+    return [...list].sort((a, b) => {
+      const va = a[key];
+      const vb = b[key];
+      if (va == null && vb == null) return 0;
+      if (va == null) return dir;
+      if (vb == null) return -dir;
+      if (typeof va === 'number' && typeof vb === 'number') return dir * (va - vb);
+      return dir * String(va).localeCompare(String(vb));
+    });
+  }, [list, sortConfig.key, sortConfig.direction]);
 
   const handleApprove = async (id) => {
     setActionId(id);
@@ -113,6 +143,8 @@ const PendingApprovals = () => {
       {!error && (
         <DataTable
           columns={PENDING_COLUMNS}
+          sortConfig={sortConfig}
+          onSort={handleSort}
           loading={loading}
           emptyMessage="승인 대기 중인 요청이 없습니다."
           emptyColSpan={5}
@@ -128,11 +160,13 @@ const PendingApprovals = () => {
                 }
               : null
           }
+          pageSize={pageSize}
+          onPageSizeChange={handlePageSizeChange}
         >
-          {list.length === 0 ? (
+          {sortedList.length === 0 ? (
             <EmptyTableBody colSpan={5} message="승인 대기 중인 요청이 없습니다." />
           ) : (
-            list.map((row) => (
+            sortedList.map((row) => (
               <tr key={row.id}>
                 <td>{row.id}</td>
                 <td>{row.requester ?? '-'}</td>

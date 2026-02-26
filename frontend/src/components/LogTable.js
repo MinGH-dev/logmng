@@ -26,6 +26,8 @@ const LogTable = ({
   currentPage,
   totalPages,
   onPageChange,
+  pageSize = 20,
+  onPageSizeChange,
   keywords = [],
 }) => {
   const formatTime = (timeString) => {
@@ -86,6 +88,8 @@ const LogTable = ({
       emptyMessage="검색 결과가 없습니다."
       emptyColSpan={12}
       pagination={pagination}
+      pageSize={pageSize}
+      onPageSizeChange={onPageSizeChange}
       ariaLabel="로그 검색 결과"
     >
       {logs.length === 0 ? (

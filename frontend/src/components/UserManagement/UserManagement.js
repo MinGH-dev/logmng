@@ -1,14 +1,14 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { getUsers, addApprover, removeApprover } from '../../services/userService';
 import DataTable, { EmptyTableBody } from '../DataTable';
 import logger from '../../utils/logger';
 import './UserManagement.css';
 
 const USER_MANAGEMENT_COLUMNS = [
-  { key: 'userId', label: '사용자 ID', sortable: false },
-  { key: 'role', label: '역할', sortable: false },
-  { key: 'departmentCode', label: '부서코드', sortable: false },
-  { key: 'isApprover', label: '결재자 여부', sortable: false },
+  { key: 'userId', label: '사용자 ID', sortable: true },
+  { key: 'role', label: '역할', sortable: true },
+  { key: 'departmentCode', label: '부서코드', sortable: true },
+  { key: 'isApprover', label: '결재자 여부', sortable: true },
   { key: 'actions', label: '동작', sortable: false },
 ];
 
@@ -17,8 +17,32 @@ const UserManagement = ({ onShowDepartmentApprovers, user }) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [actionId, setActionId] = useState(null);
+  const [sortConfig, setSortConfig] = useState({ key: 'userId', direction: 'asc' });
 
   const isAdmin = user?.role === 'ADMIN';
+
+  const sortedList = useMemo(() => {
+    if (!list.length || !sortConfig.key) return list;
+    const key = sortConfig.key;
+    const dir = sortConfig.direction === 'asc' ? 1 : -1;
+    return [...list].sort((a, b) => {
+      const va = a[key] ?? a[key === 'departmentCode' ? 'department_code' : key];
+      const vb = b[key] ?? b[key === 'departmentCode' ? 'department_code' : key];
+      if (va == null && vb == null) return 0;
+      if (va == null) return dir;
+      if (vb == null) return -dir;
+      if (typeof va === 'boolean' && typeof vb === 'boolean') return dir * (Number(va) - Number(vb));
+      if (typeof va === 'number' && typeof vb === 'number') return dir * (va - vb);
+      return dir * String(va).localeCompare(String(vb));
+    });
+  }, [list, sortConfig.key, sortConfig.direction]);
+
+  const handleSort = (key) => {
+    setSortConfig((prev) => ({
+      key,
+      direction: prev.key === key && prev.direction === 'asc' ? 'desc' : 'asc',
+    }));
+  };
 
   const loadList = async () => {
     if (!isAdmin) return;
@@ -90,15 +114,17 @@ const UserManagement = ({ onShowDepartmentApprovers, user }) => {
       {error && <div className="user-management-error">{error}</div>}
       <DataTable
         columns={USER_MANAGEMENT_COLUMNS}
+        sortConfig={sortConfig}
+        onSort={handleSort}
         loading={loading}
         emptyMessage="등록된 사용자가 없습니다."
         emptyColSpan={5}
         ariaLabel="사용자 목록"
       >
-        {list.length === 0 ? (
+        {sortedList.length === 0 ? (
           <EmptyTableBody colSpan={5} message="등록된 사용자가 없습니다." />
         ) : (
-          list.map((row) => {
+          sortedList.map((row) => {
             const userId = row.userId ?? row.username;
             const isApprover = row.isApprover === true;
             return (

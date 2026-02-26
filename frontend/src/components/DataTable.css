@@ -149,6 +149,62 @@
   gap: 10px;
 }
 
+.rows-per-page {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.rows-per-page-label {
+  font-size: 14px;
+  color: #495057;
+  white-space: nowrap;
+}
+
+.page-size-btn {
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: 1px solid #dee2e6;
+  background: white;
+  border-radius: 4px;
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+  color: #495057;
+}
+
+.page-size-btn:hover:not(:disabled) {
+  background-color: #e9ecef;
+  border-color: #adb5bd;
+}
+
+.page-size-btn:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.page-size-input {
+  width: 56px;
+  padding: 6px 8px;
+  border: 1px solid #dee2e6;
+  border-radius: 4px;
+  font-size: 14px;
+  text-align: center;
+}
+
+.pagination-aria {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
 .page-btn {
   padding: 8px 12px;
   border: 1px solid #dee2e6;

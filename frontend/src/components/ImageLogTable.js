@@ -18,17 +18,19 @@ const IMAGE_LOG_COLUMNS = [
   { key: 'decrypt', label: '복호화', sortable: false },
 ];
 
-const ImageLogTable = ({ 
-  logs, 
-  loading, 
+const ImageLogTable = ({
+  logs,
+  loading,
   sortConfig,
   onSort,
-  currentPage, 
-  totalPages, 
+  currentPage,
+  totalPages,
   onPageChange,
+  pageSize = 20,
+  onPageSizeChange,
   keywords = [],
-  searchParams = {}, // 검색 파라미터 추가
-  searchHistoryId = null // 이번 검색에 대한 복호화 승인 이력 ID (있을 때만 복호화 허용)
+  searchParams = {},
+  searchHistoryId = null,
 }) => {
   // 시간 포맷팅
   const formatTime = (timeString) => {
@@ -561,6 +563,8 @@ const ImageLogTable = ({
         emptyMessage="검색 결과가 없습니다."
         emptyColSpan={10}
         pagination={pagination}
+        pageSize={pageSize}
+        onPageSizeChange={onPageSizeChange}
         ariaLabel="이미지 로그 검색 결과"
       >
         {tableBody}

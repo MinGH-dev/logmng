@@ -13,6 +13,7 @@ const LogGrid = ({ logType, initialSearchParams, initialSearchApprovalId, onInit
   const [loading, setLoading] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
+  const [pageSize, setPageSize] = useState(20);
   const [sortConfig, setSortConfig] = useState({ key: 'log_timestamp', direction: 'desc' });
 
   // 검색 조건 상태
@@ -115,7 +116,7 @@ const LogGrid = ({ logType, initialSearchParams, initialSearchApprovalId, onInit
         ...params,
         logType: logType.id, // 로그 타입 추가
         page: currentPage,
-        pageSize: 10,
+        pageSize,
         sortField: sortConfig.key,
         sortDirection: sortConfig.direction,
         displayTemplate: 'detailed'
@@ -192,7 +193,7 @@ const LogGrid = ({ logType, initialSearchParams, initialSearchApprovalId, onInit
             ...searchParams,
             logType: logType.id,
             page: currentPage,
-            pageSize: 10,
+            pageSize,
             sortField: nextConfig.key,
             sortDirection: nextConfig.direction,
             displayTemplate: 'detailed',
@@ -210,6 +211,41 @@ const LogGrid = ({ logType, initialSearchParams, initialSearchApprovalId, onInit
       } catch (error) {
         logger.error('정렬 중 오류 발생:', { error: error.message });
       }
+    }
+  };
+
+  // 페이지당 행 수 변경 (즉시 반영, 1페이지로 이동 후 재조회)
+  const handlePageSizeChange = (newSize) => {
+    setPageSize(newSize);
+    setCurrentPage(1);
+    if (Object.keys(searchParams).length > 0) {
+      const apiBaseUrl = process.env.REACT_APP_API_BASE_URL || 'http://localhost:9200/api';
+      setLoading(true);
+      fetch(`${apiBaseUrl}/logs/db-refactored/search`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          ...searchParams,
+          logType: logType.id,
+          page: 1,
+          pageSize: newSize,
+          sortField: sortConfig.key,
+          sortDirection: sortConfig.direction,
+          displayTemplate: 'detailed',
+        }),
+      })
+        .then((res) => res.ok ? res.json() : Promise.reject(new Error(`HTTP ${res.status}`)))
+        .then((result) => {
+          if (result.success) {
+            const logData = result.data?.data || result.data || [];
+            setLogs(logData);
+            setTotalPages(result.data?.pagination?.totalPages || result.pagination?.totalPages || 1);
+            setCurrentPage(1);
+          }
+        })
+        .catch((err) => logger.error('페이지 크기 변경 중 오류:', { error: err.message }))
+        .finally(() => setLoading(false));
     }
   };
 
@@ -231,9 +267,9 @@ const LogGrid = ({ logType, initialSearchParams, initialSearchApprovalId, onInit
           ...searchParams,
           logType: logType.id, // 로그 타입 추가
           page: page,
-          pageSize: 10,
-        sortField: sortConfig.key,
-        sortDirection: sortConfig.direction,
+          pageSize,
+          sortField: sortConfig.key,
+          sortDirection: sortConfig.direction,
           displayTemplate: 'detailed'
         })
         });
@@ -379,6 +415,8 @@ const LogGrid = ({ logType, initialSearchParams, initialSearchApprovalId, onInit
           currentPage={currentPage}
           totalPages={totalPages}
           onPageChange={handlePageChange}
+          pageSize={pageSize}
+          onPageSizeChange={handlePageSizeChange}
           keywords={searchParams.keywords || []}
           searchParams={searchParams}
           searchHistoryId={currentApprovalId}
@@ -392,6 +430,8 @@ const LogGrid = ({ logType, initialSearchParams, initialSearchApprovalId, onInit
           currentPage={currentPage}
           totalPages={totalPages}
           onPageChange={handlePageChange}
+          pageSize={pageSize}
+          onPageSizeChange={handlePageSizeChange}
           keywords={searchParams.keywords || []}
         />
       )}
