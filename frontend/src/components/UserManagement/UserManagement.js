@@ -1,7 +1,16 @@
 import React, { useState, useEffect } from 'react';
 import { getUsers, addApprover, removeApprover } from '../../services/userService';
+import DataTable, { EmptyTableBody } from '../DataTable';
 import logger from '../../utils/logger';
 import './UserManagement.css';
+
+const USER_MANAGEMENT_COLUMNS = [
+  { key: 'userId', label: '사용자 ID', sortable: false },
+  { key: 'role', label: '역할', sortable: false },
+  { key: 'departmentCode', label: '부서코드', sortable: false },
+  { key: 'isApprover', label: '결재자 여부', sortable: false },
+  { key: 'actions', label: '동작', sortable: false },
+];
 
 const UserManagement = ({ onShowDepartmentApprovers, user }) => {
   const [list, setList] = useState([]);
@@ -79,64 +88,41 @@ const UserManagement = ({ onShowDepartmentApprovers, user }) => {
         </button>
       )}
       {error && <div className="user-management-error">{error}</div>}
-      {loading ? (
-        <p>목록을 불러오는 중...</p>
-      ) : list.length === 0 ? (
-        <p>등록된 사용자가 없습니다.</p>
-      ) : (
-        <div className="log-table-container">
-          <div className="table-wrapper">
-        <table className="user-management-table log-table" aria-label="사용자 목록">
-          <thead>
-            <tr>
-              <th scope="col">사용자 ID</th>
-              <th scope="col">역할</th>
-              <th scope="col">부서코드</th>
-              <th scope="col">결재자 여부</th>
-              <th scope="col">동작</th>
-            </tr>
-          </thead>
-          <tbody>
-            {list.map((row) => {
-              const userId = row.userId ?? row.username;
-              const isApprover = row.isApprover === true;
-              return (
-                <tr key={userId}>
-                  <td>{userId}</td>
-                  <td>{row.role || '-'}</td>
-                  <td>{row.departmentCode ?? row.department_code ?? '-'}</td>
-                  <td>{isApprover ? '예' : '아니오'}</td>
-                  <td>
-                    {isApprover ? (
-                      <button
-                        type="button"
-                        className="user-management-btn remove"
-                        onClick={() => handleRemoveApprover(userId)}
-                        disabled={actionId === userId}
-                        aria-label={`결재자 해제, ${userId}`}
-                      >
-                        {actionId === userId ? '처리 중...' : '결재자 해제'}
-                      </button>
-                    ) : (
-                      <button
-                        type="button"
-                        className="user-management-btn add"
-                        onClick={() => handleAddApprover(userId)}
-                        disabled={actionId === userId}
-                        aria-label={`결재자 지정, ${userId}`}
-                      >
-                        {actionId === userId ? '처리 중...' : '결재자 지정'}
-                      </button>
-                    )}
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-          </div>
-        </div>
-      )}
+      <DataTable
+        columns={USER_MANAGEMENT_COLUMNS}
+        loading={loading}
+        emptyMessage="등록된 사용자가 없습니다."
+        emptyColSpan={5}
+        ariaLabel="사용자 목록"
+      >
+        {list.length === 0 ? (
+          <EmptyTableBody colSpan={5} message="등록된 사용자가 없습니다." />
+        ) : (
+          list.map((row) => {
+            const userId = row.userId ?? row.username;
+            const isApprover = row.isApprover === true;
+            return (
+              <tr key={userId}>
+                <td>{userId}</td>
+                <td>{row.role || '-'}</td>
+                <td>{row.departmentCode ?? row.department_code ?? '-'}</td>
+                <td>{isApprover ? '예' : '아니오'}</td>
+                <td>
+                  {isApprover ? (
+                    <button type="button" className="user-management-btn remove" onClick={() => handleRemoveApprover(userId)} disabled={actionId === userId} aria-label={`결재자 해제, ${userId}`}>
+                      {actionId === userId ? '처리 중...' : '결재자 해제'}
+                    </button>
+                  ) : (
+                    <button type="button" className="user-management-btn add" onClick={() => handleAddApprover(userId)} disabled={actionId === userId} aria-label={`결재자 지정, ${userId}`}>
+                      {actionId === userId ? '처리 중...' : '결재자 지정'}
+                    </button>
+                  )}
+                </td>
+              </tr>
+            );
+          })
+        )}
+      </DataTable>
     </div>
   );
 };

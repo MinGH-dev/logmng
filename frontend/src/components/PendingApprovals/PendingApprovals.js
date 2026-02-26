@@ -4,8 +4,17 @@ import {
   approveSearchHistory,
   rejectSearchHistory,
 } from '../../services/searchHistoryService';
+import DataTable, { EmptyTableBody } from '../DataTable';
 import logger from '../../utils/logger';
 import './PendingApprovals.css';
+
+const PENDING_COLUMNS = [
+  { key: 'id', label: 'ID', sortable: false },
+  { key: 'requester', label: '요청자', sortable: false },
+  { key: 'searchParamsSummary', label: '검색 조건 요약', sortable: false },
+  { key: 'requestedAt', label: '요청일시', sortable: false },
+  { key: 'actions', label: '동작', sortable: false },
+];
 
 const FORBIDDEN_CODES = ['FORBIDDEN_NOT_APPROVER', 'NOT_APPROVER'];
 
@@ -101,79 +110,47 @@ const PendingApprovals = () => {
       <h2>승인 대기</h2>
       {error && <div className="pending-approvals-error">{error}</div>}
       {message && <div className="pending-approvals-message">{message}</div>}
-      {loading ? (
-        <p>목록을 불러오는 중...</p>
-      ) : list.length === 0 && !error ? (
-        <p>승인 대기 중인 요청이 없습니다.</p>
-      ) : !error ? (
-        <>
-          <div className="log-table-container">
-            <div className="table-wrapper">
-          <table className="pending-approvals-table log-table" aria-label="승인 대기 목록">
-            <thead>
-              <tr>
-                <th scope="col">ID</th>
-                <th scope="col">요청자</th>
-                <th scope="col">검색 조건 요약</th>
-                <th scope="col">요청일시</th>
-                <th scope="col">동작</th>
+      {!error && (
+        <DataTable
+          columns={PENDING_COLUMNS}
+          loading={loading}
+          emptyMessage="승인 대기 중인 요청이 없습니다."
+          emptyColSpan={5}
+          ariaLabel="승인 대기 목록"
+          pagination={
+            (pagination.totalPages || 1) > 1
+              ? {
+                  currentPage: page,
+                  totalPages: pagination.totalPages || 1,
+                  onPageChange: (p) => setPage(p),
+                  simple: true,
+                  infoText: `총 ${pagination.totalCount}건`,
+                }
+              : null
+          }
+        >
+          {list.length === 0 ? (
+            <EmptyTableBody colSpan={5} message="승인 대기 중인 요청이 없습니다." />
+          ) : (
+            list.map((row) => (
+              <tr key={row.id}>
+                <td>{row.id}</td>
+                <td>{row.requester ?? '-'}</td>
+                <td className="pending-approvals-summary">{row.searchParamsSummary ?? '-'}</td>
+                <td>{row.requestedAt ?? '-'}</td>
+                <td>
+                  <button type="button" className="pending-approvals-btn approve" onClick={() => handleApprove(row.id)} disabled={actionId === row.id} aria-label={actionId === row.id ? '승인 처리 중' : `승인, 요청 ID ${row.id}`}>
+                    {actionId === row.id ? '처리 중...' : '승인'}
+                  </button>
+                  <button type="button" className="pending-approvals-btn reject" onClick={() => openRejectModal(row.id)} disabled={actionId === row.id} aria-label={`반려, 요청 ID ${row.id}`}>
+                    반려
+                  </button>
+                </td>
               </tr>
-            </thead>
-            <tbody>
-              {list.map((row) => (
-                <tr key={row.id}>
-                  <td>{row.id}</td>
-                  <td>{row.requester ?? '-'}</td>
-                  <td className="pending-approvals-summary">{row.searchParamsSummary ?? '-'}</td>
-                  <td>{row.requestedAt ?? '-'}</td>
-                  <td>
-                    <button
-                      type="button"
-                      className="pending-approvals-btn approve"
-                      onClick={() => handleApprove(row.id)}
-                      disabled={actionId === row.id}
-                      aria-label={actionId === row.id ? '승인 처리 중' : `승인, 요청 ID ${row.id}`}
-                    >
-                      {actionId === row.id ? '처리 중...' : '승인'}
-                    </button>
-                    <button
-                      type="button"
-                      className="pending-approvals-btn reject"
-                      onClick={() => openRejectModal(row.id)}
-                      disabled={actionId === row.id}
-                      aria-label={`반려, 요청 ID ${row.id}`}
-                    >
-                      반려
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-            </div>
-          </div>
-          <div className="pagination pending-approvals-pagination">
-            <span>총 {pagination.totalCount}건</span>
-            <button
-              type="button"
-              disabled={page <= 1}
-              onClick={() => setPage((p) => Math.max(1, p - 1))}
-              aria-label="이전 페이지"
-            >
-              이전
-            </button>
-            <span aria-live="polite">{page} / {pagination.totalPages || 1}</span>
-            <button
-              type="button"
-              disabled={page >= (pagination.totalPages || 1)}
-              onClick={() => setPage((p) => p + 1)}
-              aria-label="다음 페이지"
-            >
-              다음
-            </button>
-          </div>
-        </>
-      ) : null}
+            ))
+          )}
+        </DataTable>
+      )}
 
       {rejectModal && (
         <div className="pending-approvals-modal-overlay" role="dialog" aria-labelledby="reject-modal-title">

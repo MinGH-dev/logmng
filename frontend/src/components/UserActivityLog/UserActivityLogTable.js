@@ -1,5 +1,19 @@
 import React from 'react';
+import DataTable, { EmptyTableBody } from '../DataTable';
 import './UserActivityLog.css';
+
+const ACTIVITY_LOG_COLUMNS = [
+  { key: 'id', label: 'ID', sortable: false },
+  { key: 'user_id', label: '사용자 ID', sortable: false },
+  { key: 'username', label: '사용자명', sortable: false },
+  { key: 'action_type', label: '액션 타입', sortable: false },
+  { key: 'ip_address', label: 'IP 주소', sortable: false },
+  { key: 'request_path', label: '요청 경로', sortable: false },
+  { key: 'response_status', label: '응답 상태', sortable: false },
+  { key: 'response_time', label: '응답 시간', sortable: false },
+  { key: 'result', label: '결과', sortable: false },
+  { key: 'created_at', label: '생성일시', sortable: false },
+];
 
 const UserActivityLogTable = ({ logs, onRowClick, loading }) => {
   const formatDateTime = (dateTimeStr) => {
@@ -35,35 +49,22 @@ const UserActivityLogTable = ({ logs, onRowClick, loading }) => {
     );
   };
 
+  const hasData = logs && logs.length > 0;
+  const emptyMessage = '조회된 활동 이력이 없습니다.';
+
   return (
-    <div className="activity-log-table-container" role="region" aria-label="활동 이력 테이블" aria-busy={loading}>
-      <div className="table-wrapper">
-        {loading ? (
-          <div className="activity-log-table-loading" aria-live="polite">
-            <p>데이터를 불러오는 중...</p>
-          </div>
-        ) : !logs || logs.length === 0 ? (
-          <div className="activity-log-table-empty" aria-live="polite">
-            <p>조회된 활동 이력이 없습니다.</p>
-          </div>
+    <div role="region" aria-label="활동 이력 테이블" aria-busy={loading}>
+      <DataTable
+        columns={ACTIVITY_LOG_COLUMNS}
+        loading={loading}
+        emptyMessage={emptyMessage}
+        emptyColSpan={ACTIVITY_LOG_COLUMNS.length}
+        ariaLabel="활동 이력 테이블"
+      >
+        {!hasData ? (
+          <EmptyTableBody colSpan={ACTIVITY_LOG_COLUMNS.length} message={emptyMessage} />
         ) : (
-      <table className="activity-log-table">
-        <thead>
-          <tr>
-            <th scope="col">ID</th>
-            <th scope="col">사용자 ID</th>
-            <th scope="col">사용자명</th>
-            <th scope="col">액션 타입</th>
-            <th scope="col">IP 주소</th>
-            <th scope="col">요청 경로</th>
-            <th scope="col">응답 상태</th>
-            <th scope="col">응답 시간</th>
-            <th scope="col">결과</th>
-            <th scope="col">생성일시</th>
-          </tr>
-        </thead>
-        <tbody>
-          {logs.map((log) => (
+          logs.map((log) => (
             <tr
               key={log.id}
               onClick={() => onRowClick && onRowClick(log)}
@@ -94,18 +95,11 @@ const UserActivityLogTable = ({ logs, onRowClick, loading }) => {
               <td>{getSuccessBadge(log.success)}</td>
               <td>{formatDateTime(log.created_at)}</td>
             </tr>
-          ))}
-        </tbody>
-      </table>
+          ))
         )}
-      </div>
+      </DataTable>
     </div>
   );
 };
 
 export default UserActivityLogTable;
-
-
-
-
-

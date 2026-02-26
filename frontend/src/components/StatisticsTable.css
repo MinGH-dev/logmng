@@ -1,36 +1,10 @@
+/* StatisticsTable overrides. Base table in DataTable.css. */
+
 .statistics-table {
   padding: 20px;
   background-color: white;
   border-radius: 8px;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-}
-
-.statistics-table table {
-  width: 100%;
-  border-collapse: collapse;
-}
-
-.statistics-table th {
-  background-color: #f8f9fa;
-  padding: 12px;
-  text-align: left;
-  border-bottom: 2px solid #dee2e6;
-  cursor: pointer;
-  user-select: none;
-  position: relative;
-}
-
-.statistics-table th:hover {
-  background-color: #e9ecef;
-}
-
-.statistics-table td {
-  padding: 10px 12px;
-  border-bottom: 1px solid #dee2e6;
-}
-
-.statistics-table tbody tr:hover {
-  background-color: #f8f9fa;
 }
 
 .summary {
@@ -56,8 +30,3 @@
   border-radius: 4px;
   font-weight: 500;
 }
-
-
-
-
-

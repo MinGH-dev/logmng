@@ -13,8 +13,7 @@ const LogGrid = ({ logType, initialSearchParams, initialSearchApprovalId, onInit
   const [loading, setLoading] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
-  const [sortField, setSortField] = useState('log_timestamp');
-  const [sortDirection, setSortDirection] = useState('desc');
+  const [sortConfig, setSortConfig] = useState({ key: 'log_timestamp', direction: 'desc' });
 
   // 검색 조건 상태
   const [searchParams, setSearchParams] = useState({
@@ -38,13 +37,12 @@ const LogGrid = ({ logType, initialSearchParams, initialSearchApprovalId, onInit
   // 로그 타입에 따라 기본 정렬 필드 설정 (초기화 시 한 번만)
   useEffect(() => {
     if (!logType) return;
-    
-    if (logType.id === 'java_fw_imglog' && sortField === 'log_timestamp') {
-      setSortField('insert_time');
-    } else if (logType.id === 'pb_feplog' && sortField === 'insert_time') {
-      setSortField('log_timestamp');
+    if (logType.id === 'java_fw_imglog' && sortConfig.key === 'log_timestamp') {
+      setSortConfig({ key: 'insert_time', direction: sortConfig.direction });
+    } else if (logType.id === 'pb_feplog' && sortConfig.key === 'insert_time') {
+      setSortConfig({ key: 'log_timestamp', direction: sortConfig.direction });
     }
-  }, [logType?.id]); // logType.id가 변경될 때만 실행
+  }, [logType?.id]);
 
   // 검색 이력에서 재조회 시 저장된 조건으로 한 번 검색 실행 + 해당 이력의 승인 ID 유지
   useEffect(() => {
@@ -118,8 +116,8 @@ const LogGrid = ({ logType, initialSearchParams, initialSearchApprovalId, onInit
         logType: logType.id, // 로그 타입 추가
         page: currentPage,
         pageSize: 10,
-        sortField: sortField,
-        sortDirection: sortDirection,
+        sortField: sortConfig.key,
+        sortDirection: sortConfig.direction,
         displayTemplate: 'detailed'
       };
       logger.debug('📤 API로 전송할 데이터:', { 
@@ -177,44 +175,31 @@ const LogGrid = ({ logType, initialSearchParams, initialSearchApprovalId, onInit
     }
   };
 
-  // 정렬 처리
-  const handleSort = async (field) => {
-    let newSortDirection = 'asc';
-    
-    if (sortField === field) {
-      newSortDirection = sortDirection === 'asc' ? 'desc' : 'asc';
-    }
-    
-    setSortField(field);
-    setSortDirection(newSortDirection);
-    
-    // 현재 검색 조건으로 API 재호출
+  // 정렬 처리 (단일 sortConfig + onSort 계약)
+  const handleSort = async (key) => {
+    const newDirection = sortConfig.key === key && sortConfig.direction === 'asc' ? 'desc' : 'asc';
+    const nextConfig = { key, direction: newDirection };
+    setSortConfig(nextConfig);
+
     if (Object.keys(searchParams).length > 0) {
       try {
         const apiBaseUrl = process.env.REACT_APP_API_BASE_URL || 'http://localhost:9200/api';
         const response = await fetch(`${apiBaseUrl}/logs/db-refactored/search`, {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          credentials: 'include', // 세션 쿠키 전달
-        body: JSON.stringify({
-          ...searchParams,
-          logType: logType.id, // 로그 타입 추가
-          page: currentPage,
-          pageSize: 10,
-          sortField: field,
-          sortDirection: newSortDirection,
-          displayTemplate: 'detailed'
-        })
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({
+            ...searchParams,
+            logType: logType.id,
+            page: currentPage,
+            pageSize: 10,
+            sortField: nextConfig.key,
+            sortDirection: nextConfig.direction,
+            displayTemplate: 'detailed',
+          }),
         });
-
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
-        }
-
+        if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
         const result = await response.json();
-        
         if (result.success) {
           const logData = result.data?.data || result.data || [];
           setLogs(logData);
@@ -247,8 +232,8 @@ const LogGrid = ({ logType, initialSearchParams, initialSearchApprovalId, onInit
           logType: logType.id, // 로그 타입 추가
           page: page,
           pageSize: 10,
-          sortField: sortField,
-          sortDirection: sortDirection,
+        sortField: sortConfig.key,
+        sortDirection: sortConfig.direction,
           displayTemplate: 'detailed'
         })
         });
@@ -389,8 +374,7 @@ const LogGrid = ({ logType, initialSearchParams, initialSearchApprovalId, onInit
         <ImageLogTable
           logs={logs}
           loading={loading}
-          sortField={sortField}
-          sortDirection={sortDirection}
+          sortConfig={sortConfig}
           onSort={handleSort}
           currentPage={currentPage}
           totalPages={totalPages}
@@ -400,11 +384,10 @@ const LogGrid = ({ logType, initialSearchParams, initialSearchApprovalId, onInit
           searchHistoryId={currentApprovalId}
         />
       ) : (
-        <LogTable 
+        <LogTable
           logs={logs}
           loading={loading}
-          sortField={sortField}
-          sortDirection={sortDirection}
+          sortConfig={sortConfig}
           onSort={handleSort}
           currentPage={currentPage}
           totalPages={totalPages}

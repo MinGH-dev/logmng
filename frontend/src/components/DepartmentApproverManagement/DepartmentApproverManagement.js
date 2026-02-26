@@ -6,9 +6,17 @@ import {
   removeDepartmentApprover,
 } from '../../services/departmentService';
 import { getUsers } from '../../services/userService';
+import DataTable, { EmptyTableBody } from '../DataTable';
 import logger from '../../utils/logger';
 import '../UserManagement/UserManagement.css';
 import './DepartmentApproverManagement.css';
+
+const DEPT_APPROVER_COLUMNS = [
+  { key: 'userId', label: '사용자 ID', sortable: false },
+  { key: 'role', label: '역할', sortable: false },
+  { key: 'departmentCode', label: '부서코드', sortable: false },
+  { key: 'actions', label: '동작', sortable: false },
+];
 
 /** API error code → 사용자 메시지 (docs/api-definition.md §12) */
 const getErrorMessage = (e, fallback) => {
@@ -252,47 +260,33 @@ const DepartmentApproverManagement = ({ user }) => {
                         {actionId && actionId.startsWith('add-') ? '처리 중...' : '결재자 추가'}
                       </button>
                     </div>
-                    {approvers.length === 0 ? (
-                      <p>해당 부서에 지정된 결재자가 없습니다.</p>
-                    ) : (
-                      <div className="log-table-container">
-                        <div className="table-wrapper">
-                      <table className="user-management-table log-table" aria-label="부서 결재자 목록">
-                        <thead>
-                          <tr>
-                            <th scope="col">사용자 ID</th>
-                            <th scope="col">역할</th>
-                            <th scope="col">부서코드</th>
-                            <th scope="col">동작</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {approvers.map((row) => {
-                            const userId = row.userId ?? row.username;
-                            return (
-                              <tr key={userId}>
-                                <td>{userId}</td>
-                                <td>{row.role || '-'}</td>
-                                <td>{row.departmentCode ?? row.department_code ?? '-'}</td>
-                                <td>
-                                  <button
-                                    type="button"
-                                    className="user-management-btn remove"
-                                    onClick={() => handleRemoveApprover(userId)}
-                                    disabled={actionId === userId}
-                                    aria-label={`결재자 해제, ${userId}`}
-                                  >
-                                    {actionId === userId ? '처리 중...' : '결재자 해제'}
-                                  </button>
-                                </td>
-                              </tr>
-                            );
-                          })}
-                        </tbody>
-                      </table>
-                        </div>
-                      </div>
-                    )}
+                    <DataTable
+                      columns={DEPT_APPROVER_COLUMNS}
+                      loading={approversLoading}
+                      emptyMessage="해당 부서에 지정된 결재자가 없습니다."
+                      emptyColSpan={4}
+                      ariaLabel="부서 결재자 목록"
+                    >
+                      {approvers.length === 0 ? (
+                        <EmptyTableBody colSpan={4} message="해당 부서에 지정된 결재자가 없습니다." />
+                      ) : (
+                        approvers.map((row) => {
+                          const userId = row.userId ?? row.username;
+                          return (
+                            <tr key={userId}>
+                              <td>{userId}</td>
+                              <td>{row.role || '-'}</td>
+                              <td>{row.departmentCode ?? row.department_code ?? '-'}</td>
+                              <td>
+                                <button type="button" className="user-management-btn remove" onClick={() => handleRemoveApprover(userId)} disabled={actionId === userId} aria-label={`결재자 해제, ${userId}`}>
+                                  {actionId === userId ? '처리 중...' : '결재자 해제'}
+                                </button>
+                              </td>
+                            </tr>
+                          );
+                        })
+                      )}
+                    </DataTable>
                   </>
                 )}
               </>

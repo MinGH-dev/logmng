@@ -136,62 +136,13 @@
   font-weight: 500;
 }
 
-/* 테이블 (grid-and-table.md: container → wrapper → table, sticky header) */
-.activity-log-table-container {
-  border: 1px solid #ddd;
-  border-radius: 4px;
-}
-
-.activity-log-table-container .table-wrapper {
-  overflow: auto;
-  max-height: 70vh;
-}
-
-.activity-log-table {
-  width: 100%;
-  border-collapse: collapse;
-  background: white;
-}
-
-.activity-log-table thead {
-  background-color: #f8f9fa;
-}
-
-.activity-log-table thead th {
-  position: sticky;
-  top: 0;
-  z-index: 10;
-  background-color: #f8f9fa;
-  padding: 12px;
-  text-align: left;
-  font-weight: 600;
-  font-size: 13px;
-  color: #333;
-  border-bottom: 2px solid #dee2e6;
-}
-
-.activity-log-table th {
-  padding: 12px;
-  text-align: left;
-  font-weight: 600;
-  font-size: 13px;
-  color: #333;
-  border-bottom: 2px solid #dee2e6;
-}
-
-.activity-log-table td {
-  padding: 12px;
-  font-size: 13px;
-  color: #666;
-  border-bottom: 1px solid #dee2e6;
-}
-
-.activity-log-table-row {
+/* 테이블: 공통 구조는 DataTable.css. 아래는 활동 이력 전용 오버라이드/행 클래스. */
+.log-table .activity-log-table-row {
   cursor: pointer;
   transition: background-color 0.2s;
 }
 
-.activity-log-table-row:hover {
+.log-table .activity-log-table-row:hover {
   background-color: #f8f9fa;
 }
 
@@ -221,13 +172,7 @@
   color: #721c24;
 }
 
-/* 로딩 및 빈 상태 */
-.activity-log-table-loading,
-.activity-log-table-empty {
-  padding: 40px;
-  text-align: center;
-  color: #666;
-}
+/* 로딩/빈 상태는 DataTable.css .loading-container, .no-data 사용 */
 
 /* 페이지네이션 */
 .pagination {

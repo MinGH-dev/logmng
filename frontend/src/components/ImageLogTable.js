@@ -1,16 +1,28 @@
 import React, { useState } from 'react';
 import { format } from 'date-fns';
-import './LogTable.css';
+import DataTable, { EmptyTableBody } from './DataTable';
 import './ImageLogTable.css';
 import logger from '../utils/logger';
 import { getUserFriendlyErrorMessage } from '../utils/security';
 
+const IMAGE_LOG_COLUMNS = [
+  { key: 'insert_time', label: 'insert_time', sortable: true },
+  { key: 'application', label: 'application', sortable: true },
+  { key: 'servicegroup', label: 'servicegroup', sortable: true },
+  { key: 'service', label: 'service', sortable: true },
+  { key: 'status', label: 'status', sortable: true },
+  { key: 'guid', label: 'guid', sortable: false },
+  { key: 'datastring', label: 'datastring', sortable: false },
+  { key: 'headerstring', label: 'headerstring', sortable: false },
+  { key: 'pretty', label: 'Pretty', sortable: false },
+  { key: 'decrypt', label: '복호화', sortable: false },
+];
+
 const ImageLogTable = ({ 
   logs, 
   loading, 
-  sortField, 
-  sortDirection, 
-  onSort, 
+  sortConfig,
+  onSort,
   currentPage, 
   totalPages, 
   onPageChange,
@@ -18,16 +30,6 @@ const ImageLogTable = ({
   searchParams = {}, // 검색 파라미터 추가
   searchHistoryId = null // 이번 검색에 대한 복호화 승인 이력 ID (있을 때만 복호화 허용)
 }) => {
-  // 정렬 아이콘 렌더링
-  const renderSortIcon = (field) => {
-    if (sortField !== field) {
-      return <span className="sort-icon">↕</span>;
-    }
-    return sortDirection === 'asc' ? 
-      <span className="sort-icon">↑</span> : 
-      <span className="sort-icon">↓</span>;
-  };
-
   // 시간 포맷팅
   const formatTime = (timeString) => {
     if (!timeString) return '';
@@ -369,107 +371,15 @@ const ImageLogTable = ({
     return decryptingLogs.has(logKey);
   };
 
-  // 페이지 번호 생성
-  const getPageNumbers = () => {
-    const pages = [];
-    const maxPages = 10;
-    let startPage = Math.max(1, currentPage - Math.floor(maxPages / 2));
-    let endPage = Math.min(totalPages, startPage + maxPages - 1);
-    
-    if (endPage - startPage < maxPages - 1) {
-      startPage = Math.max(1, endPage - maxPages + 1);
-    }
-    
-    for (let i = startPage; i <= endPage; i++) {
-      pages.push(i);
-    }
-    
-    return pages;
-  };
+  const effectiveSortConfig = sortConfig && sortConfig.key ? sortConfig : null;
+  const pagination = totalPages > 1
+    ? { currentPage, totalPages, onPageChange }
+    : null;
 
-  if (loading) {
-    return (
-      <div className="log-table-container">
-        <div className="loading-container">
-          <div className="loading-spinner"></div>
-          <p>데이터를 불러오는 중...</p>
-        </div>
-      </div>
-    );
-  }
-
-  return (
-    <div className="log-table-container">
-      <div className="table-wrapper">
-        <table className="log-table">
-          <thead>
-            <tr>
-              <th
-                scope="col"
-                className="sortable-header"
-                aria-sort={sortField === 'insert_time' ? (sortDirection === 'asc' ? 'ascending' : 'descending') : 'none'}
-                tabIndex={0}
-                onClick={() => onSort('insert_time')}
-                onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onSort('insert_time'); } }}
-              >
-                insert_time {renderSortIcon('insert_time')}
-              </th>
-              <th
-                scope="col"
-                className="sortable-header"
-                aria-sort={sortField === 'application' ? (sortDirection === 'asc' ? 'ascending' : 'descending') : 'none'}
-                tabIndex={0}
-                onClick={() => onSort('application')}
-                onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onSort('application'); } }}
-              >
-                application {renderSortIcon('application')}
-              </th>
-              <th
-                scope="col"
-                className="sortable-header"
-                aria-sort={sortField === 'servicegroup' ? (sortDirection === 'asc' ? 'ascending' : 'descending') : 'none'}
-                tabIndex={0}
-                onClick={() => onSort('servicegroup')}
-                onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onSort('servicegroup'); } }}
-              >
-                servicegroup {renderSortIcon('servicegroup')}
-              </th>
-              <th
-                scope="col"
-                className="sortable-header"
-                aria-sort={sortField === 'service' ? (sortDirection === 'asc' ? 'ascending' : 'descending') : 'none'}
-                tabIndex={0}
-                onClick={() => onSort('service')}
-                onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onSort('service'); } }}
-              >
-                service {renderSortIcon('service')}
-              </th>
-              <th
-                scope="col"
-                className="sortable-header"
-                aria-sort={sortField === 'status' ? (sortDirection === 'asc' ? 'ascending' : 'descending') : 'none'}
-                tabIndex={0}
-                onClick={() => onSort('status')}
-                onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onSort('status'); } }}
-              >
-                status {renderSortIcon('status')}
-              </th>
-              <th scope="col">guid</th>
-              <th scope="col">datastring</th>
-              <th scope="col">headerstring</th>
-              <th scope="col">Pretty</th>
-              <th scope="col">복호화</th>
-            </tr>
-          </thead>
-          <tbody>
-            {logs.length === 0 ? (
-              <tr>
-                <td colSpan="10" className="no-data">
-                  검색 결과가 없습니다.
-                </td>
-              </tr>
-            ) : (
-              logs.map((log, index) => {
+  const tableBody = logs.length === 0 ? (
+    <EmptyTableBody colSpan={10} message="검색 결과가 없습니다." />
+  ) : (
+    logs.map((log, index) => {
                 const logGuid = log.guid || `log-${index}`;
                 const logStatus = log.status || '';
                 const isPrettyMode = isPretty(logGuid);
@@ -639,55 +549,22 @@ const ImageLogTable = ({
                   </tr>
                 );
               })
-            )}
-          </tbody>
-        </table>
-      </div>
-      
-      {totalPages > 1 && (
-        <div className="pagination">
-          <button 
-            onClick={() => onPageChange(1)}
-            disabled={currentPage === 1}
-            className="page-button"
-          >
-            처음
-          </button>
-          <button 
-            onClick={() => onPageChange(currentPage - 1)}
-            disabled={currentPage === 1}
-            className="page-button"
-          >
-            이전
-          </button>
-          
-          {getPageNumbers().map(page => (
-            <button
-              key={page}
-              onClick={() => onPageChange(page)}
-              className={`page-button ${currentPage === page ? 'active' : ''}`}
-            >
-              {page}
-            </button>
-          ))}
-          
-          <button 
-            onClick={() => onPageChange(currentPage + 1)}
-            disabled={currentPage === totalPages}
-            className="page-button"
-          >
-            다음
-          </button>
-          <button 
-            onClick={() => onPageChange(totalPages)}
-            disabled={currentPage === totalPages}
-            className="page-button"
-          >
-            마지막
-          </button>
-        </div>
-      )}
-      
+  );
+
+  return (
+    <>
+      <DataTable
+        columns={IMAGE_LOG_COLUMNS}
+        sortConfig={effectiveSortConfig}
+        onSort={onSort}
+        loading={loading}
+        emptyMessage="검색 결과가 없습니다."
+        emptyColSpan={10}
+        pagination={pagination}
+        ariaLabel="이미지 로그 검색 결과"
+      >
+        {tableBody}
+      </DataTable>
       {/* 상세 보기 모달 */}
       {selectedLog && (
         <div className="detail-modal-overlay" onClick={handleCloseDetail}>
@@ -768,7 +645,7 @@ const ImageLogTable = ({
           </div>
         </div>
       )}
-    </div>
+    </>
   );
 };
 
