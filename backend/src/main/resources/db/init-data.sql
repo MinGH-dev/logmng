@@ -1,5 +1,5 @@
 -- 초기 샘플 데이터 삽입
--- 실행 순서: department → app_user → decrypt_approver (FK 의존성 유지)
+-- 실행 순서: department → app_user → decrypt_approver → permission_group → app_user_permission_group (FK 의존성 유지)
 
 -- 부서 계층 (요건: 20260225-department-approver-hierarchy). parent_code NULL = 루트
 INSERT INTO department (code, parent_code, name, sort_order)
@@ -24,6 +24,25 @@ ON CONFLICT (username) DO NOTHING;
 INSERT INTO decrypt_approver (user_id, department_code)
 SELECT 'user1', NULL
 WHERE NOT EXISTS (SELECT 1 FROM decrypt_approver WHERE user_id = 'user1' AND department_code IS NULL);
+
+-- 권한 그룹 (요건: 20250227-user-permission-hierarchy-group). permission_group 먼저, 그 다음 사용자–그룹 연결.
+INSERT INTO permission_group (code, name, description, sort_order)
+VALUES
+    ('AUDIT', '감사 권한', '감사 담당자 권한 그룹', 1),
+    ('REPORT', '리포트 권한', '리포트 조회 권한', 2),
+    ('ADMIN_EXT', '관리 확장', NULL, 3)
+ON CONFLICT (code) DO NOTHING;
+
+-- 사용자–권한 그룹 연결: user1 → AUDIT, REPORT; user2 → AUDIT (기존 app_user username 기준).
+INSERT INTO app_user_permission_group (user_id, permission_group_id)
+SELECT 'user1', id FROM permission_group WHERE code = 'AUDIT'
+ON CONFLICT (user_id, permission_group_id) DO NOTHING;
+INSERT INTO app_user_permission_group (user_id, permission_group_id)
+SELECT 'user1', id FROM permission_group WHERE code = 'REPORT'
+ON CONFLICT (user_id, permission_group_id) DO NOTHING;
+INSERT INTO app_user_permission_group (user_id, permission_group_id)
+SELECT 'user2', id FROM permission_group WHERE code = 'AUDIT'
+ON CONFLICT (user_id, permission_group_id) DO NOTHING;
 
 -- 송신 로그 샘플 데이터
 INSERT INTO pb_send (log_timestamp, media_code, tr_code, user_id, ip_address, user_agent, request_data, response_data, status_code, response_time, session_id, device_type)

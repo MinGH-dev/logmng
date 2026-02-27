@@ -404,6 +404,9 @@
 | ALREADY_APPROVER | 해당 부서에 이미 결재자로 등록됨 (400) |
 | FORBIDDEN | 권한 없음(예: 부서/결재자 API는 관리자 전용) (403) |
 | INVALID_INPUT | 부서코드/userId 등 입력값 비어 있음 또는 형식 오류 (400) |
+| PERMISSION_GROUP_NOT_FOUND | 해당 ID의 권한 그룹 없음 (404) |
+| PERMISSION_GROUP_HAS_USERS | 삭제 시 해당 그룹에 사용자 배정 있음 (400) |
+| USER_ALREADY_IN_GROUP | 해당 사용자가 이미 그룹에 배정됨 (400) |
 
 ---
 
@@ -455,3 +458,84 @@
 - **환경·포트**: `docs/contract.md`
 - **사용자 관리·전산요청서·인사배치 등 (미구현 API)**: `specs/user-management.spec.yaml`
 - **정의 위치**: 이 문서는 현재 구현 기준. API 추가/변경 시 이 문서와 `specs/*.spec.yaml`을 먼저 갱신할 것.
+
+---
+
+## 14. 권한 그룹 및 사용자 권한 계층 (관리자 전용)
+
+**Base path (권한 그룹)**: `/api/permission-groups`  
+**사용자 권한 계층**: `GET /api/departments/user-permission-hierarchy`
+
+요건: `docs/requirements/20250227-user-permission-hierarchy-group.md`. 상세 스펙: `specs/permission-group-hierarchy.spec.yaml`.  
+모든 API는 **관리자(role=ADMIN)** 만 호출 가능. 그 외 403, `code: "FORBIDDEN"`.
+
+### 14.1 권한 그룹 목록 조회
+
+- **GET** `/api/permission-groups`
+- **Response (data)**: 배열. 각 항목: `id` (number), `code` (string), `name` (string), `description` (string | null), `sortOrder` (number, 선택)
+- **에러**: 401, 403
+
+### 14.2 권한 그룹 생성
+
+- **POST** `/api/permission-groups`
+- **Request body** (JSON): `code` (string, 필수), `name` (string, 필수), `description` (string, 선택), `sortOrder` (number, 선택, 기본 0)
+- **Response (data)**: 생성된 권한 그룹 객체 (동일 필드 + `id`)
+- **Status**: 201
+- **에러**: 400 (code/name 누락·중복), 401, 403
+
+### 14.3 권한 그룹 상세 조회
+
+- **GET** `/api/permission-groups/{id}`
+- **Path**: `id` — 권한 그룹 ID (Long)
+- **Response (data)**: 단일 권한 그룹 객체
+- **에러**: 401, 403, 404 → `code: "PERMISSION_GROUP_NOT_FOUND"`
+
+### 14.4 권한 그룹 수정
+
+- **PUT** `/api/permission-groups/{id}`
+- **Path**: `id` — 권한 그룹 ID (Long)
+- **Request body** (JSON): `code`, `name`, `description`, `sortOrder` (모두 선택)
+- **Response (data)**: 수정된 권한 그룹 객체
+- **에러**: 400, 401, 403, 404 → "PERMISSION_GROUP_NOT_FOUND"
+
+### 14.5 권한 그룹 삭제
+
+- **DELETE** `/api/permission-groups/{id}`
+- **Path**: `id` — 권한 그룹 ID (Long)
+- **Response (data)**: null 또는 성공 메시지. Status 200 또는 204.
+- **동작**: 해당 그룹에 사용자가 배정되어 있으면 400, `code: "PERMISSION_GROUP_HAS_USERS"` 반환 후 삭제하지 않음 (cascade 미적용).
+- **에러**: 401, 403, 404, 400 (사용자 배정 있음)
+
+### 14.6 권한 그룹에 사용자 배정
+
+- **POST** `/api/permission-groups/{id}/users`
+- **Path**: `id` — 권한 그룹 ID (Long)
+- **Request body** (JSON): `{ "userId": string }` — app_user.username
+- **Response (data)**: `{ "userId", "permissionGroupId", "permissionGroupCode" }` 또는 동일 의미 객체
+- **Status**: 201 또는 200
+- **에러**: 400 (userId 누락), 401, 403, 404 그룹 → "PERMISSION_GROUP_NOT_FOUND", 404 사용자 → "USER_NOT_FOUND", 400 이미 배정 → `code: "USER_ALREADY_IN_GROUP"`
+
+### 14.7 권한 그룹에서 사용자 제거
+
+- **DELETE** `/api/permission-groups/{id}/users/{userId}`
+- **Path**: `id` — 그룹 ID (Long), `userId` — 사용자명(username, string)
+- **Response (data)**: null 또는 성공 메시지. Status 200 또는 204.
+- **에러**: 401, 403, 404
+
+### 14.8 권한 그룹별 사용자 목록 (선택)
+
+- **GET** `/api/permission-groups/{id}/users`
+- **Path**: `id` — 권한 그룹 ID (Long)
+- **Response (data)**: 배열. 각 항목: `userId`, `username`, `departmentCode`, `role` 등 사용자 요약
+- **에러**: 401, 403, 404
+
+### 14.9 사용자 권한 계층 조회
+
+- **GET** `/api/departments/user-permission-hierarchy`
+- **Query**: `format` — "tree"(기본) | "flat"
+- **Response (data)**:
+  - **tree**: 루트 노드 배열. 각 노드: `code`, `parentCode`, `name`, `sortOrder`, `children` (재귀), `users` (배열). `users` 각 항목: `userId` (username), `role`, `permissionGroups` (배열: `{ id, code, name }`).
+  - **flat**: 부서 노드 배열에 `users` 포함(동일 구조), `children` 없음.
+- **에러**: 401, 403
+
+- 기존 부서 트리(code/parent_code)와 동일 구조; 부서별로 해당 department_code를 가진 app_user 목록과 각 사용자의 권한 그룹(permission_group) 목록을 붙여 반환.

@@ -167,6 +167,25 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_decrypt_approver_dept ON decrypt_approver 
 CREATE INDEX IF NOT EXISTS idx_decrypt_approver_user ON decrypt_approver(user_id);
 CREATE INDEX IF NOT EXISTS idx_decrypt_approver_department ON decrypt_approver(department_code);
 
+-- 권한 그룹 (요건: 20250227-user-permission-hierarchy-group). DBA 검토 반영.
+CREATE TABLE IF NOT EXISTS permission_group (
+    id BIGSERIAL PRIMARY KEY,
+    code VARCHAR(50) NOT NULL UNIQUE,
+    name VARCHAR(200) NOT NULL,
+    description TEXT NULL,
+    sort_order INT DEFAULT 0
+);
+
+-- 사용자–권한 그룹 다대다 (user_id = app_user.username). permission_group 삭제 시 CASCADE; 역방향 조회용 인덱스.
+CREATE TABLE IF NOT EXISTS app_user_permission_group (
+    user_id VARCHAR(100) NOT NULL,
+    permission_group_id BIGINT NOT NULL,
+    PRIMARY KEY (user_id, permission_group_id),
+    CONSTRAINT fk_app_user_permission_group_user FOREIGN KEY (user_id) REFERENCES app_user(username) ON DELETE CASCADE,
+    CONSTRAINT fk_app_user_permission_group_group FOREIGN KEY (permission_group_id) REFERENCES permission_group(id) ON DELETE CASCADE
+);
+CREATE INDEX IF NOT EXISTS idx_app_user_permission_group_group ON app_user_permission_group(permission_group_id);
+
 -- 권한 부여
 GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO logmng;
 GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public TO logmng;

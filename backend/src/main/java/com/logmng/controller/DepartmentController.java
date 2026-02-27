@@ -3,10 +3,12 @@ package com.logmng.controller;
 import com.logmng.dto.request.AddApproverRequest;
 import com.logmng.dto.response.ApiResponse;
 import com.logmng.dto.response.DepartmentNodeResponse;
+import com.logmng.dto.response.DepartmentNodeWithUsersResponse;
 import com.logmng.dto.response.UserListItemResponse;
 import com.logmng.exception.CustomException;
 import com.logmng.service.DecryptApproverService;
 import com.logmng.service.DepartmentService;
+import com.logmng.service.UserPermissionHierarchyService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.ResponseEntity;
@@ -30,10 +32,13 @@ public class DepartmentController {
 
     private final DepartmentService departmentService;
     private final DecryptApproverService decryptApproverService;
+    private final UserPermissionHierarchyService userPermissionHierarchyService;
 
-    public DepartmentController(DepartmentService departmentService, DecryptApproverService decryptApproverService) {
+    public DepartmentController(DepartmentService departmentService, DecryptApproverService decryptApproverService,
+                                UserPermissionHierarchyService userPermissionHierarchyService) {
         this.departmentService = departmentService;
         this.decryptApproverService = decryptApproverService;
+        this.userPermissionHierarchyService = userPermissionHierarchyService;
     }
 
     private static boolean hasControlOrHighChars(String s) {
@@ -89,6 +94,22 @@ public class DepartmentController {
             log.info("부서/결재자 API 접근 거부: role={}", role != null ? role : "null");
             throw CustomException.forbidden("관리자만 부서 및 부서별 결재자를 관리할 수 있습니다.", "FORBIDDEN");
         }
+    }
+
+    /**
+     * GET /api/departments/user-permission-hierarchy — 부서별 사용자·권한 그룹 계층. §14.9
+     */
+    @GetMapping("/user-permission-hierarchy")
+    public ResponseEntity<ApiResponse<?>> userPermissionHierarchy(
+            @RequestParam(defaultValue = "tree") String format,
+            HttpServletRequest request) {
+        requireAdmin(request);
+        if ("flat".equalsIgnoreCase(format)) {
+            List<DepartmentNodeWithUsersResponse> data = userPermissionHierarchyService.getHierarchyFlat();
+            return ResponseEntity.ok(ApiResponse.success(data));
+        }
+        List<DepartmentNodeWithUsersResponse> data = userPermissionHierarchyService.getHierarchyTree();
+        return ResponseEntity.ok(ApiResponse.success(data));
     }
 
     /**

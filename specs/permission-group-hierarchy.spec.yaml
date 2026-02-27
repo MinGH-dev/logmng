@@ -1,0 +1,165 @@
+# Permission group management & user-permission hierarchy
+# Requirement: docs/requirements/20250227-user-permission-hierarchy-group.md
+# Contract step: Step 3 — API/DB contract only; no code.
+
+---
+metadata:
+  title: "Permission group CRUD, user-group assignment, user-permission hierarchy"
+  version: "1.0"
+  requirement: "20250227-user-permission-hierarchy-group"
+  status: "draft"
+
+---
+# 1. API contract
+
+Base URL: http://localhost:9200/api (per docs/contract.md).
+All endpoints below are **admin-only** (role=ADMIN). Otherwise 403, code: "FORBIDDEN".
+
+## 1.1 Permission group CRUD
+
+**Base path**: `/api/permission-groups`
+
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | /api/permission-groups | List all permission groups |
+| POST | /api/permission-groups | Create a permission group |
+| GET | /api/permission-groups/{id} | Get one permission group |
+| PUT | /api/permission-groups/{id} | Update a permission group |
+| DELETE | /api/permission-groups/{id} | Delete a permission group |
+
+### GET /api/permission-groups
+- **Response (data)**: array of permission group objects.
+  - `id`: number (BIGINT)
+  - `code`: string (unique)
+  - `name`: string
+  - `description`: string | null
+  - `sortOrder`: number (optional, default 0)
+- **Errors**: 401, 403
+
+### POST /api/permission-groups
+- **Request body** (JSON):
+  - `code`: string (required, unique)
+  - `name`: string (required)
+  - `description`: string (optional)
+  - `sortOrder`: number (optional, default 0)
+- **Response (data)**: created permission group object (same shape as above, with `id`).
+- **Status**: 201 on success.
+- **Errors**: 400 validation (e.g. code/name empty, code duplicate), 401, 403
+
+### GET /api/permission-groups/{id}
+- **Path**: `id` — permission group ID (Long).
+- **Response (data)**: single permission group object.
+- **Errors**: 401, 403, 404 → code: "PERMISSION_GROUP_NOT_FOUND"
+
+### PUT /api/permission-groups/{id}
+- **Path**: `id` — permission group ID (Long).
+- **Request body** (JSON):
+  - `code`: string (optional)
+  - `name`: string (optional)
+  - `description`: string (optional)
+  - `sortOrder`: number (optional)
+- **Response (data)**: updated permission group object.
+- **Errors**: 400 validation, 401, 403, 404 → "PERMISSION_GROUP_NOT_FOUND"
+
+### DELETE /api/permission-groups/{id}
+- **Path**: `id` — permission group ID (Long).
+- **Response (data)**: null or success message. **Status**: 200 or 204.
+- **Behavior**: If users are assigned to the group, either (a) return 400 with code "PERMISSION_GROUP_HAS_USERS" and do not delete, or (b) cascade unassign then delete; contract chooses (a) unless DBA/requirement specifies cascade.
+- **Errors**: 401, 403, 404, 400 if has users and no cascade
+
+## 1.2 User–group assignment
+
+Two equivalent styles allowed; implement one and document in api-definition.
+
+**Option A — group-centric**
+- **POST** `/api/permission-groups/{id}/users` — assign user(s) to group.
+- **DELETE** `/api/permission-groups/{id}/users/{userId}` — remove user from group.
+- **GET** `/api/permission-groups/{id}/users` — list users in group (optional).
+
+**Option B — user-centric**
+- **POST** `/api/users/{userId}/permission-groups` — assign user to group(s).
+- **DELETE** `/api/users/{userId}/permission-groups/{groupId}` — remove user from group.
+
+**Contract choice**: Prefer **Option A** for consistency with department approvers (`/api/departments/{code}/approvers`). userId = `app_user.username` (string).
+
+### POST /api/permission-groups/{id}/users
+- **Path**: `id` — permission group ID (Long).
+- **Request body** (JSON): `{ "userId": string }` — username (app_user.username).
+- **Response (data)**: e.g. `{ "userId", "permissionGroupId", "permissionGroupCode" }` or success message.
+- **Status**: 201 or 200.
+- **Errors**: 400 (userId empty), 401, 403, 404 group → "PERMISSION_GROUP_NOT_FOUND", 404 user → "USER_NOT_FOUND", 400 already assigned → "USER_ALREADY_IN_GROUP"
+
+### DELETE /api/permission-groups/{id}/users/{userId}
+- **Path**: `id` — group ID (Long); `userId` — username (string).
+- **Response (data)**: null or success message. **Status**: 200 or 204.
+- **Errors**: 401, 403, 404
+
+### GET /api/permission-groups/{id}/users (optional)
+- **Response (data)**: array of user summary objects, e.g. `{ "userId", "username", "departmentCode", "role" }`.
+- **Errors**: 401, 403, 404
+
+## 1.3 User-permission hierarchy
+
+Single endpoint that returns department tree with users and their permission groups per department. **Admin-only.**
+
+- **GET** `/api/departments/user-permission-hierarchy`
+
+**Query**: optional `format` — "tree" (default) | "flat". Same semantics as GET /api/departments for tree vs flat.
+
+**Response (data)**:
+- **Tree format**: array of root nodes; each node:
+  - `code`, `parentCode`, `name`, `sortOrder` (per existing department)
+  - `children`: array (recursive same structure)
+  - `users`: array of user-permission objects:
+    - `userId` (username): string
+    - `role`: "ADMIN" | "USER"
+    - `permissionGroups`: array of `{ "id", "code", "name" }` (assigned to this user)
+- **Flat format**: array of department nodes with `code`, `parentCode`, `name`, `sortOrder`, `users` (same shape as above). No `children`.
+
+**Errors**: 401, 403
+
+**Note**: Reuse existing department tree structure (code/parent_code); backend joins app_user (by department_code) and app_user_permission_group + permission_group to attach users and permission groups per department.
+
+---
+# 2. DB contract (for contract.md / schema)
+
+## 2.1 New tables
+
+### permission_group
+- **Definition**: `backend/src/main/resources/db/schema.sql`
+- **Columns**:
+  - `id`: BIGSERIAL PRIMARY KEY
+  - `code`: VARCHAR(50) UNIQUE NOT NULL
+  - `name`: VARCHAR(200) NOT NULL
+  - `description`: TEXT NULL
+  - `sort_order`: INT DEFAULT 0
+- **Indexes**: unique on `code`; optional index on `sort_order` for listing.
+
+### app_user_permission_group
+- **Definition**: `backend/src/main/resources/db/schema.sql`
+- **Columns**:
+  - `user_id`: VARCHAR(100) NOT NULL — references app_user(username)
+  - `permission_group_id`: BIGINT NOT NULL — references permission_group(id)
+  - PRIMARY KEY (user_id, permission_group_id)
+- **Foreign keys**:
+  - FK to app_user(username) ON DELETE CASCADE (or RESTRICT; decide per requirement)
+  - FK to permission_group(id) ON DELETE CASCADE (or RESTRICT)
+- **Indexes**: index on permission_group_id for "users in group" queries.
+
+**Note**: app_user PK is `id` (BIGSERIAL); `username` is UNIQUE. Using username in app_user_permission_group aligns with existing decrypt_approver convention (user_id = username).
+
+## 2.2 Existing tables (no schema change)
+
+- **department**: code, parent_code, name, sort_order — unchanged.
+- **app_user**: id, username, role, department_code, ... — unchanged.
+
+---
+# 3. Error codes to add (api-definition §11)
+
+| code | Meaning |
+|------|--------|
+| PERMISSION_GROUP_NOT_FOUND | No permission group with given id (404) |
+| PERMISSION_GROUP_HAS_USERS | Cannot delete group while users are assigned (400) |
+| USER_ALREADY_IN_GROUP | User already assigned to this group (400) |
+
+Existing: USER_NOT_FOUND, FORBIDDEN, INVALID_INPUT remain as-is.

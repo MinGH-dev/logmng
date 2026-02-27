@@ -10,6 +10,8 @@ import ActivityStatistics from './components/ActivityStatistics';
 import SearchHistoryList from './components/SearchHistory/SearchHistoryList';
 import UserManagement from './components/UserManagement/UserManagement';
 import DepartmentApproverManagement from './components/DepartmentApproverManagement/DepartmentApproverManagement';
+import UserPermissionHierarchy from './components/UserPermissionHierarchy/UserPermissionHierarchy';
+import PermissionGroupManagement from './components/PermissionGroupManagement/PermissionGroupManagement';
 import PendingApprovals from './components/PendingApprovals/PendingApprovals';
 import AppSidebar from './components/AppSidebar';
 import AppBar from './components/AppBar';
@@ -22,7 +24,7 @@ function App() {
   const [loading, setLoading] = useState(true);
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [selectedLogType, setSelectedLogType] = useState(null);
-  const [currentView, setCurrentView] = useState('main'); // 'main' | 'activity-log' | 'statistics' | 'search-history' | 'user-management' | 'department-approvers' | 'pending-approvals'
+  const [currentView, setCurrentView] = useState('main'); // 'main' | 'activity-log' | 'statistics' | 'search-history' | 'user-management' | 'department-approvers' | 'user-permission-hierarchy' | 'permission-group-management' | 'pending-approvals'
   const [initialSearchParams, setInitialSearchParams] = useState(null);
   const [initialSearchApprovalId, setInitialSearchApprovalId] = useState(null);
 
@@ -197,6 +199,8 @@ function App() {
               <UserManagement onShowDepartmentApprovers={() => handleNavigate('department-approvers')} user={user} />
             )}
             {currentView === 'department-approvers' && <DepartmentApproverManagement user={user} />}
+            {currentView === 'user-permission-hierarchy' && <UserPermissionHierarchy user={user} />}
+            {currentView === 'permission-group-management' && <PermissionGroupManagement user={user} />}
             {currentView === 'pending-approvals' && <PendingApprovals />}
             {currentView === 'main' && !selectedLogType && (
               <LogTypeSelector onSelectLogType={handleLogTypeSelect} />
