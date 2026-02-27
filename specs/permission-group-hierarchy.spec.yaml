@@ -213,5 +213,5 @@ APIs that correspond to screens must validate: user has role=ADMIN **or** user h
 | statistics | /api/statistics/* |
 | pending-approvals | /api/search-history/pending, /api/search-history/{id}/approve, /api/search-history/{id}/reject |
 | user-management | /api/users, /api/users/approvers, /api/users/approvers/{userId} |
-| department-approvers | /api/departments, /api/departments/{code}/approvers |
+| department-approvers | /api/departments, /api/departments/{code}/approvers, /api/departments/{code}/members, /api/departments/{code}/approvers/default |
 | user-permission-hierarchy | /api/permission-groups/*, /api/departments/user-permission-hierarchy |
