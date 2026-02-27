@@ -64,6 +64,8 @@ Single reference so **rules**, **commands**, **skills**, **agents**, and related
 - **Delegation** = “who does which step”:
   - Rule: `agent-collaboration.mdc`
   - Docs: `SUBAGENT-DELEGATION.md`, `AGENT-COLLABORATION-ON-REQUIREMENT.md`
+- **Subagent model selection** = "which model each subagent uses" (token optimization, visibility):
+  - Doc: `docs/workflow/SUBAGENT-MODEL-SELECTION.md` — §2.1 override table, §5 model visibility.
 - **Workflow** = “order and gates”:
   - Docs: `WORKFLOW_CHECKLIST.md`, `DEVELOPMENT_WORKFLOW.md`
 - Use the exact doc names above so rules and commands can reference them consistently.

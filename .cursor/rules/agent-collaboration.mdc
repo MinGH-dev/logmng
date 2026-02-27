@@ -19,6 +19,8 @@ When subagent delegation is in effect, the **main agent (default chat)** does no
   - `subagent_type`: the matching type (e.g. Requirements, Backend, Frontend, QA).
   - `prompt`: the exact handoff input (requirement doc path, task description, expected output).
   - `description`: short 3–5 word summary of the task.
+  - `model` (optional): if `docs/workflow/SUBAGENT-MODEL-SELECTION.md` §2.1 defines a model for this subagent, pass that value; else use **fast** for subagents recommended as fast in §1 (e.g. RequirementsPastSearch, Consistency, Documentation, Release, Backend-Auth, Frontend-Log); omit for others.
+- **Reports model to user**: When invoking a subagent, **state in the user-facing message** which subagent and which model are used (e.g. "Delegating to Backend (model: sonnet4.6)…" or "Invoking QA (model: default)…") so the user can see which model ran each agent. See `docs/workflow/SUBAGENT-MODEL-SELECTION.md` §5.
 - If the user says "manual handoff" or "I'll switch myself", or if mcp_task is unavailable, **instruct the user** to switch to that subagent and provide the same input to pass.
 
 The main agent **does not** perform any step itself: no requirement doc, no implementation, no build, no restart, no verification, no §5/§6 update, no commit. **Commit** after QA is done by the **QA subagent** per `.cursor/commands/commit-on-complete.md` (push only when the user requests).

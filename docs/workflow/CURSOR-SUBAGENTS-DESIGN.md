@@ -1,6 +1,6 @@
 # Cursor Subagents Design
 
-This project uses **Cursor Settings Subagents** for role-specific chats. In addition, the **main agent (default chat) directly invokes subagents** via **mcp_task**: when a step has a dedicated subagent, the main agent calls `mcp_task` with the matching `subagent_type` and the handoff prompt, so the user does not need to switch chat and paste input manually. If the user says "manual handoff" or "I'll switch myself", the main agent falls back to instructing the user to switch to that subagent and provide the exact input to pass. See `docs/workflow/SUBAGENT-DELEGATION.md` §2 and §2.2.
+This project uses **Cursor Settings Subagents** for role-specific chats. In addition, the **main agent (default chat) directly invokes subagents** via **mcp_task**: when a step has a dedicated subagent, the main agent calls `mcp_task` with the matching `subagent_type` and the handoff prompt, so the user does not need to switch chat and paste input manually. The main agent may pass an optional `model` parameter (e.g. `fast`, `sonnet4.6`) per `docs/workflow/SUBAGENT-MODEL-SELECTION.md` for token optimization and reports the model used when delegating. If the user says "manual handoff" or "I'll switch myself", the main agent falls back to instructing the user to switch to that subagent and provide the exact input to pass. See `docs/workflow/SUBAGENT-DELEGATION.md` §2 and §2.2.
 
 ---
 

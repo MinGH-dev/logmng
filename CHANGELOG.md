@@ -10,6 +10,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 - **feat**: User permission hierarchy and permission group management (req `20250227-user-permission-hierarchy-group`): single-screen hierarchy by department (code/parent_code), users with role and permission groups per node; permission group CRUD and user assign/remove; new admin menu items; sample data (departments, permission groups, user–group assignments). APIs: `GET /api/departments/user-permission-hierarchy`, `GET/POST/PUT/DELETE /api/permission-groups*`, user–group assign/remove; admin-only (403 for non-admin).
 - **fix**: DB schema and init-data not applied (req `20250227-user-permission-hierarchy-group-bugfix-1`): `setup.sh` updated to use `DB_SUPERUSER` (default `postgres`); schema.sql and init-data.sql applied to target DB; TC-01–TC-09 pass after backend restart. Delivered on `feat/cursor-commit-on-complete`.
+- **docs**: New workflow docs — `DB-AGENT-REVIEW.md` (DB agent role review, apply steps, schema handoff); `QA-BROWSER-TEST-TROUBLESHOOTING.md` (browser automation failures, snapshot/refs, mitigations); `SUBAGENT-MODEL-SELECTION.md` (model per subagent for token optimization, fast vs default).
+- **chore**: `.cursor` and docs updates — agent-collaboration, docs-reference, verify.md, QA.mdc, db-prompt; CURSOR-SUBAGENTS-DESIGN, SUBAGENT-DELEGATION, AGENT-COLLABORATION-ON-REQUIREMENT, CURSOR-AND-TOOLS-INTEGRATION; cursor-subagents db.md, qa-test.md.
 
 ### 2026-02-26
 

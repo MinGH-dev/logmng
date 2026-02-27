@@ -45,6 +45,7 @@
 - Create **Frontend / Backend / DB** (and optionally **Requirements, QA, Contract, Security, DBA, Architecture, Review, Documentation, Release, Consistency, UX**) under **Cursor Settings → Subagents** and paste prompts from **docs/cursor-subagents/** (frontend.md, backend.md, db.md, review.md, documentation.md, release.md, consistency.md, ux-design.md, etc.).
 - **역할 중복 방지**: 동일 영역은 한 에이전트만 담당. 표: **docs/workflow/CURSOR-SUBAGENTS-DESIGN.md** §2.6.
 - **Optional module subagents**: Backend-Auth, Backend-ActivityLog, Backend-Log; Frontend-Auth, Frontend-ActivityLog, Frontend-Log. See **docs/workflow/CURSOR-SUBAGENTS-DESIGN.md** §1.1, §1.2.
+- **Model per agent**: Subagent별 모델 지정(토큰 최적화, 사용자 가시성): **docs/workflow/SUBAGENT-MODEL-SELECTION.md** (§2.1, §5).
 - Design: **docs/workflow/CURSOR-SUBAGENTS-DESIGN.md**
 - `.cursor/subagents/`, the subagent-invoke rule, and run-*-agent commands are **not used** (project uses Cursor built-in Subagents).
 

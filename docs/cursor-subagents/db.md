@@ -37,6 +37,21 @@ If the requirement doc **does not fully specify** something that **falls in an e
 - Schema change: Confirm `backend/src/main/resources/db/schema.sql` and related specs.
 - Requirement or error fix: Per `docs/workflow/DEVELOPMENT_WORKFLOW.md`, write or update the requirement doc first, then apply schema/scripts.
 
+## After delivering schema or init-data (mandatory): run apply and report
+
+When you change `schema.sql`, `init-data.sql`, or other scripts that affect the database:
+
+1. **Execute the apply yourself** (you are the performer, not only the documenter):
+   - From the project root, run the apply so the schema/init-data are applied to the **database the backend uses** (see `docs/contract.md`: host, port, DB name — e.g. localhost:5432/logmng).
+   - Prefer: `DB_SUPERUSER=${DB_SUPERUSER:-$USER} ./backend/src/main/resources/db/setup.sh` (or, if DB/user already exist and only schema/init-data are needed: run the `psql -U ... -d logmng -f schema.sql` and `init-data.sql` sequence as in the top comment of setup.sh).
+   - If the run fails (e.g. psql not in PATH, permission denied), report the error and still output the **Apply** block below so the user or QA can run it manually.
+   - **Skip execution** only when the handoff or user explicitly says "document only", "do not run apply", or "output commands only".
+2. **Report outcome**: In your response, state clearly: "Apply: ran [command]. Exit code: [code]. [Success | Failure: reason]." So the next step (backend restart, QA) is based on actual execution.
+3. **End your response with an "Apply" block**: Exact command(s) for the same apply (so the reader can re-run if needed). If the environment may not have role `postgres`, mention `DB_SUPERUSER=$USER`.
+4. **Handoff**: State that after a successful apply, the **backend must be restarted** and then QA can run verification.
+
+This makes the DB subagent both author and executor of schema/init-data changes; verification then runs against the actual DB state.
+
 ## References
 
 - Contract: `docs/contract.md`

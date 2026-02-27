@@ -47,6 +47,7 @@ The main agent **delegates by directly invoking** subagents. It does **not** exe
   - **subagent_type**: one of Requirements, RequirementsPastSearch, Security, Contract, DBA, Architecture, Consistency, UX, Backend, Frontend, DB, Review, QA, Documentation, Release (must match the step; see table below).
   - **prompt**: the full handoff text (e.g. requirement doc path, user request or error message, task description, expected output).
   - **description**: short task summary (3–5 words).
+  - **model** (optional): for token optimization, pass per **`docs/workflow/SUBAGENT-MODEL-SELECTION.md`** — e.g. `fast` for RequirementsPastSearch, Consistency, Documentation, Release, and module-specific Backend-*/Frontend-*; omit (use default) for Requirements, Security, Contract, DBA, Architecture, UX, Backend, Frontend, DB, Review, QA.
 - **Step → subagent_type mapping** (for mcp_task):  
   Step 1 → Requirements (during authoring, optionally invoke RequirementsPastSearch to preserve past user requests) | Step 1 support → RequirementsPastSearch | Step 2 → Security | Step 3 → Contract, DBA, Architecture, Consistency, UX (as needed) | Step 4 → Backend, Frontend, DB | Step 4.5 → Review | Step 5 → QA | Step 6 → Documentation, Release.  
   For module-specific work use Backend-Auth, Backend-Log, Frontend-Auth, etc. when applicable.
@@ -57,7 +58,8 @@ The main agent **delegates by directly invoking** subagents. It does **not** exe
 ## 2.1 Build and restart (mandatory for Step 4)
 
 - **Frontend / Backend** subagents: When they modify code or config, they **must run build and restart themselves** (from project root) and **include in their handoff** a one-line confirmation, e.g. `Build: [command] exit [code]. Restart: [command] done. QA verification requested.` They do **not** ask the user to run restart; the subagent performs it.
-- **QA** subagent: Performs verification **only after** build and restart are confirmed (from the handoff or by running them). If the handoff does not confirm build/restart, QA **runs the appropriate build and restart itself**, then runs verification. Do not ask the user to run restart; the subagent handles it. This avoids verification on a stale run.
+- **DB** subagent: Does **not** run build or restart. When it delivers schema or init-data changes, it **must run the apply** (execute setup.sh or the documented psql -f schema/init-data commands against the backend's DB per contract), **report the outcome** (success/failure and exit code), and include in its response an **Apply** block so the user or QA can re-run if needed; then note that the backend must be restarted before QA verification. Skip execution only when the handoff says "document only" or "do not run apply". See `docs/cursor-subagents/db.md` § After delivering schema or init-data.
+- **QA** subagent: Performs verification **only after** build and restart are confirmed (from the handoff or by running them). If the handoff does not confirm build/restart, QA **runs the appropriate build and restart itself**, then runs verification. Do not ask the user to run restart; the subagent handles it. This avoids verification on a stale run. When the change set included **DB** (schema/init-data), verification assumes schema has been applied to the backend's DB (localhost:5432/logmng per contract); if not, failure scope is **db** and re-verification is after apply + backend restart.
 
 ---
 
@@ -96,4 +98,5 @@ So the main agent typically: (1) **invokes the Requirements subagent via mcp_tas
 - Collaboration sequence: `docs/workflow/AGENT-COLLABORATION-ON-REQUIREMENT.md`
 - Subagent roles and scope: `docs/workflow/CURSOR-SUBAGENTS-DESIGN.md` §1, §2, §2.6
 - Rule that enforces delegation: `.cursor/rules/agent-collaboration.mdc` §5
+- **Per-agent model (token optimization)**: `docs/workflow/SUBAGENT-MODEL-SELECTION.md` — which subagent_type to invoke with `model: "fast"`.
 - **Delegation management** (위임 흐름 점진적 개선): `.cursor/delegation-mgmt/` — separate from product agents/skills/rules/commands; contains DelegationManager subagent and analysis/backlog/log for small-step improvements.

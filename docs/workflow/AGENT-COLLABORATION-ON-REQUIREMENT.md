@@ -99,6 +99,7 @@ When **Backend**, **Frontend**, or **DB** (Step 4) implement from the requiremen
 When the user is in the **default (main) chat**, the main agent **does not perform** work that belongs to a dedicated subagent. Instead it **instructs the user** to switch to that subagent and pass the right input (requirement doc, context, etc.). This applies to **all steps** (1–6): Requirements, Security, Contract, DBA, Architecture, Consistency, UX, Frontend, Backend, DB, Review, QA, Documentation, Release.
 
 - **Full delegation table** (Step → Subagent → what to pass): `docs/workflow/SUBAGENT-DELEGATION.md`
+- **Model per subagent** (token optimization, user visibility): `docs/workflow/SUBAGENT-MODEL-SELECTION.md` — main agent passes `model` when invoking mcp_task and reports it to the user.
 - **Rule**: `.cursor/rules/agent-collaboration.mdc` §5
 
 Exception: if the user says "code only here", "skip subagent", or "do it in this chat", the main agent may perform the relevant step(s) in the current chat.
@@ -130,5 +131,6 @@ Security, Contract, DBA, and Architecture are added when the requirement scope d
 
 - Checklist order: `docs/workflow/WORKFLOW_CHECKLIST.md`
 - Subagent roles and when to use: `docs/workflow/CURSOR-SUBAGENTS-DESIGN.md`
+- Subagent model selection (per-agent model, visibility): `docs/workflow/SUBAGENT-MODEL-SELECTION.md`
 - Cursor rules and commands: `docs/workflow/CURSOR-AND-TOOLS-INTEGRATION.md`
 - Requirement template: `docs/template/REQUIREMENT_TEMPLATE.md`
