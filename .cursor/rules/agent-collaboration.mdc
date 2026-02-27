@@ -19,7 +19,7 @@ When subagent delegation is in effect, the **main agent (default chat)** does no
   - `subagent_type`: the matching type (e.g. Requirements, Backend, Frontend, QA).
   - `prompt`: the exact handoff input (requirement doc path, task description, expected output).
   - `description`: short 3–5 word summary of the task.
-  - `model` (optional): pass the model from `docs/workflow/SUBAGENT-MODEL-SELECTION.md` §2.1 for this subagent (e.g. `claude-haiku-4.5` for Release, `sonnet4.6` for Backend).
+  - `model` (optional): **Omit** because mcp_task does not accept `claude-haiku-4.5`/`sonnet4.6`. §2.1 model names are for **user-facing report only**.
 - **Reports model to user**: When invoking a subagent, **state in the user-facing message** the subagent and the **actual model name** from `docs/workflow/SUBAGENT-MODEL-SELECTION.md` §2.1 for that subagent (e.g. "Delegating to Backend (model: sonnet4.6)…", "Invoking Release (model: claude-haiku-4.5)…"). Do **not** report "default"; always use the configured model name from §2.1. See `docs/workflow/SUBAGENT-MODEL-SELECTION.md` §5.
 - If the user says "manual handoff" or "I'll switch myself", or if mcp_task is unavailable, **instruct the user** to switch to that subagent and provide the same input to pass.
 

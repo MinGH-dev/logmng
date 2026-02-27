@@ -65,8 +65,9 @@ Maintain a mapping from **subagent_type** to the exact **model** value to pass. 
 | Frontend-Log | `sonnet4.6` | Coding: log UI. |
 | Frontend-ActivityLog | `sonnet4.6` | Coding: activity log UI. |
 
-- **Haiku 4.5가 두 개일 때**: Cursor Settings → Models에서 전체 식별자(예: `claude-haiku-4.5-20241022`, `anthropic/claude-haiku-4.5` 등)를 확인해 사용할 모델을 지정. provider·버전이 다른 경우 정확한 ID를 §2.1에 기입.
-- 그 외: Cursor 식별자와 다르면 §2.1 값을 조정.
+- **mcp_task constraint**: mcp_task currently accepts only `fast` for the `model` parameter. Passing `claude-haiku-4.5` or `sonnet4.6` causes "Invalid model selection" → omit `model`. §2.1 model names are for **user-facing report only** (main agent displays e.g. "model: claude-haiku-4.5").
+- **When two Haiku 4.5 options exist**: Check Cursor Settings → Models for the full identifier and enter it in §2.1.
+- **Otherwise**: Adjust §2.1 values if Cursor uses different identifiers.
 
 ### 2.2 When to override (per-invocation)
 
@@ -78,14 +79,15 @@ Maintain a mapping from **subagent_type** to the exact **model** value to pass. 
 
 ## 3. Main agent usage
 
-When calling **mcp_task**, always pass **model** from §2.1 for that `subagent_type`. No presets; use the exact value from the table.
+- **mcp_task invocation**: Omit the `model` parameter because mcp_task does not accept `claude-haiku-4.5`/`sonnet4.6`. (When Cursor adds support, pass §2.1 values.)
+- **User-facing report**: When delegating, display the model name from §2.1 (e.g. "Invoking Release (model: claude-haiku-4.5)…"). Do not report "default"; use the actual model name.
 
 Examples:
 
-- Light (haiku):  
-  `mcp_task(subagent_type: "Release", description: "CHANGELOG update", prompt: "...", model: "claude-haiku-4.5")`
-- Capable (sonnet):  
-  `mcp_task(subagent_type: "Backend", description: "Implement auth API", prompt: "...", model: "sonnet4.6")`
+- Release (omit model, report only):  
+  `mcp_task(subagent_type: "Release", ...)` → report to user "model: claude-haiku-4.5"
+- Backend (omit model, report only):  
+  `mcp_task(subagent_type: "Backend", ...)` → report to user "model: sonnet4.6"
 
 ---
 

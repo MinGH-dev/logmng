@@ -98,5 +98,5 @@ So the main agent typically: (1) **invokes the Requirements subagent via mcp_tas
 - Collaboration sequence: `docs/workflow/AGENT-COLLABORATION-ON-REQUIREMENT.md`
 - Subagent roles and scope: `docs/workflow/CURSOR-SUBAGENTS-DESIGN.md` §1, §2, §2.6
 - Rule that enforces delegation: `.cursor/rules/agent-collaboration.mdc` §5
-- **Per-agent model (token optimization)**: `docs/workflow/SUBAGENT-MODEL-SELECTION.md` — which subagent_type to invoke with `model: "fast"`.
+- **Per-agent model (token optimization)**: `docs/workflow/SUBAGENT-MODEL-SELECTION.md` — which subagent_type uses which model (e.g. `claude-haiku-4.5`, `sonnet4.6`).
 - **Delegation management** (위임 흐름 점진적 개선): `.cursor/delegation-mgmt/` — separate from product agents/skills/rules/commands; contains DelegationManager subagent and analysis/backlog/log for small-step improvements.
