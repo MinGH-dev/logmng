@@ -6,6 +6,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### 2026-02-27
+
+- **feat**: User permission hierarchy and permission group management (req `20250227-user-permission-hierarchy-group`): single-screen hierarchy by department (code/parent_code), users with role and permission groups per node; permission group CRUD and user assign/remove; new admin menu items; sample data (departments, permission groups, user–group assignments). APIs: `GET /api/departments/user-permission-hierarchy`, `GET/POST/PUT/DELETE /api/permission-groups*`, user–group assign/remove; admin-only (403 for non-admin).
+- **fix**: DB schema and init-data not applied (req `20250227-user-permission-hierarchy-group-bugfix-1`): `setup.sh` updated to use `DB_SUPERUSER` (default `postgres`); schema.sql and init-data.sql applied to target DB; TC-01–TC-09 pass after backend restart. Delivered on `feat/cursor-commit-on-complete`.
+
 ### 2026-02-26
 
 - **UX (공통 사항)**: UX standards compliance audit and common verification — (1) UX standards compliance audit (req `20260225-ux-standards-compliance-audit`): alignment with `docs/design` (layout, grid-and-table, forms-and-filters, date-search, text-input, buttons). (2) Browser automation verification for frontend (TC-01~TC-08, §3.5): mandatory for frontend changes; policy in `docs/workflow/BROWSER-AUTOMATION-VERIFICATION-POLICY.md`. (3) Bugfix-1: date range validation `aria-invalid`/`aria-describedby` (req `20260225-ux-standards-compliance-audit-bugfix-1`). Delivered on `feat/cursor-commit-on-complete`.

@@ -29,6 +29,7 @@
 
 ## 수행 기록 (참고)
 
+- **2026-02-27**: User permission hierarchy + permission group management (req 20250227-user-permission-hierarchy-group, bugfix-1) 반영. CHANGELOG 2026-02-27 항목 추가, 릴리스 커밋 후 `git push` 수행. (1–2, 5 수행)
 - **2026-02-25**: design standards·UX agent 커밋 후 `feat/cursor-commit-on-complete` 푸시 완료. CHANGELOG 2026-02-25 항목 반영. (1–2, 5 수행)
 
 ## 참고
