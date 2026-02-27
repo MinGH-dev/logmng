@@ -11,7 +11,6 @@ import SearchHistoryList from './components/SearchHistory/SearchHistoryList';
 import UserManagement from './components/UserManagement/UserManagement';
 import DepartmentApproverManagement from './components/DepartmentApproverManagement/DepartmentApproverManagement';
 import UserPermissionHierarchy from './components/UserPermissionHierarchy/UserPermissionHierarchy';
-import PermissionGroupManagement from './components/PermissionGroupManagement/PermissionGroupManagement';
 import PendingApprovals from './components/PendingApprovals/PendingApprovals';
 import AppSidebar from './components/AppSidebar';
 import AppBar from './components/AppBar';
@@ -199,8 +198,9 @@ function App() {
               <UserManagement onShowDepartmentApprovers={() => handleNavigate('department-approvers')} user={user} />
             )}
             {currentView === 'department-approvers' && <DepartmentApproverManagement user={user} />}
-            {currentView === 'user-permission-hierarchy' && <UserPermissionHierarchy user={user} />}
-            {currentView === 'permission-group-management' && <PermissionGroupManagement user={user} />}
+            {(currentView === 'user-permission-hierarchy' || currentView === 'permission-group-management') && (
+              <UserPermissionHierarchy user={user} />
+            )}
             {currentView === 'pending-approvals' && <PendingApprovals />}
             {currentView === 'main' && !selectedLogType && (
               <LogTypeSelector onSelectLogType={handleLogTypeSelect} />

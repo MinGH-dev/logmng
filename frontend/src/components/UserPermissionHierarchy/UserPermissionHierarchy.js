@@ -2,8 +2,10 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { getUserPermissionHierarchy } from '../../services/permissionGroupService';
 import { getErrorMessage } from '../../utils/errorMessage';
 import logger from '../../utils/logger';
+import PermissionGroupPanel from '../PermissionGroupManagement/PermissionGroupPanel';
 import '../UserManagement/UserManagement.css';
 import '../DepartmentApproverManagement/DepartmentApproverManagement.css';
+import '../PermissionGroupManagement/PermissionGroupManagement.css';
 import './UserPermissionHierarchy.css';
 
 const HierarchyTree = ({ nodes, expandedCodes, onToggle, level = 0, isRoot = false }) => {
@@ -150,21 +152,27 @@ const UserPermissionHierarchy = ({ user }) => {
   return (
     <div className="user-permission-hierarchy">
       <h2>사용자 권한 계층</h2>
-      <p className="user-permission-hierarchy-hint">부서를 펼치면 해당 부서의 사용자와 권한 그룹을 볼 수 있습니다.</p>
+      <p className="user-permission-hierarchy-hint">부서를 펼치면 해당 부서의 사용자와 권한 그룹을 볼 수 있습니다. 오른쪽에서 권한 그룹을 추가·수정·삭제하고 그룹별 사용자를 할당할 수 있습니다.</p>
       {error && (
         <div className="user-management-error" role="alert">
           {error}
         </div>
       )}
-      {loading ? (
-        <p>목록을 불러오는 중…</p>
-      ) : tree.length === 0 ? (
-        <p>등록된 부서가 없습니다.</p>
-      ) : (
-        <section className="department-tree-section hierarchy-tree-section" aria-label="부서별 사용자 권한 계층">
-          <HierarchyTree nodes={tree} expandedCodes={expandedCodes} onToggle={handleToggle} isRoot />
+      <div className="user-permission-hierarchy-layout">
+        <section className="user-permission-hierarchy-tree-section" aria-label="부서별 사용자 권한 계층">
+          {loading ? (
+            <p>목록을 불러오는 중…</p>
+          ) : tree.length === 0 ? (
+            <p>등록된 부서가 없습니다.</p>
+          ) : (
+            <HierarchyTree nodes={tree} expandedCodes={expandedCodes} onToggle={handleToggle} isRoot />
+          )}
         </section>
-      )}
+        <section className="user-permission-hierarchy-groups-section" aria-label="권한 그룹 목록 및 관리">
+          <h3>권한 그룹</h3>
+          <PermissionGroupPanel user={user} onRefreshHierarchy={loadHierarchy} />
+        </section>
+      </div>
     </div>
   );
 };

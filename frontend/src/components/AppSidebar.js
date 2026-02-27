@@ -14,7 +14,6 @@ import {
   People as PeopleIcon,
   Business as BusinessIcon,
   AccountTree as AccountTreeIcon,
-  Group as GroupIcon,
 } from '@mui/icons-material';
 
 /** §2.1: Submenu indent (24px–32px); use 28px to match 8px grid */
@@ -57,7 +56,6 @@ const MENU_TREE = [
       { id: 'user-management', label: '사용자 관리', view: 'user-management' },
       { id: 'department-approvers', label: '부서별 결재자', view: 'department-approvers' },
       { id: 'user-permission-hierarchy', label: '사용자 권한 계층', view: 'user-permission-hierarchy' },
-      { id: 'permission-group-management', label: '권한 그룹 관리', view: 'permission-group-management' },
     ],
   },
 ];
@@ -71,7 +69,6 @@ const SECOND_ICONS = {
   'user-management': PeopleIcon,
   'department-approvers': BusinessIcon,
   'user-permission-hierarchy': AccountTreeIcon,
-  'permission-group-management': GroupIcon,
 };
 
 function AppSidebar({
