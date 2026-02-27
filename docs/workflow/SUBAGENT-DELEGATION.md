@@ -47,7 +47,7 @@ The main agent **delegates by directly invoking** subagents. It does **not** exe
   - **subagent_type**: one of Requirements, RequirementsPastSearch, Security, Contract, DBA, Architecture, Consistency, UX, Backend, Frontend, DB, Review, QA, Documentation, Release (must match the step; see table below).
   - **prompt**: the full handoff text (e.g. requirement doc path, user request or error message, task description, expected output).
   - **description**: short task summary (3–5 words).
-  - **model** (optional): for token optimization, pass per **`docs/workflow/SUBAGENT-MODEL-SELECTION.md`** — e.g. `fast` for RequirementsPastSearch, Consistency, Documentation, Release, and module-specific Backend-*/Frontend-*; omit (use default) for Requirements, Security, Contract, DBA, Architecture, UX, Backend, Frontend, DB, Review, QA.
+  - **model** (optional): pass per **`docs/workflow/SUBAGENT-MODEL-SELECTION.md`** §2.1 — e.g. `claude-haiku-4.5` for RequirementsPastSearch, Consistency, Documentation, Release; `sonnet4.6` for others.
 - **Step → subagent_type mapping** (for mcp_task):  
   Step 1 → Requirements (during authoring, optionally invoke RequirementsPastSearch to preserve past user requests) | Step 1 support → RequirementsPastSearch | Step 2 → Security | Step 3 → Contract, DBA, Architecture, Consistency, UX (as needed) | Step 4 → Backend, Frontend, DB | Step 4.5 → Review | Step 5 → QA | Step 6 → Documentation, Release.  
   For module-specific work use Backend-Auth, Backend-Log, Frontend-Auth, etc. when applicable.
