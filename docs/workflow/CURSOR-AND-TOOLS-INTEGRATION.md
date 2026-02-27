@@ -2,6 +2,8 @@
 
 Rules, commands, skills, agents, docs, and scripts — **how they connect per workflow step**. Use when integrating with other tools (CLI, IDE, CI). **Language**: All tool-facing docs in English per `docs/workflow/DOCUMENT-LANGUAGE-POLICY.md`.
 
+**Terminology (명칭·구분)**: Definitions and naming conventions for Rule vs Command vs Skill vs Agent are in **`.cursor/TERMINOLOGY.md`**. Use that doc to avoid confusion when adding or referring to .cursor tools.
+
 ---
 
 ## 1. Workflow phase mapping
@@ -9,7 +11,7 @@ Rules, commands, skills, agents, docs, and scripts — **how they connect per wo
 | Phase | Rules (.cursor/rules) | Commands (.cursor/commands) | Skills (.cursor/skills) | Docs (docs/) | Scripts / run |
 |-------|------------------------|-----------------------------|-------------------------|--------------|---------------|
 | **Requirement / plan** | docs-reference, error-first-workflow, workflow-todos, agent-collaboration | plan.md, new-requirement.md, follow-workflow.md | dev-workflow, requirement-doc | WORKFLOW_CHECKLIST.md, DEVELOPMENT_WORKFLOW.md, AGENT-COLLABORATION-ON-REQUIREMENT.md, REQUIREMENT_TEMPLATE.md, DOCUMENT-LANGUAGE-POLICY.md, requirements/ | — |
-| **Development (code)** | contract-first, backend-agent, frontend-agent, db-agent, (module *-Auth, *-ActivityLog, *-Log) | agent-*.md | dev-workflow | contract.md, specs/, CURSOR-SUBAGENTS-DESIGN.md | — |
+| **Development (code)** | contract-first, backend-agent, frontend-agent, db-agent, (module *-Auth, *-ActivityLog, *-Log), agent-collaboration | agent-*.md | dev-workflow | contract.md, specs/, CURSOR-SUBAGENTS-DESIGN.md, SUBAGENT-MODEL-SELECTION.md | — |
 | **Test** | post-change-test-verify, docs-reference | run-tests.md | dev-workflow | DEVELOPMENT_WORKFLOW.md, requirement doc §3·§5 | `cd backend && mvn test`, `cd frontend && npm test -- --watchAll=false` |
 | **Verification (restart / health)** | post-change-test-verify | verify.md, check-backend.md, check-frontend.md, check-frontend-backend.md, check-db.md, restart-*.md | — | verify.md procedure, BUGFIX_CHILD_TEMPLATE.md | `./scripts/dev-services.sh {frontend\|backend\|db\|all} restart` |
 | **Service start/stop** | — | start-*.md, stop-*.md, restart-*.md | — | QUICK_START.md | `./scripts/dev-services.sh <target> <start\|stop\|restart>` |
@@ -26,6 +28,7 @@ Rules, commands, skills, agents, docs, and scripts — **how they connect per wo
 | 요건 문서 작성 | commands: plan.md, new-requirement.md / skills: requirement-doc | docs/template/REQUIREMENT_TEMPLATE.md, docs/requirements/ | — |
 | API·DB 계약 확인 | rules: contract-first.mdc | docs/contract.md, specs/ | — |
 | 어떤 Subagent 쓸지 | agents/*.mdc, commands: agent-*.md | docs/workflow/CURSOR-SUBAGENTS-DESIGN.md (§1, §1.1, §1.2, §1.3) | — |
+| Subagent별 모델 지정 | rules: agent-collaboration.mdc | docs/workflow/SUBAGENT-MODEL-SELECTION.md (§2.1 override, §5 visibility) | — |
 | 요구사항 시 에이전트 협업 순서·인계·역할 중복 방지 | rules: agent-collaboration.mdc | new-requirement.md | docs/workflow/AGENT-COLLABORATION-ON-REQUIREMENT.md, CURSOR-SUBAGENTS-DESIGN.md §2.6 | — |
 | 표준(일관성) 문서 | Consistency 에이전트 | — | docs/workflow/CONSISTENCY-STANDARDS.md |
 | 코드/변경 검토(체크리스트 적용) | Review 에이전트, commands: review.md | — | .cursor/commands/review.md, CONSISTENCY-STANDARDS.md |
@@ -53,7 +56,8 @@ Rules, commands, skills, agents, docs, and scripts — **how they connect per wo
 
 - **에이전트에서 참조하는 문서**  
   - 모든 Backend/Frontend/DB/Contract/QA/Requirements/Security → contract.md, DEVELOPMENT_WORKFLOW.md, REQUIREMENT_TEMPLATE.md.  
-  - 모듈별(Auth, ActivityLog, Log) → 각 프롬프트 파일: docs/cursor-subagents/*.md, CURSOR-SUBAGENTS-DESIGN.md §1.1·§1.2.
+  - 모듈별(Auth, ActivityLog, Log) → 각 프롬프트 파일: docs/cursor-subagents/*.md, CURSOR-SUBAGENTS-DESIGN.md §1.1·§1.2.  
+  - Subagent별 모델 지정·토큰 최적화: SUBAGENT-MODEL-SELECTION.md (§2.1, §5).
 
 ---
 

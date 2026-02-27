@@ -1,3 +1,5 @@
+/* UserStatisticsTable overrides. Base table styles in DataTable.css. */
+
 .user-statistics-table-container {
   margin-top: 30px;
   background-color: white;
@@ -11,65 +13,6 @@
   color: #333;
   font-size: 20px;
   font-weight: 600;
-}
-
-.user-statistics-table-wrapper {
-  overflow-x: auto;
-}
-
-.user-statistics-table {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 14px;
-}
-
-.user-statistics-table thead {
-  background-color: #f8f9fa;
-}
-
-.user-statistics-table th {
-  padding: 12px 16px;
-  text-align: center;
-  font-weight: 600;
-  color: #333;
-  border-bottom: 2px solid #dee2e6;
-  white-space: nowrap;
-  vertical-align: middle;
-}
-
-.user-statistics-table th.log-type-header {
-  background-color: #e9ecef;
-  border-bottom: 1px solid #dee2e6;
-  font-size: 13px;
-}
-
-.user-statistics-table th.sortable {
-  cursor: pointer;
-  user-select: none;
-  transition: background-color 0.2s;
-  position: relative;
-}
-
-.user-statistics-table th.sortable:hover {
-  background-color: #e9ecef;
-}
-
-.sort-icon {
-  display: inline-block;
-  margin-left: 5px;
-  font-size: 12px;
-  color: #007bff;
-  font-weight: bold;
-}
-
-.user-statistics-table td {
-  padding: 12px 16px;
-  border-bottom: 1px solid #e0e0e0;
-  text-align: center;
-}
-
-.user-statistics-table tbody tr:hover {
-  background-color: #f8f9fa;
 }
 
 .user-id-cell {
@@ -87,26 +30,8 @@
   font-weight: 500;
 }
 
-.no-data-message {
-  text-align: center;
-  padding: 40px;
-  color: #999;
-  font-style: italic;
-}
-
-/* 반응형 디자인 */
 @media (max-width: 768px) {
   .user-statistics-table-container {
     padding: 15px;
   }
-
-  .user-statistics-table {
-    font-size: 12px;
-  }
-
-  .user-statistics-table th,
-  .user-statistics-table td {
-    padding: 8px 10px;
-  }
 }
-

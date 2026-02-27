@@ -38,6 +38,7 @@ Only run verification **after** build and restart are confirmed. If the handoff 
 When **Frontend/Backend** have completed **build and restart** (confirmed in handoff or by you), **QA performs verification**:
 
 1. **Run verification**: Per `.cursor/commands/verify.md` — restart and health check. When the change includes **frontend** and a **browser MCP** is available, **you must run step 3.5** (browser check): navigate to http://localhost:3001, run §3 and (if present) §3.5 procedures; produce a **detailed report** (see `docs/workflow/BROWSER-AUTOMATION-VERIFICATION-POLICY.md`).
+   - **Browser MCP (step 3.5)** — **Default (preferred)**: **AgentDeskAI** (user-browser-tools) — use `takeScreenshot`, `runAccessibilityAudit`, `runPerformanceAudit`, `runSEOAudit` when available. For navigate/click/fill: prefer **puppeteer_*** tools when available; if only **cursor-ide-browser** (`browser_*`): **always** `browser_navigate` first, then `browser_lock`, then `browser_snapshot` — **never** call `browser_lock` before navigate. After navigate, **wait 2–3 seconds** before snapshot; if snapshot returns only metadata (no refs), wait and retry once. In §5, **record which tool was used**; if browser verification was skipped, state the reason and recommend manual verification. See `docs/workflow/QA-BROWSER-TEST-TROUBLESHOOTING.md` if issues persist.
 2. **Update §5**: Requirement doc "Test results" section (§5). **Detailed report for browser verification**: tool used, base URL; per-TC Pass/Fail and short note; for each **Fail** include what was checked (selector/ref), expected, actual. For error fixes, also §6 (Error remedy result).
 3. **On verification failure (any scope)**: Do **not** commit. Create a **bugfix child** (`docs/requirements/{parentID}-bugfix-{N}.md`), describe the failure and **identify failure scope** (frontend | backend | db | security | contract | ux | …). **Always hand off to Requirements** (never directly to Frontend/Backend). Requirements formalizes the doc and **delegates to the responsible expert** by scope. When the expert **closes** the issue, they hand off to QA; QA **re-runs verification**. When all issues closed and pass → commit.
 4. **Commit**: Per `.cursor/commands/commit-on-complete.md` (do not push unless the user requests). The main agent does not commit when delegation is in effect; QA completes the chain.
@@ -47,5 +48,6 @@ When **Frontend/Backend** have completed **build and restart** (confirmed in han
 
 - Workflow (verification): `docs/workflow/DEVELOPMENT_WORKFLOW.md`
 - **Browser verification policy** (mandatory for frontend, report format, handoff on failure): `docs/workflow/BROWSER-AUTOMATION-VERIFICATION-POLICY.md`
+- **Browser test troubleshooting** (snapshot no refs, screenshot timeout, MCP choice): `docs/workflow/QA-BROWSER-TEST-TROUBLESHOOTING.md`
 - Requirement template (checklist, test results): `docs/template/REQUIREMENT_TEMPLATE.md`
 - Contract: `docs/contract.md`

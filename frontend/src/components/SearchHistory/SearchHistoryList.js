@@ -4,8 +4,19 @@ import {
   reRequestSearchHistory,
   getSearchHistoryDetail,
 } from '../../services/searchHistoryService';
+import DataTable, { EmptyTableBody } from '../DataTable';
 import './SearchHistory.css';
 import logger from '../../utils/logger';
+
+const SEARCH_HISTORY_COLUMNS = [
+  { key: 'seq', label: '순번', sortable: true },
+  { key: 'requested_at', label: '일시', sortable: true },
+  { key: 'searchParamsSummary', label: '검색 조건', sortable: false },
+  { key: 'approvalStatus', label: '복호화 승인 여부', sortable: false },
+  { key: 'approvalHistory', label: '결재 이력', sortable: false },
+  { key: 'expiresAt', label: '만료일시', sortable: false },
+  { key: 'actions', label: '동작', sortable: false },
+];
 
 const PENDING_SEARCH_KEY = 'pendingSearchFromHistory';
 
@@ -104,6 +115,8 @@ const SearchHistoryList = ({ onBackToMain, onReSearch }) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(20);
+  const [sortConfig, setSortConfig] = useState({ key: 'requested_at', direction: 'desc' });
   const [reRequestingId, setReRequestingId] = useState(null);
   const [detailModalOpen, setDetailModalOpen] = useState(false);
   const [detailData, setDetailData] = useState(null);
@@ -114,7 +127,7 @@ const SearchHistoryList = ({ onBackToMain, onReSearch }) => {
     setLoading(true);
     setError(null);
     try {
-      const result = await getSearchHistoryList(pageNum, 20, 'requested_at', 'desc');
+      const result = await getSearchHistoryList(pageNum, pageSize, sortConfig.key, sortConfig.direction);
       if (result.success && result.data) {
         setList(result.data.data || []);
         setPagination(result.data.pagination || { currentPage: 1, totalPages: 1, totalCount: 0 });
@@ -130,7 +143,20 @@ const SearchHistoryList = ({ onBackToMain, onReSearch }) => {
 
   useEffect(() => {
     loadList(page);
-  }, [page]);
+  }, [page, pageSize, sortConfig.key, sortConfig.direction]);
+
+  const handleSort = (key) => {
+    setSortConfig((prev) => ({
+      key,
+      direction: prev.key === key && prev.direction === 'asc' ? 'desc' : 'asc',
+    }));
+    setPage(1);
+  };
+
+  const handlePageSizeChange = (newSize) => {
+    setPageSize(newSize);
+    setPage(1);
+  };
 
   const handleReRequest = async (id) => {
     setReRequestingId(id);
@@ -202,92 +228,52 @@ const SearchHistoryList = ({ onBackToMain, onReSearch }) => {
     <div className="search-history-list">
       <h2>검색 이력 (복호화 승인)</h2>
       {error && <div className="search-history-error">{error}</div>}
-      {loading ? (
-        <p>목록을 불러오는 중...</p>
-      ) : list.length === 0 ? (
-        <p>검색 이력이 없습니다. 복호화 승인 요청을 한 검색이 여기에 표시됩니다.</p>
-      ) : (
-        <>
-          <div className="log-table-container">
-            <div className="table-wrapper">
-          <table className="search-history-table log-table" aria-label="검색 이력 목록">
-            <thead>
-              <tr>
-                <th scope="col">순번</th>
-                <th scope="col">일시</th>
-                <th scope="col">검색 조건</th>
-                <th scope="col">복호화 승인 여부</th>
-                <th scope="col">결재 이력</th>
-                <th scope="col">만료일시</th>
-                <th scope="col">동작</th>
-              </tr>
-            </thead>
-            <tbody>
-              {list.map((row) => (
-                <tr key={row.id}>
-                  <td>{row.seq}</td>
-                  <td>{row.requestedAt}</td>
-                  <td className="search-history-summary">{row.searchParamsSummary || '-'}</td>
-                  <td>{STATUS_LABEL[row.approvalStatus] || row.approvalStatus}</td>
-                  <ApprovalHistoryCell row={row} />
-                  <td>{row.expiresAt}</td>
-                  <td>
-                    <button
-                      type="button"
-                      className="search-history-btn re-search"
-                      onClick={() => handleReSearch(row)}
-                      aria-label={`재조회, ID ${row.id}`}
-                    >
-                      재조회
-                    </button>
-                    <button
-                      type="button"
-                      className="search-history-btn detail"
-                      onClick={() => handleViewDetail(row)}
-                      aria-label={`자세히 보기, ID ${row.id}`}
-                    >
-                      자세히 보기
-                    </button>
-                    {row.isExpired && (
-                      <button
-                        type="button"
-                        className="search-history-btn re-request"
-                        onClick={() => handleReRequest(row.id)}
-                        disabled={reRequestingId === row.id}
-                        aria-label={reRequestingId === row.id ? '재요청 처리 중' : `재요청, ID ${row.id}`}
-                      >
-                        {reRequestingId === row.id ? '처리 중...' : '재요청'}
-                      </button>
-                    )}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-            </div>
-          </div>
-          <div className="pagination search-history-pagination">
-            <span>총 {pagination.totalCount}건</span>
-            <button
-              type="button"
-              disabled={page <= 1}
-              onClick={() => setPage((p) => Math.max(1, p - 1))}
-              aria-label="이전 페이지"
-            >
-              이전
-            </button>
-            <span aria-live="polite">{page} / {pagination.totalPages || 1}</span>
-            <button
-              type="button"
-              disabled={page >= (pagination.totalPages || 1)}
-              onClick={() => setPage((p) => p + 1)}
-              aria-label="다음 페이지"
-            >
-              다음
-            </button>
-          </div>
-        </>
-      )}
+      <DataTable
+        columns={SEARCH_HISTORY_COLUMNS}
+        sortConfig={sortConfig}
+        onSort={handleSort}
+        loading={loading}
+        emptyMessage="검색 이력이 없습니다. 복호화 승인 요청을 한 검색이 여기에 표시됩니다."
+        emptyColSpan={7}
+        ariaLabel="검색 이력 목록"
+        pagination={
+          (pagination.totalPages || 1) > 1
+            ? {
+                currentPage: page,
+                totalPages: pagination.totalPages || 1,
+                onPageChange: (p) => setPage(p),
+                simple: true,
+                infoText: `총 ${pagination.totalCount}건`,
+              }
+            : null
+        }
+        pageSize={pageSize}
+        onPageSizeChange={handlePageSizeChange}
+      >
+        {list.length === 0 ? (
+          <EmptyTableBody colSpan={7} message="검색 이력이 없습니다. 복호화 승인 요청을 한 검색이 여기에 표시됩니다." />
+        ) : (
+          list.map((row) => (
+            <tr key={row.id}>
+              <td>{row.seq}</td>
+              <td>{row.requestedAt}</td>
+              <td className="search-history-summary">{row.searchParamsSummary || '-'}</td>
+              <td>{STATUS_LABEL[row.approvalStatus] || row.approvalStatus}</td>
+              <ApprovalHistoryCell row={row} />
+              <td>{row.expiresAt}</td>
+              <td>
+                <button type="button" className="search-history-btn re-search" onClick={() => handleReSearch(row)} aria-label={`재조회, ID ${row.id}`}>재조회</button>
+                <button type="button" className="search-history-btn detail" onClick={() => handleViewDetail(row)} aria-label={`자세히 보기, ID ${row.id}`}>자세히 보기</button>
+                {row.isExpired && (
+                  <button type="button" className="search-history-btn re-request" onClick={() => handleReRequest(row.id)} disabled={reRequestingId === row.id} aria-label={reRequestingId === row.id ? '재요청 처리 중' : `재요청, ID ${row.id}`}>
+                    {reRequestingId === row.id ? '처리 중...' : '재요청'}
+                  </button>
+                )}
+              </td>
+            </tr>
+          ))
+        )}
+      </DataTable>
 
       {detailModalOpen && (
         <div

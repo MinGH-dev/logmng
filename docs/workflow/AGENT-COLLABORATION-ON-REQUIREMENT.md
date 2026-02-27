@@ -12,7 +12,7 @@ When a **new requirement** or **error-fix request** occurs, agents collaborate i
 | **2** | **Security** (if PII / decryption / access control) | Requirement doc §1·§2 | §2.1 Security review or security appendix. | Step 3 or 4 |
 | **3** | **Contract** (if API or DB change) | Requirement doc + security if any | Updated `docs/contract.md`, `specs/*.spec.yaml`. | Step 4 |
 | **3b** | **DBA** (if schema / indexing / JSON design) | Requirement doc, schema or spec | Design review; no code. DB implements. | Step 4 |
-| **3c** | **Architecture** (if performance / scale / caching) | Requirement doc, design or spec | Design review; no code. Backend/DB implement. | Step 4 |
+| **3c** | **Architecture** (if performance / scale / caching **or when requirement involves frontend/backend** for commonization) | Requirement doc, design or spec | Design review (performance and **commonization**: frontend/backend shared or common functionality); no code. Backend/Frontend/DB implement. | Step 4 |
 | **3d** | **Consistency** (if new conventions / error codes) | Requirement doc or new convention need | Updated `docs/workflow/CONSISTENCY-STANDARDS.md`. Review applies it. | Step 4, Review |
 | **3d** | **UX** (if UI / design / a11y) | Requirement doc §1·§2, UI description | § UX review or design recommendations. No code. Frontend implements. | Step 4 |
 | **4** | **Backend / Frontend / DB** | Requirement doc, §3, contract/spec, reviews | Code and config; unit/integration tests; **build and restart** (required). **Confirm or update** requirement doc §2 **변경 파일 목록** with actual files changed. When detail is missing, **query the owning expert subagent** (see §1.3). | Step 4.5 or 5 |
@@ -22,7 +22,7 @@ When a **new requirement** or **error-fix request** occurs, agents collaborate i
 | **6** | **Release** (with or after Documentation) | Completed requirement(s), commit scope | CHANGELOG entry, release checklist update. No user guides, no code. | Done |
 
 - **Gate**: Step 1 (requirement doc + §3) must be done **before** any code (Step 4). Same for error fixes.
-- **Optional steps**: Security (PII/decrypt/access); Contract (API/DB change); DBA (schema); Architecture (performance); Consistency (new conventions); UX (UI/design); Review (before QA).
+- **Optional steps**: Security (PII/decrypt/access); Contract (API/DB change); DBA (schema); Architecture (performance **and commonization when frontend/backend**); Consistency (new conventions); UX (UI/design); Review (before QA).
 - **Single source of truth**: Requirement doc is the hub. Each agent updates only its designated sections or owned docs (e.g. Consistency → CONSISTENCY-STANDARDS.md; Review applies it but does not edit it).
 - **Response language**: Agents respond to the user in the **user's requested language** (e.g. Korean when the user writes in Korean). See `.cursor/rules/language-policy.mdc`.
 
@@ -30,13 +30,15 @@ When a **new requirement** or **error-fix request** occurs, agents collaborate i
 
 When the **Requirements** subagent writes the requirement doc, it **must not write §1 (user scenario, expected outcome) and §2 (codebase summary, problem analysis, solution) from its own judgment alone**. Instead it **obtains input in parallel from experts and from development/DB/QA**, then **orchestrates** (merges) that input into §1·§2.
 
-1. **Parallel invocation (consensus input)**  
+1. **Past user requests (when user has not explicitly requested a change)**  
+   When the user has **not** explicitly requested a change to prior behavior or scope, **invoke RequirementsPastSearch** (via mcp_task with subagent_type RequirementsPastSearch when available, or instruct the user to switch and pass the topic/feature). Ask for a summary of **recent user-requested content** from past requirement docs (`docs/requirements/`) so that the new requirement doc **preserves** that content. Use the summary when drafting §1·§2 so continuity is maintained. If the user **has** explicitly requested a change (e.g. "이거 바꿔줘", "검색 필드를 A, B로만"), do not override that with past content.
+2. **Parallel invocation (consensus input)**  
    Invoke **in parallel** (e.g. multiple mcp_task calls in one turn) the following, as applicable to the user request or error:
    - **Experts** (when the requirement touches their domain):
      - **Security**: PII, decryption scope, or access control → request §2.1 or security appendix.
      - **Contract**: API or DB contract/spec change → request contract/spec constraints for §2.
      - **DBA**: schema, indexing, or data design → request design review or constraints for §2.
-     - **Architecture**: performance, scalability, or load → request design review or constraints for §2.
+     - **Architecture**: performance, scalability, or load → request design review or constraints for §2; **and whenever the requirement involves frontend and/or backend implementation** → request **commonization review** (identify shared or common functionality that could be reflected in §2) so the requirement can reflect commonization.
      - **Consistency**: new conventions or error codes → request standards or constraints for §2.
      - **UX**: UI, layout, or a11y → request UX review or design recommendations for §2.
    - **Development / DB / QA** (for scenario, codebase, problem, solution):
@@ -45,14 +47,14 @@ When the **Requirements** subagent writes the requirement doc, it **must not wri
      - **DB**: when schema/DB is involved — codebase summary for DB area, problem analysis, solution ideas for DB.
      - **QA**: user scenario testability, alignment with §3 test cases, edge/regression suggestions.
    - Pass to each: user request or error message, and ask for: (a) user scenario / expected outcome input for §1, (b) codebase summary for their area, (c) problem analysis, (d) solution approach. **State clearly that this is for requirement authoring only: do not implement; return only structured input for §1·§2.** Experts may return only (b)–(d) in their domain; QA focuses on (a) and testability.
-2. **Orchestrate**  
+3. **Orchestrate**  
    Merge the collected responses into:
    - **§1**: user requirement (description), **user scenario**, expected outcome (consensus from experts + Backend/Frontend/DB + QA where provided).
    - **§2**: **codebase summary** (per area), **problem analysis**, **solution approach**, and **변경 파일 목록 (예상)** — tentative change file list; see §1.2.
-3. **Finalize**  
+4. **Finalize**  
    Complete **§3** (test plan) and the requirement doc. When the doc is complete, the flow continues: Step 2 (Security if needed), Step 3 (Contract/DBA/… if needed), then **Step 4** — the responsible subagent implements; after implementation, **Step 5** (QA) and so on.
 
-If the requirement is trivial or purely textual (no codebase/solution), Requirements may skip parallel invocation and write §1·§2 directly, then §3.
+If the requirement is trivial or purely textual (no codebase/solution), Requirements may skip parallel invocation and write §1·§2 directly, then §3. **When the requirement involves frontend and/or backend implementation**, Requirements **should always** invoke **Architecture** (in addition to any performance/scale need) for **commonization review** so that shared or common functionality can be reflected in §2.
 
 ### 1.2 Change file list: tentative in §2, confirmed in Step 4
 
@@ -97,6 +99,7 @@ When **Backend**, **Frontend**, or **DB** (Step 4) implement from the requiremen
 When the user is in the **default (main) chat**, the main agent **does not perform** work that belongs to a dedicated subagent. Instead it **instructs the user** to switch to that subagent and pass the right input (requirement doc, context, etc.). This applies to **all steps** (1–6): Requirements, Security, Contract, DBA, Architecture, Consistency, UX, Frontend, Backend, DB, Review, QA, Documentation, Release.
 
 - **Full delegation table** (Step → Subagent → what to pass): `docs/workflow/SUBAGENT-DELEGATION.md`
+- **Model per subagent** (token optimization, user visibility): `docs/workflow/SUBAGENT-MODEL-SELECTION.md` — main agent passes `model` when invoking mcp_task and reports it to the user.
 - **Rule**: `.cursor/rules/agent-collaboration.mdc` §5
 
 Exception: if the user says "code only here", "skip subagent", or "do it in this chat", the main agent may perform the relevant step(s) in the current chat.
@@ -128,5 +131,6 @@ Security, Contract, DBA, and Architecture are added when the requirement scope d
 
 - Checklist order: `docs/workflow/WORKFLOW_CHECKLIST.md`
 - Subagent roles and when to use: `docs/workflow/CURSOR-SUBAGENTS-DESIGN.md`
+- Subagent model selection (per-agent model, visibility): `docs/workflow/SUBAGENT-MODEL-SELECTION.md`
 - Cursor rules and commands: `docs/workflow/CURSOR-AND-TOOLS-INTEGRATION.md`
 - Requirement template: `docs/template/REQUIREMENT_TEMPLATE.md`

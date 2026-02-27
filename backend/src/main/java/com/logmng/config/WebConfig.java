@@ -12,9 +12,11 @@ import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 public class WebConfig implements WebMvcConfigurer {
 
     private final AuthInterceptor authInterceptor;
+    private final ScreenAccessInterceptor screenAccessInterceptor;
 
-    public WebConfig(AuthInterceptor authInterceptor) {
+    public WebConfig(AuthInterceptor authInterceptor, ScreenAccessInterceptor screenAccessInterceptor) {
         this.authInterceptor = authInterceptor;
+        this.screenAccessInterceptor = screenAccessInterceptor;
     }
 
     @Override
@@ -22,6 +24,9 @@ public class WebConfig implements WebMvcConfigurer {
         registry.addInterceptor(authInterceptor)
                 .addPathPatterns("/api/**")
                 .order(1);
+        registry.addInterceptor(screenAccessInterceptor)
+                .addPathPatterns("/api/**")
+                .order(2);
     }
 
     @Override

@@ -115,6 +115,16 @@
   border-radius: 4px;
 }
 
+.department-approver-default-btn {
+  margin-left: 0.5rem;
+  border-color: #096;
+  color: #096;
+}
+
+.department-approver-default-btn:hover:not(:disabled) {
+  background: #e6f7f4;
+}
+
 .department-approvers-section .user-management-table {
   width: 100%;
 }

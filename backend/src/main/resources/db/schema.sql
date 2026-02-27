@@ -131,12 +131,14 @@ CREATE INDEX IF NOT EXISTS idx_department_parent ON department(parent_code);
 CREATE INDEX IF NOT EXISTS idx_department_parent_sort ON department(parent_code, sort_order);
 
 -- 앱 사용자 (복호화 결재자 지정 요건: 20260224-decryption-approver-designation)
+-- position: 요건 20250227-department-approver-position (직책, 팀장 지정 등)
 CREATE TABLE IF NOT EXISTS app_user (
     id BIGSERIAL PRIMARY KEY,
     username VARCHAR(100) NOT NULL UNIQUE,
     password_hash VARCHAR(255) NOT NULL,
     role VARCHAR(20) NOT NULL,
     department_code VARCHAR(50),
+    position VARCHAR(50) NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT chk_app_user_role CHECK (role IN ('ADMIN', 'USER')),
@@ -166,6 +168,33 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_decrypt_approver_global ON decrypt_approve
 CREATE UNIQUE INDEX IF NOT EXISTS idx_decrypt_approver_dept ON decrypt_approver (user_id, department_code) WHERE department_code IS NOT NULL;
 CREATE INDEX IF NOT EXISTS idx_decrypt_approver_user ON decrypt_approver(user_id);
 CREATE INDEX IF NOT EXISTS idx_decrypt_approver_department ON decrypt_approver(department_code);
+
+-- 권한 그룹 (요건: 20250227-user-permission-hierarchy-group). DBA 검토 반영.
+CREATE TABLE IF NOT EXISTS permission_group (
+    id BIGSERIAL PRIMARY KEY,
+    code VARCHAR(50) NOT NULL UNIQUE,
+    name VARCHAR(200) NOT NULL,
+    description TEXT NULL,
+    sort_order INT DEFAULT 0
+);
+
+-- 사용자–권한 그룹 다대다 (user_id = app_user.username). permission_group 삭제 시 CASCADE; 역방향 조회용 인덱스.
+CREATE TABLE IF NOT EXISTS app_user_permission_group (
+    user_id VARCHAR(100) NOT NULL,
+    permission_group_id BIGINT NOT NULL,
+    PRIMARY KEY (user_id, permission_group_id),
+    CONSTRAINT fk_app_user_permission_group_user FOREIGN KEY (user_id) REFERENCES app_user(username) ON DELETE CASCADE,
+    CONSTRAINT fk_app_user_permission_group_group FOREIGN KEY (permission_group_id) REFERENCES permission_group(id) ON DELETE CASCADE
+);
+CREATE INDEX IF NOT EXISTS idx_app_user_permission_group_group ON app_user_permission_group(permission_group_id);
+
+-- 권한 그룹별 접근 화면 (요건: 20250227-permission-group-screen-menu-access)
+CREATE TABLE IF NOT EXISTS permission_group_screen (
+    permission_group_id BIGINT NOT NULL REFERENCES permission_group(id) ON DELETE CASCADE,
+    screen_id VARCHAR(50) NOT NULL,
+    PRIMARY KEY (permission_group_id, screen_id)
+);
+CREATE INDEX IF NOT EXISTS idx_permission_group_screen_screen ON permission_group_screen(screen_id);
 
 -- 권한 부여
 GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO logmng;

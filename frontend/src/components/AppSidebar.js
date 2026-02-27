@@ -1,19 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { Sidebar, Menu, MenuItem, SubMenu } from 'react-pro-sidebar';
 import { useTheme } from '@mui/material/styles';
-import {
-  Search as SearchIcon,
-  History as HistoryIcon,
-  BarChart as BarChartIcon,
-  Settings as SettingsIcon,
-  Search as SearchSecondIcon,
-  History as HistorySecondIcon,
-  List as ListIcon,
-  PendingActions as PendingIcon,
-  Assessment as AssessmentIcon,
-  People as PeopleIcon,
-  Business as BusinessIcon,
-} from '@mui/icons-material';
+import { MENU_TREE, SECOND_ICONS } from '../constants/menuTree';
 
 /** §2.1: Submenu indent (24px–32px); use 28px to match 8px grid */
 const SUBMENU_INDENT_PX = 28;
@@ -21,56 +9,10 @@ const SUBMENU_INDENT_PX = 28;
 const DRAWER_WIDTH_OPEN = 240;
 const DRAWER_WIDTH_COLLAPSED = 64;
 
-const MENU_TREE = [
-  {
-    id: 'log-search',
-    label: '로그 검색',
-    icon: SearchIcon,
-    children: [
-      { id: 'search-main', label: '검색하기', view: 'main' },
-      { id: 'search-history', label: '검색 이력', view: 'search-history' },
-    ],
-  },
-  {
-    id: 'history',
-    label: '이력·승인',
-    icon: HistoryIcon,
-    children: [
-      { id: 'activity-log', label: '활동 이력', view: 'activity-log' },
-      { id: 'pending-approvals', label: '승인 대기', view: 'pending-approvals' },
-    ],
-  },
-  {
-    id: 'statistics',
-    label: '통계',
-    icon: BarChartIcon,
-    children: [{ id: 'statistics-view', label: '활동로그 통계', view: 'statistics' }],
-  },
-  {
-    id: 'admin',
-    label: '관리',
-    icon: SettingsIcon,
-    adminOnly: true,
-    children: [
-      { id: 'user-management', label: '사용자 관리', view: 'user-management' },
-      { id: 'department-approvers', label: '부서별 결재자', view: 'department-approvers' },
-    ],
-  },
-];
-
-const SECOND_ICONS = {
-  'search-main': SearchSecondIcon,
-  'search-history': HistorySecondIcon,
-  'activity-log': ListIcon,
-  'pending-approvals': PendingIcon,
-  'statistics-view': AssessmentIcon,
-  'user-management': PeopleIcon,
-  'department-approvers': BusinessIcon,
-};
-
 function AppSidebar({
   open,
   isAdmin,
+  allowedScreenIds = [],
   currentView,
   onNavigate,
   onSearchMain,
@@ -82,7 +24,26 @@ function AppSidebar({
     return currentView === item.view;
   };
 
-  const filteredTree = MENU_TREE.filter((node) => !node.adminOnly || isAdmin);
+  const filteredTree = useMemo(() => {
+    return MENU_TREE.filter((node) => {
+      if (node.adminOnly && !isAdmin) {
+        const ids = Array.isArray(allowedScreenIds) ? allowedScreenIds : [];
+        const hasAnyAllowedChild = node.children?.some((c) => c.view && ids.includes(c.view));
+        if (!hasAnyAllowedChild) return false;
+      }
+      if (isAdmin) return true;
+      const ids = Array.isArray(allowedScreenIds) ? allowedScreenIds : [];
+      if (ids.length === 0) return false;
+      const hasAnyAllowedChild = node.children.some((c) => c.view && ids.includes(c.view));
+      return hasAnyAllowedChild;
+    }).map((node) => {
+      if (isAdmin) return node;
+      return {
+        ...node,
+        children: node.children.filter((c) => c.view && allowedScreenIds.includes(c.view)),
+      };
+    });
+  }, [isAdmin, allowedScreenIds]);
 
   /** Controlled open state per SubMenu for aria-expanded (§2.1 a11y) */
   const [openMenus, setOpenMenus] = useState({});

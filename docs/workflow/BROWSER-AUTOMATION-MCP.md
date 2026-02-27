@@ -7,14 +7,32 @@ This project uses **browser automation** during verification and for UX/Frontend
 ### Project-level (recommended)
 
 - **File**: `.cursor/mcp.json` in the project root.
-- **Server**: `@modelcontextprotocol/server-puppeteer` (runs via `npx`; opens a browser window).
-- **Activation**: After editing `.cursor/mcp.json`, **restart Cursor completely** (MCP servers load at startup). Then confirm in Cursor **Settings → Tools & MCP** that the "browser" server is listed and enabled.
+- **Default (preferred)**: **AgentDeskAI** (`@agentdeskai/browser-tools-mcp`) — screenshots, accessibility/performance/SEO audits. Requires: (1) Chrome extension from [AgentDeskAI releases](https://github.com/AgentDeskAI/browser-tools-mcp/releases), (2) run `npx @agentdeskai/browser-tools-server@latest` in a terminal, (3) MCP in `.cursor/mcp.json` as `agentdeskai`.
+- **Fallback**: `@modelcontextprotocol/server-puppeteer` (runs via `npx`; opens a browser window) for navigate/click/fill flows.
+- **Activation**: After editing `.cursor/mcp.json`, **restart Cursor completely** (MCP servers load at startup). Then confirm in Cursor **Settings → Tools & MCP** that the servers are listed and enabled.
 
 ### Alternative: Cursor built-in "cursor-ide-browser"
 
 If your Cursor version provides **cursor-ide-browser** in **Settings → Tools & MCP** and it works, you can enable that instead. Tool names will be `browser_*` (e.g. `browser_navigate`, `browser_snapshot`). If you use that, follow the same procedures below; the tool names in this doc map as identity (no change).
 
-## 2. Tool mapping (Puppeteer MCP vs cursor-ide-browser)
+## 2. Tool mapping
+
+### 2.0 AgentDeskAI (default preferred)
+
+When **AgentDeskAI** (user-browser-tools) is available, QA should prefer:
+
+| Procedure step | AgentDeskAI tool |
+|----------------|------------------|
+| Screenshot     | `takeScreenshot` |
+| Accessibility  | `runAccessibilityAudit` |
+| Performance    | `runPerformanceAudit` |
+| SEO            | `runSEOAudit` |
+| Best practices | `runBestPracticesAudit` |
+| All audits     | `runAuditMode` |
+
+Requires Chrome extension + `npx @agentdeskai/browser-tools-server@latest` running. For navigate/click/fill, use puppeteer or cursor-ide-browser.
+
+### 2.1 Puppeteer MCP vs cursor-ide-browser
 
 When using **@modelcontextprotocol/server-puppeteer** (as in `.cursor/mcp.json`), the tools are named with a `puppeteer_` prefix. Use this mapping when following verify.md step 3.5 or subagent guidance:
 
@@ -28,6 +46,22 @@ When using **@modelcontextprotocol/server-puppeteer** (as in `.cursor/mcp.json`)
 
 - **Lock/unlock**: Puppeteer MCP does not use lock/unlock; use a single flow (navigate → interact → done). For SPA loading, wait a few seconds or poll with another `puppeteer_screenshot` before clicking.
 - **Wait strategy**: Prefer short waits (1–3 s) then take another screenshot or action instead of one long wait.
+
+### 2.2 Browser viewport size (why it’s small and how to change it)
+
+The automation browser often opens with a **small window** (e.g. 800×600) because:
+
+- **Puppeteer MCP** (`server-puppeteer` / `project-0-dev-browser`): default viewport is **800×600**. Screenshot defaults are also 800×600 unless overridden.
+- **cursor-ide-browser**: default tab size may be small depending on the embedded view.
+
+You can get a **larger, desktop-like view** as follows:
+
+| MCP | How to set larger viewport |
+|-----|----------------------------|
+| **cursor-ide-browser** | After `browser_navigate`, call **`browser_resize`** with `width` and `height` (e.g. `width: 1920`, `height: 1080`). |
+| **server-puppeteer / project-0-dev-browser** | On **first** `puppeteer_navigate`, pass **`launchOptions`**: `{ "defaultViewport": { "width": 1920, "height": 1080 } }`. Changing `launchOptions` can restart the browser, so use the same options for the whole session. |
+
+Recommended size for verification: **1920×1080** so layout and tables render like a full HD desktop screen. QA and other subagents running browser verification should use this viewport when opening the app (navigate with launchOptions, or navigate then resize) so §3 test cases run in a consistent, readable view.
 
 ## 3. Where subagents use it
 

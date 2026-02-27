@@ -14,6 +14,7 @@ const UserActivityLogList = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
+  const [pageSize, setPageSize] = useState(20);
   const [selectedLog, setSelectedLog] = useState(null);
   const [searchParams, setSearchParams] = useState({});
   const [authError, setAuthError] = useState(null);
@@ -72,7 +73,7 @@ const UserActivityLogList = () => {
       const requestParams = {
         ...params,
         page: 1,
-        pageSize: 20,
+        pageSize,
       };
 
       logger.debug('🔍 활동 이력 검색 요청:', requestParams);
@@ -120,7 +121,7 @@ const UserActivityLogList = () => {
       const requestParams = {
         ...searchParams,
         page: page,
-        pageSize: 20,
+        pageSize,
       };
 
       const result = await searchActivityLogs(requestParams);
@@ -135,6 +136,23 @@ const UserActivityLogList = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handlePageSizeChange = (newSize) => {
+    setPageSize(newSize);
+    setCurrentPage(1);
+    const requestParams = { ...searchParams, page: 1, pageSize: newSize };
+    setLoading(true);
+    searchActivityLogs(requestParams)
+      .then((result) => {
+        if (result.success && result.data) {
+          setLogs(result.data.data || []);
+          setTotalPages(result.data.pagination?.totalPages || 1);
+          setTotalCount(result.data.pagination?.totalCount || 0);
+        }
+      })
+      .catch((error) => logger.error('❌ 페이지 크기 변경 중 오류:', { error: error.message }))
+      .finally(() => setLoading(false));
   };
 
   // 행 클릭 (상세 조회)
@@ -184,29 +202,13 @@ const UserActivityLogList = () => {
           logs={logs}
           onRowClick={handleRowClick}
           loading={loading}
+          currentPage={currentPage}
+          totalPages={totalPages}
+          onPageChange={handlePageChange}
+          totalCount={totalCount}
+          pageSize={pageSize}
+          onPageSizeChange={handlePageSizeChange}
         />
-
-        {totalPages > 1 && (
-          <div className="pagination">
-            <button
-              className="pagination-button"
-              onClick={() => handlePageChange(currentPage - 1)}
-              disabled={currentPage === 1 || loading}
-            >
-              이전
-            </button>
-            <span className="pagination-info">
-              {currentPage} / {totalPages}
-            </span>
-            <button
-              className="pagination-button"
-              onClick={() => handlePageChange(currentPage + 1)}
-              disabled={currentPage === totalPages || loading}
-            >
-              다음
-            </button>
-          </div>
-        )}
       </div>
 
       {selectedLog && (

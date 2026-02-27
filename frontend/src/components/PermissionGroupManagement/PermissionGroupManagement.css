@@ -1,0 +1,161 @@
+.permission-group-management {
+  padding: 1rem;
+  max-width: 1000px;
+  margin: 0 auto;
+}
+
+.permission-group-management h2 {
+  margin-bottom: 1rem;
+  font-size: 1.25rem;
+}
+
+.permission-group-hint {
+  color: #666;
+  margin-bottom: 1rem;
+  font-size: 0.9rem;
+}
+
+.permission-group-actions {
+  margin-bottom: 1rem;
+}
+
+.permission-group-management .log-table-container .table-wrapper {
+  overflow: auto;
+  max-height: 70vh;
+}
+
+.permission-group-dialog-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.permission-group-dialog {
+  background: #fff;
+  border-radius: 8px;
+  padding: 1.5rem;
+  min-width: 320px;
+  max-width: 90vw;
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+}
+
+.permission-group-dialog-wide {
+  min-width: 420px;
+}
+
+/* Users dialog: flex column, scrollable body, sticky footer */
+.permission-group-dialog-users {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.permission-group-dialog-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  flex-shrink: 0;
+  margin-bottom: 1rem;
+}
+
+.permission-group-dialog-header h3 {
+  margin: 0;
+  flex: 1;
+}
+
+.permission-group-dialog-close {
+  flex-shrink: 0;
+  width: 2rem;
+  height: 2rem;
+  padding: 0;
+  margin-left: 0.5rem;
+  font-size: 1.5rem;
+  line-height: 1;
+  border: none;
+  background: transparent;
+  color: #333;
+  cursor: pointer;
+  border-radius: 4px;
+}
+
+.permission-group-dialog-close:hover {
+  background: rgba(0, 0, 0, 0.08);
+}
+
+.permission-group-dialog-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.permission-group-dialog-footer {
+  flex-shrink: 0;
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid #eee;
+}
+
+/* Table scroll: only table area scrolls, not whole dialog */
+.permission-group-dialog-users .log-table-container {
+  max-height: 50vh;
+  overflow: auto;
+}
+
+.permission-group-dialog-users .log-table-container .table-wrapper {
+  max-height: none;
+}
+
+.permission-group-dialog h3 {
+  margin-top: 0;
+  margin-bottom: 1rem;
+  font-size: 1.1rem;
+}
+
+.permission-group-form-row {
+  margin-bottom: 0.75rem;
+}
+
+.permission-group-form-row label,
+.permission-group-form-row .permission-group-form-label {
+  display: block;
+  margin-bottom: 0.25rem;
+  font-weight: 600;
+}
+
+.permission-group-form-row input {
+  width: 100%;
+  padding: 0.35rem 0.5rem;
+  font-size: 0.95rem;
+  border: 1px solid #666;
+  border-radius: 4px;
+  box-sizing: border-box;
+}
+
+.permission-group-dialog-actions {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 1rem;
+  flex-wrap: wrap;
+}
+
+.permission-group-user-add {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  margin-bottom: 1rem;
+  flex-wrap: wrap;
+}
+
+.permission-group-user-add select {
+  min-width: 180px;
+  padding: 0.35rem 0.5rem;
+  font-size: 0.9rem;
+  border: 1px solid #666;
+  border-radius: 4px;
+}

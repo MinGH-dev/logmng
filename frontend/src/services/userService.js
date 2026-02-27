@@ -52,6 +52,28 @@ export const addApprover = async (userId) => {
 };
 
 /**
+ * 사용자 역할 변경 (관리자 전용)
+ * @param {string} userId - 역할을 변경할 사용자 ID(username)
+ * @param {string} role - "ADMIN" | "USER"
+ * @returns {Promise<{ success: boolean, data: { userId, role, departmentCode, isApprover } }>}
+ */
+export const updateUserRole = async (userId, role) => {
+  const response = await fetchWithCreds(`${API_BASE_URL}/users/${encodeURIComponent(userId)}`, {
+    method: 'PUT',
+    body: JSON.stringify({ role }),
+  });
+  const result = await response.json();
+  if (!response.ok) {
+    const msg = result.error || (response.status === 403 ? '권한이 없습니다.' : `HTTP ${response.status}`);
+    const err = new Error(msg);
+    err.status = response.status;
+    err.code = result.code;
+    throw err;
+  }
+  return result;
+};
+
+/**
  * 결재자 해제 (관리자 전용)
  * @param {string} userId - 결재자에서 해제할 사용자 ID(username)
  */

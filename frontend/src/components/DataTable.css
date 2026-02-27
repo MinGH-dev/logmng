@@ -1,0 +1,250 @@
+/* Unified data table — single source for container, wrapper, table, sort, loading, empty, pagination.
+   See docs/design/grid-and-table.md and docs/workflow/CONSISTENCY-STANDARDS.md §6. */
+
+.log-table-container {
+  padding: 0;
+  width: 100%;
+  height: calc(100vh - 200px);
+  overflow: hidden;
+}
+
+.table-wrapper {
+  overflow: auto;
+  border: none;
+  border-radius: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.table-wrapper::-webkit-scrollbar {
+  height: 8px;
+}
+
+.table-wrapper::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 4px;
+}
+
+.table-wrapper::-webkit-scrollbar-thumb {
+  background: #c1c1c1;
+  border-radius: 4px;
+}
+
+.table-wrapper::-webkit-scrollbar-thumb:hover {
+  background: #a8a8a8;
+}
+
+.log-table {
+  width: 100%;
+  min-width: 100%;
+  border-collapse: collapse;
+  background: white;
+  font-size: 14px;
+  table-layout: auto;
+}
+
+.log-table th,
+.log-table td {
+  padding: 12px 8px;
+  text-align: left;
+  border-bottom: 1px solid #dee2e6;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.log-table th {
+  background-color: #f8f9fa;
+  font-weight: 600;
+  color: #495057;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.sortable-header {
+  cursor: pointer;
+  user-select: none;
+  transition: background-color 0.15s ease-in-out;
+}
+
+.sortable-header:hover {
+  background-color: #e9ecef;
+}
+
+.sort-icon {
+  margin-left: 5px;
+  font-size: 12px;
+  color: #6c757d;
+  display: inline-block;
+  white-space: nowrap;
+}
+
+.log-table tbody tr:hover {
+  background-color: #f8f9fa;
+}
+
+.loading-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 60px 20px;
+  color: #6c757d;
+  min-height: 200px;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.loading-container[aria-live="polite"] {
+  /* when used inside table container for loading state */
+}
+
+.loading-spinner {
+  width: 40px;
+  height: 40px;
+  border: 4px solid #f3f3f3;
+  border-top: 4px solid #007bff;
+  border-radius: 50%;
+  animation: data-table-spin 1s linear infinite;
+  margin-bottom: 15px;
+}
+
+@keyframes data-table-spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.no-data {
+  text-align: center;
+  color: #6c757d;
+  font-style: italic;
+  padding: 40px;
+}
+
+.pagination {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 20px;
+  padding: 15px 0;
+  border-top: 1px solid #dee2e6;
+}
+
+.pagination-info {
+  color: #6c757d;
+  font-size: 14px;
+}
+
+.pagination-buttons {
+  display: flex;
+  gap: 5px;
+}
+
+.pagination-buttons.pagination-simple {
+  align-items: center;
+  gap: 10px;
+}
+
+.rows-per-page {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.rows-per-page-label {
+  font-size: 14px;
+  color: #495057;
+  white-space: nowrap;
+}
+
+.page-size-btn {
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: 1px solid #dee2e6;
+  background: white;
+  border-radius: 4px;
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+  color: #495057;
+}
+
+.page-size-btn:hover:not(:disabled) {
+  background-color: #e9ecef;
+  border-color: #adb5bd;
+}
+
+.page-size-btn:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.page-size-input {
+  width: 56px;
+  padding: 6px 8px;
+  border: 1px solid #dee2e6;
+  border-radius: 4px;
+  font-size: 14px;
+  text-align: center;
+}
+
+.pagination-aria {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.page-btn {
+  padding: 8px 12px;
+  border: 1px solid #dee2e6;
+  background: white;
+  color: #495057;
+  cursor: pointer;
+  border-radius: 4px;
+  font-size: 14px;
+  transition: all 0.15s ease-in-out;
+}
+
+.page-btn:hover:not(:disabled) {
+  background-color: #e9ecef;
+  border-color: #adb5bd;
+}
+
+.page-btn:disabled {
+  cursor: default;
+  opacity: 0.6;
+}
+
+.page-btn.active {
+  background-color: #007bff;
+  color: white;
+  border-color: #007bff;
+}
+
+@media (max-width: 768px) {
+  .log-table {
+    font-size: 12px;
+    min-width: 1200px;
+  }
+
+  .log-table th,
+  .log-table td {
+    padding: 8px 4px;
+  }
+
+  .pagination {
+    flex-direction: column;
+    gap: 10px;
+  }
+}

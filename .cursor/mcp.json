@@ -1,5 +1,9 @@
 {
   "mcpServers": {
+    "agentdeskai": {
+      "command": "npx",
+      "args": ["-y", "@agentdeskai/browser-tools-mcp@latest"]
+    },
     "browser": {
       "command": "npx",
       "args": ["-y", "@modelcontextprotocol/server-puppeteer"]

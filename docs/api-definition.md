@@ -40,6 +40,7 @@
   - `user.username`: string
   - `user.loginTime`: string (yyyy-MM-dd'T'HH:mm:ss)
   - `user.clientIP`: string
+  - `user.allowedScreenIds`: string[] (요건 20250227-permission-group-screen-menu-access) — 사용자 권한 그룹들의 접근 가능 화면 합집합. ADMIN은 전체 화면 또는 생략(전체 접근).
 
 ### 2.2 로그아웃
 
@@ -53,6 +54,10 @@
 - **Response (data)**:
   - `authenticated`: boolean
   - `message`: string
+
+### 2.4 현재 사용자 정보 (GET /api/auth/me, 선택)
+
+- **GET** `/api/auth/me` — 로그인 사용자 정보 반환. 구현 시 응답에 `allowedScreenIds: string[]` 포함 (요건 20250227-permission-group-screen-menu-access). 로그인 응답과 동일 규칙.
 
 ---
 
@@ -308,6 +313,30 @@
 - **Response (data)**: `{ "userId": string, "isApprover": false }` 또는 성공 메시지
 - **에러**: 401 비인증, 403 관리자 아님, 404 해당 사용자 없음
 
+### 7.4 사용자 역할 변경 (요건 20250227-user-management-hierarchy-permissions)
+
+- **PUT** `/api/users/{userId}`
+- **Path**: `userId` — 역할을 변경할 사용자 ID(username, app_user.username)
+- **권한**: 관리자(role=ADMIN)만 호출 가능. 그 외 403, `code: "FORBIDDEN"`.
+- **Request body** (JSON):
+
+| 필드 | 타입 | 필수 | 설명 |
+|------|------|------|------|
+| role | string | O | "ADMIN" \| "USER" — 유효값만 허용 |
+
+- **Response (data)**: 업데이트된 사용자 요약 객체
+  - `userId` (또는 `username`): string
+  - `role`: string — "ADMIN" \| "USER" (변경 후 값)
+  - `departmentCode`: string \| null
+  - `isApprover`: boolean
+- **에러**:
+  - 401 비인증
+  - 403 관리자 아님 → `code: "FORBIDDEN"`
+  - 404 해당 사용자 없음 → `code: "USER_NOT_FOUND"`
+  - 400 role 누락 또는 ADMIN/USER 외 값 → `code: "INVALID_INPUT"`
+  - 400 자기 자신 역할 변경 시도 → `code: "SELF_DEMOTION_BLOCKED"`
+  - 400 마지막 관리자 강등 시도 → `code: "LAST_ADMIN_BLOCKED"`
+
 ---
 
 ## 8. 사용자 활동 이력 (Activity Log)
@@ -402,8 +431,16 @@
 | NOT_APPROVER | 위와 동일 의미. 구현 시 하나로 통일 가능 |
 | DEPARTMENT_NOT_FOUND | 부서 없음 (404) |
 | ALREADY_APPROVER | 해당 부서에 이미 결재자로 등록됨 (400) |
+| USER_NOT_IN_DEPARTMENT | 지정한 사용자가 해당 부서 소속이 아님. 부서별 결재자로 추가 불가 (400) |
 | FORBIDDEN | 권한 없음(예: 부서/결재자 API는 관리자 전용) (403) |
 | INVALID_INPUT | 부서코드/userId 등 입력값 비어 있음 또는 형식 오류 (400) |
+| PERMISSION_GROUP_NOT_FOUND | 해당 ID의 권한 그룹 없음 (404) |
+| PERMISSION_GROUP_HAS_USERS | 삭제 시 해당 그룹에 사용자 배정 있음 (400) |
+| USER_ALREADY_IN_GROUP | 해당 사용자가 이미 그룹에 배정됨 (400) |
+| INVALID_SCREEN_ID | allowedScreens에 허용 목록에 없는 screen_id 포함 (400) |
+| USER_NOT_FOUND | 해당 사용자 없음 (404) |
+| SELF_DEMOTION_BLOCKED | 자기 자신의 역할 변경 시도 (400) |
+| LAST_ADMIN_BLOCKED | 마지막 관리자 강등 시도 (400) |
 
 ---
 
@@ -423,29 +460,44 @@
   - flat: `[{ "code", "parentCode", "name", "sortOrder" }, ...]`
 - **에러**: 401, 403
 
-### 12.2 부서별 결재자 목록
+### 12.2 부서 멤버 목록 조회 (신규, 요건 20250227-department-approver-position)
 
-- **GET** `/api/departments/{code}/approvers`
-- **Response (data)**: 배열 `[{ "userId", "username", "departmentCode"?, ... }]`
+- **GET** `/api/departments/{code}/members`
+- **Response (data)**: 배열 `[{ "userId", "username", "role", "departmentCode", "position", "isApprover" }]` — `department_code = code`인 사용자만. `position`은 직책(직책 없으면 null). `isApprover`는 해당 부서 결재자 여부.
 - **에러**: 401, 403, 404 → `code: "DEPARTMENT_NOT_FOUND"`
 
-### 12.3 부서별 결재자 추가
+### 12.3 부서별 결재자 목록
+
+- **GET** `/api/departments/{code}/approvers`
+- **Response (data)**: 배열 `[{ "userId", "username", "departmentCode", "position", ... }]` — `position` 필드 포함.
+- **에러**: 401, 403, 404 → `code: "DEPARTMENT_NOT_FOUND"`
+
+### 12.4 부서별 결재자 추가
 
 - **POST** `/api/departments/{code}/approvers`
 - **Request body**: `{ "userId": string }`
+- **검증**: `userId`에 해당하는 사용자의 `app_user.department_code`가 `code`와 일치해야 함. 그렇지 않으면 400 `USER_NOT_IN_DEPARTMENT`.
 - **Response (data)**: `{ "userId", "departmentCode", "isApprover": true }`
-- **에러**: 401, 403, 404, 400 이미 해당 부서 결재자 → `code: "DEPARTMENT_NOT_FOUND"`, `"USER_NOT_FOUND"`, `"ALREADY_APPROVER"`
+- **에러**: 401, 403, 404, 400 → `code: "DEPARTMENT_NOT_FOUND"`, `"USER_NOT_FOUND"`, `"ALREADY_APPROVER"`, `"USER_NOT_IN_DEPARTMENT"` (해당 부서 소속 아님)
 
-### 12.4 부서별 결재자 제거
+### 12.5 팀장 지정 (기본 결재자 일괄 추가, 신규, 요건 20250227-department-approver-position)
+
+- **POST** `/api/departments/{code}/approvers/default`
+- **Request body**: 없음
+- **동작**: 해당 부서 멤버 중 `position`에 "팀장"이 포함되고 아직 결재자가 아닌 사용자를 모두 결재자로 추가.
+- **Response (data)**: 추가된 사용자 수 또는 추가된 `userId` 목록 (구현 선택)
+- **에러**: 401, 403, 404 → `code: "DEPARTMENT_NOT_FOUND"`
+
+### 12.6 부서별 결재자 제거
 
 - **DELETE** `/api/departments/{code}/approvers/{userId}`
 - **Response (data)**: `{ "userId", "departmentCode", "isApprover": false }` 또는 성공 메시지
 - **에러**: 401, 403, 404
 
-### 12.5 전역 결재자 API와의 관계
+### 12.7 전역 결재자 API와의 관계
 
 - **GET/POST/DELETE** `/api/users`, `/api/users/approvers`, `/api/users/approvers/{userId}` — **유지**. 전역 결재자(department_code NULL)용.
-- 프론트: 전역 결재자 지정 → §7.2·7.3 사용. 부서별 결재자 지정 → §12.2·12.3·12.4 사용.
+- 프론트: 전역 결재자 지정 → §7.2·7.3 사용. 부서별 결재자·부서 멤버·팀장 지정 → §12.2–12.6 사용.
 - 승인 권한: ADMIN 또는 전역 결재자 또는 요청자 소속 부서(또는 상위 부서) 결재자.
 
 ---
@@ -455,3 +507,85 @@
 - **환경·포트**: `docs/contract.md`
 - **사용자 관리·전산요청서·인사배치 등 (미구현 API)**: `specs/user-management.spec.yaml`
 - **정의 위치**: 이 문서는 현재 구현 기준. API 추가/변경 시 이 문서와 `specs/*.spec.yaml`을 먼저 갱신할 것.
+
+---
+
+## 14. 권한 그룹 및 사용자 권한 계층 (관리자 전용)
+
+**Base path (권한 그룹)**: `/api/permission-groups`  
+**사용자 권한 계층**: `GET /api/departments/user-permission-hierarchy`
+
+요건: `docs/requirements/20250227-user-permission-hierarchy-group.md`, `docs/requirements/20250227-permission-group-screen-menu-access.md`. 상세 스펙: `specs/permission-group-hierarchy.spec.yaml`.  
+모든 API는 **관리자(role=ADMIN)** 만 호출 가능. 그 외 403, `code: "FORBIDDEN"`.  
+**화면 기반 접근**: 화면에 대응하는 API는 사용자가 해당 화면을 권한 그룹으로 허용받았거나 ADMIN이어야 함. 그 외 403. 화면↔API 매핑: `specs/permission-group-hierarchy.spec.yaml` §4.3.
+
+### 14.1 권한 그룹 목록 조회
+
+- **GET** `/api/permission-groups`
+- **Response (data)**: 배열. 각 항목: `id` (number), `code` (string), `name` (string), `description` (string | null), `sortOrder` (number, 선택), `allowedScreens` (string[], 요건 20250227-permission-group-screen-menu-access)
+- **에러**: 401, 403
+
+### 14.2 권한 그룹 생성
+
+- **POST** `/api/permission-groups`
+- **Request body** (JSON): `code` (string, 필수), `name` (string, 필수), `description` (string, 선택), `sortOrder` (number, 선택, 기본 0), `allowedScreens` (string[], 선택 — 허용 화면 목록; 그 외 400 `INVALID_SCREEN_ID`)
+- **Response (data)**: 생성된 권한 그룹 객체 (동일 필드 + `id`, `allowedScreens`)
+- **Status**: 201
+- **에러**: 400 (code/name 누락·중복), 401, 403
+
+### 14.3 권한 그룹 상세 조회
+
+- **GET** `/api/permission-groups/{id}`
+- **Path**: `id` — 권한 그룹 ID (Long)
+- **Response (data)**: 단일 권한 그룹 객체
+- **에러**: 401, 403, 404 → `code: "PERMISSION_GROUP_NOT_FOUND"`
+
+### 14.4 권한 그룹 수정
+
+- **PUT** `/api/permission-groups/{id}`
+- **Path**: `id` — 권한 그룹 ID (Long)
+- **Request body** (JSON): `code`, `name`, `description`, `sortOrder`, `allowedScreens` (string[], 모두 선택). `allowedScreens`는 허용 화면 목록에 있는 값만; 그 외 400 `INVALID_SCREEN_ID`
+- **Response (data)**: 수정된 권한 그룹 객체
+- **에러**: 400, 401, 403, 404 → "PERMISSION_GROUP_NOT_FOUND"
+
+### 14.5 권한 그룹 삭제
+
+- **DELETE** `/api/permission-groups/{id}`
+- **Path**: `id` — 권한 그룹 ID (Long)
+- **Response (data)**: null 또는 성공 메시지. Status 200 또는 204.
+- **동작**: 해당 그룹에 사용자가 배정되어 있으면 400, `code: "PERMISSION_GROUP_HAS_USERS"` 반환 후 삭제하지 않음 (cascade 미적용).
+- **에러**: 401, 403, 404, 400 (사용자 배정 있음)
+
+### 14.6 권한 그룹에 사용자 배정
+
+- **POST** `/api/permission-groups/{id}/users`
+- **Path**: `id` — 권한 그룹 ID (Long)
+- **Request body** (JSON): `{ "userId": string }` — app_user.username
+- **Response (data)**: `{ "userId", "permissionGroupId", "permissionGroupCode" }` 또는 동일 의미 객체
+- **Status**: 201 또는 200
+- **에러**: 400 (userId 누락), 401, 403, 404 그룹 → "PERMISSION_GROUP_NOT_FOUND", 404 사용자 → "USER_NOT_FOUND", 400 이미 배정 → `code: "USER_ALREADY_IN_GROUP"`
+
+### 14.7 권한 그룹에서 사용자 제거
+
+- **DELETE** `/api/permission-groups/{id}/users/{userId}`
+- **Path**: `id` — 그룹 ID (Long), `userId` — 사용자명(username, string)
+- **Response (data)**: null 또는 성공 메시지. Status 200 또는 204.
+- **에러**: 401, 403, 404
+
+### 14.8 권한 그룹별 사용자 목록 (선택)
+
+- **GET** `/api/permission-groups/{id}/users`
+- **Path**: `id` — 권한 그룹 ID (Long)
+- **Response (data)**: 배열. 각 항목: `userId`, `username`, `departmentCode`, `role` 등 사용자 요약
+- **에러**: 401, 403, 404
+
+### 14.9 사용자 권한 계층 조회
+
+- **GET** `/api/departments/user-permission-hierarchy`
+- **Query**: `format` — "tree"(기본) | "flat"
+- **Response (data)**:
+  - **tree**: 루트 노드 배열. 각 노드: `code`, `parentCode`, `name`, `sortOrder`, `children` (재귀), `users` (배열). `users` 각 항목: `userId` (username), `role`, `permissionGroups` (배열: `{ id, code, name }`).
+  - **flat**: 부서 노드 배열에 `users` 포함(동일 구조), `children` 없음.
+- **에러**: 401, 403
+
+- 기존 부서 트리(code/parent_code)와 동일 구조; 부서별로 해당 department_code를 가진 app_user 목록과 각 사용자의 권한 그룹(permission_group) 목록을 붙여 반환.

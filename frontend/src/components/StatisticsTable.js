@@ -1,18 +1,22 @@
 import React, { useMemo } from 'react';
+import DataTable, { EmptyTableBody } from './DataTable';
 import './StatisticsTable.css';
+
+const STAT_COLUMNS = [
+  { key: 'date', label: '날짜', sortable: true },
+  { key: 'totalSearches', label: '검색 횟수', sortable: true },
+  { key: 'totalDecrypts', label: '복호화 횟수', sortable: true },
+  { key: 'totalLogins', label: '로그인 횟수', sortable: true },
+];
 
 const StatisticsTable = ({ statisticsData, statisticsType, sortConfig, onSort }) => {
   const sortedData = useMemo(() => {
     if (!statisticsData || !statisticsData.dailyStats) return [];
-
     let data = [...statisticsData.dailyStats];
-
     if (sortConfig.key) {
       data.sort((a, b) => {
         let aValue = a[sortConfig.key];
         let bValue = b[sortConfig.key];
-
-        // 사용자별 통계의 경우 필드명이 다름
         if (statisticsType === 'user') {
           if (sortConfig.key === 'totalSearches') aValue = a.searchCount || 0;
           if (sortConfig.key === 'totalSearches') bValue = b.searchCount || 0;
@@ -21,72 +25,45 @@ const StatisticsTable = ({ statisticsData, statisticsType, sortConfig, onSort })
           if (sortConfig.key === 'totalLogins') aValue = a.loginCount || 0;
           if (sortConfig.key === 'totalLogins') bValue = b.loginCount || 0;
         }
-
         if (typeof aValue === 'string') {
           aValue = aValue.toLowerCase();
           bValue = bValue.toLowerCase();
         }
-
-        if (aValue < bValue) {
-          return sortConfig.direction === 'asc' ? -1 : 1;
-        }
-        if (aValue > bValue) {
-          return sortConfig.direction === 'asc' ? 1 : -1;
-        }
+        if (aValue < bValue) return sortConfig.direction === 'asc' ? -1 : 1;
+        if (aValue > bValue) return sortConfig.direction === 'asc' ? 1 : -1;
         return 0;
       });
     }
-
     return data;
   }, [statisticsData, sortConfig, statisticsType]);
 
-  const handleSort = (key) => {
-    onSort(key);
-  };
-
-  const getSortIcon = (key) => {
-    if (sortConfig.key !== key) return '⇅';
-    return sortConfig.direction === 'asc' ? '↑' : '↓';
-  };
-
   if (!statisticsData) return null;
+
+  const hasData = sortedData.length > 0;
 
   return (
     <div className="statistics-table">
-      <table>
-        <thead>
-          <tr>
-            <th onClick={() => handleSort('date')}>
-              날짜 {getSortIcon('date')}
-            </th>
-            <th onClick={() => handleSort('totalSearches')}>
-              검색 횟수 {getSortIcon('totalSearches')}
-            </th>
-            <th onClick={() => handleSort('totalDecrypts')}>
-              복호화 횟수 {getSortIcon('totalDecrypts')}
-            </th>
-            <th onClick={() => handleSort('totalLogins')}>
-              로그인 횟수 {getSortIcon('totalLogins')}
-            </th>
-          </tr>
-        </thead>
-        <tbody>
-          {sortedData.length === 0 ? (
-            <tr>
-              <td colSpan="4">데이터가 없습니다.</td>
+      <DataTable
+        columns={STAT_COLUMNS}
+        sortConfig={sortConfig.key ? sortConfig : null}
+        onSort={onSort}
+        emptyMessage="데이터가 없습니다."
+        emptyColSpan={4}
+        ariaLabel="일별 통계"
+      >
+        {!hasData ? (
+          <EmptyTableBody colSpan={4} message="데이터가 없습니다." />
+        ) : (
+          sortedData.map((stat, index) => (
+            <tr key={index}>
+              <td>{stat.date}</td>
+              <td>{statisticsType === 'user' ? (stat.searchCount || 0) : (stat.totalSearches || 0)}</td>
+              <td>{statisticsType === 'user' ? (stat.decryptCount || 0) : (stat.totalDecrypts || 0)}</td>
+              <td>{statisticsType === 'user' ? (stat.loginCount || 0) : (stat.totalLogins || 0)}</td>
             </tr>
-          ) : (
-            sortedData.map((stat, index) => (
-              <tr key={index}>
-                <td>{stat.date}</td>
-                <td>{statisticsType === 'user' ? (stat.searchCount || 0) : (stat.totalSearches || 0)}</td>
-                <td>{statisticsType === 'user' ? (stat.decryptCount || 0) : (stat.totalDecrypts || 0)}</td>
-                <td>{statisticsType === 'user' ? (stat.loginCount || 0) : (stat.totalLogins || 0)}</td>
-              </tr>
-            ))
-          )}
-        </tbody>
-      </table>
+          ))
+        )}
+      </DataTable>
 
       {statisticsData.summary && (
         <div className="summary">
@@ -104,8 +81,3 @@ const StatisticsTable = ({ statisticsData, statisticsType, sortConfig, onSort })
 };
 
 export default StatisticsTable;
-
-
-
-
-

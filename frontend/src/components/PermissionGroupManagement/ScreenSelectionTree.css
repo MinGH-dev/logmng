@@ -1,0 +1,46 @@
+.screen-selection-tree {
+  margin-top: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.screen-selection-group {
+  margin-bottom: 0.75rem;
+}
+
+.screen-selection-group-header {
+  font-weight: 600;
+  font-size: 0.9rem;
+  margin-bottom: 0.35rem;
+  color: #333;
+}
+
+.screen-selection-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  padding-left: 1rem;
+}
+
+.screen-selection-item {
+  margin: 0;
+}
+
+.screen-selection-label {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  cursor: pointer;
+  padding: 0.25rem 0;
+  font-size: 0.9rem;
+}
+
+.screen-selection-label input[type="checkbox"] {
+  cursor: pointer;
+  width: 1rem;
+  height: 1rem;
+}
+
+.screen-selection-label input[type="checkbox"]:focus {
+  outline: 2px solid #07c;
+  outline-offset: 2px;
+}

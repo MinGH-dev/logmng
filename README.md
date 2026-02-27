@@ -11,15 +11,16 @@
 dev/
 ├── frontend/          # React (포트 3001)
 ├── backend/           # Spring Boot (포트 9200)
-├── docs/              # 요건·계약·워크플로우·템플릿
+├── docs/              # 개발 관련 문서만 (요건·계약·워크플로우·템플릿)
 │   ├── contract.md    # API·DB·포트 계약
 │   ├── QUICK_START.md # 빠른 시작
-│   ├── workflow/      # 워크플로우·서브에이전트 위임
+│   ├── workflow/      # 워크플로우·위임 표(실행 시 참조)
 │   ├── template/      # 요건·버그픽스 템플릿
 │   ├── requirements/  # 요건 문서 (yyyyMMdd-이름.md)
 │   └── design/        # UX 설계 표준
 ├── scripts/           # 서비스 기동/중지 (dev-services.sh)
 └── .cursor/           # 규칙·커맨드·스킬·에이전트
+    └── delegation-mgmt/   # 서브에이전트 개선·위임 관리 문서(개발 문서와 분리)
 ```
 
 ---
@@ -107,8 +108,8 @@ flowchart TB
   subgraph experts["Step 2–3 (필요 시)"]
     Sec[Security]
     Ctr[Contract]
-    DBA[DBA]
-    Arch[Architecture]
+    DBA[DBA · Review]
+    Arch[Architecture<br/>성능·공통화 검토]
     Cons[Consistency]
     UX[UX]
   end
@@ -116,7 +117,7 @@ flowchart TB
   subgraph step4["Step 4 구현"]
     Fe[Frontend]
     Be[Backend]
-    Db[DB]
+    Db[DB · Schema]
   end
 
   subgraph step45["Step 4.5 (선택)"]
@@ -158,9 +159,13 @@ flowchart TB
 
 - **실선(→)**: 메인 또는 해당 단계에서의 정해진 위임.
 - **점선(-.->)**: 선택·병렬 참고(Requirements 작성 중 전문가 참고, Review 선택).
+- **DB vs DBA**: **DB (Schema)** = 스키마·마이그레이션·설정 구현(코드 수정). **DBA (Review)** = 스키마/설계 검토만(코드 수정 없음). 명칭 구분 기준: [.cursor/TERMINOLOGY.md §2.6](.cursor/TERMINOLOGY.md).
+- **Architecture**: 성능·확장성 검토에 더해, **요구사항에 frontend/backend 구현이 포함되면 공통화(commonization) 검토**를 수행해 §2에 반영합니다. 공통 전담 에이전트 도입 옵션은 [CURSOR-SUBAGENTS-DESIGN §5.1](docs/workflow/CURSOR-SUBAGENTS-DESIGN.md) 참고.
 - **검증 실패 시**: QA → Requirements → 실패 범위(frontend|backend|db|…)에 따라 **해당 전문가만** 위임 → 수정 후 QA 재검증.
 
 상세 표·mcp_task 매핑: [docs/workflow/SUBAGENT-DELEGATION.md](docs/workflow/SUBAGENT-DELEGATION.md)
+
+위임 흐름을 **점진적으로 개선**할 때: [.cursor/delegation-mgmt/](.cursor/delegation-mgmt/) (DelegationManager 서브에이전트·분석·백로그 — 제품 agents/skills/rules/commands와 분리).
 
 ---
 
@@ -171,10 +176,13 @@ flowchart TB
 | [docs/workflow/WORKFLOW_CHECKLIST.md](docs/workflow/WORKFLOW_CHECKLIST.md) | **워크플로우 순서·게이트** (먼저 읽기) |
 | [docs/workflow/DEVELOPMENT_WORKFLOW.md](docs/workflow/DEVELOPMENT_WORKFLOW.md) | 개발 워크플로우 상세·예시 |
 | [docs/workflow/SUBAGENT-DELEGATION.md](docs/workflow/SUBAGENT-DELEGATION.md) | 서브에이전트 위임 표 |
+| [docs/workflow/CURSOR-SUBAGENTS-DESIGN.md](docs/workflow/CURSOR-SUBAGENTS-DESIGN.md) | 서브에이전트 역할·경계·공통화 검토·Common 에이전트 옵션(§5.1) |
 | [docs/README.md](docs/README.md) | 개발 문서 구조·요건 요청 방법·Cursor 명령 정리 |
 | [docs/QUICK_START.md](docs/QUICK_START.md) | 개발 환경·실행·검증 |
 | [docs/contract.md](docs/contract.md) | API·DB·포트 계약 |
 | [docs/CURSOR-PROMPTING-GUIDE.md](docs/CURSOR-PROMPTING-GUIDE.md) | Cursor 프롬프팅 가이드 — 요청 예시·서브에이전트 (필요 시 참고) |
+| [.cursor/TERMINOLOGY.md](.cursor/TERMINOLOGY.md) | **.cursor 명칭·구분** — Rule / Command / Skill / Agent 정의 및 네이밍 규칙 (혼선 방지) |
+| [.cursor/delegation-mgmt/](.cursor/delegation-mgmt/) | **위임 관리** — DelegationManager, 부작용·대응 분석, 점진적 개선 백로그 (제품 에이전트와 분리) |
 
 ---
 

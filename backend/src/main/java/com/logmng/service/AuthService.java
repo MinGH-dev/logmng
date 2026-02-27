@@ -11,11 +11,15 @@ import org.springframework.stereotype.Service;
 
 import javax.sql.DataSource;
 import jakarta.servlet.http.HttpServletRequest;
+
+import com.logmng.constants.ScreenConstants;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * 인증 서비스. 로그인은 app_user 테이블 기준(DataSource).
@@ -27,13 +31,15 @@ public class AuthService {
 
     private final IpUtil ipUtil;
     private final DataSource dataSource;
+    private final PermissionGroupService permissionGroupService;
 
     @Value("${app.security.authorized-ips:127.0.0.1,localhost,0:0:0:0:0:0:0:1}")
     private String authorizedIPs;
 
-    public AuthService(IpUtil ipUtil, DataSource dataSource) {
+    public AuthService(IpUtil ipUtil, DataSource dataSource, PermissionGroupService permissionGroupService) {
         this.ipUtil = ipUtil;
         this.dataSource = dataSource;
+        this.permissionGroupService = permissionGroupService;
     }
 
     /**
@@ -103,6 +109,7 @@ public class AuthService {
         response.setLoginTime(LocalDateTime.now());
         response.setClientIP(clientIP);
         response.setRole(role);
+        response.setAllowedScreenIds(resolveAllowedScreenIds(username, role));
         return response;
     }
     
@@ -116,6 +123,40 @@ public class AuthService {
         return true;
     }
     
+    /**
+     * Returns allowed screen IDs for the user. ADMIN gets all; others get union from permission groups.
+     */
+    private List<String> resolveAllowedScreenIds(String username, String role) {
+        if (username == null || username.isBlank()) {
+            return List.of();
+        }
+        if ("ADMIN".equals(role)) {
+            return new ArrayList<>(ScreenConstants.getAllAllowedScreens());
+        }
+        return permissionGroupService.getAllowedScreenIdsForUser(username);
+    }
+
+    /**
+     * Returns current user info (username, role, allowedScreenIds) from session. For GET /api/auth/me.
+     */
+    public LoginResponse getCurrentUserInfo(HttpServletRequest request) {
+        if (!checkAuth(request)) {
+            return null;
+        }
+        jakarta.servlet.http.HttpSession session = request.getSession(false);
+        if (session == null) return null;
+        Object username = session.getAttribute("username");
+        Object role = session.getAttribute("role");
+        if (username == null || username.toString().isBlank()) return null;
+        String uname = username.toString();
+        String r = role != null ? role.toString() : "USER";
+        LoginResponse resp = new LoginResponse();
+        resp.setUsername(uname);
+        resp.setRole(r);
+        resp.setAllowedScreenIds(resolveAllowedScreenIds(uname, r));
+        return resp;
+    }
+
     /**
      * 인증 상태 확인 (세션 기반)
      *

@@ -1,6 +1,6 @@
 # Cursor Subagents Design
 
-This project uses **Cursor Settings Subagents** for role-specific chats. In addition, the **main agent (default chat) directly invokes subagents** via **mcp_task**: when a step has a dedicated subagent, the main agent calls `mcp_task` with the matching `subagent_type` and the handoff prompt, so the user does not need to switch chat and paste input manually. If the user says "manual handoff" or "I'll switch myself", the main agent falls back to instructing the user to switch to that subagent and provide the exact input to pass. See `docs/workflow/SUBAGENT-DELEGATION.md` §2 and §2.2.
+This project uses **Cursor Settings Subagents** for role-specific chats. In addition, the **main agent (default chat) directly invokes subagents** via **mcp_task**: when a step has a dedicated subagent, the main agent calls `mcp_task` with the matching `subagent_type` and the handoff prompt, so the user does not need to switch chat and paste input manually. The main agent may pass an optional `model` parameter (e.g. `claude-haiku-4.5`, `sonnet4.6`) per `docs/workflow/SUBAGENT-MODEL-SELECTION.md` for token optimization and reports the model used when delegating. If the user says "manual handoff" or "I'll switch myself", the main agent falls back to instructing the user to switch to that subagent and provide the exact input to pass. See `docs/workflow/SUBAGENT-DELEGATION.md` §2 and §2.2.
 
 ---
 
@@ -50,7 +50,7 @@ Splitting the frontend by **screen/feature** keeps scope clear. Add these **opti
 
 ### 1.3 Additional subagents (review, docs, release, consistency, UX)
 
-These 5 support collaboration and consistent deliverables. **Role boundaries** are in §2.6.
+These 6 support collaboration and consistent deliverables. **Role boundaries** are in §2.6.
 
 | Subagent name | Purpose | Prompt file |
 |---------------|---------|-------------|
@@ -59,6 +59,7 @@ These 5 support collaboration and consistent deliverables. **Role boundaries** a
 | **Release** | CHANGELOG, version, release checklist. No user guides or code. | `release.md` |
 | **Consistency** | Standards doc (CONSISTENCY-STANDARDS.md). No review execution or code. Review applies standards. | `consistency.md` |
 | **UX** | Design/UX review (a11y, UI consistency, design system). No implementation; Frontend implements. | `ux-design.md` |
+| **RequirementsPastSearch** | Search past requirement docs; summarize user-requested content so new requirements preserve it. Read-only; no doc/code edits. | `past-requirements-search.md` |
 
 ---
 
@@ -133,6 +134,7 @@ These 5 support collaboration and consistent deliverables. **Role boundaries** a
 - **Performance and scalability**: For heavy or frequent data access (e.g. snapshot lookups), review query patterns, load, indexing, cache, batching.
 - **Trade-offs**: Compare options (e.g. DB-only vs cache, per-request vs batch) and recommend by condition.
 - **Operational impact**: Latency, throughput, resources. **No code edits** — Backend/DB apply recommendations.
+- **Commonization review**: When a requirement involves **frontend and/or backend implementation**, review for **commonization opportunities** (shared utilities, common components, cross-cutting logic) and suggest design notes or §2 additions so the requirement reflects commonization; **no code** — Backend/Frontend implement.
 
 ### Review
 
@@ -154,6 +156,10 @@ These 5 support collaboration and consistent deliverables. **Role boundaries** a
 ### UX
 
 - **Review only**: a11y, UI consistency, design system, interaction recommendations. **No implementation** (→ Frontend implements).
+
+### RequirementsPastSearch
+
+- **Search and summarize only**: Read `docs/requirements/` (and optionally specs) for content that reflects **user-requested** behavior or constraints. Return a short summary so that when **Requirements** or other agents author a new requirement doc (and the user has **not** explicitly requested a change), they can **preserve** that content. **No requirement doc edits or code** (→ Requirements writes docs).
 
 ---
 
@@ -180,7 +186,7 @@ Each area below has **one owning agent**. Use this table when collaborating to a
 | API, env, spec (contract, specs) | **Contract** | Consistency: coding conventions only |
 | Security review (§2.1, security recommendations) | **Security** | — |
 | Schema design review | **DBA** | DB: schema file edits |
-| Performance/scalability design review | **Architecture** | — |
+| Performance/scalability and **commonization (frontend/backend)** design review | **Architecture** | — |
 | **Standards doc** (CONSISTENCY-STANDARDS) | **Consistency** | Review: applies only |
 | **Change review** (contract, workflow, quality, standards) | **Review** | QA: test design, §5; Consistency: standards definition only |
 | Test design, §3·§5·§6, verification checklist | **QA** | Review: code review only |
@@ -256,6 +262,27 @@ If local agents are not used, register manually:
 - **Prompt text**: `docs/cursor-subagents/*.md` — edit these to keep subagent behavior consistent.
 
 **Core 9** + **Additional 5** = **14** subagents cover development, requirements, spec, review, documentation, release, consistency, and UX **without role overlap** (§2.6).
+
+### 5.1 Option: Frontend-Common / Backend-Common agents (when to split)
+
+**Current model**: **Architecture** reviews for commonization (design only); **Frontend** / **Backend** (or module-specific) implement everything, including shared code (e.g. `frontend/src/common/`, backend shared modules). One agent per stack does both feature and common code.
+
+**Alternative**: Dedicated **Frontend-Common** and **Backend-Common** subagents that **own and implement** shared code only; **Frontend** / **Backend** (feature) implement screen/module-specific code and **use** common layer. Roles are split: Common = shared utilities, base components, API client layer; Feature = screens, feature logic.
+
+| Approach | Pros | Cons |
+|----------|------|------|
+| **Current** (Architecture review + Frontend/Backend implement) | Fewer handoffs; one requirement → one or two implementers. Simple. | Shared code can drift if each feature agent implements ad hoc; relies on §2 commonization and Review to catch duplication. |
+| **Separate Common agents** (Frontend-Common, Backend-Common + Frontend, Backend) | Clear ownership of shared code; consistent common layer; feature agents only consume. | More handoffs: e.g. Requirements → Architecture → **Common** (implements shared) → **Frontend/Backend** (implements feature). Dependency order and contract (e.g. “common component X”) must be clear. |
+
+**When to add Common agents**
+
+- **Add** when: (1) Common layer is large or growing (design system, shared API client, many shared components/utils). (2) You want a single owner for “frontend common” and “backend common” to avoid drift. (3) You are willing to define handoff order (e.g. Architecture → Common implements shared → Frontend/Backend implement feature using it) and possibly split one requirement into “common” and “feature” tasks.
+- **Keep current** when: Codebase is small/medium and §2 commonization + Review (and CONSISTENCY-STANDARDS for “where common code lives”) is enough; or you want to minimize coordination.
+
+**If you add Frontend-Common / Backend-Common**
+
+- **Role**: Common agent **implements** only code under shared areas (e.g. `frontend/src/common/`, `backend/.../common/` or agreed paths); Feature agents **implement** screen/module code and **must use** common layer when §2 says so.
+- **Sequence**: Step 3c Architecture (commonization) → Step 4 **Common** (implement shared part first; update §2 변경 파일 목록 for common files) → Step 4 **Frontend/Backend** (implement feature using common; update §2 for feature files) → Step 5 QA. Document this in `docs/workflow/AGENT-COLLABORATION-ON-REQUIREMENT.md` and `docs/workflow/SUBAGENT-DELEGATION.md` when you introduce the agents.
 
 ---
 

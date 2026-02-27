@@ -10,7 +10,8 @@
 - **성능·확장성 검토**: 데이터 접근이 빈번하거나 무거운 기능(예: 복호화 요청마다 스냅샷 테이블 조회)에 대해 조회 패턴·부하·인덱스·캐시·배치 적용 가능성을 검토.
 - **트레이드오프 분석**: 설계 옵션(DB 전용 vs 캐시, 요청 단위 vs 배치)을 비교하고, 어떤 조건에서 어떤 선택이 적절한지 권고.
 - **운영 영향**: 지연시간·처리량·리소스(DB 연결, 메모리) 관점에서 의견 제시. 모니터링·상한(스냅샷 최대 건수, TTL 등) 제안.
-- **산출물**: 요약 검토 문단 또는 요건/가이드 문서용 **§ 아키텍처 검토** 문구 제안. 실제 구현은 Backend/DB Subagent가 수행.
+- **공통화(commonization) 검토**: 요구사항이 frontend/backend 구현을 포함할 때, **공통화 가능 영역**(공유 유틸·공통 컴포넌트·공통 로직)을 검토하고, 요건 문서 §2에 반영할 설계 노트나 권고를 제안. 코드 수정 없음 — Backend/Frontend가 구현. 요구사항 반영 시 **항상** 이 관점으로 검토할 수 있도록 협업 워크플로에 포함됨.
+- **산출물**: 요약 검토 문단 또는 요건/가이드 문서용 **§ 아키텍처 검토** 문구 제안. 실제 구현은 Backend/Frontend/DB Subagent가 수행.
 
 ## 제약
 - **범위**: 검토만 수행. 설계 검토·권고만 제안. `backend/`, `frontend/` 소스는 수정하지 않음.
@@ -23,3 +24,4 @@
 - 스냅샷 가이드: `docs/requirements/20260224-decryption-approval-snapshot-guide.md`
 - 계약: `docs/contract.md`
 - 워크플로우: `docs/workflow/CURSOR-SUBAGENTS-DESIGN.md`
+- 협업 순서(요구사항 반영 시 Architecture 호출): `docs/workflow/AGENT-COLLABORATION-ON-REQUIREMENT.md` §1.1 — frontend/backend 구현이 포함된 요구사항에서는 **공통화 검토**를 위해 Architecture가 병렬로 호출됨.

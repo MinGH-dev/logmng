@@ -9,6 +9,7 @@ import UserActivityLogList from './components/UserActivityLog/UserActivityLogLis
 import ActivityStatistics from './components/ActivityStatistics';
 import SearchHistoryList from './components/SearchHistory/SearchHistoryList';
 import UserManagement from './components/UserManagement/UserManagement';
+import PermissionGroupManagement from './components/PermissionGroupManagement/PermissionGroupManagement';
 import DepartmentApproverManagement from './components/DepartmentApproverManagement/DepartmentApproverManagement';
 import PendingApprovals from './components/PendingApprovals/PendingApprovals';
 import AppSidebar from './components/AppSidebar';
@@ -22,9 +23,19 @@ function App() {
   const [loading, setLoading] = useState(true);
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [selectedLogType, setSelectedLogType] = useState(null);
-  const [currentView, setCurrentView] = useState('main'); // 'main' | 'activity-log' | 'statistics' | 'search-history' | 'user-management' | 'department-approvers' | 'pending-approvals'
+  const [currentView, setCurrentView] = useState('main'); // 'main' | 'activity-log' | 'statistics' | 'search-history' | 'user-management' | 'department-approvers' | 'user-permission-hierarchy' | 'permission-group-management' | 'pending-approvals'
   const [initialSearchParams, setInitialSearchParams] = useState(null);
   const [initialSearchApprovalId, setInitialSearchApprovalId] = useState(null);
+
+  const canAccessView = (view) => {
+    if (user?.role === 'ADMIN') return true;
+    const ids = user?.allowedScreenIds;
+    if (!Array.isArray(ids) || ids.length === 0) return false;
+    if (view === 'user-management') {
+      return ids.includes('user-management') || ids.includes('user-permission-hierarchy');
+    }
+    return ids.includes(view);
+  };
 
   useEffect(() => {
     checkAuthStatus();
@@ -57,11 +68,24 @@ function App() {
         const savedUser = getMinimalUserData();
         const fromApi = result.data;
         const merged = savedUser
-          ? { username: fromApi?.username ?? savedUser.username, role: fromApi?.role ?? savedUser.role }
+          ? {
+              username: fromApi?.username ?? savedUser.username,
+              role: fromApi?.role ?? savedUser.role,
+              allowedScreenIds: Array.isArray(fromApi?.allowedScreenIds)
+                ? fromApi.allowedScreenIds
+                : savedUser?.allowedScreenIds ?? null,
+            }
           : fromApi?.username
-            ? { username: fromApi.username, role: fromApi.role ?? null }
+            ? {
+                username: fromApi.username,
+                role: fromApi.role ?? null,
+                allowedScreenIds: Array.isArray(fromApi?.allowedScreenIds) ? fromApi.allowedScreenIds : null,
+              }
             : null;
-        if (merged) setUser(merged);
+        if (merged) {
+          setUser(merged);
+          saveMinimalUserData(merged);
+        }
       }
     } catch (error) {
       clearTimeout(timeoutId);
@@ -83,10 +107,11 @@ function App() {
     const minimalUserData = {
       username: userData.username || null,
       role: userData.role || null,
+      allowedScreenIds: Array.isArray(userData.allowedScreenIds) ? userData.allowedScreenIds : null,
     };
     setUser(minimalUserData);
     setIsAuthenticated(true);
-    saveMinimalUserData({ ...userData, role: userData.role });
+    saveMinimalUserData(minimalUserData);
   };
 
   const handleLogout = async () => {
@@ -117,7 +142,20 @@ function App() {
     localStorage.removeItem('selectedLogType');
   };
 
+  useEffect(() => {
+    if (!isAuthenticated || !user) return;
+    if (currentView === 'main') return;
+    const isAdmin = user?.role === 'ADMIN';
+    const ids = user?.allowedScreenIds;
+    const hasAccess = isAdmin || (Array.isArray(ids) && ids.length > 0 && ids.includes(currentView));
+    if (!hasAccess) setCurrentView('main');
+  }, [isAuthenticated, user, currentView]);
+
   const handleNavigate = (view) => {
+    if (!canAccessView(view)) {
+      setCurrentView('main');
+      return;
+    }
     setCurrentView(view);
   };
 
@@ -165,6 +203,7 @@ function App() {
         <AppSidebar
           open={sidebarOpen}
           isAdmin={user?.role === 'ADMIN'}
+          allowedScreenIds={user?.allowedScreenIds}
           currentView={currentView}
           onNavigate={handleNavigate}
           onSearchMain={handleSearchMain}
@@ -193,9 +232,10 @@ function App() {
             {currentView === 'search-history' && (
               <SearchHistoryList onReSearch={handleReSearchFromHistory} />
             )}
-            {currentView === 'user-management' && (
+            {(currentView === 'user-management' || currentView === 'user-permission-hierarchy') && (
               <UserManagement onShowDepartmentApprovers={() => handleNavigate('department-approvers')} user={user} />
             )}
+            {currentView === 'permission-group-management' && <PermissionGroupManagement user={user} />}
             {currentView === 'department-approvers' && <DepartmentApproverManagement user={user} />}
             {currentView === 'pending-approvals' && <PendingApprovals />}
             {currentView === 'main' && !selectedLogType && (

@@ -49,6 +49,7 @@ public class AuthController {
         session.setAttribute("userId", loginResponse.getUsername());
         session.setAttribute("username", loginResponse.getUsername());
         session.setAttribute("role", loginResponse.getRole() != null ? loginResponse.getRole() : "USER");
+        session.setAttribute("allowedScreenIds", loginResponse.getAllowedScreenIds());
         log.info("세션 저장 완료: userId={}, role={}, sessionId={}",
                 loginResponse.getUsername(), loginResponse.getRole(), session.getId());
         
@@ -88,17 +89,33 @@ public class AuthController {
         data.put("authenticated", authenticated);
         data.put("message", authenticated ? "인증되었습니다." : "인증되지 않았습니다.");
         if (authenticated) {
-            jakarta.servlet.http.HttpSession session = httpRequest.getSession(false);
-            if (session != null) {
-                Object username = session.getAttribute("username");
-                Object role = session.getAttribute("role");
-                if (username != null) data.put("username", username.toString());
-                if (role != null) data.put("role", role.toString());
+            LoginResponse userInfo = authService.getCurrentUserInfo(httpRequest);
+            if (userInfo != null) {
+                data.put("username", userInfo.getUsername());
+                data.put("role", userInfo.getRole());
+                data.put("allowedScreenIds", userInfo.getAllowedScreenIds());
             }
         }
         
         ApiResponse<Map<String, Object>> response = ApiResponse.success(data);
         return ResponseEntity.ok(response);
+    }
+    
+    /**
+     * 현재 사용자 정보 (username, role, allowedScreenIds)
+     * GET /api/auth/me — per specs/permission-group-hierarchy.spec.yaml §4.2
+     */
+    @GetMapping("/me")
+    public ResponseEntity<ApiResponse<Map<String, LoginResponse>>> me(HttpServletRequest httpRequest) {
+        log.debug("인증 사용자 정보 요청");
+        LoginResponse userInfo = authService.getCurrentUserInfo(httpRequest);
+        if (userInfo == null) {
+            return ResponseEntity.status(401).body(
+                    ApiResponse.failure("로그인이 필요합니다.", "UNAUTHORIZED"));
+        }
+        Map<String, LoginResponse> data = new HashMap<>();
+        data.put("user", userInfo);
+        return ResponseEntity.ok(ApiResponse.success(data));
     }
 }
 
