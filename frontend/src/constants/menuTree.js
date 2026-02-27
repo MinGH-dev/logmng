@@ -14,10 +14,9 @@ import {
   Assessment as AssessmentIcon,
   People as PeopleIcon,
   Business as BusinessIcon,
-  AccountTree as AccountTreeIcon,
 } from '@mui/icons-material';
 
-/** 허용 화면 ID 목록 (spec §4.1) */
+/** 허용 화면 ID 목록 (spec §4.1). user-permission-hierarchy: redirect to user-management (Option B). */
 export const ALLOWED_SCREEN_IDS = [
   'main',
   'search-history',
@@ -63,7 +62,6 @@ export const MENU_TREE = [
     children: [
       { id: 'user-management', label: '사용자 관리', view: 'user-management' },
       { id: 'department-approvers', label: '부서별 결재자', view: 'department-approvers' },
-      { id: 'user-permission-hierarchy', label: '사용자 권한 계층', view: 'user-permission-hierarchy' },
     ],
   },
 ];
@@ -76,5 +74,4 @@ export const SECOND_ICONS = {
   'statistics-view': AssessmentIcon,
   'user-management': PeopleIcon,
   'department-approvers': BusinessIcon,
-  'user-permission-hierarchy': AccountTreeIcon,
 };

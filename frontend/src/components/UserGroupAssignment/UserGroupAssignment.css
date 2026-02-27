@@ -1,0 +1,58 @@
+.user-group-assignment {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.user-group-assignment-badges {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.user-group-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.2rem;
+  padding: 0.15rem 0.4rem;
+  font-size: 0.8rem;
+  background: #e8f4fc;
+  border: 1px solid #07c;
+  border-radius: 4px;
+}
+
+.user-group-badge-remove {
+  padding: 0 0.2rem;
+  font-size: 1rem;
+  line-height: 1;
+  border: none;
+  background: transparent;
+  color: #c00;
+  cursor: pointer;
+}
+
+.user-group-badge-remove:hover:not(:disabled) {
+  color: #a00;
+}
+
+.user-group-add-btn {
+  padding: 0.15rem 0.4rem !important;
+  font-size: 0.8rem !important;
+}
+
+.user-group-add-inline {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.user-group-add-inline select {
+  font-size: 0.85rem;
+  padding: 0.2rem 0.4rem;
+}
+
+.user-group-assignment-error {
+  font-size: 0.8rem;
+  margin-top: 0.15rem;
+}

@@ -313,6 +313,30 @@
 - **Response (data)**: `{ "userId": string, "isApprover": false }` 또는 성공 메시지
 - **에러**: 401 비인증, 403 관리자 아님, 404 해당 사용자 없음
 
+### 7.4 사용자 역할 변경 (요건 20250227-user-management-hierarchy-permissions)
+
+- **PUT** `/api/users/{userId}`
+- **Path**: `userId` — 역할을 변경할 사용자 ID(username, app_user.username)
+- **권한**: 관리자(role=ADMIN)만 호출 가능. 그 외 403, `code: "FORBIDDEN"`.
+- **Request body** (JSON):
+
+| 필드 | 타입 | 필수 | 설명 |
+|------|------|------|------|
+| role | string | O | "ADMIN" \| "USER" — 유효값만 허용 |
+
+- **Response (data)**: 업데이트된 사용자 요약 객체
+  - `userId` (또는 `username`): string
+  - `role`: string — "ADMIN" \| "USER" (변경 후 값)
+  - `departmentCode`: string \| null
+  - `isApprover`: boolean
+- **에러**:
+  - 401 비인증
+  - 403 관리자 아님 → `code: "FORBIDDEN"`
+  - 404 해당 사용자 없음 → `code: "USER_NOT_FOUND"`
+  - 400 role 누락 또는 ADMIN/USER 외 값 → `code: "INVALID_INPUT"`
+  - 400 자기 자신 역할 변경 시도 → `code: "SELF_DEMOTION_BLOCKED"`
+  - 400 마지막 관리자 강등 시도 → `code: "LAST_ADMIN_BLOCKED"`
+
 ---
 
 ## 8. 사용자 활동 이력 (Activity Log)
@@ -413,6 +437,9 @@
 | PERMISSION_GROUP_HAS_USERS | 삭제 시 해당 그룹에 사용자 배정 있음 (400) |
 | USER_ALREADY_IN_GROUP | 해당 사용자가 이미 그룹에 배정됨 (400) |
 | INVALID_SCREEN_ID | allowedScreens에 허용 목록에 없는 screen_id 포함 (400) |
+| USER_NOT_FOUND | 해당 사용자 없음 (404) |
+| SELF_DEMOTION_BLOCKED | 자기 자신의 역할 변경 시도 (400) |
+| LAST_ADMIN_BLOCKED | 마지막 관리자 강등 시도 (400) |
 
 ---
 

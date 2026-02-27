@@ -10,7 +10,6 @@ import ActivityStatistics from './components/ActivityStatistics';
 import SearchHistoryList from './components/SearchHistory/SearchHistoryList';
 import UserManagement from './components/UserManagement/UserManagement';
 import DepartmentApproverManagement from './components/DepartmentApproverManagement/DepartmentApproverManagement';
-import UserPermissionHierarchy from './components/UserPermissionHierarchy/UserPermissionHierarchy';
 import PendingApprovals from './components/PendingApprovals/PendingApprovals';
 import AppSidebar from './components/AppSidebar';
 import AppBar from './components/AppBar';
@@ -31,6 +30,9 @@ function App() {
     if (user?.role === 'ADMIN') return true;
     const ids = user?.allowedScreenIds;
     if (!Array.isArray(ids) || ids.length === 0) return false;
+    if (view === 'user-management') {
+      return ids.includes('user-management') || ids.includes('user-permission-hierarchy');
+    }
     return ids.includes(view);
   };
 
@@ -229,13 +231,10 @@ function App() {
             {currentView === 'search-history' && (
               <SearchHistoryList onReSearch={handleReSearchFromHistory} />
             )}
-            {currentView === 'user-management' && (
+            {(currentView === 'user-management' || currentView === 'user-permission-hierarchy' || currentView === 'permission-group-management') && (
               <UserManagement onShowDepartmentApprovers={() => handleNavigate('department-approvers')} user={user} />
             )}
             {currentView === 'department-approvers' && <DepartmentApproverManagement user={user} />}
-            {(currentView === 'user-permission-hierarchy' || currentView === 'permission-group-management') && (
-              <UserPermissionHierarchy user={user} />
-            )}
             {currentView === 'pending-approvals' && <PendingApprovals />}
             {currentView === 'main' && !selectedLogType && (
               <LogTypeSelector onSelectLogType={handleLogTypeSelect} />

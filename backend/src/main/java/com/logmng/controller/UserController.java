@@ -1,6 +1,7 @@
 package com.logmng.controller;
 
 import com.logmng.dto.request.AddApproverRequest;
+import com.logmng.dto.request.UpdateUserRoleRequest;
 import com.logmng.dto.response.ApiResponse;
 import com.logmng.dto.response.UserListItemResponse;
 import com.logmng.exception.CustomException;
@@ -17,7 +18,7 @@ import java.util.Map;
 
 /**
  * 사용자 관리 (관리자 전용). §7
- * GET /api/users, POST /api/users/approvers, DELETE /api/users/approvers/{userId}
+ * GET /api/users, POST /api/users/approvers, DELETE /api/users/approvers/{userId}, PUT /api/users/{userId}
  */
 @RestController
 @RequestMapping("/api/users")
@@ -106,5 +107,26 @@ public class UserController {
                 "isApprover", result.isApprover()
         );
         return ResponseEntity.ok(ApiResponse.success(data));
+    }
+
+    /**
+     * PUT /api/users/{userId} — 관리자 전용. 사용자 역할 변경. §7.4
+     */
+    @PutMapping("/{userId}")
+    public ResponseEntity<ApiResponse<UserListItemResponse>> updateUserRole(
+            @PathVariable String userId,
+            @Valid @RequestBody UpdateUserRoleRequest body,
+            HttpServletRequest request) {
+        String callerUserId = getUserId(request);
+        if (callerUserId == null || callerUserId.isBlank()) {
+            throw CustomException.unauthorized("로그인이 필요합니다.", "UNAUTHORIZED");
+        }
+        String role = getRole(request);
+        if (!decryptApproverService.isAdmin(role)) {
+            throw CustomException.forbidden("관리자만 사용자 역할을 변경할 수 있습니다.", "FORBIDDEN");
+        }
+        UserListItemResponse result = decryptApproverService.updateUserRole(
+                callerUserId, userId, body.getRole());
+        return ResponseEntity.ok(ApiResponse.success(result));
     }
 }

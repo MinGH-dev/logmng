@@ -1,7 +1,13 @@
 .user-management {
   padding: 1rem;
-  max-width: 900px;
+  max-width: 1400px;
   margin: 0 auto;
+}
+
+.user-management .hierarchy-users-table select {
+  font-size: 0.85rem;
+  padding: 0.2rem 0.4rem;
+  min-width: 6rem;
 }
 
 .user-management h2 {
