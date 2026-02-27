@@ -1,23 +1,28 @@
 -- 초기 샘플 데이터 삽입
 -- 실행 순서: department → app_user → decrypt_approver → permission_group → app_user_permission_group (FK 의존성 유지)
 
--- 부서 계층 (요건: 20260225-department-approver-hierarchy). parent_code NULL = 루트
+-- 부서 계층 (요건: 20260225-department-approver-hierarchy, 20250227-dept-hierarchy-sample-depth5). parent_code NULL = 루트
+-- 5-level chain: HQ → DEPT01 → DEPT01A → DEPT01A1 → DEPT01A1X
 INSERT INTO department (code, parent_code, name, sort_order)
 VALUES
     ('HQ', NULL, '본부', 0),
     ('DEPT01', 'HQ', '팀1', 1),
-    ('DEPT02', 'HQ', '팀2', 2)
+    ('DEPT02', 'HQ', '팀2', 2),
+    ('DEPT01A', 'DEPT01', '팀1A', 3),
+    ('DEPT01A1', 'DEPT01A', '팀1A1', 4),
+    ('DEPT01A1X', 'DEPT01A1', '팀1A1X', 5)
 ON CONFLICT (code) DO NOTHING;
 
 -- 앱 사용자 (department_code는 department.code FK; 부서 삽입 후 실행)
 -- 복호화 결재자 (요건: 20260224-decryption-approver-designation)
 -- Dev only: password_hash에 평문 저장. 운영 환경에서는 BCrypt 등 해시 사용.
--- 테스트 비밀번호: admin=admin123, user1/user2=user123
+-- 테스트 비밀번호: admin=admin123, user1/user2/user3=user123
 INSERT INTO app_user (username, password_hash, role, department_code)
 VALUES
     ('admin', 'admin123', 'ADMIN', NULL),
     ('user1', 'user123', 'USER', 'DEPT01'),
-    ('user2', 'user123', 'USER', 'DEPT01')
+    ('user2', 'user123', 'USER', 'DEPT01'),
+    ('user3', 'user123', 'USER', 'DEPT01A1X')
 ON CONFLICT (username) DO NOTHING;
 
 -- 결재자: user1 = 전역 결재자(department_code NULL). app_user 삽입 후 실행. 재실행 시 idempotent.
@@ -55,6 +60,9 @@ SELECT 'user1', id FROM permission_group WHERE code = 'GENERAL_USER'
 ON CONFLICT (user_id, permission_group_id) DO NOTHING;
 INSERT INTO app_user_permission_group (user_id, permission_group_id)
 SELECT 'user2', id FROM permission_group WHERE code = 'GENERAL_USER'
+ON CONFLICT (user_id, permission_group_id) DO NOTHING;
+INSERT INTO app_user_permission_group (user_id, permission_group_id)
+SELECT 'user3', id FROM permission_group WHERE code = 'GENERAL_USER'
 ON CONFLICT (user_id, permission_group_id) DO NOTHING;
 
 -- 송신 로그 샘플 데이터
