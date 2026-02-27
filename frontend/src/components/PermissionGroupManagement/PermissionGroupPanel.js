@@ -247,6 +247,27 @@ const PermissionGroupPanel = ({ user, onRefreshHierarchy }) => {
     }
   };
 
+  useEffect(() => {
+    if (!usersDialogOpen) return;
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') {
+        setUsersDialogOpen(false);
+        setUsersDialogGroup(null);
+        setUsersInGroup([]);
+        setUsersDialogError(null);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [usersDialogOpen]);
+
+  const closeUsersDialog = useCallback(() => {
+    setUsersDialogOpen(false);
+    setUsersDialogGroup(null);
+    setUsersInGroup([]);
+    setUsersDialogError(null);
+  }, []);
+
   const alreadyInGroup = (userId) => usersInGroup.some((u) => (u.userId || u.username) === userId);
   const addableUsers = userList.filter((u) => {
     const id = u.userId ?? u.username;
@@ -375,74 +396,86 @@ const PermissionGroupPanel = ({ user, onRefreshHierarchy }) => {
 
       {usersDialogOpen && usersDialogGroup && (
         <div className="permission-group-dialog-overlay" role="dialog" aria-modal="true" aria-labelledby="dialog-users-title">
-          <div className="permission-group-dialog permission-group-dialog-wide">
-            <h3 id="dialog-users-title">사용자 할당 — {usersDialogGroup.name} ({usersDialogGroup.code})</h3>
-            {usersDialogError && <div className="user-management-error" role="alert">{usersDialogError}</div>}
-            <div className="permission-group-user-add">
-              <select
-                value={addUserId}
-                onChange={(e) => setAddUserId(e.target.value)}
-                aria-label="추가할 사용자 선택"
-              >
-                <option value="">— 사용자 선택 —</option>
-                {addableUsers.map((u) => {
-                  const id = u.userId ?? u.username;
-                  return (
-                    <option key={id} value={id}>
-                      {id} {u.departmentCode ? `(${u.departmentCode})` : ''}
-                    </option>
-                  );
-                })}
-              </select>
+          <div className="permission-group-dialog permission-group-dialog-wide permission-group-dialog-users">
+            <div className="permission-group-dialog-header">
+              <h3 id="dialog-users-title">사용자 할당 — {usersDialogGroup.name} ({usersDialogGroup.code})</h3>
               <button
                 type="button"
-                className="user-management-btn add"
-                onClick={handleAddUserToGroup}
-                disabled={!addUserId || !!usersDialogActionId}
-                aria-label="사용자 추가"
+                className="permission-group-dialog-close"
+                onClick={closeUsersDialog}
+                aria-label="닫기"
               >
-                {usersDialogActionId ? '처리 중...' : '추가'}
+                ×
               </button>
             </div>
-            {usersDialogLoading ? (
-              <p>목록을 불러오는 중…</p>
-            ) : (
-              <div className="log-table-container">
-                <div className="table-wrapper">
-                  <table className="log-table" aria-label="이 그룹에 배정된 사용자">
-                    <thead>
-                      <tr>
-                        <th scope="col">사용자 ID</th>
-                        <th scope="col">역할</th>
-                        <th scope="col">동작</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {usersInGroup.length === 0 ? (
-                        <tr><td colSpan={3} className="no-data">배정된 사용자가 없습니다.</td></tr>
-                      ) : (
-                        usersInGroup.map((u) => {
-                          const uid = u.userId ?? u.username;
-                          return (
-                            <tr key={uid}>
-                              <td>{uid}</td>
-                              <td>{u.role || '-'}</td>
-                              <td>
-                                <button type="button" className="user-management-btn remove" onClick={() => handleRemoveUserFromGroup(uid)} disabled={usersDialogActionId === uid} aria-label={`제거, ${uid}`}>
-                                  {usersDialogActionId === uid ? '처리 중...' : '제거'}
-                                </button>
-                              </td>
-                            </tr>
-                          );
-                        })
-                      )}
-                    </tbody>
-                  </table>
-                </div>
+            <div className="permission-group-dialog-body">
+              {usersDialogError && <div className="user-management-error" role="alert">{usersDialogError}</div>}
+              <div className="permission-group-user-add">
+                <select
+                  value={addUserId}
+                  onChange={(e) => setAddUserId(e.target.value)}
+                  aria-label="추가할 사용자 선택"
+                >
+                  <option value="">— 사용자 선택 —</option>
+                  {addableUsers.map((u) => {
+                    const id = u.userId ?? u.username;
+                    return (
+                      <option key={id} value={id}>
+                        {id} {u.departmentCode ? `(${u.departmentCode})` : ''}
+                      </option>
+                    );
+                  })}
+                </select>
+                <button
+                  type="button"
+                  className="user-management-btn add"
+                  onClick={handleAddUserToGroup}
+                  disabled={!addUserId || !!usersDialogActionId}
+                  aria-label="사용자 추가"
+                >
+                  {usersDialogActionId ? '처리 중...' : '추가'}
+                </button>
               </div>
-            )}
-            <div className="permission-group-dialog-actions" style={{ marginTop: '1rem' }}>
-              <button type="button" className="user-management-btn" onClick={() => { setUsersDialogOpen(false); setUsersDialogGroup(null); setUsersInGroup([]); setUsersDialogError(null); }}>닫기</button>
+              {usersDialogLoading ? (
+                <p>목록을 불러오는 중…</p>
+              ) : (
+                <div className="log-table-container">
+                  <div className="table-wrapper">
+                    <table className="log-table" aria-label="이 그룹에 배정된 사용자">
+                      <thead>
+                        <tr>
+                          <th scope="col">사용자 ID</th>
+                          <th scope="col">역할</th>
+                          <th scope="col">동작</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {usersInGroup.length === 0 ? (
+                          <tr><td colSpan={3} className="no-data">배정된 사용자가 없습니다.</td></tr>
+                        ) : (
+                          usersInGroup.map((u) => {
+                            const uid = u.userId ?? u.username;
+                            return (
+                              <tr key={uid}>
+                                <td>{uid}</td>
+                                <td>{u.role || '-'}</td>
+                                <td>
+                                  <button type="button" className="user-management-btn remove" onClick={() => handleRemoveUserFromGroup(uid)} disabled={usersDialogActionId === uid} aria-label={`제거, ${uid}`}>
+                                    {usersDialogActionId === uid ? '처리 중...' : '제거'}
+                                  </button>
+                                </td>
+                              </tr>
+                            );
+                          })
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+            </div>
+            <div className="permission-group-dialog-actions permission-group-dialog-footer">
+              <button type="button" className="user-management-btn" onClick={closeUsersDialog} aria-label="닫기">닫기</button>
             </div>
           </div>
         </div>

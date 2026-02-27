@@ -49,6 +49,68 @@
   min-width: 420px;
 }
 
+/* Users dialog: flex column, scrollable body, sticky footer */
+.permission-group-dialog-users {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.permission-group-dialog-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  flex-shrink: 0;
+  margin-bottom: 1rem;
+}
+
+.permission-group-dialog-header h3 {
+  margin: 0;
+  flex: 1;
+}
+
+.permission-group-dialog-close {
+  flex-shrink: 0;
+  width: 2rem;
+  height: 2rem;
+  padding: 0;
+  margin-left: 0.5rem;
+  font-size: 1.5rem;
+  line-height: 1;
+  border: none;
+  background: transparent;
+  color: #333;
+  cursor: pointer;
+  border-radius: 4px;
+}
+
+.permission-group-dialog-close:hover {
+  background: rgba(0, 0, 0, 0.08);
+}
+
+.permission-group-dialog-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.permission-group-dialog-footer {
+  flex-shrink: 0;
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid #eee;
+}
+
+/* Table scroll: only table area scrolls, not whole dialog */
+.permission-group-dialog-users .log-table-container {
+  max-height: 50vh;
+  overflow: auto;
+}
+
+.permission-group-dialog-users .log-table-container .table-wrapper {
+  max-height: none;
+}
+
 .permission-group-dialog h3 {
   margin-top: 0;
   margin-bottom: 1rem;
