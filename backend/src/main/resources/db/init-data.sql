@@ -43,6 +43,8 @@ UPDATE app_user SET rank = '대리' WHERE username = 'user2';
 UPDATE app_user SET rank = '사원' WHERE username = 'user3';
 
 -- 결재자: user1 = 전역 결재자(department_code NULL). app_user 삽입 후 실행. 재실행 시 idempotent.
+-- Remove stale approvers not in init-data (req 20250227-user2-approver-display-bugfix)
+DELETE FROM decrypt_approver WHERE user_id != 'user1' OR (user_id = 'user1' AND department_code IS NOT NULL);
 INSERT INTO decrypt_approver (user_id, department_code)
 SELECT 'user1', NULL
 WHERE NOT EXISTS (SELECT 1 FROM decrypt_approver WHERE user_id = 'user1' AND department_code IS NULL);
