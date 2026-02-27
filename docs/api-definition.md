@@ -431,6 +431,7 @@
 | NOT_APPROVER | 위와 동일 의미. 구현 시 하나로 통일 가능 |
 | DEPARTMENT_NOT_FOUND | 부서 없음 (404) |
 | ALREADY_APPROVER | 해당 부서에 이미 결재자로 등록됨 (400) |
+| USER_NOT_IN_DEPARTMENT | 지정한 사용자가 해당 부서 소속이 아님. 부서별 결재자로 추가 불가 (400) |
 | FORBIDDEN | 권한 없음(예: 부서/결재자 API는 관리자 전용) (403) |
 | INVALID_INPUT | 부서코드/userId 등 입력값 비어 있음 또는 형식 오류 (400) |
 | PERMISSION_GROUP_NOT_FOUND | 해당 ID의 권한 그룹 없음 (404) |
@@ -459,29 +460,44 @@
   - flat: `[{ "code", "parentCode", "name", "sortOrder" }, ...]`
 - **에러**: 401, 403
 
-### 12.2 부서별 결재자 목록
+### 12.2 부서 멤버 목록 조회 (신규, 요건 20250227-department-approver-position)
 
-- **GET** `/api/departments/{code}/approvers`
-- **Response (data)**: 배열 `[{ "userId", "username", "departmentCode"?, ... }]`
+- **GET** `/api/departments/{code}/members`
+- **Response (data)**: 배열 `[{ "userId", "username", "role", "departmentCode", "position", "isApprover" }]` — `department_code = code`인 사용자만. `position`은 직책(직책 없으면 null). `isApprover`는 해당 부서 결재자 여부.
 - **에러**: 401, 403, 404 → `code: "DEPARTMENT_NOT_FOUND"`
 
-### 12.3 부서별 결재자 추가
+### 12.3 부서별 결재자 목록
+
+- **GET** `/api/departments/{code}/approvers`
+- **Response (data)**: 배열 `[{ "userId", "username", "departmentCode", "position", ... }]` — `position` 필드 포함.
+- **에러**: 401, 403, 404 → `code: "DEPARTMENT_NOT_FOUND"`
+
+### 12.4 부서별 결재자 추가
 
 - **POST** `/api/departments/{code}/approvers`
 - **Request body**: `{ "userId": string }`
+- **검증**: `userId`에 해당하는 사용자의 `app_user.department_code`가 `code`와 일치해야 함. 그렇지 않으면 400 `USER_NOT_IN_DEPARTMENT`.
 - **Response (data)**: `{ "userId", "departmentCode", "isApprover": true }`
-- **에러**: 401, 403, 404, 400 이미 해당 부서 결재자 → `code: "DEPARTMENT_NOT_FOUND"`, `"USER_NOT_FOUND"`, `"ALREADY_APPROVER"`
+- **에러**: 401, 403, 404, 400 → `code: "DEPARTMENT_NOT_FOUND"`, `"USER_NOT_FOUND"`, `"ALREADY_APPROVER"`, `"USER_NOT_IN_DEPARTMENT"` (해당 부서 소속 아님)
 
-### 12.4 부서별 결재자 제거
+### 12.5 팀장 지정 (기본 결재자 일괄 추가, 신규, 요건 20250227-department-approver-position)
+
+- **POST** `/api/departments/{code}/approvers/default`
+- **Request body**: 없음
+- **동작**: 해당 부서 멤버 중 `position`에 "팀장"이 포함되고 아직 결재자가 아닌 사용자를 모두 결재자로 추가.
+- **Response (data)**: 추가된 사용자 수 또는 추가된 `userId` 목록 (구현 선택)
+- **에러**: 401, 403, 404 → `code: "DEPARTMENT_NOT_FOUND"`
+
+### 12.6 부서별 결재자 제거
 
 - **DELETE** `/api/departments/{code}/approvers/{userId}`
 - **Response (data)**: `{ "userId", "departmentCode", "isApprover": false }` 또는 성공 메시지
 - **에러**: 401, 403, 404
 
-### 12.5 전역 결재자 API와의 관계
+### 12.7 전역 결재자 API와의 관계
 
 - **GET/POST/DELETE** `/api/users`, `/api/users/approvers`, `/api/users/approvers/{userId}` — **유지**. 전역 결재자(department_code NULL)용.
-- 프론트: 전역 결재자 지정 → §7.2·7.3 사용. 부서별 결재자 지정 → §12.2·12.3·12.4 사용.
+- 프론트: 전역 결재자 지정 → §7.2·7.3 사용. 부서별 결재자·부서 멤버·팀장 지정 → §12.2–12.6 사용.
 - 승인 권한: ADMIN 또는 전역 결재자 또는 요청자 소속 부서(또는 상위 부서) 결재자.
 
 ---

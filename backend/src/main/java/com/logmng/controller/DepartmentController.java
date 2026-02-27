@@ -16,6 +16,7 @@ import org.springframework.web.bind.annotation.*;
 
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -129,7 +130,20 @@ public class DepartmentController {
     }
 
     /**
-     * GET /api/departments/{code}/approvers — 해당 부서 결재자 목록. §12.2
+     * GET /api/departments/{code}/members — 부서 멤버 목록 (department_code = code). §12.2
+     */
+    @GetMapping("/{code}/members")
+    public ResponseEntity<ApiResponse<List<UserListItemResponse>>> listMembers(
+            @PathVariable String code,
+            HttpServletRequest request) {
+        requireAdmin(request);
+        validateDepartmentCode(code);
+        List<UserListItemResponse> data = decryptApproverService.listMembersByDepartment(code);
+        return ResponseEntity.ok(ApiResponse.success(data));
+    }
+
+    /**
+     * GET /api/departments/{code}/approvers — 해당 부서 결재자 목록. §12.3
      */
     @GetMapping("/{code}/approvers")
     public ResponseEntity<ApiResponse<List<UserListItemResponse>>> listApprovers(
@@ -142,7 +156,23 @@ public class DepartmentController {
     }
 
     /**
-     * POST /api/departments/{code}/approvers — 부서별 결재자 추가. §12.3
+     * POST /api/departments/{code}/approvers/default — 팀장 지정 (position에 "팀장" 포함된 멤버 일괄 추가). §12.5
+     */
+    @PostMapping("/{code}/approvers/default")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> addDefaultApprovers(
+            @PathVariable String code,
+            HttpServletRequest request) {
+        requireAdmin(request);
+        validateDepartmentCode(code);
+        List<String> added = decryptApproverService.addDefaultApproversForDepartment(code);
+        Map<String, Object> data = new HashMap<>();
+        data.put("count", added.size());
+        data.put("addedUserIds", added);
+        return ResponseEntity.ok(ApiResponse.success(data));
+    }
+
+    /**
+     * POST /api/departments/{code}/approvers — 부서별 결재자 추가. §12.4
      */
     @PostMapping("/{code}/approvers")
     public ResponseEntity<ApiResponse<Map<String, Object>>> addApprover(
@@ -162,7 +192,7 @@ public class DepartmentController {
     }
 
     /**
-     * DELETE /api/departments/{code}/approvers/{userId} — 부서별 결재자 제거. §12.4
+     * DELETE /api/departments/{code}/approvers/{userId} — 부서별 결재자 제거. §12.6
      */
     @DeleteMapping("/{code}/approvers/{userId}")
     public ResponseEntity<ApiResponse<Map<String, Object>>> removeApprover(

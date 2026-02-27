@@ -104,20 +104,21 @@ public class DecryptApproverService {
     }
 
     /**
-     * app_user 목록 + 각 사용자별 isApprover. §7.1
+     * app_user 목록 + 각 사용자별 isApprover, position. §7.1
      */
     public List<UserListItemResponse> listUsers() {
         List<UserListItemResponse> list = new ArrayList<>();
         try (Connection conn = dataSource.getConnection()) {
-            String sql = "SELECT username, role, department_code FROM app_user ORDER BY username";
+            String sql = "SELECT username, role, department_code, position FROM app_user ORDER BY username";
             try (PreparedStatement ps = conn.prepareStatement(sql)) {
                 try (ResultSet rs = ps.executeQuery()) {
                     while (rs.next()) {
                         String username = rs.getString("username");
                         String role = rs.getString("role");
                         String departmentCode = rs.getString("department_code");
+                        String position = rs.getString("position");
                         boolean isApprover = isApprover(username);
-                        list.add(new UserListItemResponse(username, role, departmentCode, isApprover));
+                        list.add(new UserListItemResponse(username, role, departmentCode, isApprover, position));
                     }
                 }
             }
@@ -175,13 +176,13 @@ public class DecryptApproverService {
     }
 
     /**
-     * 해당 부서에 지정된 결재자 목록. §12.2
+     * 해당 부서에 지정된 결재자 목록. §12.3 (position 포함)
      */
     public List<UserListItemResponse> listApproversByDepartment(String departmentCode) {
         departmentService.requireExists(departmentCode);
         List<UserListItemResponse> list = new ArrayList<>();
         try (Connection conn = dataSource.getConnection()) {
-            String sql = "SELECT a.user_id, u.role, u.department_code FROM decrypt_approver a JOIN app_user u ON u.username = a.user_id WHERE a.department_code = ? ORDER BY a.user_id";
+            String sql = "SELECT a.user_id, u.role, u.department_code, u.position FROM decrypt_approver a JOIN app_user u ON u.username = a.user_id WHERE a.department_code = ? ORDER BY a.user_id";
             try (PreparedStatement ps = conn.prepareStatement(sql)) {
                 ps.setString(1, departmentCode);
                 try (ResultSet rs = ps.executeQuery()) {
@@ -190,7 +191,8 @@ public class DecryptApproverService {
                                 rs.getString("user_id"),
                                 rs.getString("role"),
                                 rs.getString("department_code"),
-                                true));
+                                true,
+                                rs.getString("position")));
                     }
                 }
             }
@@ -202,11 +204,92 @@ public class DecryptApproverService {
     }
 
     /**
-     * 부서별 결재자 추가. §12.3
+     * 부서 멤버 목록 (department_code = code). position, isApprover(해당 부서) 포함. §12.2
+     */
+    public List<UserListItemResponse> listMembersByDepartment(String departmentCode) {
+        departmentService.requireExists(departmentCode);
+        List<UserListItemResponse> list = new ArrayList<>();
+        try (Connection conn = dataSource.getConnection()) {
+            String sql = "SELECT u.username, u.role, u.department_code, u.position FROM app_user u WHERE u.department_code = ? ORDER BY u.username";
+            try (PreparedStatement ps = conn.prepareStatement(sql)) {
+                ps.setString(1, departmentCode);
+                try (ResultSet rs = ps.executeQuery()) {
+                    while (rs.next()) {
+                        String username = rs.getString("username");
+                        String role = rs.getString("role");
+                        String deptCode = rs.getString("department_code");
+                        String position = rs.getString("position");
+                        boolean isApprover = isApproverForDepartment(username, departmentCode);
+                        list.add(new UserListItemResponse(username, role, deptCode, isApprover, position));
+                    }
+                }
+            }
+        } catch (SQLException e) {
+            log.error("부서 멤버 목록 조회 실패: departmentCode={}", departmentCode, e);
+            throw new RuntimeException("부서 멤버 목록 조회 중 오류가 발생했습니다: " + e.getMessage(), e);
+        }
+        return list;
+    }
+
+    /**
+     * 해당 부서 결재자로 지정된 사용자 수 반환 (position에 "팀장" 포함, 아직 결재자 아님). §12.5
+     */
+    public List<String> addDefaultApproversForDepartment(String departmentCode) {
+        departmentService.requireExists(departmentCode);
+        List<String> added = new ArrayList<>();
+        try (Connection conn = dataSource.getConnection()) {
+            String sql = "SELECT u.username FROM app_user u WHERE u.department_code = ? AND u.position IS NOT NULL AND u.position LIKE '%팀장%'";
+            try (PreparedStatement ps = conn.prepareStatement(sql)) {
+                ps.setString(1, departmentCode);
+                try (ResultSet rs = ps.executeQuery()) {
+                    while (rs.next()) {
+                        String username = rs.getString("username");
+                        if (!isApproverForDepartment(username, departmentCode)) {
+                            String insertSql = "INSERT INTO decrypt_approver (user_id, department_code) VALUES (?, ?)";
+                            try (PreparedStatement ins = conn.prepareStatement(insertSql)) {
+                                ins.setString(1, username);
+                                ins.setString(2, departmentCode);
+                                ins.executeUpdate();
+                                added.add(username);
+                                log.info("팀장 지정: departmentCode={}, userId={}", departmentCode, username);
+                            }
+                        }
+                    }
+                }
+            }
+        } catch (SQLException e) {
+            log.error("팀장 지정 실패: departmentCode={}", departmentCode, e);
+            throw new RuntimeException("팀장 지정 중 오류가 발생했습니다: " + e.getMessage(), e);
+        }
+        return added;
+    }
+
+    private boolean isApproverForDepartment(String userId, String departmentCode) {
+        if (userId == null || userId.isBlank() || departmentCode == null || departmentCode.isBlank()) {
+            return false;
+        }
+        try (Connection conn = dataSource.getConnection()) {
+            String sql = "SELECT 1 FROM decrypt_approver WHERE user_id = ? AND department_code = ? LIMIT 1";
+            try (PreparedStatement ps = conn.prepareStatement(sql)) {
+                ps.setString(1, userId);
+                ps.setString(2, departmentCode);
+                try (ResultSet rs = ps.executeQuery()) {
+                    return rs.next();
+                }
+            }
+        } catch (SQLException e) {
+            log.error("부서 결재자 여부 조회 실패: userId={}, departmentCode={}", userId, departmentCode, e);
+            return false;
+        }
+    }
+
+    /**
+     * 부서별 결재자 추가. §12.4. 사용자가 해당 부서 소속인지 검증.
      */
     public UserListItemResponse addApproverForDepartment(String departmentCode, String userId) {
         departmentService.requireExists(departmentCode);
         ensureUserExists(userId);
+        ensureUserInDepartment(userId, departmentCode);
         try (Connection conn = dataSource.getConnection()) {
             String sql = "INSERT INTO decrypt_approver (user_id, department_code) VALUES (?, ?)";
             try (PreparedStatement ps = conn.prepareStatement(sql)) {
@@ -222,7 +305,29 @@ public class DecryptApproverService {
             throw new RuntimeException("부서 결재자 추가 중 오류가 발생했습니다: " + e.getMessage(), e);
         }
         log.info("부서 결재자 추가: departmentCode={}, userId={}", departmentCode, userId);
-        return new UserListItemResponse(userId, null, departmentCode, true);
+        return new UserListItemResponse(userId, null, departmentCode, true, null);
+    }
+
+    private void ensureUserInDepartment(String userId, String departmentCode) {
+        try (Connection conn = dataSource.getConnection()) {
+            String sql = "SELECT department_code FROM app_user WHERE username = ? LIMIT 1";
+            try (PreparedStatement ps = conn.prepareStatement(sql)) {
+                ps.setString(1, userId);
+                try (ResultSet rs = ps.executeQuery()) {
+                    if (rs.next()) {
+                        String userDept = rs.getString("department_code");
+                        if (userDept == null || !userDept.equals(departmentCode)) {
+                            throw CustomException.badRequest("지정한 사용자가 해당 부서 소속이 아님. 부서별 결재자로 추가 불가.", "USER_NOT_IN_DEPARTMENT");
+                        }
+                        return;
+                    }
+                }
+            }
+        } catch (SQLException e) {
+            log.error("사용자 부서 확인 실패: userId={}, departmentCode={}", userId, departmentCode, e);
+            throw new RuntimeException("사용자 부서 확인 중 오류가 발생했습니다: " + e.getMessage(), e);
+        }
+        throw CustomException.notFound("해당 사용자를 찾을 수 없습니다: " + userId, "USER_NOT_FOUND");
     }
 
     /**
@@ -311,7 +416,7 @@ public class DecryptApproverService {
 
     private UserListItemResponse getUserSummary(String userId) {
         try (Connection conn = dataSource.getConnection()) {
-            String sql = "SELECT username, role, department_code FROM app_user WHERE username = ? LIMIT 1";
+            String sql = "SELECT username, role, department_code, position FROM app_user WHERE username = ? LIMIT 1";
             try (PreparedStatement ps = conn.prepareStatement(sql)) {
                 ps.setString(1, userId);
                 try (ResultSet rs = ps.executeQuery()) {
@@ -319,8 +424,9 @@ public class DecryptApproverService {
                         String username = rs.getString("username");
                         String role = rs.getString("role");
                         String departmentCode = rs.getString("department_code");
+                        String position = rs.getString("position");
                         boolean isApprover = isApprover(username);
-                        return new UserListItemResponse(username, role, departmentCode, isApprover);
+                        return new UserListItemResponse(username, role, departmentCode, isApprover, position);
                     }
                 }
             }
