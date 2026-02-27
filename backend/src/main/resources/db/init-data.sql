@@ -1,16 +1,18 @@
 -- 초기 샘플 데이터 삽입
 -- 실행 순서: department → app_user → decrypt_approver → permission_group → app_user_permission_group (FK 의존성 유지)
 
--- 부서 계층 (요건: 20260225-department-approver-hierarchy, 20250227-dept-hierarchy-sample-depth5). parent_code NULL = 루트
--- 5-level chain: HQ → DEPT01 → DEPT01A → DEPT01A1 → DEPT01A1X
+-- 부서 계층 (요건: 20250227-dept-hierarchy-daol-structure). parent_code NULL = 루트
+-- 4-level 다올투자증권 구조: DAOL → 부문(DIV_*) → 본부(HQ_*) → 팀(TEAM_*)
+-- 기존 DB에 구 코드(HQ, DEPT01 등)가 남아 있으면 dev reset 시: TRUNCATE department CASCADE 후 init-data 재실행.
 INSERT INTO department (code, parent_code, name, sort_order)
 VALUES
-    ('HQ', NULL, '본부', 0),
-    ('DEPT01', 'HQ', '팀1', 1),
-    ('DEPT02', 'HQ', '팀2', 2),
-    ('DEPT01A', 'DEPT01', '팀1A', 3),
-    ('DEPT01A1', 'DEPT01A', '팀1A1', 4),
-    ('DEPT01A1X', 'DEPT01A1', '팀1A1X', 5)
+    ('DAOL', NULL, '다올투자증권', 0),
+    ('DIV_SALES', 'DAOL', '영업부문', 1),
+    ('DIV_RESEARCH', 'DAOL', '리서치부문', 2),
+    ('HQ_SALES_A', 'DIV_SALES', '영업1본부', 3),
+    ('HQ_RESEARCH', 'DIV_RESEARCH', '리서치본부', 4),
+    ('TEAM_SALES_A1', 'HQ_SALES_A', '영업1팀', 5),
+    ('TEAM_RESEARCH_1', 'HQ_RESEARCH', '리서치1팀', 6)
 ON CONFLICT (code) DO NOTHING;
 
 -- 앱 사용자 (department_code는 department.code FK; 부서 삽입 후 실행)
@@ -20,10 +22,14 @@ ON CONFLICT (code) DO NOTHING;
 INSERT INTO app_user (username, password_hash, role, department_code)
 VALUES
     ('admin', 'admin123', 'ADMIN', NULL),
-    ('user1', 'user123', 'USER', 'DEPT01'),
-    ('user2', 'user123', 'USER', 'DEPT01'),
-    ('user3', 'user123', 'USER', 'DEPT01A1X')
+    ('user1', 'user123', 'USER', 'TEAM_SALES_A1'),
+    ('user2', 'user123', 'USER', 'TEAM_SALES_A1'),
+    ('user3', 'user123', 'USER', 'TEAM_RESEARCH_1')
 ON CONFLICT (username) DO NOTHING;
+
+-- 기존 사용자 department_code 동기화 (TRUNCATE department CASCADE 후 재실행 시)
+UPDATE app_user SET department_code = 'TEAM_SALES_A1' WHERE username IN ('user1','user2');
+UPDATE app_user SET department_code = 'TEAM_RESEARCH_1' WHERE username = 'user3';
 
 -- 결재자: user1 = 전역 결재자(department_code NULL). app_user 삽입 후 실행. 재실행 시 idempotent.
 INSERT INTO decrypt_approver (user_id, department_code)
