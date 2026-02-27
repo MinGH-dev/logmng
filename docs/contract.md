@@ -26,7 +26,7 @@
 ## 화면 기반 접근 제어 (Screen-based access)
 
 - **요건**: `docs/requirements/20250227-permission-group-screen-menu-access.md`
-- **화면 ID 목록**: main, search-history, activity-log, statistics, pending-approvals, user-management, department-approvers, user-permission-hierarchy. 상세 및 화면↔API 매핑: `specs/permission-group-hierarchy.spec.yaml` §4.
+- **화면 ID 목록**: main, search-history, activity-log, statistics, pending-approvals, user-management, user-permission-hierarchy. 상세 및 화면↔API 매핑: `specs/permission-group-hierarchy.spec.yaml` §4.
 - **규칙**: role=ADMIN 사용자는 모든 화면 접근. 비관리자는 자신의 권한 그룹 중 하나라도 해당 화면을 허용해야 접근 가능. 화면에 대응하는 API 호출 시 사용자가 해당 화면을 갖지 않으면 403 반환.
 
 이 문서는 dev 워크스페이스 전용이다. 변경 시 docs/README.md 등과 맞춘다.

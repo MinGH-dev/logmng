@@ -28,8 +28,7 @@
   border-radius: 4px;
 }
 
-.user-management .log-table-container .table-wrapper,
-.department-approver-management .log-table-container .table-wrapper {
+.user-management .log-table-container .table-wrapper {
   overflow: auto;
   max-height: 70vh;
 }

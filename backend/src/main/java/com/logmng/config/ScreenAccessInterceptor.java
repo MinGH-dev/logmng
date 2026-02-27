@@ -37,8 +37,7 @@ public class ScreenAccessInterceptor implements HandlerInterceptor {
     /** Path pattern (regex) -> required screen_id. Order: more specific first. */
     private static final List<PathScreenRule> PATH_SCREEN_RULES = List.of(
             new PathScreenRule("^/api/departments/user-permission-hierarchy$", ScreenConstants.USER_PERMISSION_HIERARCHY),
-            new PathScreenRule("^/api/departments/[^/]+/approvers.*", ScreenConstants.DEPARTMENT_APPROVERS),
-            new PathScreenRule("^/api/departments.*", ScreenConstants.DEPARTMENT_APPROVERS),
+            new PathScreenRule("^/api/departments.*", ScreenConstants.USER_PERMISSION_HIERARCHY),
             new PathScreenRule("^/api/permission-groups.*", ScreenConstants.USER_PERMISSION_HIERARCHY),
             new PathScreenRule("^/api/search-history/pending.*", ScreenConstants.PENDING_APPROVALS),
             new PathScreenRule("^/api/search-history/[^/]+/approve.*", ScreenConstants.PENDING_APPROVALS),
@@ -46,7 +45,6 @@ public class ScreenAccessInterceptor implements HandlerInterceptor {
             new PathScreenRule("^/api/search-history.*", ScreenConstants.SEARCH_HISTORY),
             new PathScreenRule("^/api/activity-log.*", ScreenConstants.ACTIVITY_LOG),
             new PathScreenRule("^/api/statistics.*", ScreenConstants.STATISTICS),
-            new PathScreenRule("^/api/users/approvers.*", ScreenConstants.USER_MANAGEMENT),
             new PathScreenRule("^/api/users.*", ScreenConstants.USER_MANAGEMENT),
             new PathScreenRule("^/api/logs/db-refactored.*", ScreenConstants.MAIN),
             new PathScreenRule("^/api/logs/decrypt.*", ScreenConstants.MAIN),

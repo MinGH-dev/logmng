@@ -3,7 +3,7 @@ package com.logmng.dto.response;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 /**
- * 사용자 목록 항목 (§7.1, §12.2, §12.3): userId, username, role, departmentCode, position, isApprover
+ * 사용자 목록 항목 (§7.1): userId, username, role, departmentCode, position, rank, isApprover
  */
 public class UserListItemResponse {
 
@@ -12,6 +12,7 @@ public class UserListItemResponse {
     private String role;
     private String departmentCode;
     private String position;
+    private String rank;
     @JsonProperty("isApprover")
     private boolean approver;
 
@@ -19,16 +20,21 @@ public class UserListItemResponse {
     }
 
     public UserListItemResponse(String userId, String role, String departmentCode, boolean approver) {
-        this(userId, role, departmentCode, approver, null);
+        this(userId, role, departmentCode, approver, null, null);
     }
 
     public UserListItemResponse(String userId, String role, String departmentCode, boolean approver, String position) {
+        this(userId, role, departmentCode, approver, position, null);
+    }
+
+    public UserListItemResponse(String userId, String role, String departmentCode, boolean approver, String position, String rank) {
         this.userId = userId;
         this.username = userId;
         this.role = role;
         this.departmentCode = departmentCode;
         this.approver = approver;
         this.position = position;
+        this.rank = rank;
     }
 
     public String getUserId() {
@@ -69,6 +75,14 @@ public class UserListItemResponse {
 
     public void setPosition(String position) {
         this.position = position;
+    }
+
+    public String getRank() {
+        return rank;
+    }
+
+    public void setRank(String rank) {
+        this.rank = rank;
     }
 
     public boolean isApprover() {

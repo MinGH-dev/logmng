@@ -1,10 +1,8 @@
 package com.logmng.controller;
 
-import com.logmng.dto.request.AddApproverRequest;
 import com.logmng.dto.response.ApiResponse;
 import com.logmng.dto.response.DepartmentNodeResponse;
 import com.logmng.dto.response.DepartmentNodeWithUsersResponse;
-import com.logmng.dto.response.UserListItemResponse;
 import com.logmng.exception.CustomException;
 import com.logmng.service.DecryptApproverService;
 import com.logmng.service.DepartmentService;
@@ -15,8 +13,6 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import jakarta.servlet.http.HttpServletRequest;
-import jakarta.validation.Valid;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -29,7 +25,6 @@ public class DepartmentController {
 
     private static final Logger log = LoggerFactory.getLogger(DepartmentController.class);
     private static final int MAX_DEPARTMENT_CODE_LENGTH = 50;
-    private static final int MAX_USER_ID_LENGTH = 100;
 
     private final DepartmentService departmentService;
     private final DecryptApproverService decryptApproverService;
@@ -58,16 +53,6 @@ public class DepartmentController {
         String trimmed = code.trim();
         if (trimmed.length() > MAX_DEPARTMENT_CODE_LENGTH || hasControlOrHighChars(trimmed)) {
             throw CustomException.badRequest("유효하지 않은 부서 코드입니다.", "INVALID_INPUT");
-        }
-    }
-
-    private void validateUserId(String userId) {
-        if (userId == null || userId.isBlank()) {
-            throw CustomException.badRequest("userId는 필수이며 비어 있을 수 없습니다.", "INVALID_INPUT");
-        }
-        String trimmed = userId.trim();
-        if (trimmed.length() > MAX_USER_ID_LENGTH || hasControlOrHighChars(trimmed)) {
-            throw CustomException.badRequest("유효하지 않은 userId입니다.", "INVALID_INPUT");
         }
     }
 
@@ -126,88 +111,6 @@ public class DepartmentController {
             return ResponseEntity.ok(ApiResponse.success(data));
         }
         List<DepartmentNodeResponse> data = departmentService.listTree();
-        return ResponseEntity.ok(ApiResponse.success(data));
-    }
-
-    /**
-     * GET /api/departments/{code}/members — 부서 멤버 목록 (department_code = code). §12.2
-     */
-    @GetMapping("/{code}/members")
-    public ResponseEntity<ApiResponse<List<UserListItemResponse>>> listMembers(
-            @PathVariable String code,
-            HttpServletRequest request) {
-        requireAdmin(request);
-        validateDepartmentCode(code);
-        List<UserListItemResponse> data = decryptApproverService.listMembersByDepartment(code);
-        return ResponseEntity.ok(ApiResponse.success(data));
-    }
-
-    /**
-     * GET /api/departments/{code}/approvers — 해당 부서 결재자 목록. §12.3
-     */
-    @GetMapping("/{code}/approvers")
-    public ResponseEntity<ApiResponse<List<UserListItemResponse>>> listApprovers(
-            @PathVariable String code,
-            HttpServletRequest request) {
-        requireAdmin(request);
-        validateDepartmentCode(code);
-        List<UserListItemResponse> data = decryptApproverService.listApproversByDepartment(code);
-        return ResponseEntity.ok(ApiResponse.success(data));
-    }
-
-    /**
-     * POST /api/departments/{code}/approvers/default — 팀장 지정 (position에 "팀장" 포함된 멤버 일괄 추가). §12.5
-     */
-    @PostMapping("/{code}/approvers/default")
-    public ResponseEntity<ApiResponse<Map<String, Object>>> addDefaultApprovers(
-            @PathVariable String code,
-            HttpServletRequest request) {
-        requireAdmin(request);
-        validateDepartmentCode(code);
-        List<String> added = decryptApproverService.addDefaultApproversForDepartment(code);
-        Map<String, Object> data = new HashMap<>();
-        data.put("count", added.size());
-        data.put("addedUserIds", added);
-        return ResponseEntity.ok(ApiResponse.success(data));
-    }
-
-    /**
-     * POST /api/departments/{code}/approvers — 부서별 결재자 추가. §12.4
-     */
-    @PostMapping("/{code}/approvers")
-    public ResponseEntity<ApiResponse<Map<String, Object>>> addApprover(
-            @PathVariable String code,
-            @Valid @RequestBody AddApproverRequest body,
-            HttpServletRequest request) {
-        requireAdmin(request);
-        validateDepartmentCode(code);
-        validateUserId(body.getUserId());
-        UserListItemResponse result = decryptApproverService.addApproverForDepartment(code, body.getUserId());
-        Map<String, Object> data = Map.of(
-                "userId", result.getUserId(),
-                "departmentCode", code,
-                "isApprover", true
-        );
-        return ResponseEntity.ok(ApiResponse.success(data));
-    }
-
-    /**
-     * DELETE /api/departments/{code}/approvers/{userId} — 부서별 결재자 제거. §12.6
-     */
-    @DeleteMapping("/{code}/approvers/{userId}")
-    public ResponseEntity<ApiResponse<Map<String, Object>>> removeApprover(
-            @PathVariable String code,
-            @PathVariable String userId,
-            HttpServletRequest request) {
-        requireAdmin(request);
-        validateDepartmentCode(code);
-        validateUserId(userId);
-        UserListItemResponse result = decryptApproverService.removeApproverForDepartment(code, userId);
-        Map<String, Object> data = Map.of(
-                "userId", result.getUserId(),
-                "departmentCode", code,
-                "isApprover", false
-        );
         return ResponseEntity.ok(ApiResponse.success(data));
     }
 }

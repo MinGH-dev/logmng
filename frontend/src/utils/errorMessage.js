@@ -1,6 +1,6 @@
 /**
  * API error code / status → user-facing message (docs/api-definition.md §11, §14)
- * Used by admin views: UserPermissionHierarchy, PermissionGroupManagement, DepartmentApproverManagement.
+ * Used by admin views: UserPermissionHierarchy, PermissionGroupManagement.
  */
 export const getErrorMessage = (e, fallback) => {
   const code = e?.code;
