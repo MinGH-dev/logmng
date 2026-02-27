@@ -13,6 +13,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - **docs**: New workflow docs — `DB-AGENT-REVIEW.md` (DB agent role review, apply steps, schema handoff); `QA-BROWSER-TEST-TROUBLESHOOTING.md` (browser automation failures, snapshot/refs, mitigations); `SUBAGENT-MODEL-SELECTION.md` (model per subagent for token optimization, fast vs default).
 - **chore**: `.cursor` and docs updates — agent-collaboration, docs-reference, verify.md, QA.mdc, db-prompt; CURSOR-SUBAGENTS-DESIGN, SUBAGENT-DELEGATION, AGENT-COLLABORATION-ON-REQUIREMENT, CURSOR-AND-TOOLS-INTEGRATION; cursor-subagents db.md, qa-test.md.
 - **chore**: `SUBAGENT-MODEL-SELECTION.md` — use concrete model names (`claude-haiku-4.5`, `sonnet4.6`) instead of presets (fast/default); agent-collaboration and SUBAGENT-DELEGATION model parameter wording aligned.
+- **chore**: Release — CHANGELOG and release checklist update; commit and push for current workflow/agent doc changes (agent-collaboration, SUBAGENT-MODEL-SELECTION).
 
 ### 2026-02-26
 

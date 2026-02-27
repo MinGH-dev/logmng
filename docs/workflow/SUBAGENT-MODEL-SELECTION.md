@@ -100,5 +100,5 @@ Examples:
 
 So the user can see which model each agent used:
 
-- **Main agent**: When invoking a subagent via mcp_task, **include in the response** the subagent name and the model passed. Example: `Delegating to Backend (model: sonnet4.6)…` or `Invoking Release (model: claude-haiku-4.5)…`. This gives the user visibility into which model ran each delegated step.
+- **Main agent**: When invoking a subagent via mcp_task, **include in the response** the subagent name and the **actual model name** from §2.1 for that subagent (e.g. `Delegating to Backend (model: sonnet4.6)…`, `Invoking Release (model: claude-haiku-4.5)…`). Do **not** report "default"; always use the configured model name from §2.1 so the user sees the real model used.
 - **Subagent (manual handoff)**: When the user switches to a subagent chat manually, the model is typically shown in Cursor’s UI. For mcp_task invocations, the main agent’s report is the source of visibility.
