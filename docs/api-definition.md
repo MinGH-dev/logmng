@@ -40,6 +40,7 @@
   - `user.username`: string
   - `user.loginTime`: string (yyyy-MM-dd'T'HH:mm:ss)
   - `user.clientIP`: string
+  - `user.allowedScreenIds`: string[] (요건 20250227-permission-group-screen-menu-access) — 사용자 권한 그룹들의 접근 가능 화면 합집합. ADMIN은 전체 화면 또는 생략(전체 접근).
 
 ### 2.2 로그아웃
 
@@ -53,6 +54,10 @@
 - **Response (data)**:
   - `authenticated`: boolean
   - `message`: string
+
+### 2.4 현재 사용자 정보 (GET /api/auth/me, 선택)
+
+- **GET** `/api/auth/me` — 로그인 사용자 정보 반환. 구현 시 응답에 `allowedScreenIds: string[]` 포함 (요건 20250227-permission-group-screen-menu-access). 로그인 응답과 동일 규칙.
 
 ---
 
@@ -407,6 +412,7 @@
 | PERMISSION_GROUP_NOT_FOUND | 해당 ID의 권한 그룹 없음 (404) |
 | PERMISSION_GROUP_HAS_USERS | 삭제 시 해당 그룹에 사용자 배정 있음 (400) |
 | USER_ALREADY_IN_GROUP | 해당 사용자가 이미 그룹에 배정됨 (400) |
+| INVALID_SCREEN_ID | allowedScreens에 허용 목록에 없는 screen_id 포함 (400) |
 
 ---
 
@@ -466,20 +472,21 @@
 **Base path (권한 그룹)**: `/api/permission-groups`  
 **사용자 권한 계층**: `GET /api/departments/user-permission-hierarchy`
 
-요건: `docs/requirements/20250227-user-permission-hierarchy-group.md`. 상세 스펙: `specs/permission-group-hierarchy.spec.yaml`.  
-모든 API는 **관리자(role=ADMIN)** 만 호출 가능. 그 외 403, `code: "FORBIDDEN"`.
+요건: `docs/requirements/20250227-user-permission-hierarchy-group.md`, `docs/requirements/20250227-permission-group-screen-menu-access.md`. 상세 스펙: `specs/permission-group-hierarchy.spec.yaml`.  
+모든 API는 **관리자(role=ADMIN)** 만 호출 가능. 그 외 403, `code: "FORBIDDEN"`.  
+**화면 기반 접근**: 화면에 대응하는 API는 사용자가 해당 화면을 권한 그룹으로 허용받았거나 ADMIN이어야 함. 그 외 403. 화면↔API 매핑: `specs/permission-group-hierarchy.spec.yaml` §4.3.
 
 ### 14.1 권한 그룹 목록 조회
 
 - **GET** `/api/permission-groups`
-- **Response (data)**: 배열. 각 항목: `id` (number), `code` (string), `name` (string), `description` (string | null), `sortOrder` (number, 선택)
+- **Response (data)**: 배열. 각 항목: `id` (number), `code` (string), `name` (string), `description` (string | null), `sortOrder` (number, 선택), `allowedScreens` (string[], 요건 20250227-permission-group-screen-menu-access)
 - **에러**: 401, 403
 
 ### 14.2 권한 그룹 생성
 
 - **POST** `/api/permission-groups`
-- **Request body** (JSON): `code` (string, 필수), `name` (string, 필수), `description` (string, 선택), `sortOrder` (number, 선택, 기본 0)
-- **Response (data)**: 생성된 권한 그룹 객체 (동일 필드 + `id`)
+- **Request body** (JSON): `code` (string, 필수), `name` (string, 필수), `description` (string, 선택), `sortOrder` (number, 선택, 기본 0), `allowedScreens` (string[], 선택 — 허용 화면 목록; 그 외 400 `INVALID_SCREEN_ID`)
+- **Response (data)**: 생성된 권한 그룹 객체 (동일 필드 + `id`, `allowedScreens`)
 - **Status**: 201
 - **에러**: 400 (code/name 누락·중복), 401, 403
 
@@ -494,7 +501,7 @@
 
 - **PUT** `/api/permission-groups/{id}`
 - **Path**: `id` — 권한 그룹 ID (Long)
-- **Request body** (JSON): `code`, `name`, `description`, `sortOrder` (모두 선택)
+- **Request body** (JSON): `code`, `name`, `description`, `sortOrder`, `allowedScreens` (string[], 모두 선택). `allowedScreens`는 허용 화면 목록에 있는 값만; 그 외 400 `INVALID_SCREEN_ID`
 - **Response (data)**: 수정된 권한 그룹 객체
 - **에러**: 400, 401, 403, 404 → "PERMISSION_GROUP_NOT_FOUND"
 

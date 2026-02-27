@@ -28,12 +28,19 @@ WHERE NOT EXISTS (SELECT 1 FROM decrypt_approver WHERE user_id = 'user1' AND dep
 -- 권한 그룹 (요건: 20250227-user-permission-hierarchy-group). permission_group 먼저, 그 다음 사용자–그룹 연결.
 INSERT INTO permission_group (code, name, description, sort_order)
 VALUES
+    ('GENERAL_USER', '일반 사용자 그룹', '일반 사용자용 기본 화면 접근 허용 (로그 검색, 이력·승인, 통계)', 0),
     ('AUDIT', '감사 권한', '감사 담당자 권한 그룹', 1),
     ('REPORT', '리포트 권한', '리포트 조회 권한', 2),
     ('ADMIN_EXT', '관리 확장', NULL, 3)
 ON CONFLICT (code) DO NOTHING;
 
--- 사용자–권한 그룹 연결: user1 → AUDIT, REPORT; user2 → AUDIT (기존 app_user username 기준).
+-- 권한 그룹별 접근 화면 (요건: 20250227-permission-group-screen-menu-access). GENERAL_USER 기본 화면.
+INSERT INTO permission_group_screen (permission_group_id, screen_id)
+SELECT id, unnest(ARRAY['main','search-history','activity-log','statistics','pending-approvals'])
+FROM permission_group WHERE code = 'GENERAL_USER'
+ON CONFLICT (permission_group_id, screen_id) DO NOTHING;
+
+-- 사용자–권한 그룹 연결: user1 → AUDIT, REPORT, GENERAL_USER; user2 → AUDIT, GENERAL_USER (기존 app_user username 기준).
 INSERT INTO app_user_permission_group (user_id, permission_group_id)
 SELECT 'user1', id FROM permission_group WHERE code = 'AUDIT'
 ON CONFLICT (user_id, permission_group_id) DO NOTHING;
@@ -42,6 +49,12 @@ SELECT 'user1', id FROM permission_group WHERE code = 'REPORT'
 ON CONFLICT (user_id, permission_group_id) DO NOTHING;
 INSERT INTO app_user_permission_group (user_id, permission_group_id)
 SELECT 'user2', id FROM permission_group WHERE code = 'AUDIT'
+ON CONFLICT (user_id, permission_group_id) DO NOTHING;
+INSERT INTO app_user_permission_group (user_id, permission_group_id)
+SELECT 'user1', id FROM permission_group WHERE code = 'GENERAL_USER'
+ON CONFLICT (user_id, permission_group_id) DO NOTHING;
+INSERT INTO app_user_permission_group (user_id, permission_group_id)
+SELECT 'user2', id FROM permission_group WHERE code = 'GENERAL_USER'
 ON CONFLICT (user_id, permission_group_id) DO NOTHING;
 
 -- 송신 로그 샘플 데이터

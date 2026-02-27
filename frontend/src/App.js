@@ -27,6 +27,13 @@ function App() {
   const [initialSearchParams, setInitialSearchParams] = useState(null);
   const [initialSearchApprovalId, setInitialSearchApprovalId] = useState(null);
 
+  const canAccessView = (view) => {
+    if (user?.role === 'ADMIN') return true;
+    const ids = user?.allowedScreenIds;
+    if (!Array.isArray(ids) || ids.length === 0) return false;
+    return ids.includes(view);
+  };
+
   useEffect(() => {
     checkAuthStatus();
     const savedLogType = localStorage.getItem('selectedLogType');
@@ -58,11 +65,24 @@ function App() {
         const savedUser = getMinimalUserData();
         const fromApi = result.data;
         const merged = savedUser
-          ? { username: fromApi?.username ?? savedUser.username, role: fromApi?.role ?? savedUser.role }
+          ? {
+              username: fromApi?.username ?? savedUser.username,
+              role: fromApi?.role ?? savedUser.role,
+              allowedScreenIds: Array.isArray(fromApi?.allowedScreenIds)
+                ? fromApi.allowedScreenIds
+                : savedUser?.allowedScreenIds ?? null,
+            }
           : fromApi?.username
-            ? { username: fromApi.username, role: fromApi.role ?? null }
+            ? {
+                username: fromApi.username,
+                role: fromApi.role ?? null,
+                allowedScreenIds: Array.isArray(fromApi?.allowedScreenIds) ? fromApi.allowedScreenIds : null,
+              }
             : null;
-        if (merged) setUser(merged);
+        if (merged) {
+          setUser(merged);
+          saveMinimalUserData(merged);
+        }
       }
     } catch (error) {
       clearTimeout(timeoutId);
@@ -84,10 +104,11 @@ function App() {
     const minimalUserData = {
       username: userData.username || null,
       role: userData.role || null,
+      allowedScreenIds: Array.isArray(userData.allowedScreenIds) ? userData.allowedScreenIds : null,
     };
     setUser(minimalUserData);
     setIsAuthenticated(true);
-    saveMinimalUserData({ ...userData, role: userData.role });
+    saveMinimalUserData(minimalUserData);
   };
 
   const handleLogout = async () => {
@@ -118,7 +139,20 @@ function App() {
     localStorage.removeItem('selectedLogType');
   };
 
+  useEffect(() => {
+    if (!isAuthenticated || !user) return;
+    if (currentView === 'main') return;
+    const isAdmin = user?.role === 'ADMIN';
+    const ids = user?.allowedScreenIds;
+    const hasAccess = isAdmin || (Array.isArray(ids) && ids.length > 0 && ids.includes(currentView));
+    if (!hasAccess) setCurrentView('main');
+  }, [isAuthenticated, user, currentView]);
+
   const handleNavigate = (view) => {
+    if (!canAccessView(view)) {
+      setCurrentView('main');
+      return;
+    }
     setCurrentView(view);
   };
 
@@ -166,6 +200,7 @@ function App() {
         <AppSidebar
           open={sidebarOpen}
           isAdmin={user?.role === 'ADMIN'}
+          allowedScreenIds={user?.allowedScreenIds}
           currentView={currentView}
           onNavigate={handleNavigate}
           onSearchMain={handleSearchMain}

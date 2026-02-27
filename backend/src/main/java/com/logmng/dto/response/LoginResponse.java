@@ -3,6 +3,7 @@ package com.logmng.dto.response;
 import com.fasterxml.jackson.annotation.JsonFormat;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 /**
  * 로그인 응답 DTO
@@ -18,7 +19,10 @@ public class LoginResponse {
 
     /** Role from app_user (ADMIN | USER). Used for session. */
     private String role;
-    
+
+    /** Union of allowed screens from user's permission groups. ADMIN gets all. */
+    private List<String> allowedScreenIds;
+
     public LoginResponse() {
     }
     
@@ -58,6 +62,14 @@ public class LoginResponse {
 
     public void setRole(String role) {
         this.role = role;
+    }
+
+    public List<String> getAllowedScreenIds() {
+        return allowedScreenIds;
+    }
+
+    public void setAllowedScreenIds(List<String> allowedScreenIds) {
+        this.allowedScreenIds = allowedScreenIds;
     }
 }
 

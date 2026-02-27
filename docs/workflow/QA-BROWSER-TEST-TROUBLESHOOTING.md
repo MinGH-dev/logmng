@@ -65,7 +65,7 @@ From `docs/requirements/20250227-permission-management-in-hierarchy.md` §5:
 
 | Priority | Action |
 |----------|--------|
-| 1 | **Use server-puppeteer when possible**: Project `.cursor/mcp.json` already points to `@modelcontextprotocol/server-puppeteer`. Ensure it is enabled and Cursor restarted. QA should prefer `puppeteer_*` (navigate with launchOptions viewport, then screenshot/click by selector) to avoid ref-dependent snapshot issues. |
+| 1 | **Prefer AgentDeskAI when available**: Project `.cursor/mcp.json` includes `@agentdeskai/browser-tools-mcp` as default. Use `takeScreenshot`, `runAccessibilityAudit`, `runPerformanceAudit`, `runSEOAudit`. For navigate/click/fill: use server-puppeteer (`puppeteer_*`) when available — navigate with launchOptions viewport, then screenshot/click by selector. |
 | 2 | **Wait before snapshot**: When using cursor-ide-browser, after `browser_navigate` wait 2–3 s (or `browser_wait_for`) then `browser_snapshot`; retry once if response has no refs. |
 | 3 | **Document “which MCP” in §5**: QA should record in §5 which tool was used (cursor-ide-browser vs server-puppeteer / project-0-dev-browser) and, on failure, whether snapshot had refs and whether screenshot timed out. |
 | 4 | **Frontend verification via manual handoff**: For frontend-heavy verification, have the user switch to the QA subagent chat and pass the handoff so QA runs in the same workspace with MCP available. |

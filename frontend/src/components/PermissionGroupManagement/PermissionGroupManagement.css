@@ -59,7 +59,8 @@
   margin-bottom: 0.75rem;
 }
 
-.permission-group-form-row label {
+.permission-group-form-row label,
+.permission-group-form-row .permission-group-form-label {
   display: block;
   margin-bottom: 0.25rem;
   font-weight: 600;

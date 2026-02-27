@@ -27,7 +27,7 @@ Browser automation was **optional** in procedure and agent instructions, and req
 ### 2.1 Mandatory browser verification for frontend changes
 
 - **When**: The requirement or change involves **frontend** (`frontend/` source or config). Verification is performed by the **QA** subagent (Step 5).
-- **Rule**: QA **must** run **Browser Automation** (step 3.5 in verify.md), not optionally. If a browser MCP is available (cursor-ide-browser or server-puppeteer per `.cursor/mcp.json`), QA executes the browser verification steps applicable to the requirement (see §2.2 and §2.3).
+- **Rule**: QA **must** run **Browser Automation** (step 3.5 in verify.md), not optionally. If a browser MCP is available (**AgentDeskAI** preferred, or cursor-ide-browser, server-puppeteer per `.cursor/mcp.json`), QA executes the browser verification steps applicable to the requirement (see §2.2 and §2.3).
 - **If no browser MCP**: If the environment has no browser MCP enabled, QA records in §5 that browser verification was skipped (reason: MCP unavailable) and recommends manual verification or running verification again when MCP is available.
 
 ### 2.2 Requirement doc: §3.5 when frontend-heavy
@@ -43,7 +43,7 @@ Browser automation was **optional** in procedure and agent instructions, and req
   - **Scope**: Frontend only / backend only / both.
   - **Health check**: Frontend (3001), Backend (9200), DB if used — result (e.g. 200) and one-line outcome.
   - **Browser automation**:
-    - **Tool used**: e.g. cursor-ide-browser, server-puppeteer, project-0-dev-browser.
+    - **Tool used**: e.g. AgentDeskAI (user-browser-tools), cursor-ide-browser, server-puppeteer, project-0-dev-browser.
     - **Base URL**: e.g. http://localhost:3001.
     - **Steps run**: For each test case or scenario run (e.g. TC-01, TC-02, …): **Pass** or **Fail**, and **brief note** (e.g. "No 'back to main' link in content per menu", "aria-invalid not set after date reversal submit").
     - **Failures**: For each **Fail**, include: TC ID, **what was checked** (e.g. selector or ref), **expected** (e.g. `aria-invalid="true"` on date input), **actual** (e.g. "0 elements with aria-invalid"). This allows the Frontend subagent to fix without re-guessing.

@@ -2,6 +2,8 @@ package com.logmng.dto.request;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 
+import java.util.List;
+
 /**
  * Permission group update request (§14.4). All fields optional.
  */
@@ -12,6 +14,8 @@ public class PermissionGroupUpdateRequest {
     private String description;
     @JsonProperty("sortOrder")
     private Integer sortOrder;
+
+    private List<String> allowedScreens;
 
     public String getCode() {
         return code;
@@ -43,5 +47,13 @@ public class PermissionGroupUpdateRequest {
 
     public void setSortOrder(Integer sortOrder) {
         this.sortOrder = sortOrder;
+    }
+
+    public List<String> getAllowedScreens() {
+        return allowedScreens;
+    }
+
+    public void setAllowedScreens(List<String> allowedScreens) {
+        this.allowedScreens = allowedScreens;
     }
 }

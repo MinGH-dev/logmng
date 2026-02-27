@@ -16,6 +16,7 @@ import {
 import { getUsers } from '../../services/userService';
 import { getErrorMessage } from '../../utils/errorMessage';
 import DataTable, { EmptyTableBody } from '../DataTable';
+import ScreenSelectionTree from './ScreenSelectionTree';
 import logger from '../../utils/logger';
 import '../UserManagement/UserManagement.css';
 import './PermissionGroupManagement.css';
@@ -47,6 +48,8 @@ const PermissionGroupPanel = ({ user, onRefreshHierarchy }) => {
   const [addUserId, setAddUserId] = useState('');
   const [usersDialogError, setUsersDialogError] = useState(null);
   const [usersDialogActionId, setUsersDialogActionId] = useState(null);
+  const [createAllowedScreens, setCreateAllowedScreens] = useState([]);
+  const [editAllowedScreens, setEditAllowedScreens] = useState([]);
 
   const isAdmin = user?.role === 'ADMIN';
 
@@ -103,6 +106,7 @@ const PermissionGroupPanel = ({ user, onRefreshHierarchy }) => {
 
   const openEdit = (group) => {
     setEditGroup(group);
+    setEditAllowedScreens(Array.isArray(group?.allowedScreens) ? [...group.allowedScreens] : []);
     setEditOpen(true);
     setError(null);
   };
@@ -148,8 +152,9 @@ const PermissionGroupPanel = ({ user, onRefreshHierarchy }) => {
     setActionId('create');
     setError(null);
     try {
-      await createPermissionGroup({ code, name, description });
+      await createPermissionGroup({ code, name, description, allowedScreens: createAllowedScreens });
       setCreateOpen(false);
+      setCreateAllowedScreens([]);
       form.reset();
       await loadGroups();
       notifyHierarchyRefresh();
@@ -175,7 +180,7 @@ const PermissionGroupPanel = ({ user, onRefreshHierarchy }) => {
     setActionId('edit');
     setError(null);
     try {
-      await updatePermissionGroup(editGroup.id, { code, name, description });
+      await updatePermissionGroup(editGroup.id, { code, name, description, allowedScreens: editAllowedScreens });
       setEditOpen(false);
       setEditGroup(null);
       await loadGroups();
@@ -304,6 +309,13 @@ const PermissionGroupPanel = ({ user, onRefreshHierarchy }) => {
                 <label htmlFor="create-description">설명</label>
                 <input id="create-description" name="description" type="text" autoComplete="off" />
               </div>
+              <div className="permission-group-form-row">
+                <span className="permission-group-form-label">접근 화면</span>
+                <ScreenSelectionTree
+                  selectedScreens={createAllowedScreens}
+                  onChange={setCreateAllowedScreens}
+                />
+              </div>
               <div className="permission-group-dialog-actions">
                 <button type="submit" className="user-management-btn add" disabled={!!actionId}>{(actionId === 'create') ? '처리 중...' : '추가'}</button>
                 <button type="button" className="user-management-btn" onClick={() => { setCreateOpen(false); setError(null); }}>취소</button>
@@ -329,6 +341,13 @@ const PermissionGroupPanel = ({ user, onRefreshHierarchy }) => {
               <div className="permission-group-form-row">
                 <label htmlFor="edit-description">설명</label>
                 <input id="edit-description" name="description" type="text" defaultValue={editGroup.description ?? ''} autoComplete="off" />
+              </div>
+              <div className="permission-group-form-row">
+                <span className="permission-group-form-label">접근 화면</span>
+                <ScreenSelectionTree
+                  selectedScreens={editAllowedScreens}
+                  onChange={setEditAllowedScreens}
+                />
               </div>
               <div className="permission-group-dialog-actions">
                 <button type="submit" className="user-management-btn add" disabled={!!actionId}>{(actionId === 'edit') ? '처리 중...' : '저장'}</button>

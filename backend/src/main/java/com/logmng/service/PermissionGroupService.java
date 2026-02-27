@@ -1,5 +1,6 @@
 package com.logmng.service;
 
+import com.logmng.constants.ScreenConstants;
 import com.logmng.dto.request.PermissionGroupCreateRequest;
 import com.logmng.dto.request.PermissionGroupUpdateRequest;
 import com.logmng.dto.response.AssignUserToGroupResponse;
@@ -17,7 +18,9 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Set;
 
 /**
  * Permission group CRUD and user-group assignment. §14. Admin-only APIs.
@@ -43,7 +46,9 @@ public class PermissionGroupService {
             try (PreparedStatement ps = conn.prepareStatement(sql);
                  ResultSet rs = ps.executeQuery()) {
                 while (rs.next()) {
-                    list.add(mapRowToResponse(rs));
+                    PermissionGroupResponse r = mapRowToResponse(rs);
+                    r.setAllowedScreens(loadAllowedScreens(conn, r.getId()));
+                    list.add(r);
                 }
             }
         } catch (SQLException e) {
@@ -63,7 +68,9 @@ public class PermissionGroupService {
                 ps.setLong(1, id);
                 try (ResultSet rs = ps.executeQuery()) {
                     if (rs.next()) {
-                        return mapRowToResponse(rs);
+                        PermissionGroupResponse r = mapRowToResponse(rs);
+                        r.setAllowedScreens(loadAllowedScreens(conn, r.getId()));
+                        return r;
                     }
                 }
             }
@@ -77,6 +84,7 @@ public class PermissionGroupService {
     public PermissionGroupResponse create(PermissionGroupCreateRequest req) {
         validateCode(req.getCode());
         validateName(req.getName());
+        validateAllowedScreens(req.getAllowedScreens());
         String code = trim(req.getCode());
         String name = trim(req.getName());
         if (code.isEmpty() || name.isEmpty()) {
@@ -98,6 +106,7 @@ public class PermissionGroupService {
                 try (ResultSet keys = ps.getGeneratedKeys()) {
                     if (keys.next()) {
                         long id = keys.getLong(1);
+                        saveAllowedScreens(conn, id, req.getAllowedScreens());
                         return findById(id);
                     }
                 }
@@ -110,6 +119,9 @@ public class PermissionGroupService {
     }
 
     public PermissionGroupResponse update(Long id, PermissionGroupUpdateRequest req) {
+        if (req.getAllowedScreens() != null) {
+            validateAllowedScreens(req.getAllowedScreens());
+        }
         PermissionGroupResponse existing = findById(id);
         String code = req.getCode() != null ? trim(req.getCode()) : existing.getCode();
         String name = req.getName() != null ? trim(req.getName()) : existing.getName();
@@ -135,6 +147,9 @@ public class PermissionGroupService {
                 if (ps.executeUpdate() == 0) {
                     throw CustomException.notFound("권한 그룹을 찾을 수 없습니다: id=" + id, "PERMISSION_GROUP_NOT_FOUND");
                 }
+            }
+            if (req.getAllowedScreens() != null) {
+                saveAllowedScreens(conn, id, req.getAllowedScreens());
             }
         } catch (CustomException e) {
             throw e;
@@ -206,6 +221,34 @@ public class PermissionGroupService {
             log.error("Unassign user from group failed: groupId={}, userId={}", groupId, userId, e);
             throw new RuntimeException("사용자 배정 해제 중 오류가 발생했습니다: " + e.getMessage(), e);
         }
+    }
+
+    /**
+     * Returns union of allowed screen IDs from all permission groups the user belongs to.
+     * Used for login/me response. Caller should pass all screens for ADMIN.
+     */
+    public List<String> getAllowedScreenIdsForUser(String userId) {
+        if (userId == null || userId.isBlank()) {
+            return List.of();
+        }
+        Set<String> screens = new LinkedHashSet<>();
+        try (Connection conn = dataSource.getConnection()) {
+            String sql = "SELECT DISTINCT pgs.screen_id FROM permission_group_screen pgs " +
+                    "INNER JOIN app_user_permission_group aupg ON pgs.permission_group_id = aupg.permission_group_id " +
+                    "WHERE aupg.user_id = ? ORDER BY pgs.screen_id";
+            try (PreparedStatement ps = conn.prepareStatement(sql)) {
+                ps.setString(1, userId.trim());
+                try (ResultSet rs = ps.executeQuery()) {
+                    while (rs.next()) {
+                        screens.add(rs.getString("screen_id"));
+                    }
+                }
+            }
+        } catch (SQLException e) {
+            log.error("Get allowed screens for user failed: userId={}", userId, e);
+            return List.of();
+        }
+        return new ArrayList<>(screens);
     }
 
     public List<UserListItemResponse> listUsersInGroup(Long groupId) {
@@ -340,5 +383,50 @@ public class PermissionGroupService {
 
     private static String trim(String s) {
         return s != null ? s.trim() : "";
+    }
+
+    private void validateAllowedScreens(List<String> screenIds) {
+        if (screenIds == null || screenIds.isEmpty()) {
+            return;
+        }
+        String invalid = ScreenConstants.findFirstInvalid(screenIds.toArray(new String[0]));
+        if (invalid != null) {
+            throw CustomException.badRequest("유효하지 않은 화면 ID입니다: " + invalid, "INVALID_SCREEN_ID");
+        }
+    }
+
+    private List<String> loadAllowedScreens(Connection conn, long groupId) throws SQLException {
+        List<String> screens = new ArrayList<>();
+        String sql = "SELECT screen_id FROM permission_group_screen WHERE permission_group_id = ? ORDER BY screen_id";
+        try (PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setLong(1, groupId);
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    screens.add(rs.getString("screen_id"));
+                }
+            }
+        }
+        return screens;
+    }
+
+    private void saveAllowedScreens(Connection conn, long groupId, List<String> screenIds) throws SQLException {
+        String deleteSql = "DELETE FROM permission_group_screen WHERE permission_group_id = ?";
+        try (PreparedStatement ps = conn.prepareStatement(deleteSql)) {
+            ps.setLong(1, groupId);
+            ps.executeUpdate();
+        }
+        if (screenIds != null && !screenIds.isEmpty()) {
+            String insertSql = "INSERT INTO permission_group_screen (permission_group_id, screen_id) VALUES (?, ?)";
+            try (PreparedStatement ps = conn.prepareStatement(insertSql)) {
+                for (String screenId : screenIds) {
+                    if (screenId != null && !screenId.isBlank()) {
+                        ps.setLong(1, groupId);
+                        ps.setString(2, screenId.trim());
+                        ps.addBatch();
+                    }
+                }
+                ps.executeBatch();
+            }
+        }
     }
 }

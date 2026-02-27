@@ -186,6 +186,14 @@ CREATE TABLE IF NOT EXISTS app_user_permission_group (
 );
 CREATE INDEX IF NOT EXISTS idx_app_user_permission_group_group ON app_user_permission_group(permission_group_id);
 
+-- 권한 그룹별 접근 화면 (요건: 20250227-permission-group-screen-menu-access)
+CREATE TABLE IF NOT EXISTS permission_group_screen (
+    permission_group_id BIGINT NOT NULL REFERENCES permission_group(id) ON DELETE CASCADE,
+    screen_id VARCHAR(50) NOT NULL,
+    PRIMARY KEY (permission_group_id, screen_id)
+);
+CREATE INDEX IF NOT EXISTS idx_permission_group_screen_screen ON permission_group_screen(screen_id);
+
 -- 권한 부여
 GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO logmng;
 GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public TO logmng;

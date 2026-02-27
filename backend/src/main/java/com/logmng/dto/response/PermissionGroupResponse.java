@@ -1,6 +1,8 @@
 package com.logmng.dto.response;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
+
+import java.util.List;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 /**
@@ -15,6 +17,7 @@ public class PermissionGroupResponse {
     private String description;
     @JsonProperty("sortOrder")
     private Integer sortOrder;
+    private List<String> allowedScreens;
 
     public PermissionGroupResponse() {
     }
@@ -65,5 +68,13 @@ public class PermissionGroupResponse {
 
     public void setSortOrder(Integer sortOrder) {
         this.sortOrder = sortOrder;
+    }
+
+    public List<String> getAllowedScreens() {
+        return allowedScreens;
+    }
+
+    public void setAllowedScreens(List<String> allowedScreens) {
+        this.allowedScreens = allowedScreens;
     }
 }

@@ -1,6 +1,8 @@
 package com.logmng.dto.request;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
+
+import java.util.List;
 import jakarta.validation.constraints.NotBlank;
 
 /**
@@ -18,6 +20,8 @@ public class PermissionGroupCreateRequest {
 
     @JsonProperty("sortOrder")
     private Integer sortOrder;
+
+    private List<String> allowedScreens;
 
     public String getCode() {
         return code;
@@ -49,5 +53,13 @@ public class PermissionGroupCreateRequest {
 
     public void setSortOrder(Integer sortOrder) {
         this.sortOrder = sortOrder;
+    }
+
+    public List<String> getAllowedScreens() {
+        return allowedScreens;
+    }
+
+    public void setAllowedScreens(List<String> allowedScreens) {
+        this.allowedScreens = allowedScreens;
     }
 }
