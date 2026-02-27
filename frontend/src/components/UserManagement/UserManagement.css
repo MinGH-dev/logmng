@@ -78,3 +78,9 @@
   border-color: #c00;
   color: #c00;
 }
+
+/* Single-panel layout: tree section uses full width (no right-side permission group panel) */
+.user-management .user-permission-hierarchy-tree-section {
+  flex: 1;
+  min-width: 0;
+}

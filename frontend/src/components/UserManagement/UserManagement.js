@@ -4,9 +4,7 @@ import { getUserPermissionHierarchy, listPermissionGroups } from '../../services
 import { getErrorMessage } from '../../utils/errorMessage';
 import logger from '../../utils/logger';
 import UserGroupAssignment from '../UserGroupAssignment/UserGroupAssignment';
-import PermissionGroupPanel from '../PermissionGroupManagement/PermissionGroupPanel';
 import '../DepartmentApproverManagement/DepartmentApproverManagement.css';
-import '../PermissionGroupManagement/PermissionGroupManagement.css';
 import '../UserPermissionHierarchy/UserPermissionHierarchy.css';
 import './UserManagement.css';
 
@@ -321,10 +319,6 @@ const UserManagement = ({ onShowDepartmentApprovers, user }) => {
               actionId={actionId}
             />
           )}
-        </section>
-        <section className="user-permission-hierarchy-groups-section" aria-label="권한 그룹 목록 및 관리">
-          <h3>권한 그룹</h3>
-          <PermissionGroupPanel user={user} onRefreshHierarchy={loadHierarchy} />
         </section>
       </div>
     </div>

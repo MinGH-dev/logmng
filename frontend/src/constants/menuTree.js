@@ -14,6 +14,7 @@ import {
   Assessment as AssessmentIcon,
   People as PeopleIcon,
   Business as BusinessIcon,
+  GroupWork as GroupWorkIcon,
 } from '@mui/icons-material';
 
 /** 허용 화면 ID 목록 (spec §4.1). user-permission-hierarchy: redirect to user-management (Option B). */
@@ -26,6 +27,7 @@ export const ALLOWED_SCREEN_IDS = [
   'user-management',
   'department-approvers',
   'user-permission-hierarchy',
+  'permission-group-management',
 ];
 
 /** 2-depth 메뉴 트리 (1차: 그룹, 2차: leaf screens) */
@@ -61,6 +63,7 @@ export const MENU_TREE = [
     adminOnly: true,
     children: [
       { id: 'user-management', label: '사용자 관리', view: 'user-management' },
+      { id: 'permission-group-management', label: '권한 그룹 관리', view: 'permission-group-management' },
       { id: 'department-approvers', label: '부서별 결재자', view: 'department-approvers' },
     ],
   },
@@ -73,5 +76,6 @@ export const SECOND_ICONS = {
   'pending-approvals': PendingIcon,
   'statistics-view': AssessmentIcon,
   'user-management': PeopleIcon,
+  'permission-group-management': GroupWorkIcon,
   'department-approvers': BusinessIcon,
 };

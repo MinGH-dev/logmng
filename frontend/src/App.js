@@ -9,6 +9,7 @@ import UserActivityLogList from './components/UserActivityLog/UserActivityLogLis
 import ActivityStatistics from './components/ActivityStatistics';
 import SearchHistoryList from './components/SearchHistory/SearchHistoryList';
 import UserManagement from './components/UserManagement/UserManagement';
+import PermissionGroupManagement from './components/PermissionGroupManagement/PermissionGroupManagement';
 import DepartmentApproverManagement from './components/DepartmentApproverManagement/DepartmentApproverManagement';
 import PendingApprovals from './components/PendingApprovals/PendingApprovals';
 import AppSidebar from './components/AppSidebar';
@@ -231,9 +232,10 @@ function App() {
             {currentView === 'search-history' && (
               <SearchHistoryList onReSearch={handleReSearchFromHistory} />
             )}
-            {(currentView === 'user-management' || currentView === 'user-permission-hierarchy' || currentView === 'permission-group-management') && (
+            {(currentView === 'user-management' || currentView === 'user-permission-hierarchy') && (
               <UserManagement onShowDepartmentApprovers={() => handleNavigate('department-approvers')} user={user} />
             )}
+            {currentView === 'permission-group-management' && <PermissionGroupManagement user={user} />}
             {currentView === 'department-approvers' && <DepartmentApproverManagement user={user} />}
             {currentView === 'pending-approvals' && <PendingApprovals />}
             {currentView === 'main' && !selectedLogType && (
