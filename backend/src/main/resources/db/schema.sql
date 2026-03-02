@@ -141,6 +141,7 @@ CREATE TABLE IF NOT EXISTS app_user (
     department_code VARCHAR(50),
     position VARCHAR(50) NULL,
     rank VARCHAR(50) NULL,
+    is_system_admin BOOLEAN NOT NULL DEFAULT false,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT chk_app_user_role CHECK (role IN ('ADMIN', 'USER')),

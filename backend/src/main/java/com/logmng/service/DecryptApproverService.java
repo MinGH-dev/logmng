@@ -104,12 +104,12 @@ public class DecryptApproverService {
     }
 
     /**
-     * app_user 목록 + 각 사용자별 isApprover, position, rank. §7.1
+     * app_user 목록 + 각 사용자별 isApprover, position, rank, isSystemAdmin. §7.1
      */
     public List<UserListItemResponse> listUsers() {
         List<UserListItemResponse> list = new ArrayList<>();
         try (Connection conn = dataSource.getConnection()) {
-            String sql = "SELECT username, role, department_code, position, rank FROM app_user ORDER BY username";
+            String sql = "SELECT username, role, department_code, position, rank, is_system_admin FROM app_user ORDER BY username";
             try (PreparedStatement ps = conn.prepareStatement(sql)) {
                 try (ResultSet rs = ps.executeQuery()) {
                     while (rs.next()) {
@@ -118,8 +118,9 @@ public class DecryptApproverService {
                         String departmentCode = rs.getString("department_code");
                         String position = rs.getString("position");
                         String rank = rs.getString("rank");
+                        boolean isSystemAdmin = Boolean.TRUE.equals(rs.getObject("is_system_admin", Boolean.class));
                         boolean isApprover = isApprover(username);
-                        list.add(new UserListItemResponse(username, role, departmentCode, isApprover, position, rank));
+                        list.add(new UserListItemResponse(username, role, departmentCode, isApprover, position, rank, isSystemAdmin));
                     }
                 }
             }
@@ -134,6 +135,8 @@ public class DecryptApproverService {
      * 사용자 역할 변경. §7.4. 관리자 전용.
      * callerUserId: 호출자(세션), targetUserId: 대상 사용자, role: ADMIN | USER
      * - 자기 자신: targetUserId == callerUserId → 400 SELF_DEMOTION_BLOCKED
+     * - 시스템 관리자: target has is_system_admin=true → 400 SYSTEM_ADMIN_IMMUTABLE
+     * - 마지막 시스템 관리자: demotion would leave zero system admins → 400 LAST_SYSTEM_ADMIN_BLOCKED
      * - 마지막 관리자: ADMIN→USER로 변경 시 count(ADMIN)==1이면 → 400 LAST_ADMIN_BLOCKED
      */
     public UserListItemResponse updateUserRole(String callerUserId, String targetUserId, String role) {
@@ -149,6 +152,11 @@ public class DecryptApproverService {
             throw CustomException.badRequest("자기 자신의 권한은 변경할 수 없습니다.", "SELF_DEMOTION_BLOCKED");
         }
         try (Connection conn = dataSource.getConnection()) {
+            boolean targetIsSystemAdmin = isSystemAdmin(conn, targetUserId);
+            if (targetIsSystemAdmin) {
+                log.warn("시스템 관리자 역할 변경 시도 차단: caller={}, target={}, requestedRole={}", callerUserId, targetUserId, roleUpper);
+                throw CustomException.badRequest("시스템 관리자는 수정할 수 없습니다.", "SYSTEM_ADMIN_IMMUTABLE");
+            }
             String currentRole = getCurrentRole(conn, targetUserId);
             if ("ADMIN".equals(currentRole) && "USER".equals(roleUpper)) {
                 int adminCount = countAdmins(conn);
@@ -165,12 +173,24 @@ public class DecryptApproverService {
                     throw CustomException.notFound("해당 사용자를 찾을 수 없습니다: " + targetUserId, "USER_NOT_FOUND");
                 }
             }
+        } catch (CustomException e) {
+            throw e;
         } catch (SQLException e) {
             log.error("사용자 역할 변경 실패: targetUserId={}, role={}", targetUserId, role, e);
             throw new RuntimeException("역할 변경 중 오류가 발생했습니다: " + e.getMessage(), e);
         }
         log.info("사용자 역할 변경: targetUserId={}, role={}, caller={}", targetUserId, roleUpper, callerUserId);
         return getUserSummary(targetUserId);
+    }
+
+    private boolean isSystemAdmin(Connection conn, String userId) throws SQLException {
+        String sql = "SELECT is_system_admin FROM app_user WHERE username = ? LIMIT 1";
+        try (PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setString(1, userId);
+            try (ResultSet rs = ps.executeQuery()) {
+                return rs.next() && Boolean.TRUE.equals(rs.getObject("is_system_admin", Boolean.class));
+            }
+        }
     }
 
     private String getCurrentRole(Connection conn, String userId) throws SQLException {
@@ -193,7 +213,7 @@ public class DecryptApproverService {
 
     private UserListItemResponse getUserSummary(String userId) {
         try (Connection conn = dataSource.getConnection()) {
-            String sql = "SELECT username, role, department_code, position, rank FROM app_user WHERE username = ? LIMIT 1";
+            String sql = "SELECT username, role, department_code, position, rank, is_system_admin FROM app_user WHERE username = ? LIMIT 1";
             try (PreparedStatement ps = conn.prepareStatement(sql)) {
                 ps.setString(1, userId);
                 try (ResultSet rs = ps.executeQuery()) {
@@ -203,8 +223,9 @@ public class DecryptApproverService {
                         String departmentCode = rs.getString("department_code");
                         String position = rs.getString("position");
                         String rank = rs.getString("rank");
+                        boolean isSystemAdmin = Boolean.TRUE.equals(rs.getObject("is_system_admin", Boolean.class));
                         boolean isApprover = isApprover(username);
-                        return new UserListItemResponse(username, role, departmentCode, isApprover, position, rank);
+                        return new UserListItemResponse(username, role, departmentCode, isApprover, position, rank, isSystemAdmin);
                     }
                 }
             }

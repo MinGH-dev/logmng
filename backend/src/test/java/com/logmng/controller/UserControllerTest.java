@@ -70,6 +70,20 @@ class UserControllerTest {
     }
 
     @Test
+    void updateUserRole_whenSystemAdmin_returns400() throws Exception {
+        stubService.setUpdateException(CustomException.badRequest("시스템 관리자는 수정할 수 없습니다.", "SYSTEM_ADMIN_IMMUTABLE"));
+
+        mockMvc.perform(put("/api/users/admin1")
+                        .sessionAttr("userId", "admin2")
+                        .sessionAttr("role", "ADMIN")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"role\":\"USER\"}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.code").value("SYSTEM_ADMIN_IMMUTABLE"));
+    }
+
+    @Test
     void updateUserRole_whenLastAdmin_returns400() throws Exception {
         stubService.setUpdateException(CustomException.badRequest("마지막 관리자 권한은 변경할 수 없습니다.", "LAST_ADMIN_BLOCKED"));
 

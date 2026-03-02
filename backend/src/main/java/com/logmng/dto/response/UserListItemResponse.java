@@ -3,7 +3,7 @@ package com.logmng.dto.response;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 /**
- * 사용자 목록 항목 (§7.1): userId, username, role, departmentCode, position, rank, isApprover
+ * 사용자 목록 항목 (§7.1): userId, username, role, departmentCode, position, rank, isApprover, isSystemAdmin
  */
 public class UserListItemResponse {
 
@@ -15,19 +15,25 @@ public class UserListItemResponse {
     private String rank;
     @JsonProperty("isApprover")
     private boolean approver;
+    @JsonProperty("isSystemAdmin")
+    private boolean systemAdmin;
 
     public UserListItemResponse() {
     }
 
     public UserListItemResponse(String userId, String role, String departmentCode, boolean approver) {
-        this(userId, role, departmentCode, approver, null, null);
+        this(userId, role, departmentCode, approver, null, null, false);
     }
 
     public UserListItemResponse(String userId, String role, String departmentCode, boolean approver, String position) {
-        this(userId, role, departmentCode, approver, position, null);
+        this(userId, role, departmentCode, approver, position, null, false);
     }
 
     public UserListItemResponse(String userId, String role, String departmentCode, boolean approver, String position, String rank) {
+        this(userId, role, departmentCode, approver, position, rank, false);
+    }
+
+    public UserListItemResponse(String userId, String role, String departmentCode, boolean approver, String position, String rank, boolean isSystemAdmin) {
         this.userId = userId;
         this.username = userId;
         this.role = role;
@@ -35,6 +41,7 @@ public class UserListItemResponse {
         this.approver = approver;
         this.position = position;
         this.rank = rank;
+        this.systemAdmin = isSystemAdmin;
     }
 
     public String getUserId() {
@@ -91,5 +98,13 @@ public class UserListItemResponse {
 
     public void setApprover(boolean approver) {
         this.approver = approver;
+    }
+
+    public boolean isSystemAdmin() {
+        return systemAdmin;
+    }
+
+    public void setSystemAdmin(boolean systemAdmin) {
+        this.systemAdmin = systemAdmin;
     }
 }

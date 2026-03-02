@@ -194,16 +194,23 @@ const UserManagement = ({ user }) => {
     const rank = u.rank ?? '-';
     const position = u.position ?? '-';
     const permissionGroups = u.permissionGroups || [];
+    const isSystemAdmin = u.isSystemAdmin === true || u.is_system_admin === true;
+    const roleDisabled = isSystemAdmin || !!actionId;
 
     return (
       <tr key={userId}>
         <td>{userId}</td>
         <td>
+          {isSystemAdmin && (
+            <span className="system-admin-badge" aria-label="시스템 관리자, 역할 변경 불가">
+              시스템 관리자
+            </span>
+          )}
           <select
             value={role}
             onChange={(e) => onRoleChange(userId, e.target.value)}
-            disabled={!!actionId}
-            aria-label={`역할 변경, ${userId}`}
+            disabled={roleDisabled}
+            aria-label={isSystemAdmin ? `시스템 관리자, 역할 변경 불가, ${userId}` : `역할 변경, ${userId}`}
           >
             <option value="ADMIN">ADMIN</option>
             <option value="USER">USER</option>

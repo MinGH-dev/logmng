@@ -19,15 +19,19 @@ ON CONFLICT (code) DO NOTHING;
 -- 복호화 결재자 (요건: 20260224-decryption-approver-designation)
 -- position: 요건 20250227-department-approver-position (팀장 지정 테스트용)
 -- rank: 요건 20250227-remove-department-approver-screen-user-mgmt-improvements (직급)
+-- is_system_admin: 요건 20250303-permission-group-delete-system-admin-protection (시스템 관리자 보호)
 -- Dev only: password_hash에 평문 저장. 운영 환경에서는 BCrypt 등 해시 사용.
 -- 테스트 비밀번호: admin=admin123, user1/user2/user3=user123
-INSERT INTO app_user (username, password_hash, role, department_code, position, rank)
+INSERT INTO app_user (username, password_hash, role, department_code, position, rank, is_system_admin)
 VALUES
-    ('admin', 'admin123', 'ADMIN', NULL, NULL, NULL),
-    ('user1', 'user123', 'USER', 'TEAM_SALES_A1', '팀장', '부장'),
-    ('user2', 'user123', 'USER', 'TEAM_SALES_A1', '대리', '대리'),
-    ('user3', 'user123', 'USER', 'TEAM_RESEARCH_1', NULL, '사원')
+    ('admin', 'admin123', 'ADMIN', NULL, NULL, NULL, true),
+    ('user1', 'user123', 'USER', 'TEAM_SALES_A1', '팀장', '부장', false),
+    ('user2', 'user123', 'USER', 'TEAM_SALES_A1', '대리', '대리', false),
+    ('user3', 'user123', 'USER', 'TEAM_RESEARCH_1', NULL, '사원', false)
 ON CONFLICT (username) DO NOTHING;
+
+-- Ensure admin is system admin (idempotent; for re-run or migration backfill)
+UPDATE app_user SET is_system_admin = true WHERE username = 'admin';
 
 -- 기존 사용자 department_code 동기화 (TRUNCATE department CASCADE 후 재실행 시)
 UPDATE app_user SET department_code = 'TEAM_SALES_A1' WHERE username IN ('user1','user2');

@@ -117,6 +117,7 @@ Single endpoint that returns department tree with users and their permission gro
   - `users`: array of user-permission objects:
     - `userId` (username): string
     - `role`: "ADMIN" | "USER"
+    - `isSystemAdmin`: boolean — system administrator flag (immutable; req 20250303)
     - `permissionGroups`: array of `{ "id", "code", "name" }` (assigned to this user)
 - **Flat format**: array of department nodes with `code`, `parentCode`, `name`, `sortOrder`, `users` (same shape as above). No `children`.
 
@@ -167,7 +168,9 @@ Single endpoint that returns department tree with users and their permission gro
 - **app_user**: id, username, role, department_code, ... — unchanged.
 
 ---
-# 3. Error codes to add (api-definition §11)
+# 3. Error codes (api-definition §11)
+
+## 3.1 Permission group
 
 | code | Meaning |
 |------|--------|
@@ -176,7 +179,14 @@ Single endpoint that returns department tree with users and their permission gro
 | USER_ALREADY_IN_GROUP | User already assigned to this group (400) |
 | INVALID_SCREEN_ID | Invalid screen_id in allowedScreens (400) — value not in allowed list (§4) |
 
-Existing: USER_NOT_FOUND, FORBIDDEN, INVALID_INPUT remain as-is.
+## 3.2 User management (PUT /api/users/{userId})
+
+| code | Meaning |
+|------|--------|
+| SYSTEM_ADMIN_IMMUTABLE | Target user is system admin; role change/delete blocked (400) |
+| LAST_SYSTEM_ADMIN_BLOCKED | Demotion would leave zero system admins (400) |
+
+Existing: USER_NOT_FOUND, FORBIDDEN, INVALID_INPUT, SELF_DEMOTION_BLOCKED, LAST_ADMIN_BLOCKED remain as-is.
 
 ---
 # 4. Screen IDs and screen-based access

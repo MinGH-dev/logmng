@@ -290,6 +290,7 @@
 - **Response (data)**: 배열. 각 항목:
   - `userId` (또는 `username`): string — 로그인 ID
   - `role`: string — "ADMIN" | "USER"
+  - `isSystemAdmin`: boolean — 시스템 관리자 여부 (수정·삭제 불가, 요건 20250303)
   - `departmentCode`: string | null — 부서코드
   - `position`: string | null — 직책
   - `rank`: string | null — 직급
@@ -310,6 +311,7 @@
 - **Response (data)**: 업데이트된 사용자 요약 객체
   - `userId` (또는 `username`): string
   - `role`: string — "ADMIN" \| "USER" (변경 후 값)
+  - `isSystemAdmin`: boolean — 시스템 관리자 여부
   - `departmentCode`: string \| null
   - `isApprover`: boolean
 - **에러**:
@@ -319,6 +321,8 @@
   - 400 role 누락 또는 ADMIN/USER 외 값 → `code: "INVALID_INPUT"`
   - 400 자기 자신 역할 변경 시도 → `code: "SELF_DEMOTION_BLOCKED"`
   - 400 마지막 관리자 강등 시도 → `code: "LAST_ADMIN_BLOCKED"`
+  - 400 대상이 시스템 관리자(수정 불가) → `code: "SYSTEM_ADMIN_IMMUTABLE"`
+  - 400 강등 시 시스템 관리자가 0명이 됨 → `code: "LAST_SYSTEM_ADMIN_BLOCKED"`
 
 ---
 
@@ -424,6 +428,8 @@
 | USER_NOT_FOUND | 해당 사용자 없음 (404) |
 | SELF_DEMOTION_BLOCKED | 자기 자신의 역할 변경 시도 (400) |
 | LAST_ADMIN_BLOCKED | 마지막 관리자 강등 시도 (400) |
+| SYSTEM_ADMIN_IMMUTABLE | 대상이 시스템 관리자(수정·삭제 불가) (400) |
+| LAST_SYSTEM_ADMIN_BLOCKED | 강등 시 시스템 관리자가 0명이 됨 (400) |
 
 ---
 
@@ -528,7 +534,7 @@
 - **GET** `/api/departments/user-permission-hierarchy`
 - **Query**: `format` — "tree"(기본) | "flat"
 - **Response (data)**:
-  - **tree**: 루트 노드 배열. 각 노드: `code`, `parentCode`, `name`, `sortOrder`, `children` (재귀), `users` (배열). `users` 각 항목: `userId` (username), `role`, `position` (직책), `rank` (직급), `permissionGroups` (배열: `{ id, code, name }`).
+  - **tree**: 루트 노드 배열. 각 노드: `code`, `parentCode`, `name`, `sortOrder`, `children` (재귀), `users` (배열). `users` 각 항목: `userId` (username), `role`, `isSystemAdmin` (boolean, 시스템 관리자 여부), `position` (직책), `rank` (직급), `permissionGroups` (배열: `{ id, code, name }`).
   - **flat**: 부서 노드 배열에 `users` 포함(동일 구조), `children` 없음.
 - **에러**: 401, 403
 

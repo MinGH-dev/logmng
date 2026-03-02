@@ -224,7 +224,7 @@ response:
 ```
 
 ### GET /api/users
-사용자 목록 조회 (관리자 전용)
+사용자 목록 조회 (관리자 전용). **현재 구현**: `docs/api-definition.md` §7.1.
 ```yaml
 request:
   headers:
@@ -245,6 +245,7 @@ response:
         email: string
         department: string
         role: string
+        isSystemAdmin: boolean  # 시스템 관리자 여부 (요건 20250303)
         isActive: boolean
         createdAt: timestamp
         updatedAt: timestamp
@@ -281,13 +282,13 @@ response:
 ```
 
 ### PUT /api/users/:userId
-사용자 정보 수정 (관리자 전용)
+사용자 정보 수정 (관리자 전용). **현재 구현**: `docs/api-definition.md` §7.2 — 역할 변경만 지원.
 ```yaml
 request:
   headers:
     Authorization: Bearer <token>
   params:
-    userId: string (8자리 숫자)
+    userId: string (8자리 숫자 또는 username)
   body:
     name: string (선택)
     email: string (선택)
@@ -307,6 +308,7 @@ response:
     email: string
     department: string
     role: string
+    isSystemAdmin: boolean  # 시스템 관리자 여부 (요건 20250303)
     isActive: boolean
     updatedAt: timestamp
     requestDocument:
@@ -314,6 +316,10 @@ response:
       fileName: string
       uploadedAt: timestamp
   error: string (optional)
+
+# 에러 코드 (역할 변경 시, 요건 20250303)
+# SYSTEM_ADMIN_IMMUTABLE: 대상이 시스템 관리자(수정 불가)
+# LAST_SYSTEM_ADMIN_BLOCKED: 강등 시 시스템 관리자가 0명이 됨
 ```
 
 ### DELETE /api/users/:userId
@@ -683,6 +689,9 @@ backend/src/data/request-documents/
   USER_ALREADY_EXISTS: 'USER_002',
   INVALID_USER_ID_FORMAT: 'USER_003',
   INVALID_PASSWORD: 'USER_004',
+  // 시스템 관리자 보호 (요건 20250303)
+  SYSTEM_ADMIN_IMMUTABLE: 'USER_005',   // 대상이 시스템 관리자(수정·삭제 불가)
+  LAST_SYSTEM_ADMIN_BLOCKED: 'USER_006', // 강등 시 시스템 관리자가 0명이 됨
   
   // 권한 관련
   UNAUTHORIZED: 'AUTH_001',
