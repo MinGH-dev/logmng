@@ -18,11 +18,13 @@ public final class ScreenConstants {
     public static final String PENDING_APPROVALS = "pending-approvals";
     public static final String USER_MANAGEMENT = "user-management";
     public static final String USER_PERMISSION_HIERARCHY = "user-permission-hierarchy";
+    public static final String PERMISSION_GROUP_MANAGEMENT = "permission-group-management";
 
     private static final Set<String> ALL_ALLOWED_SCREENS = Collections.unmodifiableSet(
             Arrays.asList(
                     MAIN, SEARCH_HISTORY, ACTIVITY_LOG, STATISTICS,
-                    PENDING_APPROVALS, USER_MANAGEMENT, USER_PERMISSION_HIERARCHY
+                    PENDING_APPROVALS, USER_MANAGEMENT, USER_PERMISSION_HIERARCHY,
+                    PERMISSION_GROUP_MANAGEMENT
             ).stream().collect(Collectors.toSet())
     );
 
