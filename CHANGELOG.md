@@ -6,6 +6,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### 2025-03-03
+
+- **feat**: Permission group delete constraint and system administrator protection (req `docs/requirements/20250303-permission-group-delete-system-admin-protection.md`): (1) Permission group deletion allowed only when users=0; 400 `PERMISSION_GROUP_HAS_USERS` when users assigned. (2) System administrator (`is_system_admin`) immutable — role change and delete blocked; minimum one system admin enforced (`SYSTEM_ADMIN_IMMUTABLE`, `LAST_SYSTEM_ADMIN_BLOCKED`). (3) User management UI: system admin badge, disabled role dropdown, error message mappings. APIs: `GET /api/users` and hierarchy include `isSystemAdmin`; `PUT /api/users/{userId}` rejects system admin modification.
+
 ### 2026-02-27
 
 - **feat**: User permission hierarchy and permission group management (req `20250227-user-permission-hierarchy-group`): single-screen hierarchy by department (code/parent_code), users with role and permission groups per node; permission group CRUD and user assign/remove; new admin menu items; sample data (departments, permission groups, user–group assignments). APIs: `GET /api/departments/user-permission-hierarchy`, `GET/POST/PUT/DELETE /api/permission-groups*`, user–group assign/remove; admin-only (403 for non-admin).
