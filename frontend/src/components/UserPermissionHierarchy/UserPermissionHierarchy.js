@@ -4,7 +4,6 @@ import { getErrorMessage } from '../../utils/errorMessage';
 import logger from '../../utils/logger';
 import PermissionGroupPanel from '../PermissionGroupManagement/PermissionGroupPanel';
 import '../UserManagement/UserManagement.css';
-import '../DepartmentApproverManagement/DepartmentApproverManagement.css';
 import '../PermissionGroupManagement/PermissionGroupManagement.css';
 import './UserPermissionHierarchy.css';
 
@@ -144,7 +143,7 @@ const UserPermissionHierarchy = ({ user }) => {
     return (
       <div className="user-permission-hierarchy">
         <h2>사용자 권한 계층</h2>
-        <p className="department-approver-forbidden">관리자만 접근할 수 있습니다.</p>
+        <p className="user-permission-hierarchy-forbidden">관리자만 접근할 수 있습니다.</p>
       </div>
     );
   }

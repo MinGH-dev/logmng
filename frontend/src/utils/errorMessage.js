@@ -1,6 +1,6 @@
 /**
  * API error code / status → user-facing message (docs/api-definition.md §11, §14)
- * Used by admin views: UserPermissionHierarchy, PermissionGroupManagement, DepartmentApproverManagement.
+ * Used by admin views: UserPermissionHierarchy, PermissionGroupManagement.
  */
 export const getErrorMessage = (e, fallback) => {
   const code = e?.code;
@@ -10,6 +10,10 @@ export const getErrorMessage = (e, fallback) => {
   if (code === 'PERMISSION_GROUP_HAS_USERS') return '해당 그룹에 사용자가 배정되어 있어 삭제할 수 없습니다.';
   if (code === 'USER_ALREADY_IN_GROUP') return '해당 사용자가 이미 이 그룹에 배정되어 있습니다.';
   if (code === 'USER_NOT_FOUND') return '해당 사용자를 찾을 수 없습니다.';
+  if (code === 'SYSTEM_ADMIN_IMMUTABLE') return '시스템 관리자는 수정할 수 없습니다.';
+  if (code === 'LAST_SYSTEM_ADMIN_BLOCKED') return '최소 1명의 시스템 관리자가 필요합니다.';
+  if (code === 'LAST_ADMIN_BLOCKED') return '최소 1명의 관리자가 필요합니다.';
+  if (code === 'SELF_DEMOTION_BLOCKED') return '본인 역할을 변경할 수 없습니다.';
   if (code === 'INVALID_INPUT' || code === 'SELF_DEMOTION') return e?.message || '역할 변경이 허용되지 않습니다.';
   if (code === 'DEPARTMENT_NOT_FOUND') return '부서를 찾을 수 없습니다.';
   if (code === 'ALREADY_APPROVER') return '이미 해당 부서 결재자로 등록되어 있습니다.';

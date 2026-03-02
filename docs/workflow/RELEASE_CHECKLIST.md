@@ -29,6 +29,7 @@
 
 ## 수행 기록 (참고)
 
+- **2025-03-03**: Permission group delete constraint + system administrator protection (req `20250303-permission-group-delete-system-admin-protection`). CHANGELOG 2025-03-03 항목 추가, 릴리스 커밋 후 `git push` 수행. (1–2, 5 수행)
 - **2026-02-27**: docs/workflow, .cursor 업데이트 (DB-AGENT-REVIEW, QA-BROWSER-TEST-TROUBLESHOOTING, SUBAGENT-MODEL-SELECTION, agent delegation). CHANGELOG 2026-02-27 항목 추가, 릴리스 커밋 후 `git push` 수행. (1–2, 5 수행)
 - **2026-02-27**: SUBAGENT-MODEL-SELECTION concrete model names (claude-haiku-4.5, sonnet4.6), agent-collaboration/SUBAGENT-DELEGATION alignment. CHANGELOG 2026-02-27 항목 추가, 릴리스 커밋 후 `git push` 수행. (1–2, 5 수행)
 - **2026-02-27**: User permission hierarchy + permission group management (req 20250227-user-permission-hierarchy-group, bugfix-1) 반영. CHANGELOG 2026-02-27 항목 추가, 릴리스 커밋 후 `git push` 수행. (1–2, 5 수행)

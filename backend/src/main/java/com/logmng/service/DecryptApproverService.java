@@ -15,8 +15,8 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * 복호화 결재자 지정: isAdmin, isApprover, listUsers, addApprover, removeApprover.
- * 부서별 결재자: listApproversByDepartment, addApproverForDepartment, removeApproverForDepartment, canApproveForRequester.
+ * 복호화 결재자: isAdmin, isApprover, listUsers, canApproveForRequester.
+ * 결재자는 팀장(position) 자동 지정으로 관리; addApprover/removeApprover 및 부서별 결재자 API 제거됨.
  */
 @Service
 public class DecryptApproverService {
@@ -104,12 +104,12 @@ public class DecryptApproverService {
     }
 
     /**
-     * app_user 목록 + 각 사용자별 isApprover, position. §7.1
+     * app_user 목록 + 각 사용자별 isApprover, position, rank, isSystemAdmin. §7.1
      */
     public List<UserListItemResponse> listUsers() {
         List<UserListItemResponse> list = new ArrayList<>();
         try (Connection conn = dataSource.getConnection()) {
-            String sql = "SELECT username, role, department_code, position FROM app_user ORDER BY username";
+            String sql = "SELECT username, role, department_code, position, rank, is_system_admin FROM app_user ORDER BY username";
             try (PreparedStatement ps = conn.prepareStatement(sql)) {
                 try (ResultSet rs = ps.executeQuery()) {
                     while (rs.next()) {
@@ -117,8 +117,10 @@ public class DecryptApproverService {
                         String role = rs.getString("role");
                         String departmentCode = rs.getString("department_code");
                         String position = rs.getString("position");
+                        String rank = rs.getString("rank");
+                        boolean isSystemAdmin = Boolean.TRUE.equals(rs.getObject("is_system_admin", Boolean.class));
                         boolean isApprover = isApprover(username);
-                        list.add(new UserListItemResponse(username, role, departmentCode, isApprover, position));
+                        list.add(new UserListItemResponse(username, role, departmentCode, isApprover, position, rank, isSystemAdmin));
                     }
                 }
             }
@@ -130,233 +132,11 @@ public class DecryptApproverService {
     }
 
     /**
-     * 전역 결재자 추가. app_user에 해당 사용자가 없으면 404. 관리자 전용. §7.2
-     */
-    public UserListItemResponse addApprover(String userId) {
-        ensureUserExists(userId);
-        try (Connection conn = dataSource.getConnection()) {
-            String sql = "INSERT INTO decrypt_approver (user_id, department_code) VALUES (?, NULL)";
-            try (PreparedStatement ps = conn.prepareStatement(sql)) {
-                ps.setString(1, userId);
-                ps.executeUpdate();
-            }
-        } catch (SQLException e) {
-            if (e.getMessage() != null && e.getMessage().contains("duplicate")) {
-                throw CustomException.badRequest("이미 전역 결재자로 지정된 사용자입니다.", "ALREADY_APPROVER");
-            }
-            if (e.getSQLState() != null && "23505".equals(e.getSQLState())) {
-                throw CustomException.badRequest("이미 전역 결재자로 지정된 사용자입니다.", "ALREADY_APPROVER");
-            }
-            log.error("전역 결재자 추가 실패: userId={}", userId, e);
-            throw new RuntimeException("결재자 추가 중 오류가 발생했습니다: " + e.getMessage(), e);
-        }
-        log.info("전역 결재자 추가: userId={}", userId);
-        return new UserListItemResponse(userId, null, null, true);
-    }
-
-    /**
-     * 전역 결재자 해제만. 부서별 결재자는 건드리지 않음. 관리자 전용. §7.3
-     */
-    public UserListItemResponse removeApprover(String userId) {
-        try (Connection conn = dataSource.getConnection()) {
-            String sql = "DELETE FROM decrypt_approver WHERE user_id = ? AND department_code IS NULL";
-            try (PreparedStatement ps = conn.prepareStatement(sql)) {
-                ps.setString(1, userId);
-                int updated = ps.executeUpdate();
-                if (updated == 0) {
-                    ensureUserExists(userId);
-                }
-            }
-        } catch (SQLException e) {
-            log.error("전역 결재자 제거 실패: userId={}", userId, e);
-            throw new RuntimeException("결재자 제거 중 오류가 발생했습니다: " + e.getMessage(), e);
-        }
-        log.info("전역 결재자 제거: userId={}", userId);
-        return new UserListItemResponse(userId, null, null, false);
-    }
-
-    /**
-     * 해당 부서에 지정된 결재자 목록. §12.3 (position 포함)
-     */
-    public List<UserListItemResponse> listApproversByDepartment(String departmentCode) {
-        departmentService.requireExists(departmentCode);
-        List<UserListItemResponse> list = new ArrayList<>();
-        try (Connection conn = dataSource.getConnection()) {
-            String sql = "SELECT a.user_id, u.role, u.department_code, u.position FROM decrypt_approver a JOIN app_user u ON u.username = a.user_id WHERE a.department_code = ? ORDER BY a.user_id";
-            try (PreparedStatement ps = conn.prepareStatement(sql)) {
-                ps.setString(1, departmentCode);
-                try (ResultSet rs = ps.executeQuery()) {
-                    while (rs.next()) {
-                        list.add(new UserListItemResponse(
-                                rs.getString("user_id"),
-                                rs.getString("role"),
-                                rs.getString("department_code"),
-                                true,
-                                rs.getString("position")));
-                    }
-                }
-            }
-        } catch (SQLException e) {
-            log.error("부서 결재자 목록 조회 실패: departmentCode={}", departmentCode, e);
-            throw new RuntimeException("부서 결재자 목록 조회 중 오류가 발생했습니다: " + e.getMessage(), e);
-        }
-        return list;
-    }
-
-    /**
-     * 부서 멤버 목록 (department_code = code). position, isApprover(해당 부서) 포함. §12.2
-     */
-    public List<UserListItemResponse> listMembersByDepartment(String departmentCode) {
-        departmentService.requireExists(departmentCode);
-        List<UserListItemResponse> list = new ArrayList<>();
-        try (Connection conn = dataSource.getConnection()) {
-            String sql = "SELECT u.username, u.role, u.department_code, u.position FROM app_user u WHERE u.department_code = ? ORDER BY u.username";
-            try (PreparedStatement ps = conn.prepareStatement(sql)) {
-                ps.setString(1, departmentCode);
-                try (ResultSet rs = ps.executeQuery()) {
-                    while (rs.next()) {
-                        String username = rs.getString("username");
-                        String role = rs.getString("role");
-                        String deptCode = rs.getString("department_code");
-                        String position = rs.getString("position");
-                        boolean isApprover = isApproverForDepartment(username, departmentCode);
-                        list.add(new UserListItemResponse(username, role, deptCode, isApprover, position));
-                    }
-                }
-            }
-        } catch (SQLException e) {
-            log.error("부서 멤버 목록 조회 실패: departmentCode={}", departmentCode, e);
-            throw new RuntimeException("부서 멤버 목록 조회 중 오류가 발생했습니다: " + e.getMessage(), e);
-        }
-        return list;
-    }
-
-    /**
-     * 해당 부서 결재자로 지정된 사용자 수 반환 (position에 "팀장" 포함, 아직 결재자 아님). §12.5
-     */
-    public List<String> addDefaultApproversForDepartment(String departmentCode) {
-        departmentService.requireExists(departmentCode);
-        List<String> added = new ArrayList<>();
-        try (Connection conn = dataSource.getConnection()) {
-            String sql = "SELECT u.username FROM app_user u WHERE u.department_code = ? AND u.position IS NOT NULL AND u.position LIKE '%팀장%'";
-            try (PreparedStatement ps = conn.prepareStatement(sql)) {
-                ps.setString(1, departmentCode);
-                try (ResultSet rs = ps.executeQuery()) {
-                    while (rs.next()) {
-                        String username = rs.getString("username");
-                        if (!isApproverForDepartment(username, departmentCode)) {
-                            String insertSql = "INSERT INTO decrypt_approver (user_id, department_code) VALUES (?, ?)";
-                            try (PreparedStatement ins = conn.prepareStatement(insertSql)) {
-                                ins.setString(1, username);
-                                ins.setString(2, departmentCode);
-                                ins.executeUpdate();
-                                added.add(username);
-                                log.info("팀장 지정: departmentCode={}, userId={}", departmentCode, username);
-                            }
-                        }
-                    }
-                }
-            }
-        } catch (SQLException e) {
-            log.error("팀장 지정 실패: departmentCode={}", departmentCode, e);
-            throw new RuntimeException("팀장 지정 중 오류가 발생했습니다: " + e.getMessage(), e);
-        }
-        return added;
-    }
-
-    private boolean isApproverForDepartment(String userId, String departmentCode) {
-        if (userId == null || userId.isBlank() || departmentCode == null || departmentCode.isBlank()) {
-            return false;
-        }
-        try (Connection conn = dataSource.getConnection()) {
-            String sql = "SELECT 1 FROM decrypt_approver WHERE user_id = ? AND department_code = ? LIMIT 1";
-            try (PreparedStatement ps = conn.prepareStatement(sql)) {
-                ps.setString(1, userId);
-                ps.setString(2, departmentCode);
-                try (ResultSet rs = ps.executeQuery()) {
-                    return rs.next();
-                }
-            }
-        } catch (SQLException e) {
-            log.error("부서 결재자 여부 조회 실패: userId={}, departmentCode={}", userId, departmentCode, e);
-            return false;
-        }
-    }
-
-    /**
-     * 부서별 결재자 추가. §12.4. 사용자가 해당 부서 소속인지 검증.
-     */
-    public UserListItemResponse addApproverForDepartment(String departmentCode, String userId) {
-        departmentService.requireExists(departmentCode);
-        ensureUserExists(userId);
-        ensureUserInDepartment(userId, departmentCode);
-        try (Connection conn = dataSource.getConnection()) {
-            String sql = "INSERT INTO decrypt_approver (user_id, department_code) VALUES (?, ?)";
-            try (PreparedStatement ps = conn.prepareStatement(sql)) {
-                ps.setString(1, userId);
-                ps.setString(2, departmentCode);
-                ps.executeUpdate();
-            }
-        } catch (SQLException e) {
-            if (e.getSQLState() != null && "23505".equals(e.getSQLState())) {
-                throw CustomException.badRequest("이미 해당 부서 결재자로 지정된 사용자입니다.", "ALREADY_APPROVER");
-            }
-            log.error("부서 결재자 추가 실패: departmentCode={}, userId={}", departmentCode, userId, e);
-            throw new RuntimeException("부서 결재자 추가 중 오류가 발생했습니다: " + e.getMessage(), e);
-        }
-        log.info("부서 결재자 추가: departmentCode={}, userId={}", departmentCode, userId);
-        return new UserListItemResponse(userId, null, departmentCode, true, null);
-    }
-
-    private void ensureUserInDepartment(String userId, String departmentCode) {
-        try (Connection conn = dataSource.getConnection()) {
-            String sql = "SELECT department_code FROM app_user WHERE username = ? LIMIT 1";
-            try (PreparedStatement ps = conn.prepareStatement(sql)) {
-                ps.setString(1, userId);
-                try (ResultSet rs = ps.executeQuery()) {
-                    if (rs.next()) {
-                        String userDept = rs.getString("department_code");
-                        if (userDept == null || !userDept.equals(departmentCode)) {
-                            throw CustomException.badRequest("지정한 사용자가 해당 부서 소속이 아님. 부서별 결재자로 추가 불가.", "USER_NOT_IN_DEPARTMENT");
-                        }
-                        return;
-                    }
-                }
-            }
-        } catch (SQLException e) {
-            log.error("사용자 부서 확인 실패: userId={}, departmentCode={}", userId, departmentCode, e);
-            throw new RuntimeException("사용자 부서 확인 중 오류가 발생했습니다: " + e.getMessage(), e);
-        }
-        throw CustomException.notFound("해당 사용자를 찾을 수 없습니다: " + userId, "USER_NOT_FOUND");
-    }
-
-    /**
-     * 부서별 결재자 제거. §12.4
-     */
-    public UserListItemResponse removeApproverForDepartment(String departmentCode, String userId) {
-        departmentService.requireExists(departmentCode);
-        try (Connection conn = dataSource.getConnection()) {
-            String sql = "DELETE FROM decrypt_approver WHERE user_id = ? AND department_code = ?";
-            try (PreparedStatement ps = conn.prepareStatement(sql)) {
-                ps.setString(1, userId);
-                ps.setString(2, departmentCode);
-                int updated = ps.executeUpdate();
-                if (updated == 0) {
-                    ensureUserExists(userId);
-                }
-            }
-        } catch (SQLException e) {
-            log.error("부서 결재자 제거 실패: departmentCode={}, userId={}", departmentCode, userId, e);
-            throw new RuntimeException("부서 결재자 제거 중 오류가 발생했습니다: " + e.getMessage(), e);
-        }
-        log.info("부서 결재자 제거: departmentCode={}, userId={}", departmentCode, userId);
-        return new UserListItemResponse(userId, null, departmentCode, false);
-    }
-
-    /**
      * 사용자 역할 변경. §7.4. 관리자 전용.
      * callerUserId: 호출자(세션), targetUserId: 대상 사용자, role: ADMIN | USER
      * - 자기 자신: targetUserId == callerUserId → 400 SELF_DEMOTION_BLOCKED
+     * - 시스템 관리자: target has is_system_admin=true → 400 SYSTEM_ADMIN_IMMUTABLE
+     * - 마지막 시스템 관리자: demotion would leave zero system admins → 400 LAST_SYSTEM_ADMIN_BLOCKED
      * - 마지막 관리자: ADMIN→USER로 변경 시 count(ADMIN)==1이면 → 400 LAST_ADMIN_BLOCKED
      */
     public UserListItemResponse updateUserRole(String callerUserId, String targetUserId, String role) {
@@ -372,6 +152,11 @@ public class DecryptApproverService {
             throw CustomException.badRequest("자기 자신의 권한은 변경할 수 없습니다.", "SELF_DEMOTION_BLOCKED");
         }
         try (Connection conn = dataSource.getConnection()) {
+            boolean targetIsSystemAdmin = isSystemAdmin(conn, targetUserId);
+            if (targetIsSystemAdmin) {
+                log.warn("시스템 관리자 역할 변경 시도 차단: caller={}, target={}, requestedRole={}", callerUserId, targetUserId, roleUpper);
+                throw CustomException.badRequest("시스템 관리자는 수정할 수 없습니다.", "SYSTEM_ADMIN_IMMUTABLE");
+            }
             String currentRole = getCurrentRole(conn, targetUserId);
             if ("ADMIN".equals(currentRole) && "USER".equals(roleUpper)) {
                 int adminCount = countAdmins(conn);
@@ -388,12 +173,24 @@ public class DecryptApproverService {
                     throw CustomException.notFound("해당 사용자를 찾을 수 없습니다: " + targetUserId, "USER_NOT_FOUND");
                 }
             }
+        } catch (CustomException e) {
+            throw e;
         } catch (SQLException e) {
             log.error("사용자 역할 변경 실패: targetUserId={}, role={}", targetUserId, role, e);
             throw new RuntimeException("역할 변경 중 오류가 발생했습니다: " + e.getMessage(), e);
         }
         log.info("사용자 역할 변경: targetUserId={}, role={}, caller={}", targetUserId, roleUpper, callerUserId);
         return getUserSummary(targetUserId);
+    }
+
+    private boolean isSystemAdmin(Connection conn, String userId) throws SQLException {
+        String sql = "SELECT is_system_admin FROM app_user WHERE username = ? LIMIT 1";
+        try (PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setString(1, userId);
+            try (ResultSet rs = ps.executeQuery()) {
+                return rs.next() && Boolean.TRUE.equals(rs.getObject("is_system_admin", Boolean.class));
+            }
+        }
     }
 
     private String getCurrentRole(Connection conn, String userId) throws SQLException {
@@ -416,7 +213,7 @@ public class DecryptApproverService {
 
     private UserListItemResponse getUserSummary(String userId) {
         try (Connection conn = dataSource.getConnection()) {
-            String sql = "SELECT username, role, department_code, position FROM app_user WHERE username = ? LIMIT 1";
+            String sql = "SELECT username, role, department_code, position, rank, is_system_admin FROM app_user WHERE username = ? LIMIT 1";
             try (PreparedStatement ps = conn.prepareStatement(sql)) {
                 ps.setString(1, userId);
                 try (ResultSet rs = ps.executeQuery()) {
@@ -425,8 +222,10 @@ public class DecryptApproverService {
                         String role = rs.getString("role");
                         String departmentCode = rs.getString("department_code");
                         String position = rs.getString("position");
+                        String rank = rs.getString("rank");
+                        boolean isSystemAdmin = Boolean.TRUE.equals(rs.getObject("is_system_admin", Boolean.class));
                         boolean isApprover = isApprover(username);
-                        return new UserListItemResponse(username, role, departmentCode, isApprover, position);
+                        return new UserListItemResponse(username, role, departmentCode, isApprover, position, rank, isSystemAdmin);
                     }
                 }
             }

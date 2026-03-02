@@ -132,6 +132,7 @@ CREATE INDEX IF NOT EXISTS idx_department_parent_sort ON department(parent_code,
 
 -- 앱 사용자 (복호화 결재자 지정 요건: 20260224-decryption-approver-designation)
 -- position: 요건 20250227-department-approver-position (직책, 팀장 지정 등)
+-- rank: 요건 20250227-remove-department-approver-screen-user-mgmt-improvements (직급)
 CREATE TABLE IF NOT EXISTS app_user (
     id BIGSERIAL PRIMARY KEY,
     username VARCHAR(100) NOT NULL UNIQUE,
@@ -139,6 +140,8 @@ CREATE TABLE IF NOT EXISTS app_user (
     role VARCHAR(20) NOT NULL,
     department_code VARCHAR(50),
     position VARCHAR(50) NULL,
+    rank VARCHAR(50) NULL,
+    is_system_admin BOOLEAN NOT NULL DEFAULT false,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT chk_app_user_role CHECK (role IN ('ADMIN', 'USER')),

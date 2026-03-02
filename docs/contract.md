@@ -23,10 +23,15 @@
 - **변경**: 스키마 변경 시 schema.sql(또는 마이그레이션)을 먼저 반영하고, 백엔드 코드·API 스펙을 그에 맞춘다.
 - **권한 그룹 관련 테이블** (요건 20250227): `permission_group` (id, code, name, description, sort_order), `app_user_permission_group` (user_id = app_user.username, permission_group_id → permission_group.id), `permission_group_screen` (permission_group_id, screen_id — 그룹별 접근 가능 화면). 상세: `specs/permission-group-hierarchy.spec.yaml` §2, schema.sql.
 
+## 시스템 관리자 보호 (System administrator protection)
+
+- **요건**: `docs/requirements/20250303-permission-group-delete-system-admin-protection.md`
+- **규칙**: `is_system_admin = true`인 사용자는 역할 변경·삭제 불가. 최소 1명의 시스템 관리자 유지. `PUT /api/users/{userId}` 시 `SYSTEM_ADMIN_IMMUTABLE` 또는 `LAST_SYSTEM_ADMIN_BLOCKED` 반환. 상세: `docs/api-definition.md` §7.2, §11.
+
 ## 화면 기반 접근 제어 (Screen-based access)
 
 - **요건**: `docs/requirements/20250227-permission-group-screen-menu-access.md`
-- **화면 ID 목록**: main, search-history, activity-log, statistics, pending-approvals, user-management, department-approvers, user-permission-hierarchy. 상세 및 화면↔API 매핑: `specs/permission-group-hierarchy.spec.yaml` §4.
+- **화면 ID 목록**: main, search-history, activity-log, statistics, pending-approvals, user-management, user-permission-hierarchy. 상세 및 화면↔API 매핑: `specs/permission-group-hierarchy.spec.yaml` §4.
 - **규칙**: role=ADMIN 사용자는 모든 화면 접근. 비관리자는 자신의 권한 그룹 중 하나라도 해당 화면을 허용해야 접근 가능. 화면에 대응하는 API 호출 시 사용자가 해당 화면을 갖지 않으면 403 반환.
 
 이 문서는 dev 워크스페이스 전용이다. 변경 시 docs/README.md 등과 맞춘다.

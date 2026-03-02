@@ -1,10 +1,9 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { getUsers, addApprover, removeApprover, updateUserRole } from '../../services/userService';
+import { getUsers, updateUserRole } from '../../services/userService';
 import { getUserPermissionHierarchy, listPermissionGroups } from '../../services/permissionGroupService';
 import { getErrorMessage } from '../../utils/errorMessage';
 import logger from '../../utils/logger';
 import UserGroupAssignment from '../UserGroupAssignment/UserGroupAssignment';
-import '../DepartmentApproverManagement/DepartmentApproverManagement.css';
 import '../UserPermissionHierarchy/UserPermissionHierarchy.css';
 import './UserManagement.css';
 
@@ -74,9 +73,10 @@ const HierarchyTree = ({
                         <tr>
                           <th scope="col">사용자 ID</th>
                           <th scope="col">역할</th>
+                          <th scope="col">직급</th>
+                          <th scope="col">직책</th>
                           <th scope="col">권한 그룹</th>
                           <th scope="col">결재자 여부</th>
-                          <th scope="col">동작</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -116,7 +116,7 @@ const HierarchyTree = ({
   );
 };
 
-const UserManagement = ({ onShowDepartmentApprovers, user }) => {
+const UserManagement = ({ user }) => {
   const [tree, setTree] = useState([]);
   const [usersWithApprover, setUsersWithApprover] = useState(new Map());
   const [allGroups, setAllGroups] = useState([]);
@@ -188,55 +188,36 @@ const UserManagement = ({ onShowDepartmentApprovers, user }) => {
     }
   };
 
-  const handleAddApprover = async (userId) => {
-    setActionId(`approver-add-${userId}`);
-    setError(null);
-    try {
-      await addApprover(userId);
-      await loadHierarchy();
-    } catch (e) {
-      logger.error('결재자 지정 실패:', e);
-      setError(e.status === 403 ? '권한이 없습니다.' : e.status === 404 ? '해당 사용자를 찾을 수 없습니다.' : (e.message || '결재자 지정에 실패했습니다.'));
-    } finally {
-      setActionId(null);
-    }
-  };
-
-  const handleRemoveApprover = async (userId) => {
-    setActionId(`approver-remove-${userId}`);
-    setError(null);
-    try {
-      await removeApprover(userId);
-      await loadHierarchy();
-    } catch (e) {
-      logger.error('결재자 해제 실패:', e);
-      setError(e.status === 403 ? '권한이 없습니다.' : e.status === 404 ? '해당 사용자를 찾을 수 없습니다.' : (e.message || '결재자 해제에 실패했습니다.'));
-    } finally {
-      setActionId(null);
-    }
-  };
-
   const renderUserRow = (u, isApprover, allGroups, onRoleChange, onRefresh, actionId) => {
     const userId = u.userId ?? u.username;
     const role = u.role || 'USER';
+    const rank = u.rank ?? '-';
+    const position = u.position ?? '-';
     const permissionGroups = u.permissionGroups || [];
-    const isApproverAdding = actionId === `approver-add-${userId}`;
-    const isApproverRemoving = actionId === `approver-remove-${userId}`;
+    const isSystemAdmin = u.isSystemAdmin === true || u.is_system_admin === true;
+    const roleDisabled = isSystemAdmin || !!actionId;
 
     return (
       <tr key={userId}>
         <td>{userId}</td>
         <td>
+          {isSystemAdmin && (
+            <span className="system-admin-badge" aria-label="시스템 관리자, 역할 변경 불가">
+              시스템 관리자
+            </span>
+          )}
           <select
             value={role}
             onChange={(e) => onRoleChange(userId, e.target.value)}
-            disabled={!!actionId}
-            aria-label={`역할 변경, ${userId}`}
+            disabled={roleDisabled}
+            aria-label={isSystemAdmin ? `시스템 관리자, 역할 변경 불가, ${userId}` : `역할 변경, ${userId}`}
           >
             <option value="ADMIN">ADMIN</option>
             <option value="USER">USER</option>
           </select>
         </td>
+        <td>{rank}</td>
+        <td>{position}</td>
         <td>
           <UserGroupAssignment
             userId={userId}
@@ -247,29 +228,6 @@ const UserManagement = ({ onShowDepartmentApprovers, user }) => {
           />
         </td>
         <td>{isApprover ? '예' : '아니오'}</td>
-        <td>
-          {isApprover ? (
-            <button
-              type="button"
-              className="user-management-btn remove"
-              onClick={() => handleRemoveApprover(userId)}
-              disabled={!!actionId}
-              aria-label={`결재자 해제, ${userId}`}
-            >
-              {isApproverRemoving ? '처리 중...' : '결재자 해제'}
-            </button>
-          ) : (
-            <button
-              type="button"
-              className="user-management-btn add"
-              onClick={() => handleAddApprover(userId)}
-              disabled={!!actionId}
-              aria-label={`결재자 지정, ${userId}`}
-            >
-              {isApproverAdding ? '처리 중...' : '결재자 지정'}
-            </button>
-          )}
-        </td>
       </tr>
     );
   };
@@ -289,11 +247,6 @@ const UserManagement = ({ onShowDepartmentApprovers, user }) => {
       <p className="user-permission-hierarchy-hint">
         부서를 펼치면 해당 부서의 사용자를 볼 수 있습니다. 역할, 권한 그룹, 결재자 여부를 편집할 수 있습니다.
       </p>
-      {onShowDepartmentApprovers && (
-        <button type="button" className="activity-log-button" style={{ marginBottom: '0.5rem' }} onClick={onShowDepartmentApprovers}>
-          부서별 결재자 지정
-        </button>
-      )}
       {error && (
         <div className="user-management-error" role="alert">
           {error}

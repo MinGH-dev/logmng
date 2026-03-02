@@ -255,7 +255,7 @@ public class PermissionGroupService {
         findById(groupId);
         List<UserListItemResponse> list = new ArrayList<>();
         try (Connection conn = dataSource.getConnection()) {
-            String sql = "SELECT u.username, u.role, u.department_code, u.position FROM app_user u " +
+            String sql = "SELECT u.username, u.role, u.department_code, u.position, u.rank, u.is_system_admin FROM app_user u " +
                     "INNER JOIN app_user_permission_group a ON u.username = a.user_id WHERE a.permission_group_id = ? ORDER BY u.username";
             try (PreparedStatement ps = conn.prepareStatement(sql)) {
                 ps.setLong(1, groupId);
@@ -265,7 +265,9 @@ public class PermissionGroupService {
                         String role = rs.getString("role");
                         String departmentCode = rs.getString("department_code");
                         String position = rs.getString("position");
-                        list.add(new UserListItemResponse(username, role, departmentCode, false, position));
+                        String rank = rs.getString("rank");
+                        boolean isSystemAdmin = Boolean.TRUE.equals(rs.getObject("is_system_admin", Boolean.class));
+                        list.add(new UserListItemResponse(username, role, departmentCode, false, position, rank, isSystemAdmin));
                     }
                 }
             }

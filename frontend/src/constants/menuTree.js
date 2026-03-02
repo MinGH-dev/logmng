@@ -13,7 +13,6 @@ import {
   PendingActions as PendingIcon,
   Assessment as AssessmentIcon,
   People as PeopleIcon,
-  Business as BusinessIcon,
   GroupWork as GroupWorkIcon,
 } from '@mui/icons-material';
 
@@ -25,7 +24,6 @@ export const ALLOWED_SCREEN_IDS = [
   'statistics',
   'pending-approvals',
   'user-management',
-  'department-approvers',
   'user-permission-hierarchy',
   'permission-group-management',
 ];
@@ -64,7 +62,6 @@ export const MENU_TREE = [
     children: [
       { id: 'user-management', label: '사용자 관리', view: 'user-management' },
       { id: 'permission-group-management', label: '권한 그룹 관리', view: 'permission-group-management' },
-      { id: 'department-approvers', label: '부서별 결재자', view: 'department-approvers' },
     ],
   },
 ];
@@ -77,5 +74,4 @@ export const SECOND_ICONS = {
   'statistics-view': AssessmentIcon,
   'user-management': PeopleIcon,
   'permission-group-management': GroupWorkIcon,
-  'department-approvers': BusinessIcon,
 };
