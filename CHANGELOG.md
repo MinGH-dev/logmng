@@ -6,6 +6,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### 2025-03-03 (auth-permission-domain 스킬 수정)
+
+- **chore (docs)**: auth-permission-domain 스킬을 계약·스펙과 일치하도록 수정.
+  - **접근 규칙 통일**: "Admin-only" vs "Screen-based" 이원화 제거. 모든 화면 API(user-management 포함)는 `is_system_admin` OR `allowedScreenIds`로 판단.
+  - **단일 출처**: specs/permission-group-hierarchy.spec.yaml §4.3, docs/contract.md §화면 기반 접근 제어 기준.
+  - **Before answering**: 권한 그룹으로 user-management 등 접근 가능함 명시; 403 시 allowedScreenIds·구현 버그 가능성 안내.
+  - **docs/README.md**: auth-permission-domain 스킬 설명 추가.
+
 ### 2025-03-03 (Agent Skill Phase 2)
 
 - **chore (docs)**: Phase 2 도메인 skill 추가 및 검증 완료.

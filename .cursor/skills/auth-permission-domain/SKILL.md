@@ -1,11 +1,11 @@
 ---
 name: auth-permission-domain
 description: >
-  Auth and permission domain: is_system_admin, permission groups, admin-only APIs,
-  screen-based access, scope (self/all). Use when user asks about permissions,
-  access control, admin-only, is_system_admin, permission group, or screen access.
+  Auth and permission domain: is_system_admin, permission groups, screen-based access
+  (all screens including user-management), scope (self/all). Use when user asks about
+  permissions, access control, is_system_admin, permission group, or screen access.
   Use for 403 Forbidden errors, 'Access Denied', '관리자만 접근할 수 있습니다',
-  or when identifying which API/screen requires admin privileges.
+  or when identifying which API/screen requires which permission.
   권한, 접근 제어, 관리자 권한, 권한 그룹, 화면 접근 제어 관련 질문 시 사용.
 ---
 
@@ -13,9 +13,9 @@ description: >
 
 **Skill usage visibility**: When you use this skill to answer, state at the start of your response: `[Skill used: auth-permission-domain]`
 
-Use for **permission, access control, and auth** in this repo. Scope: is_system_admin, permission groups, screen-based access, admin-only APIs.
+Use for **permission, access control, and auth** in this repo. Scope: is_system_admin, permission groups, screen-based access.
 
-## Access check logic (Admin vs Screen)
+## Access check logic (single rule per contract/spec)
 
 ```
 API request
@@ -23,21 +23,15 @@ API request
     ├─ is_system_admin = true? ──► ALLOW (bypass all checks)
     │
     └─ is_system_admin = false
-           │
-           ├─ Admin-only API? (/api/users, /api/permission-groups, /api/departments)
-           │      └─► 403 FORBIDDEN (permission groups cannot grant access)
-           │
-           └─ Screen-based API? (main, search-history, activity-log, etc.)
-                  └─ allowedScreenIds contains required screen? ──► ALLOW
-                  └─ else ──► 403 FORBIDDEN
+           └─ required screen in allowedScreenIds? ──► ALLOW
+           └─ else ──► 403 FORBIDDEN
 ```
 
-**Key**: Admin-only APIs require `is_system_admin` only. Permission groups apply only to screen-based APIs.
+**Key**: All screen APIs (including user-management, permission-groups, hierarchy) use the same rule: `is_system_admin` OR `allowedScreenIds` contains the required screen. Single source: `specs/permission-group-hierarchy.spec.yaml` §4.3, `docs/contract.md` §화면 기반 접근 제어.
 
 ## Quick reference
 
-- **Admin-only APIs** (user management, permission groups, hierarchy): Require `is_system_admin = true` in DB. Permission groups **cannot** grant access to these APIs.
-- **Screen access** (non-admin screens): `is_system_admin` OR user has screen in `allowedScreenIds` (from permission groups).
+- **All screen APIs** (user-management, permission-groups, hierarchy, main, search-history, etc.): `is_system_admin` OR user has screen in `allowedScreenIds` (from permission groups).
 - **Scope** (activity-log, statistics, search-history only): `self` = own data; `all` = full. `is_system_admin` → always full.
 - **is_system_admin**: DB column `app_user.is_system_admin`. Not settable via API; init-data or DB direct edit only.
 
@@ -56,23 +50,26 @@ API request
 | Access rules summary | Path: `docs/contract.md` | `## 화면 기반 접근 제어 (Screen-based access)` |
 | System admin protection | Path: `docs/contract.md` | `## 시스템 관리자 보호 (System administrator protection)` |
 | is_system_admin detail | Path: `docs/requirements/20250303-remove-role-single-admin.md` | §1, §2 |
+| Permission group screen access (TC-05) | Path: `docs/requirements/20250227-permission-group-screen-menu-access.md` | §1, §3 TC-05 |
+| Full list (전체 처리 이력) | Path: `docs/requirements/TOPIC-INDEX.md` | §permission | access-control — load only when user asks for comprehensive list |
 
 ## Code references
 
 | Concern | Location |
 |---------|----------|
-| API path → screen | **backend/src/main/java/com/logmng/config/ScreenAccessInterceptor.java** |
-| Admin-only check | **UserController**, **PermissionGroupController**, **DepartmentController** |
+| API path → screen (contract-compliant) | **backend/src/main/java/com/logmng/config/ScreenAccessInterceptor.java** |
+| Controller access check (may diverge from contract) | **UserController**, **PermissionGroupController**, **DepartmentController** |
 | Login, allowedScreenIds | **backend/src/main/java/com/logmng/service/AuthService.java** |
 | Session, /api/auth/me | backend/src/main/java/com/logmng/controller/AuthController.java |
-| Frontend isAdmin check | **frontend/src/components/UserManagement/UserManagement.js** |
+| Frontend access check (may diverge from contract) | **frontend/src/components/UserManagement/UserManagement.js** |
 | Menu, canAccessView | frontend/src/App.js, frontend/src/constants/menuTree.js |
 
 ## Before answering
 
-1. For admin-only (user-management, permission-groups, hierarchy): Answer with `is_system_admin` requirement. Permission groups do **not** grant access.
-2. For "user has group X but 403": Likely missing `is_system_admin` in DB. Suggest `UPDATE app_user SET is_system_admin = true WHERE username = 'X'`.
+1. For screen access (user-management, permission-groups, hierarchy): Answer per contract/spec — `is_system_admin` OR `allowedScreenIds` contains the screen. Permission groups **can** grant access.
+2. For "user has group X but 403": Check (1) `allowedScreenIds` includes the required screen; (2) implementation may use `isSystemAdmin` only (bug). Reference: `specs/permission-group-hierarchy.spec.yaml` §4.3.
 3. For scope questions: Only activity-log, statistics, search-history use scope. Others ignore.
+4. **Requirement traceability**: When explaining design or "처리 이력", cite requirement doc (path + §section). Use **core** refs above; do **not** load full doc. For "전체 처리 이력", load `docs/requirements/TOPIC-INDEX.md` §permission only. Do **not** invoke RequirementsPastSearch for Q&A.
 
 ## References
 
