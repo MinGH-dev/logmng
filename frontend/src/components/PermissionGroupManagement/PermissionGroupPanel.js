@@ -16,7 +16,11 @@ import {
 } from '../../services/permissionGroupService';
 import { getUsers } from '../../services/userService';
 import { getAllowedScreenIds, getScreenFunctions } from '../../utils/security';
-import { ACTION_DISABLED_TOOLTIPS } from '../../constants/screenFunctionDescriptions';
+import {
+  ACTION_DISABLED_TOOLTIPS,
+  SCREENS_WITH_WRITE,
+  SCREENS_WITH_APPROVE,
+} from '../../constants/screenFunctionDescriptions';
 import { getErrorMessage } from '../../utils/errorMessage';
 import DataTable, { EmptyTableBody } from '../DataTable';
 import ScreenSelectionTree from './ScreenSelectionTree';
@@ -115,20 +119,29 @@ const PermissionGroupPanel = ({ user, onRefreshHierarchy }) => {
     }));
   };
 
-  /** Normalize allowedScreens to [{ screenId, scope?, read?, write?, approve? }]. API may return string[] or object array. req 20250303-screen-function-checkbox-selection */
+  /** Normalize allowedScreens to [{ screenId, scope?, read?, write?, approve? }]. API may return string[] or object array.
+   * Preserves explicit false for write/approve when API returns partial data. Aligns with ScreenSelectionTree normalizeSelected. req 20250303-permission-group-checkbox-not-working */
   const normalizeAllowedScreens = (arr) => {
+    const scopeScreens = ['activity-log', 'statistics', 'search-history'];
     if (!Array.isArray(arr)) return [];
     return arr.map((s) => {
       const base = typeof s === 'string'
-        ? { screenId: s, scope: ['activity-log', 'statistics', 'search-history'].includes(s) ? 'self' : undefined }
+        ? { screenId: s, scope: scopeScreens.includes(s) ? 'self' : undefined }
         : {
             screenId: s.screenId,
-            scope: s.scope || (['activity-log', 'statistics', 'search-history'].includes(s.screenId) ? 'self' : undefined),
+            scope: s.scope || (scopeScreens.includes(s.screenId) ? 'self' : undefined),
             read: s.read,
             write: s.write,
             approve: s.approve,
           };
-      return base;
+      const hasWrite = SCREENS_WITH_WRITE.includes(base.screenId);
+      const hasApprove = SCREENS_WITH_APPROVE.includes(base.screenId);
+      return {
+        ...base,
+        read: base.read ?? true,
+        write: base.write ?? (hasWrite ? true : undefined),
+        approve: base.approve ?? (hasApprove ? false : undefined),
+      };
     });
   };
 

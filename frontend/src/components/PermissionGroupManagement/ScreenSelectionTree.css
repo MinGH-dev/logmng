@@ -64,7 +64,7 @@
   outline-offset: 1px;
 }
 
-/* Screen reader only - for aria-describedby tooltip text */
+/* Screen reader only - for aria-describedby tooltip text; pointer-events: none to avoid blocking checkbox clicks */
 .screen-selection-sr-only {
   position: absolute;
   width: 1px;
@@ -75,6 +75,7 @@
   clip: rect(0, 0, 0, 0);
   white-space: nowrap;
   border: 0;
+  pointer-events: none;
 }
 
 /* Function checkboxes (read label, write, approve) - inline with screen row */

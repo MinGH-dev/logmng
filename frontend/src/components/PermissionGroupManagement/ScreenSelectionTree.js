@@ -150,24 +150,22 @@ const ScreenSelectionTree = ({ selectedScreens, onChange }) => {
                         </label>
                       )}
                       {showApprove && (
-                        <>
+                        <label className="screen-selection-fn-checkbox">
+                          <input
+                            type="checkbox"
+                            checked={approveChecked}
+                            onChange={(e) => changeApprove(view, e.target.checked)}
+                            aria-checked={approveChecked}
+                            aria-label={`${child.label} ${FUNCTION_LABELS.approve}`}
+                            aria-describedby={approveTooltipId}
+                          />
                           <span id={approveTooltipId} className="screen-selection-sr-only">
                             {APPROVE_CHECKBOX_TOOLTIP}
                           </span>
                           <Tooltip title={APPROVE_CHECKBOX_TOOLTIP} arrow placement="right">
-                            <label className="screen-selection-fn-checkbox">
-                              <input
-                                type="checkbox"
-                                checked={approveChecked}
-                                onChange={(e) => changeApprove(view, e.target.checked)}
-                                aria-checked={approveChecked}
-                                aria-label={`${child.label} ${FUNCTION_LABELS.approve}`}
-                                aria-describedby={approveTooltipId}
-                              />
-                              <span>{FUNCTION_LABELS.approve}</span>
-                            </label>
+                            <span>{FUNCTION_LABELS.approve}</span>
                           </Tooltip>
-                        </>
+                        </label>
                       )}
                     </span>
                   )}
