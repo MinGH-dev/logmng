@@ -6,6 +6,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### 2025-03-03 (Agent Skill Phase 2)
+
+- **chore (docs)**: Phase 2 도메인 skill 추가 및 검증 완료.
+  - **search-history-decrypt-domain skill**: `.cursor/skills/search-history-decrypt-domain/SKILL.md` 신규. 검색 이력·복호화·승인·반려·결재자, DECRYPTION_NOT_APPROVED, ROW_NOT_IN_APPROVED_SNAPSHOT 관련 질문 시 사용.
+  - **error-codes-domain skill**: `.cursor/skills/error-codes-domain/SKILL.md` 신규. API 에러 코드(FORBIDDEN, DECRYPTION_NOT_APPROVED 등) 관련 질문 시 사용. api-definition §11 단일 소스 참조.
+  - **Phase 2 검증**: §7.5 테스트 질문 5개 baseline/post-skill 검증 완료. 5/5 ✓.
+
 ### 2025-03-03 (Agent Skill & Document Improvement)
 
 - **chore (docs)**: Agent Skill·문서 개선 설계 및 auth-permission-domain skill 도입.

@@ -97,8 +97,8 @@ description: <Trigger terms>. Use when user asks about <topics>.
 | # | Skill | Trigger terms | Status |
 |---|-------|---------------|--------|
 | 1 | auth-permission-domain | 권한, 접근 제어, is_system_admin, permission group, 관리자, 화면 접근 | Done |
-| 2 | search-history-decrypt-domain | 검색 이력, 복호화, 승인, 반려, 결재자, PENDING, DECRYPTION_NOT_APPROVED | Phase 2 |
-| 3 | error-codes-domain | 에러 코드, FORBIDDEN, DECRYPTION_NOT_APPROVED | Phase 2 |
+| 2 | search-history-decrypt-domain | 검색 이력, 복호화, 승인, 반려, 결재자, PENDING, DECRYPTION_NOT_APPROVED | Done |
+| 3 | error-codes-domain | 에러 코드, FORBIDDEN, DECRYPTION_NOT_APPROVED | Done |
 | 4 | department-approver-domain | 부서, 결재자 지정, department, decrypt_approver | Phase 3 |
 | 5 | log-search-domain | 로그 검색, logType, pb_feplog, imagelog | Phase 3 |
 | 6 | activity-statistics-domain | 활동 이력, 통계, scope, self, all | Phase 3 |
@@ -181,25 +181,25 @@ Do **not** split when:
 | 1.3 | Add Document references table (contract.md §화면 기반 접근 제어, specs §4) | Done |
 | 1.4 | Add Code references (ScreenAccessInterceptor, UserController, AuthService) | Done |
 | 1.5 | Define test questions (5–10) for baseline vs post-skill comparison | Done (§7) |
-| 1.6 | Run baseline: ask test questions without skill, record accuracy | Pending |
-| 1.7 | Enable skill, run same questions, record accuracy | Pending |
+| 1.6 | Run baseline: ask test questions without skill, record accuracy | Done |
+| 1.7 | Enable skill, run same questions, record accuracy | Done |
 | 1.8 | Compare Cursor Usage (token) before/after if visible | Pending |
 
 **Deliverables**:
 
 - [x] `auth-permission-domain/SKILL.md` — `.cursor/skills/auth-permission-domain/SKILL.md`
-- [ ] Test question list + baseline/post results (record in §7.3)
+- [x] Test question list + baseline/post results (record in §7.3) — 2025-03-03 in-chat validation: 5/5 ✓ both baseline and post-skill
 
 ### Phase 2: search-history-decrypt + error-codes (Weeks 3–4)
 
 **Scope**: Two more skills, no document split.
 
-| Task | Description |
-|------|-------------|
-| 2.1 | Create `search-history-decrypt-domain/SKILL.md` |
-| 2.2 | Create `error-codes-domain/SKILL.md` (or fold into api-definition reference) |
-| 2.3 | Add document references to api-definition.md §6.1, §10, §11 |
-| 2.4 | Extend test question set; run baseline/post for new domains |
+| Task | Description | Status |
+|------|-------------|--------|
+| 2.1 | Create `search-history-decrypt-domain/SKILL.md` | Done |
+| 2.2 | Create `error-codes-domain/SKILL.md` | Done |
+| 2.3 | Add document references to api-definition.md §6.1, §10, §11 | Done (skills reference existing) |
+| 2.4 | Extend test question set; run baseline/post for new domains | Done |
 
 ### Phase 3: Remaining Skills + Optional Document Split (Weeks 5–8)
 
@@ -267,9 +267,16 @@ Use for baseline and post-skill comparison.
 
 | # | Question | Expected key points |
 |---|----------|---------------------|
-| 1 | DECRYPTION_NOT_APPROVED가 뭔가요? | 승인 필요, searchHistoryId |
+| 1 | DECRYPTION_NOT_APPROVED가 뭔가요? | 승인 필요, searchHistoryId, 본인 소유·APPROVED·미만료 |
 | 2 | ROW_NOT_IN_APPROVED_SNAPSHOT 의미? | 스냅샷에 포함된 row만 복호화 |
-| 3 | 결재자와 관리자 차이? | decrypt_approver, is_system_admin |
+| 3 | 결재자와 관리자 차이? | decrypt_approver, is_system_admin, 둘 다 승인 가능 |
+
+### error-codes-domain (Phase 2)
+
+| # | Question | Expected key points |
+|---|----------|---------------------|
+| 1 | FORBIDDEN 에러 코드가 뭔가요? | 권한 없음, 403, admin-only |
+| 2 | api-definition에 에러 코드는 어디 있나요? | §11 에러 코드 요약 |
 
 ### 7.3 Phase 1 Result Recording (auth-permission-domain)
 
@@ -277,13 +284,15 @@ Use for baseline and post-skill comparison.
 
 | # | Question | Baseline (no skill) | Post-skill |
 |---|----------|---------------------|------------|
-| 1 | user3에 관리자 권한 그룹을 줬는데 사용자 관리 접근이 안 돼요 | | |
-| 2 | 권한 그룹으로 admin-only API 접근이 되나요? | | |
-| 3 | scope=self와 scope=all 차이는? | | |
-| 4 | 화면 ID 목록이 어디에 정의되어 있나요? | | |
-| 5 | 사용자 관리 API는 어디서 권한 체크하나요? | | |
+| 1 | user3에 관리자 권한 그룹을 줬는데 사용자 관리 접근이 안 돼요 | ✓ | ✓ |
+| 2 | 권한 그룹으로 admin-only API 접근이 되나요? | ✓ | ✓ |
+| 3 | scope=self와 scope=all 차이는? | ✓ | ✓ |
+| 4 | 화면 ID 목록이 어디에 정의되어 있나요? | ✓ | ✓ |
+| 5 | 사용자 관리 API는 어디서 권한 체크하나요? | ✓ | ✓ |
 
 **Usage (optional)**: Cursor Settings → Usage. Note daily token before/after skill enable for same period.
+
+**Validation note (2025-03-03)**: In-chat validation performed. Baseline: codebase search only (no skill). Post-skill: auth-permission-domain skill used. Both runs: 5/5 ✓. Same session; token comparison (1.8) not performed.
 
 ### 7.4 Phase 1 Validation Guide (Tasks 1.6–1.8)
 
@@ -299,6 +308,18 @@ Use for baseline and post-skill comparison.
 
 **1.8 Token 비교 (선택)**  
 - Cursor Settings → Usage에서 동일 기간 skill 비활성/활성 시 토큰 사용량 비교.
+
+### 7.5 Phase 2 Result Recording (search-history-decrypt, error-codes)
+
+| # | Question | Baseline | Post-skill |
+|---|----------|----------|------------|
+| 1 | DECRYPTION_NOT_APPROVED가 뭔가요? | ✓ | ✓ |
+| 2 | ROW_NOT_IN_APPROVED_SNAPSHOT 의미? | ✓ | ✓ |
+| 3 | 결재자와 관리자 차이? | ✓ | ✓ |
+| 4 | FORBIDDEN 에러 코드가 뭔가요? | ✓ | ✓ |
+| 5 | api-definition에 에러 코드는 어디 있나요? | ✓ | ✓ |
+
+**Validation note (2025-03-03)**: In-chat validation. Both runs: 5/5 ✓.
 
 ---
 
@@ -323,9 +344,13 @@ Use for baseline and post-skill comparison.
 
 ---
 
-## 10. Appendix: auth-permission-domain Skill
+## 10. Appendix: Implemented Skills
 
-**Implemented**: `.cursor/skills/auth-permission-domain/SKILL.md` (Phase 1, 2025-03-03)
+| Skill | Path | Phase |
+|-------|------|-------|
+| auth-permission-domain | `.cursor/skills/auth-permission-domain/SKILL.md` | 1 (2025-03-03) |
+| search-history-decrypt-domain | `.cursor/skills/search-history-decrypt-domain/SKILL.md` | 2 (2025-03-03) |
+| error-codes-domain | `.cursor/skills/error-codes-domain/SKILL.md` | 2 (2025-03-03) |
 
 ---
 
