@@ -6,6 +6,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### 2025-03-03 (Agent Skill Phase 3)
+
+- **chore (docs)**: Phase 3 도메인 skill 4개 추가 및 설계 문서 갱신.
+  - **department-approver-domain skill**: `.cursor/skills/department-approver-domain/SKILL.md` 신규. 부서·결재자 지정·decrypt_approver·user-permission-hierarchy 관련 질문 시 사용.
+  - **log-search-domain skill**: `.cursor/skills/log-search-domain/SKILL.md` 신규. 로그 검색·logType·pb_feplog·imagelog 관련 질문 시 사용.
+  - **activity-statistics-domain skill**: `.cursor/skills/activity-statistics-domain/SKILL.md` 신규. 활동 이력·통계·scope(self/all) 관련 질문 시 사용.
+  - **ui-ux-domain skill**: `.cursor/skills/ui-ux-domain/SKILL.md` 신규. 메뉴·화면·view·adminOnly·canAccessView 관련 질문 시 사용.
+  - **SKILL-DOCUMENT-IMPROVEMENT-DESIGN.md**: Phase 3 완료 반영. 3.2 문서 분리 보류, 3.3 trigger overlap 검토 완료, §7.6 Phase 3 테스트 템플릿 추가.
+  - **docs/README.md**: Skills 섹션에 Phase 3 skill 4개 설명 추가.
+
 ### 2025-03-03 (auth-permission-domain 스킬 수정)
 
 - **chore (docs)**: auth-permission-domain 스킬을 계약·스펙과 일치하도록 수정.
