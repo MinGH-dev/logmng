@@ -4,6 +4,7 @@ import com.logmng.dto.response.ApiResponse;
 import com.logmng.dto.response.DepartmentNodeResponse;
 import com.logmng.dto.response.DepartmentNodeWithUsersResponse;
 import com.logmng.exception.CustomException;
+import com.logmng.service.AuthService;
 import com.logmng.service.DecryptApproverService;
 import com.logmng.service.DepartmentService;
 import com.logmng.service.UserPermissionHierarchyService;
@@ -29,12 +30,15 @@ public class DepartmentController {
     private final DepartmentService departmentService;
     private final DecryptApproverService decryptApproverService;
     private final UserPermissionHierarchyService userPermissionHierarchyService;
+    private final AuthService authService;
 
     public DepartmentController(DepartmentService departmentService, DecryptApproverService decryptApproverService,
-                                UserPermissionHierarchyService userPermissionHierarchyService) {
+                                UserPermissionHierarchyService userPermissionHierarchyService,
+                                AuthService authService) {
         this.departmentService = departmentService;
         this.decryptApproverService = decryptApproverService;
         this.userPermissionHierarchyService = userPermissionHierarchyService;
+        this.authService = authService;
     }
 
     private static boolean hasControlOrHighChars(String s) {
@@ -81,6 +85,17 @@ public class DepartmentController {
         }
     }
 
+    /** Allows isSystemAdmin OR allowedScreenIds contains user-management or user-permission-hierarchy. Per spec §4.3. */
+    private void requireUserManagementAccess(HttpServletRequest request) {
+        if (!authService.checkAuth(request)) {
+            throw CustomException.unauthorized("로그인이 필요합니다.", "UNAUTHORIZED");
+        }
+        if (!authService.canAccessUserManagementView(request)) {
+            log.info("부서/결재자 API 접근 거부: user-management 또는 user-permission-hierarchy 권한 없음");
+            throw CustomException.forbidden("관리자만 부서 및 부서별 결재자를 관리할 수 있습니다.", "FORBIDDEN");
+        }
+    }
+
     /**
      * GET /api/departments/user-permission-hierarchy — 부서별 사용자·권한 그룹 계층. §14.9
      */
@@ -88,7 +103,7 @@ public class DepartmentController {
     public ResponseEntity<ApiResponse<?>> userPermissionHierarchy(
             @RequestParam(defaultValue = "tree") String format,
             HttpServletRequest request) {
-        requireAdmin(request);
+        requireUserManagementAccess(request);
         if ("flat".equalsIgnoreCase(format)) {
             List<DepartmentNodeWithUsersResponse> data = userPermissionHierarchyService.getHierarchyFlat();
             return ResponseEntity.ok(ApiResponse.success(data));
@@ -104,7 +119,7 @@ public class DepartmentController {
     public ResponseEntity<ApiResponse<?>> list(
             @RequestParam(defaultValue = "tree") String format,
             HttpServletRequest request) {
-        requireAdmin(request);
+        requireUserManagementAccess(request);
         if ("flat".equalsIgnoreCase(format)) {
             List<Map<String, Object>> data = departmentService.listFlat();
             return ResponseEntity.ok(ApiResponse.success(data));

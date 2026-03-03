@@ -7,7 +7,7 @@ import com.logmng.dto.response.AssignUserToGroupResponse;
 import com.logmng.dto.response.PermissionGroupResponse;
 import com.logmng.dto.response.UserListItemResponse;
 import com.logmng.exception.CustomException;
-import com.logmng.service.DecryptApproverService;
+import com.logmng.service.AuthService;
 import com.logmng.service.PermissionGroupService;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
@@ -30,35 +30,21 @@ public class PermissionGroupController {
     private static final Logger log = LoggerFactory.getLogger(PermissionGroupController.class);
 
     private final PermissionGroupService permissionGroupService;
-    private final DecryptApproverService decryptApproverService;
+    private final AuthService authService;
 
     public PermissionGroupController(PermissionGroupService permissionGroupService,
-                                     DecryptApproverService decryptApproverService) {
+                                     AuthService authService) {
         this.permissionGroupService = permissionGroupService;
-        this.decryptApproverService = decryptApproverService;
+        this.authService = authService;
     }
 
-    private static String getUserId(HttpServletRequest request) {
-        jakarta.servlet.http.HttpSession session = request.getSession(false);
-        if (session == null) return null;
-        Object v = session.getAttribute("userId");
-        return v != null ? v.toString() : null;
-    }
-
-    private static boolean isSystemAdmin(HttpServletRequest request) {
-        jakarta.servlet.http.HttpSession session = request.getSession(false);
-        if (session == null) return false;
-        Object v = session.getAttribute("isSystemAdmin");
-        return Boolean.TRUE.equals(v);
-    }
-
-    private void requireAdmin(HttpServletRequest request) {
-        String userId = getUserId(request);
-        if (userId == null || userId.isBlank()) {
+    /** Allows isSystemAdmin OR allowedScreenIds contains user-management or user-permission-hierarchy. Per spec §4.3. */
+    private void requireUserManagementAccess(HttpServletRequest request) {
+        if (!authService.checkAuth(request)) {
             throw CustomException.unauthorized("로그인이 필요합니다.", "UNAUTHORIZED");
         }
-        if (!decryptApproverService.isAdmin(isSystemAdmin(request))) {
-            log.info("Permission group API access denied: isSystemAdmin=false");
+        if (!authService.canAccessUserManagementView(request)) {
+            log.info("Permission group API access denied: no user-management or user-permission-hierarchy");
             throw CustomException.forbidden("관리자만 권한 그룹을 관리할 수 있습니다.", "FORBIDDEN");
         }
     }
@@ -68,7 +54,7 @@ public class PermissionGroupController {
      */
     @GetMapping
     public ResponseEntity<ApiResponse<List<PermissionGroupResponse>>> list(HttpServletRequest request) {
-        requireAdmin(request);
+        requireUserManagementAccess(request);
         List<PermissionGroupResponse> data = permissionGroupService.listAll();
         return ResponseEntity.ok(ApiResponse.success(data));
     }
@@ -80,7 +66,7 @@ public class PermissionGroupController {
     public ResponseEntity<ApiResponse<PermissionGroupResponse>> create(
             @Valid @RequestBody PermissionGroupCreateRequest body,
             HttpServletRequest request) {
-        requireAdmin(request);
+        requireUserManagementAccess(request);
         PermissionGroupResponse data = permissionGroupService.create(body);
         return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.success(data));
     }
@@ -92,7 +78,7 @@ public class PermissionGroupController {
     public ResponseEntity<ApiResponse<PermissionGroupResponse>> getOne(
             @PathVariable Long id,
             HttpServletRequest request) {
-        requireAdmin(request);
+        requireUserManagementAccess(request);
         PermissionGroupResponse data = permissionGroupService.findById(id);
         return ResponseEntity.ok(ApiResponse.success(data));
     }
@@ -105,7 +91,7 @@ public class PermissionGroupController {
             @PathVariable Long id,
             @RequestBody PermissionGroupUpdateRequest body,
             HttpServletRequest request) {
-        requireAdmin(request);
+        requireUserManagementAccess(request);
         PermissionGroupResponse data = permissionGroupService.update(id, body);
         return ResponseEntity.ok(ApiResponse.success(data));
     }
@@ -117,7 +103,7 @@ public class PermissionGroupController {
     public ResponseEntity<ApiResponse<Void>> delete(
             @PathVariable Long id,
             HttpServletRequest request) {
-        requireAdmin(request);
+        requireUserManagementAccess(request);
         permissionGroupService.delete(id);
         return ResponseEntity.ok(ApiResponse.success(null));
     }
@@ -130,7 +116,7 @@ public class PermissionGroupController {
             @PathVariable Long id,
             @Valid @RequestBody Map<String, String> body,
             HttpServletRequest request) {
-        requireAdmin(request);
+        requireUserManagementAccess(request);
         String userId = body != null ? body.get("userId") : null;
         if (userId == null || userId.isBlank()) {
             throw CustomException.badRequest("userId는 필수이며 비어 있을 수 없습니다.", "INVALID_INPUT");
@@ -147,7 +133,7 @@ public class PermissionGroupController {
             @PathVariable Long id,
             @PathVariable String userId,
             HttpServletRequest request) {
-        requireAdmin(request);
+        requireUserManagementAccess(request);
         permissionGroupService.unassignUser(id, userId);
         return ResponseEntity.ok(ApiResponse.success(null));
     }
@@ -159,7 +145,7 @@ public class PermissionGroupController {
     public ResponseEntity<ApiResponse<List<UserListItemResponse>>> listUsers(
             @PathVariable Long id,
             HttpServletRequest request) {
-        requireAdmin(request);
+        requireUserManagementAccess(request);
         List<UserListItemResponse> data = permissionGroupService.listUsersInGroup(id);
         return ResponseEntity.ok(ApiResponse.success(data));
     }

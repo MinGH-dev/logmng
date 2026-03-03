@@ -53,6 +53,17 @@ export const removeSecureStorage = (key) => {
 };
 
 /**
+ * Normalize allowedScreenIds from user-like object (handles camelCase and snake_case).
+ * @param {object} user - User or userData object
+ * @returns {string[]|null} Allowed screen IDs or null
+ */
+export const getAllowedScreenIds = (user) => {
+  if (!user) return null;
+  const ids = user.allowedScreenIds ?? user.allowed_screen_ids;
+  return Array.isArray(ids) ? ids : null;
+};
+
+/**
  * 사용자 정보를 최소화하여 저장
  * @param {object} userData - 사용자 데이터
  */
@@ -65,7 +76,7 @@ export const saveMinimalUserData = (userData) => {
   const minimalData = {
     username: userData.username || null,
     isSystemAdmin: userData.isSystemAdmin === true,
-    allowedScreenIds: Array.isArray(userData.allowedScreenIds) ? userData.allowedScreenIds : null,
+    allowedScreenIds: getAllowedScreenIds(userData),
     screenScopes: userData.screenScopes && typeof userData.screenScopes === 'object' ? userData.screenScopes : null,
   };
 
@@ -139,6 +150,7 @@ export default {
   removeSecureStorage,
   saveMinimalUserData,
   getMinimalUserData,
+  getAllowedScreenIds,
   clearUserData,
   sanitizeErrorMessage,
   getUserFriendlyErrorMessage

@@ -180,6 +180,20 @@ public class AuthService {
     }
 
     /**
+     * Returns true if the current user can access the user-management view.
+     * Per specs/permission-group-hierarchy.spec.yaml §4.3: is_system_admin OR
+     * allowedScreenIds contains user-management OR user-permission-hierarchy.
+     */
+    public boolean canAccessUserManagementView(HttpServletRequest request) {
+        LoginResponse user = getCurrentUserInfo(request);
+        if (user == null) return false;
+        if (Boolean.TRUE.equals(user.getIsSystemAdmin())) return true;
+        List<String> allowed = user.getAllowedScreenIds();
+        return allowed != null && (allowed.contains(ScreenConstants.USER_MANAGEMENT)
+                || allowed.contains(ScreenConstants.USER_PERMISSION_HIERARCHY));
+    }
+
+    /**
      * 인증 상태 확인 (세션 기반)
      *
      * @param request HTTP 요청 (세션 확인용, null이면 false)

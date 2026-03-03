@@ -13,7 +13,7 @@ import PermissionGroupManagement from './components/PermissionGroupManagement/Pe
 import PendingApprovals from './components/PendingApprovals/PendingApprovals';
 import AppSidebar from './components/AppSidebar';
 import AppBar from './components/AppBar';
-import { saveMinimalUserData, getMinimalUserData, clearUserData } from './utils/security';
+import { saveMinimalUserData, getMinimalUserData, getAllowedScreenIds, clearUserData } from './utils/security';
 import logger from './utils/logger';
 
 function App() {
@@ -28,8 +28,8 @@ function App() {
 
   const canAccessView = (view) => {
     if (user?.isSystemAdmin === true) return true;
-    const ids = user?.allowedScreenIds;
-    if (!Array.isArray(ids) || ids.length === 0) return false;
+    const ids = getAllowedScreenIds(user);
+    if (!ids || ids.length === 0) return false;
     if (view === 'user-management') {
       return ids.includes('user-management') || ids.includes('user-permission-hierarchy');
     }
@@ -70,9 +70,7 @@ function App() {
           ? {
               username: fromApi?.username ?? savedUser.username,
               isSystemAdmin: fromApi?.isSystemAdmin ?? savedUser.isSystemAdmin ?? false,
-              allowedScreenIds: Array.isArray(fromApi?.allowedScreenIds)
-                ? fromApi.allowedScreenIds
-                : savedUser?.allowedScreenIds ?? null,
+              allowedScreenIds: getAllowedScreenIds(fromApi) ?? savedUser?.allowedScreenIds ?? null,
               screenScopes: fromApi?.screenScopes && typeof fromApi.screenScopes === 'object'
                 ? fromApi.screenScopes
                 : savedUser?.screenScopes ?? null,
@@ -81,7 +79,7 @@ function App() {
             ? {
                 username: fromApi.username,
                 isSystemAdmin: fromApi?.isSystemAdmin ?? false,
-                allowedScreenIds: Array.isArray(fromApi?.allowedScreenIds) ? fromApi.allowedScreenIds : null,
+                allowedScreenIds: getAllowedScreenIds(fromApi),
                 screenScopes: fromApi?.screenScopes && typeof fromApi.screenScopes === 'object' ? fromApi.screenScopes : null,
               }
             : null;
@@ -110,7 +108,7 @@ function App() {
     const minimalUserData = {
       username: userData.username || null,
       isSystemAdmin: userData.isSystemAdmin === true,
-      allowedScreenIds: Array.isArray(userData.allowedScreenIds) ? userData.allowedScreenIds : null,
+      allowedScreenIds: getAllowedScreenIds(userData),
       screenScopes: userData.screenScopes && typeof userData.screenScopes === 'object' ? userData.screenScopes : null,
     };
     setUser(minimalUserData);
@@ -150,8 +148,14 @@ function App() {
     if (!isAuthenticated || !user) return;
     if (currentView === 'main') return;
     const isAdmin = user?.isSystemAdmin === true;
-    const ids = user?.allowedScreenIds;
-    const hasAccess = isAdmin || (Array.isArray(ids) && ids.length > 0 && ids.includes(currentView));
+    const ids = getAllowedScreenIds(user);
+    const hasAccess =
+      isAdmin ||
+      (ids &&
+        ids.length > 0 &&
+        (currentView === 'user-management' || currentView === 'user-permission-hierarchy'
+          ? ids.includes('user-management') || ids.includes('user-permission-hierarchy')
+          : ids.includes(currentView)));
     if (!hasAccess) setCurrentView('main');
   }, [isAuthenticated, user, currentView]);
 
@@ -207,7 +211,7 @@ function App() {
         <AppSidebar
           open={sidebarOpen}
           isAdmin={user?.isSystemAdmin === true}
-          allowedScreenIds={user?.allowedScreenIds}
+          allowedScreenIds={getAllowedScreenIds(user) ?? []}
           currentView={currentView}
           onNavigate={handleNavigate}
           onSearchMain={handleSearchMain}
