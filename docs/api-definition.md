@@ -413,6 +413,7 @@
 | PERMISSION_GROUP_HAS_USERS | 삭제 시 해당 그룹에 사용자 배정 있음 (400) |
 | USER_ALREADY_IN_GROUP | 해당 사용자가 이미 그룹에 배정됨 (400) |
 | INVALID_SCREEN_ID | allowedScreens에 허용 목록에 없는 screen_id 포함 (400) |
+| INVALID_SCREEN_FUNCTION | 화면별 read/write/approve 조합이 허용되지 않음 (400). main read-only: main에 write=true 또는 approve=true; approve 미지원 화면에 approve=true; write 미지원 화면에 write=true. POST/PUT permission-groups 시 `specs/permission-group-hierarchy.spec.yaml` §1.1.1 검증. |
 | USER_NOT_FOUND | 해당 사용자 없음 (404) |
 | SELF_DEMOTION_BLOCKED | 자기 자신의 역할 변경 시도 (400) |
 | LAST_ADMIN_BLOCKED | 마지막 관리자 강등 시도 (400) |
@@ -462,31 +463,31 @@
 ### 14.1 권한 그룹 목록 조회
 
 - **GET** `/api/permission-groups`
-- **Response (data)**: 배열. 각 항목: `id` (number), `code` (string), `name` (string), `description` (string | null), `sortOrder` (number, 선택), `allowedScreens` (배열: `{ screenId: string, scope?: 'self'|'all' }[]`, 요건 20250227·20250303). activity-log, statistics, search-history에만 scope 사용; 생략·null = 'self'.
+- **Response (data)**: 배열. 각 항목: `id` (number), `code` (string), `name` (string), `description` (string | null), `sortOrder` (number, 선택), `allowedScreens` (배열: `AllowedScreenItem[]`). `AllowedScreenItem`: `{ screenId, scope?, read?, write?, approve? }`. scope는 activity-log, statistics, search-history에만; read/write/approve는 화면별 명시적 체크박스. main은 read-only(write/approve 불가). 검증 실패 시 400 `INVALID_SCREEN_FUNCTION`. 상세: `specs/permission-group-hierarchy.spec.yaml` §1.1, §1.1.1.
 - **에러**: 401, 403
 
 ### 14.2 권한 그룹 생성
 
 - **POST** `/api/permission-groups`
-- **Request body** (JSON): `code` (string, 필수), `name` (string, 필수), `description` (string, 선택), `sortOrder` (number, 선택, 기본 0), `allowedScreens` (배열: `{ screenId: string, scope?: 'self'|'all' }[]`, 선택 — 허용 화면 목록; 그 외 400 `INVALID_SCREEN_ID`). activity-log, statistics, search-history에 scope 생략 시 기본 'self'.
+- **Request body** (JSON): `code` (string, 필수), `name` (string, 필수), `description` (string, 선택), `sortOrder` (number, 선택, 기본 0), `allowedScreens` (배열: `{ screenId, scope?, read?, write?, approve? }[]`, 선택). screenId 검증 → 400 `INVALID_SCREEN_ID`; read/write/approve 조합 검증 → 400 `INVALID_SCREEN_FUNCTION`. scope 생략 시 'self'. backward compat: read/write/approve 생략 시 §1.1.1 기본값.
 - **Response (data)**: 생성된 권한 그룹 객체 (동일 필드 + `id`, `allowedScreens`)
 - **Status**: 201
-- **에러**: 400 (code/name 누락·중복), 401, 403
+- **에러**: 400 (code/name 누락·중복, INVALID_SCREEN_ID, INVALID_SCREEN_FUNCTION), 401, 403
 
 ### 14.3 권한 그룹 상세 조회
 
 - **GET** `/api/permission-groups/{id}`
 - **Path**: `id` — 권한 그룹 ID (Long)
-- **Response (data)**: 단일 권한 그룹 객체 (`allowedScreens: [{ screenId, scope? }]` 포함)
+- **Response (data)**: 단일 권한 그룹 객체 (`allowedScreens: [{ screenId, scope?, read?, write?, approve? }]` 포함)
 - **에러**: 401, 403, 404 → `code: "PERMISSION_GROUP_NOT_FOUND"`
 
 ### 14.4 권한 그룹 수정
 
 - **PUT** `/api/permission-groups/{id}`
 - **Path**: `id` — 권한 그룹 ID (Long)
-- **Request body** (JSON): `code`, `name`, `description`, `sortOrder`, `allowedScreens` (배열: `{ screenId: string, scope?: 'self'|'all' }[]`, 모두 선택). `allowedScreens`의 screenId는 허용 화면 목록에 있는 값만; 그 외 400 `INVALID_SCREEN_ID`. scope 생략 시 'self'.
+- **Request body** (JSON): `code`, `name`, `description`, `sortOrder`, `allowedScreens` (배열: `{ screenId, scope?, read?, write?, approve? }[]`, 모두 선택). screenId 검증 → `INVALID_SCREEN_ID`; read/write/approve 검증 → `INVALID_SCREEN_FUNCTION`. scope 생략 시 'self'.
 - **Response (data)**: 수정된 권한 그룹 객체
-- **에러**: 400, 401, 403, 404 → "PERMISSION_GROUP_NOT_FOUND"
+- **에러**: 400 (INVALID_SCREEN_ID, INVALID_SCREEN_FUNCTION), 401, 403, 404 → "PERMISSION_GROUP_NOT_FOUND"
 
 ### 14.5 권한 그룹 삭제
 

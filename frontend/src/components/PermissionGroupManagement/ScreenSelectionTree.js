@@ -2,17 +2,18 @@
  * 2-depth checkbox tree for selecting allowed screens per permission group.
  * Uses MENU_TREE labels; a11y: role="checkbox", aria-checked, role="group".
  * For activity-log, statistics, search-history: scope dropdown ("본인만" | "전체"), default "본인만".
- * When screen is selected, shows "부여되는 권한: 조회" etc. with tooltip for full description.
- * onChange receives [{ screenId, scope? }].
+ * When screen is selected, shows checkboxes for read (label only), write, approve where applicable.
+ * req 20250303-screen-function-checkbox-selection
+ * onChange receives [{ screenId, scope?, read?, write?, approve? }].
  */
 import React from 'react';
 import { Tooltip } from '@mui/material';
-import { Info as InfoIcon } from '@mui/icons-material';
 import { MENU_TREE } from '../../constants/menuTree';
 import {
-  getGrantedFunctionsSummary,
-  getScreenFunctionCapabilities,
-  FUNCTION_DESCRIPTIONS,
+  FUNCTION_LABELS,
+  APPROVE_CHECKBOX_TOOLTIP,
+  SCREENS_WITH_WRITE,
+  SCREENS_WITH_APPROVE,
 } from '../../constants/screenFunctionDescriptions';
 import './ScreenSelectionTree.css';
 
@@ -24,22 +25,30 @@ const SCOPE_OPTIONS = [
   { value: 'all', label: '전체' },
 ];
 
-/** Normalize selectedScreens to [{ screenId, scope? }] */
+/** Normalize selectedScreens to [{ screenId, scope?, read?, write?, approve? }] */
 const normalizeSelected = (selected) => {
   if (!Array.isArray(selected)) return [];
-  return selected.map((s) =>
-    typeof s === 'string' ? { screenId: s, scope: 'self' } : { screenId: s.screenId, scope: s.scope || 'self' }
-  );
+  return selected.map((s) => {
+    const base = typeof s === 'string'
+      ? { screenId: s, scope: SCOPE_SUPPORTING_SCREENS.includes(s) ? 'self' : undefined }
+      : { screenId: s.screenId, scope: s.scope || (SCOPE_SUPPORTING_SCREENS.includes(s.screenId) ? 'self' : undefined) };
+    const hasWrite = SCREENS_WITH_WRITE.includes(base.screenId);
+    const hasApprove = SCREENS_WITH_APPROVE.includes(base.screenId);
+    return {
+      ...base,
+      read: base.read ?? true,
+      write: base.write ?? (hasWrite ? true : undefined),
+      approve: base.approve ?? (hasApprove ? false : undefined),
+    };
+  });
 };
 
 /** Get screenId set from normalized array */
 const getScreenIdSet = (normalized) => new Set(normalized.map((s) => s.screenId));
 
-/** Get scope for screenId from normalized array */
-const getScopeForScreen = (normalized, screenId) => {
-  const item = normalized.find((s) => s.screenId === screenId);
-  return item?.scope || 'self';
-};
+/** Get item for screenId from normalized array */
+const getItemForScreen = (normalized, screenId) =>
+  normalized.find((s) => s.screenId === screenId);
 
 const ScreenSelectionTree = ({ selectedScreens, onChange }) => {
   const normalized = React.useMemo(() => normalizeSelected(selectedScreens), [selectedScreens]);
@@ -49,11 +58,19 @@ const ScreenSelectionTree = ({ selectedScreens, onChange }) => {
     if (!view) return;
     const next = [...normalized];
     const idx = next.findIndex((s) => s.screenId === view);
+    const hasWrite = SCREENS_WITH_WRITE.includes(view);
+    const hasApprove = SCREENS_WITH_APPROVE.includes(view);
     if (idx >= 0) {
       next.splice(idx, 1);
     } else {
       const scope = SCOPE_SUPPORTING_SCREENS.includes(view) ? 'self' : undefined;
-      next.push(scope !== undefined ? { screenId: view, scope } : { screenId: view });
+      next.push({
+        screenId: view,
+        scope,
+        read: true,
+        write: hasWrite ? true : undefined,
+        approve: hasApprove ? false : undefined,
+      });
     }
     onChange(next);
   };
@@ -65,18 +82,24 @@ const ScreenSelectionTree = ({ selectedScreens, onChange }) => {
     onChange(next);
   };
 
+  const changeWrite = (view, checked) => {
+    const next = normalized.map((s) =>
+      s.screenId === view ? { ...s, write: checked } : s
+    );
+    onChange(next);
+  };
+
+  const changeApprove = (view, checked) => {
+    const next = normalized.map((s) =>
+      s.screenId === view ? { ...s, approve: checked } : s
+    );
+    onChange(next);
+  };
+
   const isChecked = (view) => screenIdSet.has(view);
   const supportsScope = (view) => SCOPE_SUPPORTING_SCREENS.includes(view);
-
-  /** Build tooltip content for a screen: full descriptions for read/write/approve */
-  const getScreenTooltipContent = (view) => {
-    const cap = getScreenFunctionCapabilities(view);
-    const parts = [];
-    if (cap.read) parts.push(FUNCTION_DESCRIPTIONS.read);
-    if (cap.write) parts.push(FUNCTION_DESCRIPTIONS.write);
-    if (cap.approve) parts.push(FUNCTION_DESCRIPTIONS.approve);
-    return parts.join('\n\n');
-  };
+  const supportsWrite = (view) => SCREENS_WITH_WRITE.includes(view);
+  const supportsApprove = (view) => SCREENS_WITH_APPROVE.includes(view);
 
   return (
     <div className="screen-selection-tree" role="group" aria-label="접근 화면 선택">
@@ -87,10 +110,15 @@ const ScreenSelectionTree = ({ selectedScreens, onChange }) => {
             {node.children.map((child) => {
               const view = child.view;
               const checked = isChecked(view);
+              const item = getItemForScreen(normalized, view);
               const showScope = supportsScope(view) && checked;
-              const scopeValue = getScopeForScreen(normalized, view);
-              const summary = getGrantedFunctionsSummary(view);
-              const tooltipContent = getScreenTooltipContent(view);
+              const scopeValue = item?.scope || 'self';
+              const showWrite = supportsWrite(view) && checked;
+              const showApprove = supportsApprove(view) && checked;
+              const writeChecked = item?.write ?? true;
+              const approveChecked = item?.approve ?? false;
+              const approveTooltipId = `approve-tooltip-${child.id}`;
+
               return (
                 <li key={child.id} className="screen-selection-item">
                   <label className="screen-selection-label">
@@ -103,14 +131,44 @@ const ScreenSelectionTree = ({ selectedScreens, onChange }) => {
                     />
                     <span>{child.label}</span>
                   </label>
-                  {checked && summary && (
-                    <span className="screen-selection-functions-summary">
-                      {summary}
-                      <Tooltip title={tooltipContent} arrow placement="right">
-                        <span className="screen-selection-info-icon" role="img" aria-label="권한 설명">
-                          <InfoIcon fontSize="small" sx={{ fontSize: 16, verticalAlign: 'middle', marginLeft: 0.5 }} />
-                        </span>
-                      </Tooltip>
+                  {checked && (
+                    <span className="screen-selection-functions" role="group" aria-label={`${child.label} 권한`}>
+                      {/* read: always true when selected; show as label or omit. main: read only. */}
+                      <span className="screen-selection-read-label" aria-hidden="true">
+                        {FUNCTION_LABELS.read}
+                      </span>
+                      {showWrite && (
+                        <label className="screen-selection-fn-checkbox">
+                          <input
+                            type="checkbox"
+                            checked={writeChecked}
+                            onChange={(e) => changeWrite(view, e.target.checked)}
+                            aria-checked={writeChecked}
+                            aria-label={`${child.label} ${FUNCTION_LABELS.write}`}
+                          />
+                          <span>{FUNCTION_LABELS.write}</span>
+                        </label>
+                      )}
+                      {showApprove && (
+                        <>
+                          <span id={approveTooltipId} className="screen-selection-sr-only">
+                            {APPROVE_CHECKBOX_TOOLTIP}
+                          </span>
+                          <Tooltip title={APPROVE_CHECKBOX_TOOLTIP} arrow placement="right">
+                            <label className="screen-selection-fn-checkbox">
+                              <input
+                                type="checkbox"
+                                checked={approveChecked}
+                                onChange={(e) => changeApprove(view, e.target.checked)}
+                                aria-checked={approveChecked}
+                                aria-label={`${child.label} ${FUNCTION_LABELS.approve}`}
+                                aria-describedby={approveTooltipId}
+                              />
+                              <span>{FUNCTION_LABELS.approve}</span>
+                            </label>
+                          </Tooltip>
+                        </>
+                      )}
                     </span>
                   )}
                   {showScope && (

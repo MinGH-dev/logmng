@@ -115,13 +115,33 @@ const PermissionGroupPanel = ({ user, onRefreshHierarchy }) => {
     }));
   };
 
-  /** Normalize allowedScreens to [{ screenId, scope? }]. API may return string[] or object array. */
+  /** Normalize allowedScreens to [{ screenId, scope?, read?, write?, approve? }]. API may return string[] or object array. req 20250303-screen-function-checkbox-selection */
   const normalizeAllowedScreens = (arr) => {
     if (!Array.isArray(arr)) return [];
-    return arr.map((s) =>
-      typeof s === 'string' ? { screenId: s, scope: 'self' } : { screenId: s.screenId, scope: s.scope || 'self' }
-    );
+    return arr.map((s) => {
+      const base = typeof s === 'string'
+        ? { screenId: s, scope: ['activity-log', 'statistics', 'search-history'].includes(s) ? 'self' : undefined }
+        : {
+            screenId: s.screenId,
+            scope: s.scope || (['activity-log', 'statistics', 'search-history'].includes(s.screenId) ? 'self' : undefined),
+            read: s.read,
+            write: s.write,
+            approve: s.approve,
+          };
+      return base;
+    });
   };
+
+  /** Build API payload for allowedScreens. Sends screenId, scope (when applicable), read, write, approve per spec §1.1. */
+  const toAllowedScreensPayload = (screens) =>
+    screens.map((s) => {
+      const item = { screenId: s.screenId };
+      if (s.scope) item.scope = s.scope;
+      if (s.read !== undefined) item.read = s.read;
+      if (s.write !== undefined) item.write = s.write;
+      if (s.approve !== undefined) item.approve = s.approve;
+      return item;
+    });
 
   const openEdit = (group) => {
     setEditGroup(group);
@@ -171,9 +191,7 @@ const PermissionGroupPanel = ({ user, onRefreshHierarchy }) => {
     setActionId('create');
     setError(null);
     try {
-      const allowedScreens = createAllowedScreens.map((s) =>
-        s.scope ? { screenId: s.screenId, scope: s.scope } : { screenId: s.screenId }
-      );
+      const allowedScreens = toAllowedScreensPayload(createAllowedScreens);
       await createPermissionGroup({ code, name, description, allowedScreens });
       setCreateOpen(false);
       setCreateAllowedScreens([]);
@@ -202,9 +220,7 @@ const PermissionGroupPanel = ({ user, onRefreshHierarchy }) => {
     setActionId('edit');
     setError(null);
     try {
-      const allowedScreens = editAllowedScreens.map((s) =>
-        s.scope ? { screenId: s.screenId, scope: s.scope } : { screenId: s.screenId }
-      );
+      const allowedScreens = toAllowedScreensPayload(editAllowedScreens);
       await updatePermissionGroup(editGroup.id, { code, name, description, allowedScreens });
       setEditOpen(false);
       setEditGroup(null);

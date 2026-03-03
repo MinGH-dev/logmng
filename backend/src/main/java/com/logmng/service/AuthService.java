@@ -187,9 +187,9 @@ public class AuthService {
     }
 
     /**
-     * Computes screenFunctions from allowedScreenIds, screenScopes, decrypt_approver.
-     * Per spec §4.4: read from allowedScreenIds; write for screens that support it (read implies write);
-     * approve for search-history/pending-approvals when decrypt_approver or is_system_admin.
+     * Computes screenFunctions from allowedScreenIds, permission_group_screen, decrypt_approver.
+     * Per spec §4.4: when pgs.read/write/approve non-null, use them; else use derivation.
+     * approve = (pgs.approve OR null) AND (decrypt_approver canApproveForRequester OR is_system_admin).
      */
     private Map<String, ScreenFunctionCapability> resolveScreenFunctions(String username, boolean isSystemAdmin) {
         Map<String, ScreenFunctionCapability> result = new LinkedHashMap<>();
@@ -201,16 +201,27 @@ public class AuthService {
             return result;
         }
         boolean isApprover = decryptApproverService.isApprover(username);
+        Map<String, PermissionGroupService.ScreenFunctionFromDb> pgsMap = permissionGroupService.getScreenFunctionsForUser(username);
         for (String screenId : allowed) {
             if (screenId == null || screenId.isBlank()) continue;
-            boolean read = true; // user has this screen
+            boolean read = true; // user has this screen (allowedScreenIds already filtered read=false)
             Boolean write = null;
             Boolean approve = null;
+            PermissionGroupService.ScreenFunctionFromDb pgs = pgsMap.get(screenId);
             if (ScreenConstants.supportsWrite(screenId)) {
-                write = true; // read implies write for these screens per spec
+                if (pgs != null && pgs.write != null) {
+                    write = pgs.write;
+                } else {
+                    write = true; // derivation: read implies write for management screens
+                }
             }
             if (ScreenConstants.supportsApprove(screenId)) {
-                approve = isSystemAdmin || isApprover;
+                boolean approverOrAdmin = isSystemAdmin || isApprover;
+                if (pgs != null && Boolean.FALSE.equals(pgs.approve)) {
+                    approve = false; // explicit deny
+                } else {
+                    approve = approverOrAdmin; // pgs.approve true or null -> gate by decrypt_approver
+                }
             }
             result.put(screenId, new ScreenFunctionCapability(read, write, approve));
         }
@@ -246,7 +257,7 @@ public class AuthService {
 
     /**
      * Returns true if the current user has write permission for user-management or user-permission-hierarchy.
-     * Per spec §4.4: write = read AND screen supports write. Used for write APIs (create, update, delete, assign).
+     * Per spec §4.4: write from group or derived. Return 403 FUNCTION_NOT_ALLOWED when write=false.
      */
     public boolean hasWriteForManagementScreens(HttpServletRequest request) {
         LoginResponse user = getCurrentUserInfo(request);
@@ -258,6 +269,22 @@ public class AuthService {
         ScreenFunctionCapability uph = sf.get(ScreenConstants.USER_PERMISSION_HIERARCHY);
         return (um != null && Boolean.TRUE.equals(um.getWrite()))
                 || (uph != null && Boolean.TRUE.equals(uph.getWrite()));
+    }
+
+    /**
+     * Returns true if the current user has approve for search-history or pending-approvals.
+     * Per spec §4.4: approve = (pgs.approve) AND (decrypt_approver or is_system_admin).
+     */
+    public boolean hasApproveForSearchHistory(HttpServletRequest request) {
+        LoginResponse user = getCurrentUserInfo(request);
+        if (user == null) return false;
+        if (Boolean.TRUE.equals(user.getIsSystemAdmin())) return true;
+        Map<String, ScreenFunctionCapability> sf = user.getScreenFunctions();
+        if (sf == null) return false;
+        ScreenFunctionCapability sh = sf.get(ScreenConstants.SEARCH_HISTORY);
+        ScreenFunctionCapability pa = sf.get(ScreenConstants.PENDING_APPROVALS);
+        return (sh != null && Boolean.TRUE.equals(sh.getApprove()))
+                || (pa != null && Boolean.TRUE.equals(pa.getApprove()));
     }
 
     /**

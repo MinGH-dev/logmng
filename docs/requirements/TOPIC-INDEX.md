@@ -8,7 +8,10 @@ For **RequirementsPastSearch** token optimization. Read this file first to find 
 
 ## permission | access-control | 화면 접근 | 권한 그룹 | is_system_admin
 
+- 20250303-screen-function-availability | 화면별 기능 사용 가능 여부 (read/write/approve); main read-only; common format
+- 20250303-screen-function-checkbox-selection | 조회/수정/승인 체크박스로 명시적 선택 (permission group config)
 - 20250227-permission-group-screen-menu-access | 권한 그룹별 화면 접근 설정; ADMIN or group allows screen; GENERAL_USER
+- 20250303-permission-group-management-access-fix | 권한 그룹 관리: user-permission-hierarchy 허용 시 "관리자만 접근" 오류 수정
 - 20250227-permission-group-screen-menu-access-bugfix-1 | Admin 섹션: non-admin with user-management in allowedScreenIds → 사이드바 표시
 - 20250303-user-management-permission-group-access | 사용자관리: 권한 그룹으로 user-management 허용 시 "관리자만 접근" 오류 수정
 - 20250303-user-management-permission-group-access-bugfix-1 | Frontend: canAccessUserManagement

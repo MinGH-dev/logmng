@@ -25,6 +25,9 @@ export const FUNCTION_LABELS_SHORT = {
   approve: '승인 권한 – 복호화 승인/반려 처리 가능 (결재자 지정 필요)',
 };
 
+/** Tooltip for approve checkbox in permission group config (req 20250303-screen-function-checkbox-selection) */
+export const APPROVE_CHECKBOX_TOOLTIP = '결재자 지정 필요';
+
 /** Tooltip when action button is disabled due to missing function */
 export const ACTION_DISABLED_TOOLTIPS = {
   approve: '승인 권한이 없습니다',

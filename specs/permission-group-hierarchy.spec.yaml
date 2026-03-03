@@ -6,8 +6,8 @@
 ---
 metadata:
   title: "Permission group CRUD, user-group assignment, user-permission hierarchy, screen access"
-  version: "1.3"
-  requirement: "20250227-user-permission-hierarchy-group, 20250227-permission-group-screen-menu-access, 20250303-activity-statistics-self-only-scope, 20250303-screen-function-availability"
+  version: "1.4"
+  requirement: "20250227-user-permission-hierarchy-group, 20250227-permission-group-screen-menu-access, 20250303-activity-statistics-self-only-scope, 20250303-screen-function-availability, explicit-read-write-approve-per-screen"
   status: "draft"
 
 ---
@@ -28,6 +28,20 @@ All endpoints below are **admin-only** (is_system_admin=true). Otherwise 403, co
 | PUT | /api/permission-groups/{id} | Update a permission group |
 | DELETE | /api/permission-groups/{id} | Delete a permission group |
 
+### allowedScreens item shape (request/response)
+
+```ts
+type AllowedScreenItem = {
+  screenId: string;           // required
+  scope?: 'self' | 'all';    // only for activity-log, statistics, search-history; omitted/null = 'self'
+  read?: boolean;            // optional; default true when screen present (backward compat). main: read-only; omit write/approve
+  write?: boolean;           // optional; only for screens that support write (management screens)
+  approve?: boolean;         // optional; only for search-history, pending-approvals
+};
+```
+
+**Backward compatibility**: When `read`, `write`, `approve` are omitted, apply defaults per §1.1.1 (derived rules). Existing clients sending `{ screenId, scope? }` continue to work. Legacy: `allowedScreens` as `string[]` (e.g. `["main","search-history"]`) is accepted; each string is treated as `{ screenId: s }` with scope/read/write/approve omitted.
+
 ### Scope values (per-screen)
 
 For screens that support scope (activity-log, statistics, search-history), each screen may have:
@@ -36,6 +50,26 @@ For screens that support scope (activity-log, statistics, search-history), each 
 
 Other screens ignore scope; only screen access is checked.
 
+### 1.1.1 Validation rules (read/write/approve per screen)
+
+On POST/PUT permission-groups, validate each `allowedScreens` item against per-screen allowed functions. 400 `INVALID_SCREEN_FUNCTION` when invalid.
+
+**main read-only**: main supports only read. write=true or approve=true → INVALID_SCREEN_FUNCTION.
+
+| screen_id | read | write | approve | Validation |
+|-----------|------|-------|---------|------------|
+| main | ✓ only | — | — | read=true implied; write/approve must be false or omitted. If write=true or approve=true → INVALID_SCREEN_FUNCTION |
+| search-history | ✓ | — | ✓ | read required; approve optional. write must be false or omitted |
+| activity-log | ✓ | — | — | read only |
+| statistics | ✓ | — | — | read only |
+| pending-approvals | ✓ | — | ✓ | read required; approve optional. write must be false or omitted |
+| user-management | ✓ | ✓ | — | read required; write optional. approve must be false or omitted |
+| department-approvers | ✓ | ✓ | — | read required; write optional. approve must be false or omitted |
+| user-permission-hierarchy | ✓ | ✓ | — | read required; write optional. approve must be false or omitted |
+| permission-group-management | ✓ | ✓ | — | same as user-permission-hierarchy |
+
+**Defaults when omitted** (backward compat): read=true; write/approve = per-screen default (main: false; search-history/pending-approvals: false unless decrypt_approver; management screens: write=true when screen supports it).
+
 ### GET /api/permission-groups
 - **Response (data)**: array of permission group objects.
   - `id`: number (BIGINT)
@@ -43,7 +77,7 @@ Other screens ignore scope; only screen access is checked.
   - `name`: string
   - `description`: string | null
   - `sortOrder`: number (optional, default 0)
-  - `allowedScreens`: array of `{ screenId: string, scope?: 'self'|'all' }` — screen IDs this group can access (see §4). `scope` only for activity-log, statistics, search-history; omitted or null = 'self'.
+  - `allowedScreens`: array of `AllowedScreenItem` (§1.1) — screen IDs and per-screen functions. `scope` only for activity-log, statistics, search-history; omitted or null = 'self'. `read`, `write`, `approve` explicit when stored; omitted in response when default.
 - **Errors**: 401, 403
 
 ### POST /api/permission-groups
@@ -52,14 +86,14 @@ Other screens ignore scope; only screen access is checked.
   - `name`: string (required)
   - `description`: string (optional)
   - `sortOrder`: number (optional, default 0)
-  - `allowedScreens`: array of `{ screenId: string, scope?: 'self'|'all' }` (optional) — validate screenId against allowed screen list (§4); 400 with `INVALID_SCREEN_ID` if any invalid. For activity-log, statistics, search-history, scope defaults to 'self' when omitted.
+  - `allowedScreens`: array of `AllowedScreenItem` (optional) — validate screenId (§4); validate read/write/approve per §1.1.1. 400 `INVALID_SCREEN_ID` or `INVALID_SCREEN_FUNCTION` if invalid. For scope-supporting screens, scope defaults to 'self' when omitted.
 - **Response (data)**: created permission group object (same shape as above, with `id`, `allowedScreens`).
 - **Status**: 201 on success.
-- **Errors**: 400 validation (e.g. code/name empty, code duplicate, INVALID_SCREEN_ID), 401, 403
+- **Errors**: 400 validation (e.g. code/name empty, code duplicate, INVALID_SCREEN_ID, INVALID_SCREEN_FUNCTION), 401, 403
 
 ### GET /api/permission-groups/{id}
 - **Path**: `id` — permission group ID (Long).
-- **Response (data)**: single permission group object (includes `allowedScreens: [{ screenId, scope? }]`).
+- **Response (data)**: single permission group object (includes `allowedScreens: AllowedScreenItem[]`).
 - **Errors**: 401, 403, 404 → code: "PERMISSION_GROUP_NOT_FOUND"
 
 ### PUT /api/permission-groups/{id}
@@ -69,9 +103,9 @@ Other screens ignore scope; only screen access is checked.
   - `name`: string (optional)
   - `description`: string (optional)
   - `sortOrder`: number (optional)
-  - `allowedScreens`: array of `{ screenId: string, scope?: 'self'|'all' }` (optional) — validate each screenId against allowed screen list (§4); 400 with `INVALID_SCREEN_ID` if any invalid. For scope-supporting screens, scope defaults to 'self' when omitted.
+  - `allowedScreens`: array of `AllowedScreenItem` (optional) — validate each screenId (§4) and read/write/approve (§1.1.1). 400 `INVALID_SCREEN_ID` or `INVALID_SCREEN_FUNCTION` if invalid. For scope-supporting screens, scope defaults to 'self' when omitted.
 - **Response (data)**: updated permission group object (includes `allowedScreens`).
-- **Errors**: 400 validation (including INVALID_SCREEN_ID), 401, 403, 404 → "PERMISSION_GROUP_NOT_FOUND"
+- **Errors**: 400 validation (including INVALID_SCREEN_ID, INVALID_SCREEN_FUNCTION), 401, 403, 404 → "PERMISSION_GROUP_NOT_FOUND"
 
 ### DELETE /api/permission-groups/{id}
 - **Path**: `id` — permission group ID (Long).
@@ -166,9 +200,13 @@ Single endpoint that returns department tree with users and their permission gro
   - `permission_group_id`: BIGINT NOT NULL — references permission_group(id) ON DELETE CASCADE
   - `screen_id`: VARCHAR(50) NOT NULL
   - `scope`: VARCHAR(10) NULL — 'self' | 'all'. Only for activity-log, statistics, search-history. NULL or missing = 'self'. (req 20250303-activity-statistics-self-only-scope)
+  - `read`: BOOLEAN NULL — explicit read flag. NULL = use derived default (true when screen present). main: read-only.
+  - `write`: BOOLEAN NULL — explicit write flag. NULL = use derived default. Only for screens that support write (management screens).
+  - `approve`: BOOLEAN NULL — explicit approve flag. NULL = use derived default. Only for search-history, pending-approvals.
   - PRIMARY KEY (permission_group_id, screen_id)
 - **Foreign keys**: FK to permission_group(id) ON DELETE CASCADE
 - **Indexes**: optional `idx_permission_group_screen_screen` on (screen_id) for reverse lookup
+- **Migration**: Add `read`, `write`, `approve` via ALTER TABLE; existing rows remain NULL (backward compat, use derivation).
 
 ## 2.2 Existing tables (no schema change)
 
@@ -186,6 +224,7 @@ Single endpoint that returns department tree with users and their permission gro
 | PERMISSION_GROUP_HAS_USERS | Cannot delete group while users are assigned (400) |
 | USER_ALREADY_IN_GROUP | User already assigned to this group (400) |
 | INVALID_SCREEN_ID | Invalid screen_id in allowedScreens (400) — value not in allowed list (§4) |
+| INVALID_SCREEN_FUNCTION | Invalid read/write/approve combination for a screen (400) — e.g. main with write=true, or screen that does not support approve with approve=true. Per §1.1.1. |
 
 ## 3.2 User management (PUT /api/users/{userId})
 
@@ -201,6 +240,8 @@ Existing: USER_NOT_FOUND, FORBIDDEN, INVALID_INPUT, SELF_DEMOTION_BLOCKED, LAST_
 | code | Meaning |
 |------|--------|
 | FUNCTION_NOT_ALLOWED | User lacks the required function (approve, write) for the action. 403. Use generic message; avoid revealing resource existence or internal structure. |
+
+**Related**: INVALID_SCREEN_FUNCTION (§3.1) — 400 when POST/PUT permission-groups `allowedScreens` has invalid read/write/approve per screen (e.g. main with write=true, approve on unsupported screen).
 
 ---
 # 4. Screen IDs and screen-based access
@@ -266,25 +307,36 @@ type ScreenFunctionCapability = {
 screenFunctions: Record<screenId, ScreenFunctionCapability>
 ```
 
-### Derivation rules
+### Explicit vs derived
 
-- **read**: `allowedScreenIds` includes screen_id OR `is_system_admin=true`.
-- **write**: read=true AND screen supports write (user-management, department-approvers, user-permission-hierarchy, permission-group-management). Currently read implies write for these screens.
-- **approve**: read=true AND (`decrypt_approver` canApproveForRequester OR `is_system_admin=true`). Only for search-history, pending-approvals.
+| Source | When used |
+|--------|-----------|
+| **Explicit** | `permission_group_screen` stores `read`, `write`, `approve` per (permission_group_id, screen_id). Auth response uses these values when non-null. UI sends explicit checkbox values via allowedScreens. |
+| **Derived** | When DB has no explicit read/write/approve (legacy rows or omitted), apply derivation rules below. Backward compat: existing data behaves as before. NULL = use derived default. |
 
-### Per-screen mapping
+**Explicit storage**: Admin selects read/write/approve via checkboxes per screen. Stored in `permission_group_screen.read`, `.write`, `.approve`. main: read-only (no write/approve checkboxes).
 
-| screen_id | read | write | approve | Notes |
-|-----------|------|-------|---------|-------|
-| main | ✓ | — | — | Always read-only |
-| search-history | ✓ | — | ✓ | approve when decrypt_approver |
-| activity-log | ✓ | — | — | scope from screenScopes |
-| statistics | ✓ | — | — | scope from screenScopes |
-| pending-approvals | ✓ | — | ✓ | approve when decrypt_approver |
-| user-management | ✓ | ✓ | — | |
-| department-approvers | ✓ | ✓ | — | |
-| user-permission-hierarchy | ✓ | ✓ | — | |
-| permission-group-management | ✓ | ✓ | — | Same as user-permission-hierarchy |
+**Migration**: New columns `read`, `write`, `approve` in `permission_group_screen` (§2.1). NULL = use derived default. After migration, UI can set explicit values via POST/PUT allowedScreens.
+
+### Derivation rules (when explicit values absent)
+
+- **read**: `allowedScreenIds` includes screen_id OR `is_system_admin=true`. (Unchanged.)
+- **write**: read=true AND screen supports write AND (explicit write=true from permission_group_screen OR legacy: read implies write for management screens). When explicit: use stored value.
+- **approve**: read=true AND (explicit approve=true from permission_group_screen OR legacy: decrypt_approver) AND (`decrypt_approver` canApproveForRequester OR `is_system_admin=true`). Only for search-history, pending-approvals. **Note**: approve in screenFunctions requires BOTH (1) group allows approve for that screen, AND (2) user is decrypt_approver or is_system_admin.
+
+### Per-screen mapping (explicit config vs runtime)
+
+| screen_id | read | write | approve | Explicit config | Runtime (screenFunctions) |
+|-----------|------|-------|---------|-----------------|---------------------------|
+| main | ✓ | — | — | read only; write/approve forbidden | Always `{ read: true }` when in allowedScreenIds |
+| search-history | ✓ | — | ✓ | read + approve optional | approve = (group.approve) AND (decrypt_approver or is_system_admin) |
+| activity-log | ✓ | — | — | read only | scope from screenScopes |
+| statistics | ✓ | — | — | read only | scope from screenScopes |
+| pending-approvals | ✓ | — | ✓ | read + approve optional | approve = (group.approve) AND (decrypt_approver or is_system_admin) |
+| user-management | ✓ | ✓ | — | read + write optional | write from group or derived |
+| department-approvers | ✓ | ✓ | — | read + write optional | write from group or derived |
+| user-permission-hierarchy | ✓ | ✓ | — | read + write optional | write from group or derived |
+| permission-group-management | ✓ | ✓ | — | same as user-permission-hierarchy | same |
 
 ### main (검색하기) special case
 
