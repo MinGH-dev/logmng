@@ -61,11 +61,12 @@ export const saveMinimalUserData = (userData) => {
     return;
   }
 
-  // 필요한 최소한의 정보만 저장 (role, allowedScreenIds — 메뉴 노출·화면 접근용)
+  // 필요한 최소한의 정보만 저장 (isSystemAdmin, allowedScreenIds, screenScopes — 메뉴·화면 접근·필터 표시용)
   const minimalData = {
     username: userData.username || null,
-    role: userData.role || null,
+    isSystemAdmin: userData.isSystemAdmin === true,
     allowedScreenIds: Array.isArray(userData.allowedScreenIds) ? userData.allowedScreenIds : null,
+    screenScopes: userData.screenScopes && typeof userData.screenScopes === 'object' ? userData.screenScopes : null,
   };
 
   setSecureStorage('user', minimalData);

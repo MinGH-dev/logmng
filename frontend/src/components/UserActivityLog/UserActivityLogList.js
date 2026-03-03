@@ -8,7 +8,7 @@ import logger from '../../utils/logger';
 
 const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || 'http://localhost:9200/api';
 
-const UserActivityLogList = () => {
+const UserActivityLogList = ({ user }) => {
   const [logs, setLogs] = useState([]);
   const [loading, setLoading] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
@@ -19,6 +19,9 @@ const UserActivityLogList = () => {
   const [searchParams, setSearchParams] = useState({});
   const [authError, setAuthError] = useState(null);
   const [serverToday, setServerToday] = useState(null);
+
+  // scope=self: hide user/username/IP filters; omit from API. req 20250303
+  const hideUserFilters = !user?.isSystemAdmin && user?.screenScopes?.['activity-log'] === 'self';
 
   // 초기 로드 - 서버 날짜(health) 기준 '오늘'로 검색 (브라우저/서버 타임존 불일치 방지)
   useEffect(() => {
@@ -70,11 +73,11 @@ const UserActivityLogList = () => {
     setCurrentPage(1);
 
     try {
-      const requestParams = {
-        ...params,
-        page: 1,
-        pageSize,
-      };
+      let requestParams = { ...params, page: 1, pageSize };
+      if (hideUserFilters) {
+        const { userId, username, ipAddress, ...rest } = requestParams;
+        requestParams = { ...rest, page: 1, pageSize };
+      }
 
       logger.debug('🔍 활동 이력 검색 요청:', requestParams);
 
@@ -118,12 +121,11 @@ const UserActivityLogList = () => {
     setCurrentPage(page);
 
     try {
-      const requestParams = {
-        ...searchParams,
-        page: page,
-        pageSize,
-      };
-
+      let requestParams = { ...searchParams, page, pageSize };
+      if (hideUserFilters) {
+        const { userId, username, ipAddress, ...rest } = requestParams;
+        requestParams = { ...rest, page, pageSize };
+      }
       const result = await searchActivityLogs(requestParams);
 
       if (result.success && result.data) {
@@ -141,7 +143,11 @@ const UserActivityLogList = () => {
   const handlePageSizeChange = (newSize) => {
     setPageSize(newSize);
     setCurrentPage(1);
-    const requestParams = { ...searchParams, page: 1, pageSize: newSize };
+    let requestParams = { ...searchParams, page: 1, pageSize: newSize };
+    if (hideUserFilters) {
+      const { userId, username, ipAddress, ...rest } = requestParams;
+      requestParams = { ...rest, page: 1, pageSize: newSize };
+    }
     setLoading(true);
     searchActivityLogs(requestParams)
       .then((result) => {
@@ -183,7 +189,12 @@ const UserActivityLogList = () => {
         </p>
       </div>
 
-      <UserActivityLogSearchForm onSearch={handleSearch} loading={loading} initialServerDate={serverToday} />
+      <UserActivityLogSearchForm
+        onSearch={handleSearch}
+        loading={loading}
+        initialServerDate={serverToday}
+        hideUserFilters={hideUserFilters}
+      />
 
       {authError && (
         <div className="activity-log-auth-error" role="alert">

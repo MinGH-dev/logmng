@@ -19,7 +19,9 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * 인증 서비스. 로그인은 app_user 테이블 기준(DataSource).
@@ -62,9 +64,9 @@ public class AuthService {
         }
 
         String passwordHash = null;
-        String role = null;
+        boolean isSystemAdmin = false;
         try (Connection conn = dataSource.getConnection()) {
-            String sql = "SELECT username, password_hash, role FROM app_user WHERE username = ?";
+            String sql = "SELECT username, password_hash, is_system_admin FROM app_user WHERE username = ?";
             try (PreparedStatement ps = conn.prepareStatement(sql)) {
                 ps.setString(1, username);
                 try (ResultSet rs = ps.executeQuery()) {
@@ -76,7 +78,7 @@ public class AuthService {
                         );
                     }
                     passwordHash = rs.getString("password_hash");
-                    role = rs.getString("role");
+                    isSystemAdmin = Boolean.TRUE.equals(rs.getObject("is_system_admin", Boolean.class));
                 }
             }
         } catch (SQLException e) {
@@ -86,7 +88,7 @@ public class AuthService {
                     "INVALID_CREDENTIALS"
             );
         }
-        if (passwordHash == null || role == null) {
+        if (passwordHash == null) {
             throw CustomException.unauthorized(
                     "인증 정보가 올바르지 않습니다. 사용자명과 비밀번호를 다시 확인해주세요.",
                     "INVALID_CREDENTIALS"
@@ -102,14 +104,15 @@ public class AuthService {
             );
         }
 
-        log.info("로그인 성공: {} role={} (IP: {})", username, role, clientIP);
+        log.info("로그인 성공: {} isSystemAdmin={} (IP: {})", username, isSystemAdmin, clientIP);
 
         LoginResponse response = new LoginResponse();
         response.setUsername(username);
         response.setLoginTime(LocalDateTime.now());
         response.setClientIP(clientIP);
-        response.setRole(role);
-        response.setAllowedScreenIds(resolveAllowedScreenIds(username, role));
+        response.setIsSystemAdmin(isSystemAdmin);
+        response.setAllowedScreenIds(resolveAllowedScreenIds(username, isSystemAdmin));
+        response.setScreenScopes(resolveScreenScopes(username, isSystemAdmin));
         return response;
     }
     
@@ -124,20 +127,38 @@ public class AuthService {
     }
     
     /**
-     * Returns allowed screen IDs for the user. ADMIN gets all; others get union from permission groups.
+     * Returns allowed screen IDs for the user. System admin gets all; others get union from permission groups.
      */
-    private List<String> resolveAllowedScreenIds(String username, String role) {
+    private List<String> resolveAllowedScreenIds(String username, boolean isSystemAdmin) {
         if (username == null || username.isBlank()) {
             return List.of();
         }
-        if ("ADMIN".equals(role)) {
+        if (isSystemAdmin) {
             return new ArrayList<>(ScreenConstants.getAllAllowedScreens());
         }
         return permissionGroupService.getAllowedScreenIdsForUser(username);
     }
 
     /**
-     * Returns current user info (username, role, allowedScreenIds) from session. For GET /api/auth/me.
+     * Returns screenScopes for activity-log, statistics, search-history.
+     * is_system_admin=true → all screens get 'all'. Otherwise from permission groups.
+     */
+    private Map<String, String> resolveScreenScopes(String username, boolean isSystemAdmin) {
+        if (username == null || username.isBlank()) {
+            return new HashMap<>();
+        }
+        if (isSystemAdmin) {
+            Map<String, String> all = new HashMap<>();
+            all.put(ScreenConstants.ACTIVITY_LOG, "all");
+            all.put(ScreenConstants.STATISTICS, "all");
+            all.put(ScreenConstants.SEARCH_HISTORY, "all");
+            return all;
+        }
+        return permissionGroupService.getScreenScopesForUser(username);
+    }
+
+    /**
+     * Returns current user info (username, isSystemAdmin, allowedScreenIds) from session. For GET /api/auth/me.
      */
     public LoginResponse getCurrentUserInfo(HttpServletRequest request) {
         if (!checkAuth(request)) {
@@ -146,14 +167,15 @@ public class AuthService {
         jakarta.servlet.http.HttpSession session = request.getSession(false);
         if (session == null) return null;
         Object username = session.getAttribute("username");
-        Object role = session.getAttribute("role");
+        Object isSystemAdmin = session.getAttribute("isSystemAdmin");
         if (username == null || username.toString().isBlank()) return null;
         String uname = username.toString();
-        String r = role != null ? role.toString() : "USER";
+        boolean sysAdmin = Boolean.TRUE.equals(isSystemAdmin);
         LoginResponse resp = new LoginResponse();
         resp.setUsername(uname);
-        resp.setRole(r);
-        resp.setAllowedScreenIds(resolveAllowedScreenIds(uname, r));
+        resp.setIsSystemAdmin(sysAdmin);
+        resp.setAllowedScreenIds(resolveAllowedScreenIds(uname, sysAdmin));
+        resp.setScreenScopes(resolveScreenScopes(uname, sysAdmin));
         return resp;
     }
 

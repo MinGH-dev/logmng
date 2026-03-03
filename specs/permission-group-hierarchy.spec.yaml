@@ -6,15 +6,15 @@
 ---
 metadata:
   title: "Permission group CRUD, user-group assignment, user-permission hierarchy, screen access"
-  version: "1.1"
-  requirement: "20250227-user-permission-hierarchy-group, 20250227-permission-group-screen-menu-access"
+  version: "1.2"
+  requirement: "20250227-user-permission-hierarchy-group, 20250227-permission-group-screen-menu-access, 20250303-activity-statistics-self-only-scope"
   status: "draft"
 
 ---
 # 1. API contract
 
 Base URL: http://localhost:9200/api (per docs/contract.md).
-All endpoints below are **admin-only** (role=ADMIN). Otherwise 403, code: "FORBIDDEN".
+All endpoints below are **admin-only** (is_system_admin=true). Otherwise 403, code: "FORBIDDEN". (req 20250303)
 
 ## 1.1 Permission group CRUD
 
@@ -28,6 +28,14 @@ All endpoints below are **admin-only** (role=ADMIN). Otherwise 403, code: "FORBI
 | PUT | /api/permission-groups/{id} | Update a permission group |
 | DELETE | /api/permission-groups/{id} | Delete a permission group |
 
+### Scope values (per-screen)
+
+For screens that support scope (activity-log, statistics, search-history), each screen may have:
+- `'self'`: User sees only their own data. Filter controls (user, department, IP) hidden or disabled. Default when scope omitted or null.
+- `'all'`: User sees all users' data. Filter controls available.
+
+Other screens ignore scope; only screen access is checked.
+
 ### GET /api/permission-groups
 - **Response (data)**: array of permission group objects.
   - `id`: number (BIGINT)
@@ -35,7 +43,7 @@ All endpoints below are **admin-only** (role=ADMIN). Otherwise 403, code: "FORBI
   - `name`: string
   - `description`: string | null
   - `sortOrder`: number (optional, default 0)
-  - `allowedScreens`: string[] — screen IDs this group can access (see §4)
+  - `allowedScreens`: array of `{ screenId: string, scope?: 'self'|'all' }` — screen IDs this group can access (see §4). `scope` only for activity-log, statistics, search-history; omitted or null = 'self'.
 - **Errors**: 401, 403
 
 ### POST /api/permission-groups
@@ -44,14 +52,14 @@ All endpoints below are **admin-only** (role=ADMIN). Otherwise 403, code: "FORBI
   - `name`: string (required)
   - `description`: string (optional)
   - `sortOrder`: number (optional, default 0)
-  - `allowedScreens`: string[] (optional) — validate against allowed screen list (§4); 400 with `INVALID_SCREEN_ID` if any invalid
+  - `allowedScreens`: array of `{ screenId: string, scope?: 'self'|'all' }` (optional) — validate screenId against allowed screen list (§4); 400 with `INVALID_SCREEN_ID` if any invalid. For activity-log, statistics, search-history, scope defaults to 'self' when omitted.
 - **Response (data)**: created permission group object (same shape as above, with `id`, `allowedScreens`).
 - **Status**: 201 on success.
 - **Errors**: 400 validation (e.g. code/name empty, code duplicate, INVALID_SCREEN_ID), 401, 403
 
 ### GET /api/permission-groups/{id}
 - **Path**: `id` — permission group ID (Long).
-- **Response (data)**: single permission group object (includes `allowedScreens: string[]`).
+- **Response (data)**: single permission group object (includes `allowedScreens: [{ screenId, scope? }]`).
 - **Errors**: 401, 403, 404 → code: "PERMISSION_GROUP_NOT_FOUND"
 
 ### PUT /api/permission-groups/{id}
@@ -61,7 +69,7 @@ All endpoints below are **admin-only** (role=ADMIN). Otherwise 403, code: "FORBI
   - `name`: string (optional)
   - `description`: string (optional)
   - `sortOrder`: number (optional)
-  - `allowedScreens`: string[] (optional) — validate each value against allowed screen list (§4); 400 with `INVALID_SCREEN_ID` if any invalid
+  - `allowedScreens`: array of `{ screenId: string, scope?: 'self'|'all' }` (optional) — validate each screenId against allowed screen list (§4); 400 with `INVALID_SCREEN_ID` if any invalid. For scope-supporting screens, scope defaults to 'self' when omitted.
 - **Response (data)**: updated permission group object (includes `allowedScreens`).
 - **Errors**: 400 validation (including INVALID_SCREEN_ID), 401, 403, 404 → "PERMISSION_GROUP_NOT_FOUND"
 
@@ -99,7 +107,7 @@ Two equivalent styles allowed; implement one and document in api-definition.
 - **Errors**: 401, 403, 404
 
 ### GET /api/permission-groups/{id}/users (optional)
-- **Response (data)**: array of user summary objects, e.g. `{ "userId", "username", "departmentCode", "role" }`.
+- **Response (data)**: array of user summary objects, e.g. `{ "userId", "username", "departmentCode", "isSystemAdmin" }` (role 제외, req 20250303).
 - **Errors**: 401, 403, 404
 
 ## 1.3 User-permission hierarchy
@@ -116,7 +124,6 @@ Single endpoint that returns department tree with users and their permission gro
   - `children`: array (recursive same structure)
   - `users`: array of user-permission objects:
     - `userId` (username): string
-    - `role`: "ADMIN" | "USER"
     - `isSystemAdmin`: boolean — system administrator flag (immutable; req 20250303)
     - `permissionGroups`: array of `{ "id", "code", "name" }` (assigned to this user)
 - **Flat format**: array of department nodes with `code`, `parentCode`, `name`, `sortOrder`, `users` (same shape as above). No `children`.
@@ -158,6 +165,7 @@ Single endpoint that returns department tree with users and their permission gro
 - **Columns**:
   - `permission_group_id`: BIGINT NOT NULL — references permission_group(id) ON DELETE CASCADE
   - `screen_id`: VARCHAR(50) NOT NULL
+  - `scope`: VARCHAR(10) NULL — 'self' | 'all'. Only for activity-log, statistics, search-history. NULL or missing = 'self'. (req 20250303-activity-statistics-self-only-scope)
   - PRIMARY KEY (permission_group_id, screen_id)
 - **Foreign keys**: FK to permission_group(id) ON DELETE CASCADE
 - **Indexes**: optional `idx_permission_group_screen_screen` on (screen_id) for reverse lookup
@@ -206,22 +214,29 @@ Existing: USER_NOT_FOUND, FORBIDDEN, INVALID_INPUT, SELF_DEMOTION_BLOCKED, LAST_
 
 Validation: PUT/POST permission-groups with `allowedScreens` must have each value in this list; otherwise 400 `INVALID_SCREEN_ID`.
 
-## 4.2 Auth response extension (allowedScreenIds)
+## 4.2 Auth response extension (allowedScreenIds, screenScopes)
 
 **POST /api/auth/login** and **GET /api/auth/me** (or equivalent) response (user object) includes:
-- `allowedScreenIds`: string[] — union of allowed screens from all of the user's permission groups. If user is ADMIN, return all screen IDs (or omit and treat ADMIN as full access).
+- `allowedScreenIds`: string[] — union of allowed screens from all of the user's permission groups. If user is system admin (is_system_admin=true), return all screen IDs.
+- `screenScopes`: Record<string, 'self'|'all'> — per-screen scope for screens that support it (activity-log, statistics, search-history). Key = screen_id, value = 'self' or 'all'. Omitted screens or is_system_admin=true: frontend treats as full scope (show filters). **Purpose**: Frontend uses this to decide whether to show/hide user, department, IP filter controls (scope=self → hide; scope=all → show).
 
 ## 4.3 Screen-based API access enforcement
 
-APIs that correspond to screens must validate: user has role=ADMIN **or** user has the required screen in at least one of their permission groups. Otherwise 403.
+APIs that correspond to screens must validate: user has is_system_admin=true **or** user has the required screen in at least one of their permission groups. Otherwise 403.
 
-| screen_id | APIs (require this screen or ADMIN) |
-|-----------|------------------------------------|
-| main | /api/logs/db-refactored/*, /api/log-types/* |
-| search-history | /api/search-history/* |
-| activity-log | /api/activity-log/* |
-| statistics | /api/statistics/* |
-| pending-approvals | /api/search-history/pending, /api/search-history/{id}/approve, /api/search-history/{id}/reject |
-| user-management | /api/users, /api/users/approvers, /api/users/approvers/{userId} |
-| department-approvers | /api/departments, /api/departments/{code}/approvers, /api/departments/{code}/members, /api/departments/{code}/approvers/default |
-| user-permission-hierarchy | /api/permission-groups/*, /api/departments/user-permission-hierarchy |
+**Scope enforcement (activity-log, statistics, search-history only)** — when is_system_admin=false:
+- Use scope from permission group for that screen (from `screenScopes` or permission_group_screen.scope).
+- scope='self' or null: Backend overrides userId with current user; ignores department, ip params. For detail/getById: enforce ownership; return 403/404 if accessing another user's data.
+- scope='all': Pass request params as-is; no override.
+- is_system_admin=true: Always full scope; ignore permission group scope.
+
+| screen_id | APIs (require this screen or is_system_admin=true) | Scope enforcement when is_system_admin=false |
+|-----------|------------------------------------|---------------------------------------------|
+| main | /api/logs/db-refactored/*, /api/log-types/* | — |
+| search-history | /api/search-history/* | Use scope from permission group: self → own data only; all → pass params as-is |
+| activity-log | /api/activity-log/* | Use scope from permission group: self → override userId; all → pass params as-is |
+| statistics | /api/statistics/* | Use scope from permission group: self → override userId, ignore department/ip; all → pass params as-is |
+| pending-approvals | /api/search-history/pending, /api/search-history/{id}/approve, /api/search-history/{id}/reject | — |
+| user-management | /api/users, /api/users/approvers, /api/users/approvers/{userId} | — |
+| department-approvers | /api/departments, /api/departments/{code}/approvers, /api/departments/{code}/members, /api/departments/{code}/approvers/default | — |
+| user-permission-hierarchy | /api/permission-groups/*, /api/departments/user-permission-hierarchy | — |

@@ -40,7 +40,9 @@
   - `user.username`: string
   - `user.loginTime`: string (yyyy-MM-dd'T'HH:mm:ss)
   - `user.clientIP`: string
-  - `user.allowedScreenIds`: string[] (요건 20250227-permission-group-screen-menu-access) — 사용자 권한 그룹들의 접근 가능 화면 합집합. ADMIN은 전체 화면 또는 생략(전체 접근).
+  - `user.isSystemAdmin`: boolean — 시스템 관리자 여부 (req 20250303). true면 전체 화면 접근.
+  - `user.allowedScreenIds`: string[] (요건 20250227-permission-group-screen-menu-access) — 사용자 권한 그룹들의 접근 가능 화면 합집합.
+  - `user.screenScopes`: Record<string, 'self'|'all'> (요건 20250303-activity-statistics-self-only-scope) — 화면별 데이터 범위. key=screen_id (activity-log, statistics, search-history), value='self'(본인만) | 'all'(전체). is_system_admin=true이면 생략 가능(프론트는 전체로 처리). **용도**: scope=self → 사용자/부서/IP 필터 숨김; scope=all → 필터 표시.
 
 ### 2.2 로그아웃
 
@@ -57,7 +59,7 @@
 
 ### 2.4 현재 사용자 정보 (GET /api/auth/me, 선택)
 
-- **GET** `/api/auth/me` — 로그인 사용자 정보 반환. 구현 시 응답에 `allowedScreenIds: string[]` 포함 (요건 20250227-permission-group-screen-menu-access). 로그인 응답과 동일 규칙.
+- **GET** `/api/auth/me` — 로그인 사용자 정보 반환. `isSystemAdmin: boolean`, `allowedScreenIds: string[]`, `screenScopes: Record<string, 'self'|'all'>` 포함 (req 20250303). screenScopes는 activity-log, statistics, search-history 화면별 필터 표시 여부 결정용.
 
 ---
 
@@ -204,6 +206,8 @@
 
 **Base path**: `/api/search-history`
 
+**화면별 범위(scope)**: is_system_admin=false일 때 권한 그룹의 search-history scope 적용. scope='self' → 본인 데이터만; scope='all' → 전체. 상세: `specs/permission-group-hierarchy.spec.yaml` §4.3.
+
 - 검색 이력은 "복호화 승인 요청"이 발생한 검색을 저장하며, 사용자별 최근 이력 목록·재요청·재조회를 지원한다.
 - 승인 유효 기간: 요청일시 + 1일. 만료 시 재요청 가능.
 
@@ -246,7 +250,7 @@
 ### 6.1.5 승인 대기 목록 조회 (결재자·관리자 전용)
 
 - **GET** `/api/search-history/pending`
-- **권한**: 결재자(decrypt_approver에 등록된 사용자) 또는 관리자(role=ADMIN)만 호출 가능. 그 외 403.
+- **권한**: 결재자(decrypt_approver에 등록된 사용자) 또는 관리자(is_system_admin=true)만 호출 가능. 그 외 403.
 - **Query**: `page` (기본 1), `pageSize` (기본 20)
 - **Response (data)**: `SearchHistoryPendingListResponse`
   - `data`: 배열. 각 항목: `id`, `requester` (요청자 username), `searchParamsSummary` (요약 문자열), `requestedAt` (yyyy-MM-dd'T'HH:mm:ss), 기타 목록용 필드
@@ -257,7 +261,7 @@
 
 - **POST** `/api/search-history/{id}/approve`
 - **Path**: `id` — 검색 이력 ID (Long)
-- **권한**: 결재자 또는 관리자만 호출 가능. 그 외 403.
+- **권한**: 결재자 또는 관리자(is_system_admin=true)만 호출 가능. 그 외 403.
 - **Request body**: 없음
 - **Response (data)**: `{ "id": number, "approvalStatus": "APPROVED", "approvedBy": string, "approvedAt": string (yyyy-MM-dd'T'HH:mm:ss) }`
 - **에러**: 401 비인증, 403 결재자/관리자 아님 → `code: "FORBIDDEN_NOT_APPROVER"` 또는 `"NOT_APPROVER"`, 404 해당 이력 없음
@@ -266,7 +270,7 @@
 
 - **POST** `/api/search-history/{id}/reject`
 - **Path**: `id` — 검색 이력 ID (Long)
-- **권한**: 결재자 또는 관리자만 호출 가능. 그 외 403.
+- **권한**: 결재자 또는 관리자(is_system_admin=true)만 호출 가능. 그 외 403.
 - **Request body** (JSON, 선택):
 
 | 필드 | 타입 | 필수 | 설명 |
@@ -282,53 +286,36 @@
 
 **Base path**: `/api/users`
 
-모든 API는 **관리자(role=ADMIN)** 만 호출 가능. 그 외 403.
+모든 API는 **관리자(is_system_admin=true)** 만 호출 가능. 그 외 403. (req 20250303)
 
 ### 7.1 사용자 목록 조회
 
 - **GET** `/api/users`
 - **Response (data)**: 배열. 각 항목:
   - `userId` (또는 `username`): string — 로그인 ID
-  - `role`: string — "ADMIN" | "USER"
-  - `isSystemAdmin`: boolean — 시스템 관리자 여부 (수정·삭제 불가, 요건 20250303)
+  - `isSystemAdmin`: boolean — 시스템 관리자 여부 (수정·삭제 불가)
   - `departmentCode`: string | null — 부서코드
   - `position`: string | null — 직책
   - `rank`: string | null — 직급
   - `isApprover`: boolean — decrypt_approver 테이블에 존재 여부(복호화 결재자 여부)
 - **에러**: 401 비인증, 403 관리자 아님 → `code: "FORBIDDEN"` 등
 
-### 7.2 사용자 역할 변경 (요건 20250227-user-management-hierarchy-permissions)
+### 7.2 사용자 역할 변경 — 410 Gone (req 20250303)
 
 - **PUT** `/api/users/{userId}`
-- **Path**: `userId` — 역할을 변경할 사용자 ID(username, app_user.username)
-- **권한**: 관리자(role=ADMIN)만 호출 가능. 그 외 403, `code: "FORBIDDEN"`.
-- **Request body** (JSON):
-
-| 필드 | 타입 | 필수 | 설명 |
-|------|------|------|------|
-| role | string | O | "ADMIN" \| "USER" — 유효값만 허용 |
-
-- **Response (data)**: 업데이트된 사용자 요약 객체
-  - `userId` (또는 `username`): string
-  - `role`: string — "ADMIN" \| "USER" (변경 후 값)
-  - `isSystemAdmin`: boolean — 시스템 관리자 여부
-  - `departmentCode`: string \| null
-  - `isApprover`: boolean
-- **에러**:
-  - 401 비인증
-  - 403 관리자 아님 → `code: "FORBIDDEN"`
-  - 404 해당 사용자 없음 → `code: "USER_NOT_FOUND"`
-  - 400 role 누락 또는 ADMIN/USER 외 값 → `code: "INVALID_INPUT"`
-  - 400 자기 자신 역할 변경 시도 → `code: "SELF_DEMOTION_BLOCKED"`
-  - 400 마지막 관리자 강등 시도 → `code: "LAST_ADMIN_BLOCKED"`
-  - 400 대상이 시스템 관리자(수정 불가) → `code: "SYSTEM_ADMIN_IMMUTABLE"`
-  - 400 강등 시 시스템 관리자가 0명이 됨 → `code: "LAST_SYSTEM_ADMIN_BLOCKED"`
+- **Path**: `userId` — 사용자 ID(username, app_user.username)
+- **권한**: 관리자(is_system_admin=true)만 호출 가능. 그 외 403.
+- **Response**: **410 Gone** — 역할 변경 API 제거됨. 권한은 권한 그룹으로 관리.
+  - `success`: false
+  - `code`: "ENDPOINT_REMOVED"
 
 ---
 
 ## 8. 사용자 활동 이력 (Activity Log)
 
 **Base path**: `/api/activity-log`
+
+**화면별 범위(scope)**: is_system_admin=false일 때 권한 그룹의 activity-log scope 적용. scope='self' → userId 등 파라미터 무시, 현재 사용자 데이터만 반환; scope='all' → 파라미터 그대로 적용. 상세: `specs/permission-group-hierarchy.spec.yaml` §4.3.
 
 ### 8.1 활동 이력 검색
 
@@ -438,7 +425,7 @@
 **Base path**: `/api/departments`
 
 부서는 code·parent_code·name으로 계층 구조. 루트는 parent_code null.  
-부서 API는 **관리자(role=ADMIN)** 만 호출 가능. 그 외 403.  
+부서 API는 **관리자(is_system_admin=true)** 만 호출 가능. 그 외 403.  
 부서별 결재자·멤버·팀장 지정 API는 제거됨(팀장 자동 지정으로 대체).
 
 ### 12.1 부서 트리 조회
@@ -465,20 +452,21 @@
 **Base path (권한 그룹)**: `/api/permission-groups`  
 **사용자 권한 계층**: `GET /api/departments/user-permission-hierarchy`
 
-요건: `docs/requirements/20250227-user-permission-hierarchy-group.md`, `docs/requirements/20250227-permission-group-screen-menu-access.md`. 상세 스펙: `specs/permission-group-hierarchy.spec.yaml`.  
-모든 API는 **관리자(role=ADMIN)** 만 호출 가능. 그 외 403, `code: "FORBIDDEN"`.  
-**화면 기반 접근**: 화면에 대응하는 API는 사용자가 해당 화면을 권한 그룹으로 허용받았거나 ADMIN이어야 함. 그 외 403. 화면↔API 매핑: `specs/permission-group-hierarchy.spec.yaml` §4.3.
+요건: `docs/requirements/20250227-user-permission-hierarchy-group.md`, `docs/requirements/20250227-permission-group-screen-menu-access.md`, `docs/requirements/20250303-activity-statistics-self-only-scope.md`. 상세 스펙: `specs/permission-group-hierarchy.spec.yaml`.  
+모든 API는 **관리자(is_system_admin=true)** 만 호출 가능. 그 외 403, `code: "FORBIDDEN"`.  
+**화면 기반 접근**: 화면에 대응하는 API는 사용자가 해당 화면을 권한 그룹으로 허용받았거나 is_system_admin=true이어야 함. 그 외 403. 화면↔API 매핑: `specs/permission-group-hierarchy.spec.yaml` §4.3.  
+**화면별 범위(scope)**: activity-log, statistics, search-history 화면은 권한 그룹에서 화면별 scope('self'|'all') 설정 가능. scope='self' → 본인 데이터만; scope='all' → 전체. is_system_admin=false일 때만 적용. 상세: `specs/permission-group-hierarchy.spec.yaml` §4.2, §4.3.
 
 ### 14.1 권한 그룹 목록 조회
 
 - **GET** `/api/permission-groups`
-- **Response (data)**: 배열. 각 항목: `id` (number), `code` (string), `name` (string), `description` (string | null), `sortOrder` (number, 선택), `allowedScreens` (string[], 요건 20250227-permission-group-screen-menu-access)
+- **Response (data)**: 배열. 각 항목: `id` (number), `code` (string), `name` (string), `description` (string | null), `sortOrder` (number, 선택), `allowedScreens` (배열: `{ screenId: string, scope?: 'self'|'all' }[]`, 요건 20250227·20250303). activity-log, statistics, search-history에만 scope 사용; 생략·null = 'self'.
 - **에러**: 401, 403
 
 ### 14.2 권한 그룹 생성
 
 - **POST** `/api/permission-groups`
-- **Request body** (JSON): `code` (string, 필수), `name` (string, 필수), `description` (string, 선택), `sortOrder` (number, 선택, 기본 0), `allowedScreens` (string[], 선택 — 허용 화면 목록; 그 외 400 `INVALID_SCREEN_ID`)
+- **Request body** (JSON): `code` (string, 필수), `name` (string, 필수), `description` (string, 선택), `sortOrder` (number, 선택, 기본 0), `allowedScreens` (배열: `{ screenId: string, scope?: 'self'|'all' }[]`, 선택 — 허용 화면 목록; 그 외 400 `INVALID_SCREEN_ID`). activity-log, statistics, search-history에 scope 생략 시 기본 'self'.
 - **Response (data)**: 생성된 권한 그룹 객체 (동일 필드 + `id`, `allowedScreens`)
 - **Status**: 201
 - **에러**: 400 (code/name 누락·중복), 401, 403
@@ -487,14 +475,14 @@
 
 - **GET** `/api/permission-groups/{id}`
 - **Path**: `id` — 권한 그룹 ID (Long)
-- **Response (data)**: 단일 권한 그룹 객체
+- **Response (data)**: 단일 권한 그룹 객체 (`allowedScreens: [{ screenId, scope? }]` 포함)
 - **에러**: 401, 403, 404 → `code: "PERMISSION_GROUP_NOT_FOUND"`
 
 ### 14.4 권한 그룹 수정
 
 - **PUT** `/api/permission-groups/{id}`
 - **Path**: `id` — 권한 그룹 ID (Long)
-- **Request body** (JSON): `code`, `name`, `description`, `sortOrder`, `allowedScreens` (string[], 모두 선택). `allowedScreens`는 허용 화면 목록에 있는 값만; 그 외 400 `INVALID_SCREEN_ID`
+- **Request body** (JSON): `code`, `name`, `description`, `sortOrder`, `allowedScreens` (배열: `{ screenId: string, scope?: 'self'|'all' }[]`, 모두 선택). `allowedScreens`의 screenId는 허용 화면 목록에 있는 값만; 그 외 400 `INVALID_SCREEN_ID`. scope 생략 시 'self'.
 - **Response (data)**: 수정된 권한 그룹 객체
 - **에러**: 400, 401, 403, 404 → "PERMISSION_GROUP_NOT_FOUND"
 
@@ -526,7 +514,7 @@
 
 - **GET** `/api/permission-groups/{id}/users`
 - **Path**: `id` — 권한 그룹 ID (Long)
-- **Response (data)**: 배열. 각 항목: `userId`, `username`, `departmentCode`, `role` 등 사용자 요약
+- **Response (data)**: 배열. 각 항목: `userId`, `username`, `departmentCode`, `isSystemAdmin` 등 사용자 요약 (role 제외, req 20250303)
 - **에러**: 401, 403, 404
 
 ### 14.9 사용자 권한 계층 조회
@@ -534,7 +522,7 @@
 - **GET** `/api/departments/user-permission-hierarchy`
 - **Query**: `format` — "tree"(기본) | "flat"
 - **Response (data)**:
-  - **tree**: 루트 노드 배열. 각 노드: `code`, `parentCode`, `name`, `sortOrder`, `children` (재귀), `users` (배열). `users` 각 항목: `userId` (username), `role`, `isSystemAdmin` (boolean, 시스템 관리자 여부), `position` (직책), `rank` (직급), `permissionGroups` (배열: `{ id, code, name }`).
+  - **tree**: 루트 노드 배열. 각 노드: `code`, `parentCode`, `name`, `sortOrder`, `children` (재귀), `users` (배열). `users` 각 항목: `userId` (username), `isSystemAdmin` (boolean, 시스템 관리자 여부), `position` (직책), `rank` (직급), `permissionGroups` (배열: `{ id, code, name }`). role 제외 (req 20250303).
   - **flat**: 부서 노드 배열에 `users` 포함(동일 구조), `children` 없음.
 - **에러**: 401, 403
 

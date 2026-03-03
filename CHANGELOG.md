@@ -6,6 +6,34 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### 2025-03-03 (Agent Skill Phase 2)
+
+- **chore (docs)**: Phase 2 도메인 skill 추가 및 검증 완료.
+  - **search-history-decrypt-domain skill**: `.cursor/skills/search-history-decrypt-domain/SKILL.md` 신규. 검색 이력·복호화·승인·반려·결재자, DECRYPTION_NOT_APPROVED, ROW_NOT_IN_APPROVED_SNAPSHOT 관련 질문 시 사용.
+  - **error-codes-domain skill**: `.cursor/skills/error-codes-domain/SKILL.md` 신규. API 에러 코드(FORBIDDEN, DECRYPTION_NOT_APPROVED 등) 관련 질문 시 사용. api-definition §11 단일 소스 참조.
+  - **Phase 2 검증**: §7.5 테스트 질문 5개 baseline/post-skill 검증 완료. 5/5 ✓.
+
+### 2025-03-03 (Agent Skill & Document Improvement)
+
+- **chore (docs)**: Agent Skill·문서 개선 설계 및 auth-permission-domain skill 도입.
+  - **SKILL-DOCUMENT-IMPROVEMENT-DESIGN.md**: 도메인 skill 도입·문서 분할 점진적 로드맵 설계 문서 추가. Skill as router, 문서 단일 소스, progressive disclosure 원칙.
+  - **auth-permission-domain skill**: `.cursor/skills/auth-permission-domain/SKILL.md` 신규. 권한·접근 제어·is_system_admin·permission group·화면 접근 관련 질문 시 사용. Quick reference, Document/Code references, Phase 1 테스트 질문 세트 포함.
+  - **Skill usage visibility**: db-domain, dev-workflow, requirement-doc, test-workflow skill에 `[Skill used: <name>]` 응답 선언 규칙 추가.
+  - **Phase 1 Validation Guide**: §7.4 추가 — baseline/post-skill 검증 절차(1.6–1.8) 단계별 안내.
+  - **docs/README.md**: SKILL-DOCUMENT-IMPROVEMENT-DESIGN.md 링크 추가.
+
+### 2026-03-03
+
+- **chore (docs)**: RequirementsPastSearch 토큰 최적화 — 과거 요구사항 검색 시 토큰 사용량 70~90% 절감을 위한 구조 개선.
+  - **TOPIC-INDEX.md**: `docs/requirements/TOPIC-INDEX.md` 신규 추가. 62개 요건을 11개 주제(permission, activity-log, sidebar, department 등)로 분류한 인덱스. RequirementsPastSearch가 전체 문서 검색 대신 인덱스 먼저 읽어 관련 doc ID만 추출.
+  - **읽기 범위 제한**: past-requirements-search에 §1만 읽도록 규칙 추가 (offset=1, limit=90). §2·§3·§5는 요청 시에만.
+  - **출력 제한**: 요약 300단어 이내, `DocID | one-line` 형식, 불릿만.
+  - **2단계 호출**: "ids only" 시 doc ID 목록만 반환하는 모드 지원. Requirements가 필요 시 상세 요약만 추가 요청 가능.
+  - **Requirements·AGENT-COLLABORATION 갱신**: RequirementsPastSearch 호출 시 topic 전달 및 TOPIC-INDEX 사용 안내.
+  - **RequirementsPastSearch.mdc**: Token optimization 섹션, TOPIC-INDEX 참조 추가.
+  - **generate-requirements-index.sh**: `scripts/generate-requirements-index.sh` 신규. TOPIC-INDEX에 없는 요건 doc 목록 출력. 새 요건 추가 후 인덱스 누락 확인용.
+  - **REQUIREMENT_TEMPLATE**: 검증 완료 후 TOPIC-INDEX에 한 줄 추가하는 유지보수 안내.
+
 ### 2025-03-03
 
 - **feat**: Permission group delete constraint and system administrator protection (req `docs/requirements/20250303-permission-group-delete-system-admin-protection.md`): (1) Permission group deletion allowed only when users=0; 400 `PERMISSION_GROUP_HAS_USERS` when users assigned. (2) System administrator (`is_system_admin`) immutable — role change and delete blocked; minimum one system admin enforced (`SYSTEM_ADMIN_IMMUTABLE`, `LAST_SYSTEM_ADMIN_BLOCKED`). (3) User management UI: system admin badge, disabled role dropdown, error message mappings. APIs: `GET /api/users` and hierarchy include `isSystemAdmin`; `PUT /api/users/{userId}` rejects system admin modification.

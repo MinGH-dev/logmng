@@ -27,7 +27,7 @@ function App() {
   const [initialSearchApprovalId, setInitialSearchApprovalId] = useState(null);
 
   const canAccessView = (view) => {
-    if (user?.role === 'ADMIN') return true;
+    if (user?.isSystemAdmin === true) return true;
     const ids = user?.allowedScreenIds;
     if (!Array.isArray(ids) || ids.length === 0) return false;
     if (view === 'user-management') {
@@ -69,16 +69,20 @@ function App() {
         const merged = savedUser
           ? {
               username: fromApi?.username ?? savedUser.username,
-              role: fromApi?.role ?? savedUser.role,
+              isSystemAdmin: fromApi?.isSystemAdmin ?? savedUser.isSystemAdmin ?? false,
               allowedScreenIds: Array.isArray(fromApi?.allowedScreenIds)
                 ? fromApi.allowedScreenIds
                 : savedUser?.allowedScreenIds ?? null,
+              screenScopes: fromApi?.screenScopes && typeof fromApi.screenScopes === 'object'
+                ? fromApi.screenScopes
+                : savedUser?.screenScopes ?? null,
             }
           : fromApi?.username
             ? {
                 username: fromApi.username,
-                role: fromApi.role ?? null,
+                isSystemAdmin: fromApi?.isSystemAdmin ?? false,
                 allowedScreenIds: Array.isArray(fromApi?.allowedScreenIds) ? fromApi.allowedScreenIds : null,
+                screenScopes: fromApi?.screenScopes && typeof fromApi.screenScopes === 'object' ? fromApi.screenScopes : null,
               }
             : null;
         if (merged) {
@@ -105,8 +109,9 @@ function App() {
     }
     const minimalUserData = {
       username: userData.username || null,
-      role: userData.role || null,
+      isSystemAdmin: userData.isSystemAdmin === true,
       allowedScreenIds: Array.isArray(userData.allowedScreenIds) ? userData.allowedScreenIds : null,
+      screenScopes: userData.screenScopes && typeof userData.screenScopes === 'object' ? userData.screenScopes : null,
     };
     setUser(minimalUserData);
     setIsAuthenticated(true);
@@ -144,7 +149,7 @@ function App() {
   useEffect(() => {
     if (!isAuthenticated || !user) return;
     if (currentView === 'main') return;
-    const isAdmin = user?.role === 'ADMIN';
+    const isAdmin = user?.isSystemAdmin === true;
     const ids = user?.allowedScreenIds;
     const hasAccess = isAdmin || (Array.isArray(ids) && ids.length > 0 && ids.includes(currentView));
     if (!hasAccess) setCurrentView('main');
@@ -201,7 +206,7 @@ function App() {
       >
         <AppSidebar
           open={sidebarOpen}
-          isAdmin={user?.role === 'ADMIN'}
+          isAdmin={user?.isSystemAdmin === true}
           allowedScreenIds={user?.allowedScreenIds}
           currentView={currentView}
           onNavigate={handleNavigate}
@@ -226,10 +231,10 @@ function App() {
             onLogout={handleLogout}
           />
           <Box sx={{ flex: 1, p: 2, mt: 7, overflowY: 'auto', minHeight: 0 }}>
-            {currentView === 'activity-log' && <UserActivityLogList />}
-            {currentView === 'statistics' && <ActivityStatistics />}
+            {currentView === 'activity-log' && <UserActivityLogList user={user} />}
+            {currentView === 'statistics' && <ActivityStatistics user={user} />}
             {currentView === 'search-history' && (
-              <SearchHistoryList onReSearch={handleReSearchFromHistory} />
+              <SearchHistoryList user={user} onReSearch={handleReSearchFromHistory} />
             )}
             {(currentView === 'user-management' || currentView === 'user-permission-hierarchy') && (
               <UserManagement user={user} />

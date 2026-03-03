@@ -289,7 +289,17 @@ public class ActivityStatisticsService {
     }
 
     public List<Map<String, String>> getUsers() {
-        String sql = "SELECT DISTINCT user_id AS \"userId\", username AS \"userName\" FROM user_activity_log ORDER BY user_id";
+        return getUsers(null);
+    }
+
+    /** When userIdFilter is not null, return only that user (for scope=self). */
+    public List<Map<String, String>> getUsers(String userIdFilter) {
+        String sql;
+        if (userIdFilter != null && !userIdFilter.isEmpty()) {
+            sql = "SELECT DISTINCT user_id AS \"userId\", username AS \"userName\" FROM user_activity_log WHERE user_id = ? ORDER BY user_id";
+            return runListQueryWithParam(sql, "userId", "userName", userIdFilter);
+        }
+        sql = "SELECT DISTINCT user_id AS \"userId\", username AS \"userName\" FROM user_activity_log ORDER BY user_id";
         return runListQuery(sql, "userId", "userName");
     }
 
@@ -299,7 +309,30 @@ public class ActivityStatisticsService {
     }
 
     public List<String> getIps() {
-        String sql = "SELECT DISTINCT ip_address FROM user_activity_log WHERE ip_address IS NOT NULL AND ip_address != '' ORDER BY ip_address";
+        return getIps(null);
+    }
+
+    /** When userIdFilter is not null, return only IPs for that user (for scope=self). */
+    public List<String> getIps(String userIdFilter) {
+        String sql;
+        if (userIdFilter != null && !userIdFilter.isEmpty()) {
+            sql = "SELECT DISTINCT ip_address FROM user_activity_log WHERE user_id = ? AND ip_address IS NOT NULL AND ip_address != '' ORDER BY ip_address";
+            List<String> list = new ArrayList<>();
+            try (Connection conn = dataSource.getConnection();
+                 PreparedStatement ps = conn.prepareStatement(sql)) {
+                ps.setString(1, userIdFilter);
+                try (ResultSet rs = ps.executeQuery()) {
+                    while (rs.next()) {
+                        list.add(rs.getString("ip_address"));
+                    }
+                }
+            } catch (SQLException e) {
+                log.error("IP 목록 조회 실패", e);
+                throw new RuntimeException("IP 목록 조회 중 오류가 발생했습니다: " + e.getMessage(), e);
+            }
+            return list;
+        }
+        sql = "SELECT DISTINCT ip_address FROM user_activity_log WHERE ip_address IS NOT NULL AND ip_address != '' ORDER BY ip_address";
         List<String> list = new ArrayList<>();
         try (Connection conn = dataSource.getConnection();
              Statement st = conn.createStatement();
@@ -310,6 +343,26 @@ public class ActivityStatisticsService {
         } catch (SQLException e) {
             log.error("IP 목록 조회 실패", e);
             throw new RuntimeException("IP 목록 조회 중 오류가 발생했습니다: " + e.getMessage(), e);
+        }
+        return list;
+    }
+
+    private List<Map<String, String>> runListQueryWithParam(String sql, String key1, String key2, String param) {
+        List<Map<String, String>> list = new ArrayList<>();
+        try (Connection conn = dataSource.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setString(1, param);
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    Map<String, String> row = new LinkedHashMap<>();
+                    row.put(key1, rs.getString(key1));
+                    row.put(key2, rs.getString(key2));
+                    list.add(row);
+                }
+            }
+        } catch (SQLException e) {
+            log.error("목록 조회 실패: {}", sql, e);
+            throw new RuntimeException("목록 조회 중 오류가 발생했습니다: " + e.getMessage(), e);
         }
         return list;
     }

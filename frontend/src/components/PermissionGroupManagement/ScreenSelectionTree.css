@@ -23,6 +23,10 @@
 
 .screen-selection-item {
   margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
 }
 
 .screen-selection-label {
@@ -43,4 +47,19 @@
 .screen-selection-label input[type="checkbox"]:focus {
   outline: 2px solid #07c;
   outline-offset: 2px;
+}
+
+.screen-selection-scope {
+  margin-left: 0.5rem;
+  padding: 0.2rem 0.4rem;
+  font-size: 0.85rem;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  background: #fff;
+  cursor: pointer;
+}
+
+.screen-selection-scope:focus {
+  outline: 2px solid #07c;
+  outline-offset: 1px;
 }

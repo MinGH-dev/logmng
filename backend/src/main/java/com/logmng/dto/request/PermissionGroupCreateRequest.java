@@ -1,12 +1,15 @@
 package com.logmng.dto.request;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
+import com.logmng.dto.response.AllowedScreenItem;
 
 import java.util.List;
 import jakarta.validation.constraints.NotBlank;
 
 /**
  * Permission group create request (§14.2). code, name required; description, sortOrder optional.
+ * allowedScreens: [{ screenId, scope? }] or string[] (backward compat) per specs/permission-group-hierarchy.spec.yaml.
  */
 public class PermissionGroupCreateRequest {
 
@@ -21,7 +24,8 @@ public class PermissionGroupCreateRequest {
     @JsonProperty("sortOrder")
     private Integer sortOrder;
 
-    private List<String> allowedScreens;
+    @JsonDeserialize(using = AllowedScreenListDeserializer.class)
+    private List<AllowedScreenItem> allowedScreens;
 
     public String getCode() {
         return code;
@@ -55,11 +59,11 @@ public class PermissionGroupCreateRequest {
         this.sortOrder = sortOrder;
     }
 
-    public List<String> getAllowedScreens() {
+    public List<AllowedScreenItem> getAllowedScreens() {
         return allowedScreens;
     }
 
-    public void setAllowedScreens(List<String> allowedScreens) {
+    public void setAllowedScreens(List<AllowedScreenItem> allowedScreens) {
         this.allowedScreens = allowedScreens;
     }
 }

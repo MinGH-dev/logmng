@@ -1,12 +1,14 @@
 package com.logmng.dto.response;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonInclude;
 
 import java.util.ArrayList;
 import java.util.List;
 
 /**
- * User with permission groups for hierarchy node (§14.9). userId, role, position, rank, permissionGroups, isSystemAdmin
+ * User with permission groups for hierarchy node (§14.9). userId, position, rank, permissionGroups, isSystemAdmin
+ * role is internal only, not exposed in JSON (req 20250303).
  */
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public class UserPermissionSummary {
@@ -47,6 +49,7 @@ public class UserPermissionSummary {
         this.userId = userId;
     }
 
+    @JsonIgnore
     public String getRole() {
         return role;
     }

@@ -1,6 +1,5 @@
 package com.logmng.controller;
 
-import com.logmng.dto.request.UpdateUserRoleRequest;
 import com.logmng.dto.response.ApiResponse;
 import com.logmng.dto.response.UserListItemResponse;
 import com.logmng.exception.CustomException;
@@ -12,12 +11,11 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import jakarta.servlet.http.HttpServletRequest;
-import jakarta.validation.Valid;
 import java.util.List;
 
 /**
  * 사용자 관리 (관리자 전용). §7
- * GET /api/users, PUT /api/users/{userId}
+ * GET /api/users, PUT /api/users/{userId} (410 Gone — role update deprecated)
  */
 @RestController
 @RequestMapping("/api/users")
@@ -38,15 +36,15 @@ public class UserController {
         return v != null ? v.toString() : null;
     }
 
-    private static String getRole(HttpServletRequest request) {
+    private static boolean isSystemAdmin(HttpServletRequest request) {
         jakarta.servlet.http.HttpSession session = request.getSession(false);
-        if (session == null) return null;
-        Object v = session.getAttribute("role");
-        return v != null ? v.toString() : null;
+        if (session == null) return false;
+        Object v = session.getAttribute("isSystemAdmin");
+        return Boolean.TRUE.equals(v);
     }
 
     /**
-     * GET /api/users — 관리자 전용. 사용자 목록(role, departmentCode, isApprover).
+     * GET /api/users — 관리자 전용. 사용자 목록(departmentCode, isApprover, isSystemAdmin).
      */
     @GetMapping
     public ResponseEntity<ApiResponse<List<UserListItemResponse>>> listUsers(HttpServletRequest request) {
@@ -54,8 +52,7 @@ public class UserController {
         if (userId == null || userId.isBlank()) {
             throw CustomException.unauthorized("로그인이 필요합니다.", "UNAUTHORIZED");
         }
-        String role = getRole(request);
-        if (!decryptApproverService.isAdmin(role)) {
+        if (!decryptApproverService.isAdmin(isSystemAdmin(request))) {
             throw CustomException.forbidden("관리자만 사용자 목록을 조회할 수 있습니다.", "FORBIDDEN");
         }
         List<UserListItemResponse> data = decryptApproverService.listUsers();
@@ -63,24 +60,21 @@ public class UserController {
     }
 
     /**
-     * PUT /api/users/{userId} — 관리자 전용. 사용자 역할 변경. §7.4
+     * PUT /api/users/{userId} — 410 Gone. 역할 변경 엔드포인트 제거됨 (req 20250303).
      */
     @PutMapping("/{userId}")
-    public ResponseEntity<ApiResponse<UserListItemResponse>> updateUserRole(
+    public ResponseEntity<ApiResponse<?>> updateUserRole(
             @PathVariable String userId,
-            @Valid @RequestBody UpdateUserRoleRequest body,
             HttpServletRequest request) {
         String callerUserId = getUserId(request);
         if (callerUserId == null || callerUserId.isBlank()) {
             throw CustomException.unauthorized("로그인이 필요합니다.", "UNAUTHORIZED");
         }
-        String role = getRole(request);
-        if (!decryptApproverService.isAdmin(role)) {
+        if (!decryptApproverService.isAdmin(isSystemAdmin(request))) {
             throw CustomException.forbidden("관리자만 사용자 역할을 변경할 수 있습니다.", "FORBIDDEN");
         }
-        UserListItemResponse result = decryptApproverService.updateUserRole(
-                callerUserId, userId, body.getRole());
-        return ResponseEntity.ok(ApiResponse.success(result));
+        return ResponseEntity.status(HttpStatus.GONE)
+                .body(ApiResponse.failure("역할 변경 API는 제거되었습니다. 권한은 권한 그룹으로 관리됩니다.", "ENDPOINT_REMOVED"));
     }
 
     /**

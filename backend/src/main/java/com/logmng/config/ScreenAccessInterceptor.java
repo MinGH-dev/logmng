@@ -74,7 +74,7 @@ public class ScreenAccessInterceptor implements HandlerInterceptor {
         if (userInfo == null) {
             return true; // AuthInterceptor should have rejected; allow through
         }
-        if ("ADMIN".equals(userInfo.getRole())) {
+        if (Boolean.TRUE.equals(userInfo.getIsSystemAdmin())) {
             return true;
         }
         String requiredScreen = findRequiredScreen(path);

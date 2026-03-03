@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { getUsers, updateUserRole } from '../../services/userService';
+import { getUsers } from '../../services/userService';
 import { getUserPermissionHierarchy, listPermissionGroups } from '../../services/permissionGroupService';
 import { getErrorMessage } from '../../utils/errorMessage';
 import logger from '../../utils/logger';
@@ -16,9 +16,7 @@ const HierarchyTree = ({
   renderUserRow,
   usersWithApprover,
   allGroups,
-  onRoleChange,
   onRefresh,
-  actionId,
 }) => {
   if (!nodes || nodes.length === 0) return null;
   return (
@@ -72,7 +70,6 @@ const HierarchyTree = ({
                       <thead>
                         <tr>
                           <th scope="col">사용자 ID</th>
-                          <th scope="col">역할</th>
                           <th scope="col">직급</th>
                           <th scope="col">직책</th>
                           <th scope="col">권한 그룹</th>
@@ -83,7 +80,7 @@ const HierarchyTree = ({
                         {users.map((u) => {
                           const uid = u.userId ?? u.username;
                           const isApprover = usersWithApprover?.get(uid) === true;
-                          return renderUserRow(u, isApprover, allGroups, onRoleChange, onRefresh, actionId);
+                          return renderUserRow(u, isApprover, allGroups, onRefresh);
                         })}
                       </tbody>
                     </table>
@@ -102,9 +99,7 @@ const HierarchyTree = ({
                     renderUserRow={renderUserRow}
                     usersWithApprover={usersWithApprover}
                     allGroups={allGroups}
-                    onRoleChange={onRoleChange}
                     onRefresh={onRefresh}
-                    actionId={actionId}
                   />
                 )}
               </>
@@ -122,10 +117,9 @@ const UserManagement = ({ user }) => {
   const [allGroups, setAllGroups] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
-  const [actionId, setActionId] = useState(null);
   const [expandedCodes, setExpandedCodes] = useState(() => new Set());
 
-  const isAdmin = user?.role === 'ADMIN';
+  const isAdmin = user?.isSystemAdmin === true;
 
   const loadHierarchy = useCallback(async () => {
     if (!isAdmin) return;
@@ -174,47 +168,22 @@ const UserManagement = ({ user }) => {
     });
   };
 
-  const handleRoleChange = async (userId, newRole) => {
-    setActionId(`role-${userId}`);
-    setError(null);
-    try {
-      await updateUserRole(userId, newRole);
-      await loadHierarchy();
-    } catch (e) {
-      logger.error('역할 변경 실패:', e);
-      setError(getErrorMessage(e, '역할 변경에 실패했습니다.'));
-    } finally {
-      setActionId(null);
-    }
-  };
-
-  const renderUserRow = (u, isApprover, allGroups, onRoleChange, onRefresh, actionId) => {
+  const renderUserRow = (u, isApprover, allGroups, onRefresh) => {
     const userId = u.userId ?? u.username;
-    const role = u.role || 'USER';
     const rank = u.rank ?? '-';
     const position = u.position ?? '-';
     const permissionGroups = u.permissionGroups || [];
     const isSystemAdmin = u.isSystemAdmin === true || u.is_system_admin === true;
-    const roleDisabled = isSystemAdmin || !!actionId;
 
     return (
       <tr key={userId}>
-        <td>{userId}</td>
         <td>
+          {userId}
           {isSystemAdmin && (
-            <span className="system-admin-badge" aria-label="시스템 관리자, 역할 변경 불가">
-              시스템 관리자
+            <span className="system-admin-badge" aria-label="시스템 관리자">
+              {' '}시스템 관리자
             </span>
           )}
-          <select
-            value={role}
-            onChange={(e) => onRoleChange(userId, e.target.value)}
-            disabled={roleDisabled}
-            aria-label={isSystemAdmin ? `시스템 관리자, 역할 변경 불가, ${userId}` : `역할 변경, ${userId}`}
-          >
-            <option value="ADMIN">ADMIN</option>
-            <option value="USER">USER</option>
-          </select>
         </td>
         <td>{rank}</td>
         <td>{position}</td>
@@ -224,7 +193,6 @@ const UserManagement = ({ user }) => {
             userGroups={permissionGroups}
             allGroups={allGroups}
             onRefresh={onRefresh}
-            disabled={!!actionId}
           />
         </td>
         <td>{isApprover ? '예' : '아니오'}</td>
@@ -245,7 +213,7 @@ const UserManagement = ({ user }) => {
     <div className="user-management">
       <h2>사용자 관리</h2>
       <p className="user-permission-hierarchy-hint">
-        부서를 펼치면 해당 부서의 사용자를 볼 수 있습니다. 역할, 권한 그룹, 결재자 여부를 편집할 수 있습니다.
+        부서를 펼치면 해당 부서의 사용자를 볼 수 있습니다. 권한 그룹, 결재자 여부를 편집할 수 있습니다.
       </p>
       {error && (
         <div className="user-management-error" role="alert">
@@ -267,9 +235,7 @@ const UserManagement = ({ user }) => {
               renderUserRow={renderUserRow}
               usersWithApprover={usersWithApprover}
               allGroups={allGroups}
-              onRoleChange={handleRoleChange}
               onRefresh={loadHierarchy}
-              actionId={actionId}
             />
           )}
         </section>

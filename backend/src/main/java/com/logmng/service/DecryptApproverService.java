@@ -31,8 +31,15 @@ public class DecryptApproverService {
         this.departmentService = departmentService;
     }
 
+    /** @deprecated Use {@link #isAdmin(boolean)} with isSystemAdmin from session. */
+    @Deprecated
     public boolean isAdmin(String role) {
         return role != null && "ADMIN".equals(role);
+    }
+
+    /** Admin check by is_system_admin (req 20250303). */
+    public boolean isAdmin(boolean isSystemAdmin) {
+        return isSystemAdmin;
     }
 
     /**

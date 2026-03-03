@@ -45,11 +45,11 @@ public class PermissionGroupController {
         return v != null ? v.toString() : null;
     }
 
-    private static String getRole(HttpServletRequest request) {
+    private static boolean isSystemAdmin(HttpServletRequest request) {
         jakarta.servlet.http.HttpSession session = request.getSession(false);
-        if (session == null) return null;
-        Object v = session.getAttribute("role");
-        return v != null ? v.toString() : null;
+        if (session == null) return false;
+        Object v = session.getAttribute("isSystemAdmin");
+        return Boolean.TRUE.equals(v);
     }
 
     private void requireAdmin(HttpServletRequest request) {
@@ -57,9 +57,8 @@ public class PermissionGroupController {
         if (userId == null || userId.isBlank()) {
             throw CustomException.unauthorized("로그인이 필요합니다.", "UNAUTHORIZED");
         }
-        String role = getRole(request);
-        if (!decryptApproverService.isAdmin(role)) {
-            log.info("Permission group API access denied: role={}", role != null ? role : "null");
+        if (!decryptApproverService.isAdmin(isSystemAdmin(request))) {
+            log.info("Permission group API access denied: isSystemAdmin=false");
             throw CustomException.forbidden("관리자만 권한 그룹을 관리할 수 있습니다.", "FORBIDDEN");
         }
     }

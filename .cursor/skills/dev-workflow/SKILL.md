@@ -5,6 +5,8 @@ description: Apply dev workflow order (same for new features, errors, bugs). Req
 
 # Dev workflow
 
+**Skill usage visibility**: When you use this skill to answer, state at the start of your response: `[Skill used: dev-workflow]`
+
 **Order and gates**: `docs/workflow/WORKFLOW_CHECKLIST.md`  
 **Detail and examples**: `docs/workflow/DEVELOPMENT_WORKFLOW.md`  
 **TDD vs DDD (methodology)**: `docs/workflow/WORKFLOW_MODES.md`

@@ -1,5 +1,6 @@
 package com.logmng.controller;
 
+import com.logmng.constants.ScreenConstants;
 import com.logmng.dto.request.RejectRequest;
 import com.logmng.dto.request.SearchHistoryCreateRequest;
 import com.logmng.dto.response.ApiResponse;
@@ -7,6 +8,7 @@ import com.logmng.dto.response.SearchHistoryListResponse;
 import com.logmng.exception.CustomException;
 import com.logmng.service.DecryptApproverService;
 import com.logmng.service.SearchHistoryService;
+import com.logmng.util.ScopeHelper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
@@ -37,17 +39,29 @@ public class SearchHistoryController {
     }
 
     private static String getUserId(HttpServletRequest request) {
+        if (request == null) return null;
         jakarta.servlet.http.HttpSession session = request.getSession(false);
         if (session == null) return null;
-        Object userId = session.getAttribute("userId");
-        return userId != null ? userId.toString() : null;
+        Object v = session.getAttribute("userId");
+        if (v != null && !v.toString().isBlank()) return v.toString();
+        v = session.getAttribute("username");
+        return v != null && !v.toString().isBlank() ? v.toString() : null;
     }
 
-    private static String getRole(HttpServletRequest request) {
+    private static boolean isSystemAdmin(HttpServletRequest request) {
+        jakarta.servlet.http.HttpSession session = request.getSession(false);
+        if (session == null) return false;
+        Object v = session.getAttribute("isSystemAdmin");
+        return Boolean.TRUE.equals(v);
+    }
+
+    @SuppressWarnings("unchecked")
+    private static Map<String, String> getScreenScopes(HttpServletRequest request) {
+        if (request == null) return null;
         jakarta.servlet.http.HttpSession session = request.getSession(false);
         if (session == null) return null;
-        Object role = session.getAttribute("role");
-        return role != null ? role.toString() : null;
+        Object v = session.getAttribute("screenScopes");
+        return v instanceof Map ? (Map<String, String>) v : null;
     }
 
     private void requireApproverOrAdmin(HttpServletRequest request) {
@@ -55,8 +69,7 @@ public class SearchHistoryController {
         if (userId == null || userId.isBlank()) {
             throw CustomException.unauthorized("로그인이 필요합니다.", "UNAUTHORIZED");
         }
-        String role = getRole(request);
-        if (!decryptApproverService.isAdmin(role) && !decryptApproverService.isApprover(userId)) {
+        if (!decryptApproverService.isAdmin(isSystemAdmin(request)) && !decryptApproverService.isApprover(userId)) {
             throw CustomException.forbidden("승인/반려는 결재자 또는 관리자만 가능합니다.", "FORBIDDEN_NOT_APPROVER");
         }
     }
@@ -92,8 +105,8 @@ public class SearchHistoryController {
             HttpServletRequest httpRequest) {
         requireApproverOrAdmin(httpRequest);
         String approverUserId = getUserId(httpRequest);
-        String role = getRole(httpRequest);
-        SearchHistoryListResponse data = searchHistoryService.listPending(approverUserId, role, page, pageSize);
+        boolean isSystemAdmin = isSystemAdmin(httpRequest);
+        SearchHistoryListResponse data = searchHistoryService.listPending(approverUserId, isSystemAdmin, page, pageSize);
         return ResponseEntity.ok(ApiResponse.success(data));
     }
 
@@ -113,7 +126,9 @@ public class SearchHistoryController {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                     .body(ApiResponse.failure("로그인이 필요합니다.", "UNAUTHORIZED"));
         }
-        SearchHistoryListResponse data = searchHistoryService.list(userId, page, pageSize, sortField, sortDirection);
+        String scope = ScopeHelper.resolveScope(ScreenConstants.SEARCH_HISTORY, isSystemAdmin(httpRequest), getScreenScopes(httpRequest));
+        boolean scopeAll = "all".equals(scope);
+        SearchHistoryListResponse data = searchHistoryService.list(userId, page, pageSize, sortField, sortDirection, scopeAll);
         return ResponseEntity.ok(ApiResponse.success(data));
     }
 
@@ -131,7 +146,9 @@ public class SearchHistoryController {
                     .body(ApiResponse.failure("로그인이 필요합니다.", "UNAUTHORIZED"));
         }
         try {
-            Map<String, Object> data = searchHistoryService.reRequest(userId, id);
+            String scope = ScopeHelper.resolveScope(ScreenConstants.SEARCH_HISTORY, isSystemAdmin(httpRequest), getScreenScopes(httpRequest));
+            boolean scopeAll = "all".equals(scope);
+            Map<String, Object> data = searchHistoryService.reRequest(userId, id, scopeAll);
             return ResponseEntity.ok(ApiResponse.success(data));
         } catch (NoSuchElementException e) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(ApiResponse.failure(e.getMessage(), "NOT_FOUND"));
@@ -156,7 +173,9 @@ public class SearchHistoryController {
                     .body(ApiResponse.failure("로그인이 필요합니다.", "UNAUTHORIZED"));
         }
         try {
-            Map<String, Object> data = searchHistoryService.getDetail(userId, id);
+            String scope = ScopeHelper.resolveScope(ScreenConstants.SEARCH_HISTORY, isSystemAdmin(httpRequest), getScreenScopes(httpRequest));
+            boolean scopeAll = "all".equals(scope);
+            Map<String, Object> data = searchHistoryService.getDetail(userId, id, scopeAll);
             return ResponseEntity.ok(ApiResponse.success(data));
         } catch (NoSuchElementException e) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(ApiResponse.failure(e.getMessage(), "NOT_FOUND"));

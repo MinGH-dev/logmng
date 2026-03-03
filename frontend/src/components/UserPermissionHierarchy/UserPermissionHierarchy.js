@@ -60,15 +60,20 @@ const HierarchyTree = ({ nodes, expandedCodes, onToggle, level = 0, isRoot = fal
                       <thead>
                         <tr>
                           <th scope="col">사용자 ID</th>
-                          <th scope="col">역할</th>
                           <th scope="col">권한 그룹</th>
                         </tr>
                       </thead>
                       <tbody>
                         {users.map((u) => (
                           <tr key={u.userId}>
-                            <td>{u.userId}</td>
-                            <td>{u.role || '-'}</td>
+                            <td>
+                              {u.userId}
+                              {(u.isSystemAdmin === true || u.is_system_admin === true) && (
+                                <span className="system-admin-badge" aria-label="시스템 관리자">
+                                  {' '}시스템 관리자
+                                </span>
+                              )}
+                            </td>
                             <td>
                               {u.permissionGroups && u.permissionGroups.length > 0
                                 ? u.permissionGroups.map((g) => g.name || g.code).join(', ')
@@ -107,7 +112,7 @@ const UserPermissionHierarchy = ({ user }) => {
   const [error, setError] = useState(null);
   const [expandedCodes, setExpandedCodes] = useState(() => new Set());
 
-  const isAdmin = user?.role === 'ADMIN';
+  const isAdmin = user?.isSystemAdmin === true;
 
   const loadHierarchy = useCallback(async () => {
     if (!isAdmin) return;

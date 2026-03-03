@@ -6,7 +6,8 @@ import java.util.List;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 /**
- * Permission group API response (§14). id, code, name, description, sortOrder
+ * Permission group API response (§14). id, code, name, description, sortOrder.
+ * allowedScreens: [{ screenId, scope? }] per specs/permission-group-hierarchy.spec.yaml §1.1.
  */
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public class PermissionGroupResponse {
@@ -17,7 +18,7 @@ public class PermissionGroupResponse {
     private String description;
     @JsonProperty("sortOrder")
     private Integer sortOrder;
-    private List<String> allowedScreens;
+    private List<AllowedScreenItem> allowedScreens;
 
     public PermissionGroupResponse() {
     }
@@ -70,11 +71,11 @@ public class PermissionGroupResponse {
         this.sortOrder = sortOrder;
     }
 
-    public List<String> getAllowedScreens() {
+    public List<AllowedScreenItem> getAllowedScreens() {
         return allowedScreens;
     }
 
-    public void setAllowedScreens(List<String> allowedScreens) {
+    public void setAllowedScreens(List<AllowedScreenItem> allowedScreens) {
         this.allowedScreens = allowedScreens;
     }
 }

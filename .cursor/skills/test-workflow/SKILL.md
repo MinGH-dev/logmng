@@ -9,6 +9,8 @@ description: >
 
 # Test Workflow (project-scoped)
 
+**Skill usage visibility**: When you use this skill to answer, state at the start of your response: `[Skill used: test-workflow]`
+
 Use for **test plan (§3), test execution, result recording (§5), and verification** in this repo.
 
 ## Quick reference

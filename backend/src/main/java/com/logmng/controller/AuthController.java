@@ -44,14 +44,15 @@ public class AuthController {
         
         LoginResponse loginResponse = authService.login(request, httpRequest);
         
-        // 세션에 사용자 정보 및 role 저장 (결재자/관리자 권한 판단용)
+        // 세션에 사용자 정보 및 isSystemAdmin 저장 (관리자 권한 판단용, req 20250303)
         jakarta.servlet.http.HttpSession session = httpRequest.getSession(true);
         session.setAttribute("userId", loginResponse.getUsername());
         session.setAttribute("username", loginResponse.getUsername());
-        session.setAttribute("role", loginResponse.getRole() != null ? loginResponse.getRole() : "USER");
+        session.setAttribute("isSystemAdmin", Boolean.TRUE.equals(loginResponse.getIsSystemAdmin()));
         session.setAttribute("allowedScreenIds", loginResponse.getAllowedScreenIds());
-        log.info("세션 저장 완료: userId={}, role={}, sessionId={}",
-                loginResponse.getUsername(), loginResponse.getRole(), session.getId());
+        session.setAttribute("screenScopes", loginResponse.getScreenScopes());
+        log.info("세션 저장 완료: userId={}, isSystemAdmin={}, sessionId={}",
+                loginResponse.getUsername(), loginResponse.getIsSystemAdmin(), session.getId());
         
         Map<String, LoginResponse> data = new HashMap<>();
         data.put("user", loginResponse);
@@ -92,8 +93,9 @@ public class AuthController {
             LoginResponse userInfo = authService.getCurrentUserInfo(httpRequest);
             if (userInfo != null) {
                 data.put("username", userInfo.getUsername());
-                data.put("role", userInfo.getRole());
+                data.put("isSystemAdmin", userInfo.getIsSystemAdmin());
                 data.put("allowedScreenIds", userInfo.getAllowedScreenIds());
+                data.put("screenScopes", userInfo.getScreenScopes());
             }
         }
         

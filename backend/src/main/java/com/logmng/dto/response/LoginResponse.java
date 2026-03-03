@@ -1,9 +1,11 @@
 package com.logmng.dto.response;
 
 import com.fasterxml.jackson.annotation.JsonFormat;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 
 /**
  * 로그인 응답 DTO
@@ -17,11 +19,19 @@ public class LoginResponse {
     
     private String clientIP;
 
-    /** Role from app_user (ADMIN | USER). Used for session. */
+    /** @deprecated Use isSystemAdmin. Not exposed in JSON (req 20250303). */
+    @Deprecated
+    @JsonIgnore
     private String role;
 
-    /** Union of allowed screens from user's permission groups. ADMIN gets all. */
+    /** System administrator flag (is_system_admin). Admin-only access uses this. */
+    private Boolean isSystemAdmin;
+
+    /** Union of allowed screens from user's permission groups. System admin gets all. */
     private List<String> allowedScreenIds;
+
+    /** Per-screen scope for activity-log, statistics, search-history. Key=screenId, value='self'|'all'. is_system_admin=true → omit or all 'all'. */
+    private Map<String, String> screenScopes;
 
     public LoginResponse() {
     }
@@ -70,6 +80,22 @@ public class LoginResponse {
 
     public void setAllowedScreenIds(List<String> allowedScreenIds) {
         this.allowedScreenIds = allowedScreenIds;
+    }
+
+    public Boolean getIsSystemAdmin() {
+        return isSystemAdmin;
+    }
+
+    public void setIsSystemAdmin(Boolean isSystemAdmin) {
+        this.isSystemAdmin = isSystemAdmin;
+    }
+
+    public Map<String, String> getScreenScopes() {
+        return screenScopes;
+    }
+
+    public void setScreenScopes(Map<String, String> screenScopes) {
+        this.screenScopes = screenScopes;
     }
 }
 

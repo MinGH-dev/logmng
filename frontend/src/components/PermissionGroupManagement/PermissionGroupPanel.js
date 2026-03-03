@@ -51,7 +51,7 @@ const PermissionGroupPanel = ({ user, onRefreshHierarchy }) => {
   const [createAllowedScreens, setCreateAllowedScreens] = useState([]);
   const [editAllowedScreens, setEditAllowedScreens] = useState([]);
 
-  const isAdmin = user?.role === 'ADMIN';
+  const isAdmin = user?.isSystemAdmin === true;
 
   const sortedGroups = useMemo(() => {
     if (!groups.length || !sortConfig.key) return groups;
@@ -104,9 +104,17 @@ const PermissionGroupPanel = ({ user, onRefreshHierarchy }) => {
     }));
   };
 
+  /** Normalize allowedScreens to [{ screenId, scope? }]. API may return string[] or object array. */
+  const normalizeAllowedScreens = (arr) => {
+    if (!Array.isArray(arr)) return [];
+    return arr.map((s) =>
+      typeof s === 'string' ? { screenId: s, scope: 'self' } : { screenId: s.screenId, scope: s.scope || 'self' }
+    );
+  };
+
   const openEdit = (group) => {
     setEditGroup(group);
-    setEditAllowedScreens(Array.isArray(group?.allowedScreens) ? [...group.allowedScreens] : []);
+    setEditAllowedScreens(normalizeAllowedScreens(group?.allowedScreens));
     setEditOpen(true);
     setError(null);
   };
@@ -152,7 +160,10 @@ const PermissionGroupPanel = ({ user, onRefreshHierarchy }) => {
     setActionId('create');
     setError(null);
     try {
-      await createPermissionGroup({ code, name, description, allowedScreens: createAllowedScreens });
+      const allowedScreens = createAllowedScreens.map((s) =>
+        s.scope ? { screenId: s.screenId, scope: s.scope } : { screenId: s.screenId }
+      );
+      await createPermissionGroup({ code, name, description, allowedScreens });
       setCreateOpen(false);
       setCreateAllowedScreens([]);
       form.reset();
@@ -180,7 +191,10 @@ const PermissionGroupPanel = ({ user, onRefreshHierarchy }) => {
     setActionId('edit');
     setError(null);
     try {
-      await updatePermissionGroup(editGroup.id, { code, name, description, allowedScreens: editAllowedScreens });
+      const allowedScreens = editAllowedScreens.map((s) =>
+        s.scope ? { screenId: s.screenId, scope: s.scope } : { screenId: s.screenId }
+      );
+      await updatePermissionGroup(editGroup.id, { code, name, description, allowedScreens });
       setEditOpen(false);
       setEditGroup(null);
       await loadGroups();
@@ -445,20 +459,18 @@ const PermissionGroupPanel = ({ user, onRefreshHierarchy }) => {
                       <thead>
                         <tr>
                           <th scope="col">사용자 ID</th>
-                          <th scope="col">역할</th>
                           <th scope="col">동작</th>
                         </tr>
                       </thead>
                       <tbody>
                         {usersInGroup.length === 0 ? (
-                          <tr><td colSpan={3} className="no-data">배정된 사용자가 없습니다.</td></tr>
+                          <tr><td colSpan={2} className="no-data">배정된 사용자가 없습니다.</td></tr>
                         ) : (
                           usersInGroup.map((u) => {
                             const uid = u.userId ?? u.username;
                             return (
                               <tr key={uid}>
                                 <td>{uid}</td>
-                                <td>{u.role || '-'}</td>
                                 <td>
                                   <button type="button" className="user-management-btn remove" onClick={() => handleRemoveUserFromGroup(uid)} disabled={usersDialogActionId === uid} aria-label={`제거, ${uid}`}>
                                     {usersDialogActionId === uid ? '처리 중...' : '제거'}

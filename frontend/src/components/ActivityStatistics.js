@@ -7,7 +7,7 @@ import StatisticsView from './StatisticsView';
 import UserStatisticsTable from './UserStatisticsTable';
 import './ActivityStatistics.css';
 
-const ActivityStatistics = () => {
+const ActivityStatistics = ({ user }) => {
   // 통계 타입: 'daily' 또는 'monthly'
   const [statisticsType, setStatisticsType] = useState('daily');
   
@@ -45,6 +45,9 @@ const ActivityStatistics = () => {
   
   // 표 정렬
   const [sortConfig, setSortConfig] = useState({ key: null, direction: 'asc' });
+
+  // scope=self: hide user/department/IP filters. Admin or scope=all: show all. req 20250303
+  const hideUserFilters = !user?.isSystemAdmin && user?.screenScopes?.statistics === 'self';
   
   // 사용자별 통계 정렬
   const [userSortConfig, setUserSortConfig] = useState({ key: null, direction: 'asc' });
@@ -112,10 +115,11 @@ const ActivityStatistics = () => {
           return;
         }
         setDateRangeInvalid(false);
+        const effectiveFilters = hideUserFilters ? { logType: filters.logType } : filters;
         // 일별 통계와 사용자별 통계를 동시에 조회
         [response, userStatsResponse] = await Promise.all([
-          statisticsApi.getDailyStatistics(startDate, endDate, filters),
-          statisticsApi.getAllUserStatistics(startDate, endDate, filters)
+          statisticsApi.getDailyStatistics(startDate, endDate, effectiveFilters),
+          statisticsApi.getAllUserStatistics(startDate, endDate, effectiveFilters)
         ]);
       } else {
         setDateRangeInvalid(false);
@@ -129,10 +133,10 @@ const ActivityStatistics = () => {
         const monthEnd = new Date(year, month, 0);
         const monthStartDate = format(monthStart, 'yyyy-MM-dd');
         const monthEndDate = format(monthEnd, 'yyyy-MM-dd');
-        
+        const effectiveFilters = hideUserFilters ? { logType: filters.logType } : filters;
         [response, userStatsResponse] = await Promise.all([
-          statisticsApi.getMonthlyStatistics(year, month, filters),
-          statisticsApi.getAllUserStatistics(monthStartDate, monthEndDate, filters)
+          statisticsApi.getMonthlyStatistics(year, month, effectiveFilters),
+          statisticsApi.getAllUserStatistics(monthStartDate, monthEndDate, effectiveFilters)
         ]);
       }
       
@@ -158,19 +162,19 @@ const ActivityStatistics = () => {
 
   const handleExport = async () => {
     try {
+      const effectiveFilters = hideUserFilters ? { logType: filters.logType } : filters;
       let queryParams;
-      
       if (statisticsType === 'daily') {
         queryParams = {
           startDate,
           endDate,
-          ...filters
+          ...effectiveFilters
         };
       } else {
         queryParams = {
           year,
           month,
-          ...filters
+          ...effectiveFilters
         };
       }
       
@@ -241,6 +245,7 @@ const ActivityStatistics = () => {
         departmentList={departmentList}
         ipList={ipList}
         logTypeList={logTypeList}
+        hideUserFilters={hideUserFilters}
       />
       
       {error && (

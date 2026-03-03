@@ -1,9 +1,11 @@
 package com.logmng.dto.response;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 /**
- * 사용자 목록 항목 (§7.1): userId, username, role, departmentCode, position, rank, isApprover, isSystemAdmin
+ * 사용자 목록 항목 (§7.1): userId, username, departmentCode, position, rank, isApprover, isSystemAdmin
+ * role is internal only, not exposed in JSON (req 20250303).
  */
 public class UserListItemResponse {
 
@@ -60,6 +62,7 @@ public class UserListItemResponse {
         this.username = username;
     }
 
+    @JsonIgnore
     public String getRole() {
         return role;
     }

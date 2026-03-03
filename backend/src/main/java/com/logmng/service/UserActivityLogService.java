@@ -1,6 +1,7 @@
 package com.logmng.service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.logmng.exception.CustomException;
 import com.logmng.dto.request.UserActivityLogSearchRequest;
 import com.logmng.dto.response.UserActivityLogResponse;
 import org.slf4j.Logger;
@@ -245,9 +246,10 @@ public class UserActivityLogService {
     }
     
     /**
-     * 사용자 활동 이력 상세 조회
+     * 사용자 활동 이력 상세 조회.
+     * @param currentUserIdForOwnership when scope='self', verify row.user_id == currentUserIdForOwnership; 403 if not owner.
      */
-    public Map<String, Object> getActivityLogDetail(Long id) {
+    public Map<String, Object> getActivityLogDetail(Long id, String currentUserIdForOwnership) {
         log.info("🔍 사용자 활동 이력 상세 조회: id={}", id);
         
         try (Connection connection = dataSource.getConnection()) {
@@ -262,6 +264,10 @@ public class UserActivityLogService {
                 
                 try (ResultSet rs = stmt.executeQuery()) {
                     if (rs.next()) {
+                        String rowUserId = rs.getString("user_id");
+                        if (currentUserIdForOwnership != null && !currentUserIdForOwnership.equals(rowUserId)) {
+                            throw CustomException.forbidden("다른 사용자의 활동 이력은 조회할 수 없습니다.", "FORBIDDEN");
+                        }
                         Map<String, Object> row = new LinkedHashMap<>();
                         ResultSetMetaData metaData = rs.getMetaData();
                         int columnCount = metaData.getColumnCount();
@@ -296,6 +302,8 @@ public class UserActivityLogService {
                     }
                 }
             }
+        } catch (CustomException e) {
+            throw e;
         } catch (SQLException e) {
             log.error("❌ 사용자 활동 이력 상세 조회 중 오류 발생", e);
             throw new RuntimeException("사용자 활동 이력 상세 조회 중 오류가 발생했습니다: " + e.getMessage(), e);

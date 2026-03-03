@@ -8,7 +8,7 @@ import PermissionGroupPanel from './PermissionGroupPanel';
 import './PermissionGroupManagement.css';
 
 const PermissionGroupManagement = ({ user }) => {
-  const isAdmin = user?.role === 'ADMIN';
+  const isAdmin = user?.isSystemAdmin === true;
 
   if (!isAdmin) {
     return (

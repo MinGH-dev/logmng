@@ -5,8 +5,9 @@ import jakarta.validation.constraints.Pattern;
 
 /**
  * 사용자 역할 변경 요청 본문 (§7.4).
- * role: ADMIN | USER
+ * @deprecated PUT /api/users/{userId} returns 410 Gone (req 20250303). Role is no longer editable.
  */
+@Deprecated
 public class UpdateUserRoleRequest {
 
     @NotBlank(message = "role is required")
