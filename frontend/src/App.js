@@ -73,12 +73,16 @@ function App() {
               allowedScreenIds: Array.isArray(fromApi?.allowedScreenIds)
                 ? fromApi.allowedScreenIds
                 : savedUser?.allowedScreenIds ?? null,
+              screenScopes: fromApi?.screenScopes && typeof fromApi.screenScopes === 'object'
+                ? fromApi.screenScopes
+                : savedUser?.screenScopes ?? null,
             }
           : fromApi?.username
             ? {
                 username: fromApi.username,
                 isSystemAdmin: fromApi?.isSystemAdmin ?? false,
                 allowedScreenIds: Array.isArray(fromApi?.allowedScreenIds) ? fromApi.allowedScreenIds : null,
+                screenScopes: fromApi?.screenScopes && typeof fromApi.screenScopes === 'object' ? fromApi.screenScopes : null,
               }
             : null;
         if (merged) {
@@ -107,6 +111,7 @@ function App() {
       username: userData.username || null,
       isSystemAdmin: userData.isSystemAdmin === true,
       allowedScreenIds: Array.isArray(userData.allowedScreenIds) ? userData.allowedScreenIds : null,
+      screenScopes: userData.screenScopes && typeof userData.screenScopes === 'object' ? userData.screenScopes : null,
     };
     setUser(minimalUserData);
     setIsAuthenticated(true);
@@ -226,10 +231,10 @@ function App() {
             onLogout={handleLogout}
           />
           <Box sx={{ flex: 1, p: 2, mt: 7, overflowY: 'auto', minHeight: 0 }}>
-            {currentView === 'activity-log' && <UserActivityLogList />}
-            {currentView === 'statistics' && <ActivityStatistics />}
+            {currentView === 'activity-log' && <UserActivityLogList user={user} />}
+            {currentView === 'statistics' && <ActivityStatistics user={user} />}
             {currentView === 'search-history' && (
-              <SearchHistoryList onReSearch={handleReSearchFromHistory} />
+              <SearchHistoryList user={user} onReSearch={handleReSearchFromHistory} />
             )}
             {(currentView === 'user-management' || currentView === 'user-permission-hierarchy') && (
               <UserManagement user={user} />

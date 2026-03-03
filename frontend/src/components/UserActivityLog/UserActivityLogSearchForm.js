@@ -47,7 +47,7 @@ const toDateTimeLocal = (dateStr) => {
   return { start: `${dateStr}T00:00`, end: `${dateStr}T23:59` };
 };
 
-const UserActivityLogSearchForm = ({ onSearch, loading, initialServerDate }) => {
+const UserActivityLogSearchForm = ({ onSearch, loading, initialServerDate, hideUserFilters = false }) => {
   const serverRange = toDateTimeLocal(initialServerDate);
   const [formData, setFormData] = useState({
     startDate: serverRange ? serverRange.start : getTodayStart(),
@@ -170,33 +170,35 @@ const UserActivityLogSearchForm = ({ onSearch, loading, initialServerDate }) => 
         </div>
       </div>
 
-      <div className="search-form-row">
-        <div className="form-group">
-          <label htmlFor="userId">사용자 ID</label>
-          <input
-            type="text"
-            id="userId"
-            name="userId"
-            value={formData.userId}
-            onChange={handleInputChange}
-            className="form-control"
-            placeholder="사용자 ID"
-          />
-        </div>
+      {!hideUserFilters && (
+        <div className="search-form-row">
+          <div className="form-group">
+            <label htmlFor="userId">사용자 ID</label>
+            <input
+              type="text"
+              id="userId"
+              name="userId"
+              value={formData.userId}
+              onChange={handleInputChange}
+              className="form-control"
+              placeholder="사용자 ID"
+            />
+          </div>
 
-        <div className="form-group">
-          <label htmlFor="username">사용자명</label>
-          <input
-            type="text"
-            id="username"
-            name="username"
-            value={formData.username}
-            onChange={handleInputChange}
-            className="form-control"
-            placeholder="사용자명"
-          />
+          <div className="form-group">
+            <label htmlFor="username">사용자명</label>
+            <input
+              type="text"
+              id="username"
+              name="username"
+              value={formData.username}
+              onChange={handleInputChange}
+              className="form-control"
+              placeholder="사용자명"
+            />
+          </div>
         </div>
-      </div>
+      )}
 
       <div className="search-form-row">
         <div className="form-group">
@@ -216,18 +218,20 @@ const UserActivityLogSearchForm = ({ onSearch, loading, initialServerDate }) => 
           </select>
         </div>
 
-        <div className="form-group">
-          <label htmlFor="ipAddress">IP 주소</label>
-          <input
-            type="text"
-            id="ipAddress"
-            name="ipAddress"
-            value={formData.ipAddress}
-            onChange={handleInputChange}
-            className="form-control"
-            placeholder="IP 주소"
-          />
-        </div>
+        {!hideUserFilters && (
+          <div className="form-group">
+            <label htmlFor="ipAddress">IP 주소</label>
+            <input
+              type="text"
+              id="ipAddress"
+              name="ipAddress"
+              value={formData.ipAddress}
+              onChange={handleInputChange}
+              className="form-control"
+              placeholder="IP 주소"
+            />
+          </div>
+        )}
       </div>
 
       <div className="search-form-actions">

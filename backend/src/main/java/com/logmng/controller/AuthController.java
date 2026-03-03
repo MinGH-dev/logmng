@@ -50,6 +50,7 @@ public class AuthController {
         session.setAttribute("username", loginResponse.getUsername());
         session.setAttribute("isSystemAdmin", Boolean.TRUE.equals(loginResponse.getIsSystemAdmin()));
         session.setAttribute("allowedScreenIds", loginResponse.getAllowedScreenIds());
+        session.setAttribute("screenScopes", loginResponse.getScreenScopes());
         log.info("세션 저장 완료: userId={}, isSystemAdmin={}, sessionId={}",
                 loginResponse.getUsername(), loginResponse.getIsSystemAdmin(), session.getId());
         
@@ -94,6 +95,7 @@ public class AuthController {
                 data.put("username", userInfo.getUsername());
                 data.put("isSystemAdmin", userInfo.getIsSystemAdmin());
                 data.put("allowedScreenIds", userInfo.getAllowedScreenIds());
+                data.put("screenScopes", userInfo.getScreenScopes());
             }
         }
         

@@ -19,7 +19,9 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * 인증 서비스. 로그인은 app_user 테이블 기준(DataSource).
@@ -110,6 +112,7 @@ public class AuthService {
         response.setClientIP(clientIP);
         response.setIsSystemAdmin(isSystemAdmin);
         response.setAllowedScreenIds(resolveAllowedScreenIds(username, isSystemAdmin));
+        response.setScreenScopes(resolveScreenScopes(username, isSystemAdmin));
         return response;
     }
     
@@ -137,6 +140,24 @@ public class AuthService {
     }
 
     /**
+     * Returns screenScopes for activity-log, statistics, search-history.
+     * is_system_admin=true → all screens get 'all'. Otherwise from permission groups.
+     */
+    private Map<String, String> resolveScreenScopes(String username, boolean isSystemAdmin) {
+        if (username == null || username.isBlank()) {
+            return new HashMap<>();
+        }
+        if (isSystemAdmin) {
+            Map<String, String> all = new HashMap<>();
+            all.put(ScreenConstants.ACTIVITY_LOG, "all");
+            all.put(ScreenConstants.STATISTICS, "all");
+            all.put(ScreenConstants.SEARCH_HISTORY, "all");
+            return all;
+        }
+        return permissionGroupService.getScreenScopesForUser(username);
+    }
+
+    /**
      * Returns current user info (username, isSystemAdmin, allowedScreenIds) from session. For GET /api/auth/me.
      */
     public LoginResponse getCurrentUserInfo(HttpServletRequest request) {
@@ -154,6 +175,7 @@ public class AuthService {
         resp.setUsername(uname);
         resp.setIsSystemAdmin(sysAdmin);
         resp.setAllowedScreenIds(resolveAllowedScreenIds(uname, sysAdmin));
+        resp.setScreenScopes(resolveScreenScopes(uname, sysAdmin));
         return resp;
     }
 

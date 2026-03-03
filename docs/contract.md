@@ -21,7 +21,7 @@
 
 - **정의 위치**: `backend/src/main/resources/db/schema.sql` 및 필요 시 `specs/` 내 스키마 기술.
 - **변경**: 스키마 변경 시 schema.sql(또는 마이그레이션)을 먼저 반영하고, 백엔드 코드·API 스펙을 그에 맞춘다.
-- **권한 그룹 관련 테이블** (요건 20250227): `permission_group` (id, code, name, description, sort_order), `app_user_permission_group` (user_id = app_user.username, permission_group_id → permission_group.id), `permission_group_screen` (permission_group_id, screen_id — 그룹별 접근 가능 화면). 상세: `specs/permission-group-hierarchy.spec.yaml` §2, schema.sql.
+- **권한 그룹 관련 테이블** (요건 20250227, 20250303): `permission_group` (id, code, name, description, sort_order), `app_user_permission_group` (user_id = app_user.username, permission_group_id → permission_group.id), `permission_group_screen` (permission_group_id, screen_id, scope — 그룹별 접근 가능 화면; scope='self'|'all'는 activity-log, statistics, search-history에만, NULL='self'). 상세: `specs/permission-group-hierarchy.spec.yaml` §2, schema.sql.
 
 ## 시스템 관리자 보호 (System administrator protection)
 
@@ -33,5 +33,6 @@
 - **요건**: `docs/requirements/20250227-permission-group-screen-menu-access.md`
 - **화면 ID 목록**: main, search-history, activity-log, statistics, pending-approvals, user-management, user-permission-hierarchy. 상세 및 화면↔API 매핑: `specs/permission-group-hierarchy.spec.yaml` §4.
 - **규칙**: `is_system_admin = true` 사용자는 모든 화면 접근. 비관리자는 자신의 권한 그룹 중 하나라도 해당 화면을 허용해야 접근 가능. 화면에 대응하는 API 호출 시 사용자가 해당 화면을 갖지 않으면 403 반환. (req 20250303: role 제거, is_system_admin 사용)
+- **화면별 범위(scope)**: activity-log, statistics, search-history는 권한 그룹별 scope('self'|'all') 적용. is_system_admin=false일 때 scope='self' → 본인 데이터만; scope='all' → 전체. 상세: `specs/permission-group-hierarchy.spec.yaml` §4.3, `docs/requirements/20250303-activity-statistics-self-only-scope.md`.
 
 이 문서는 dev 워크스페이스 전용이다. 변경 시 docs/README.md 등과 맞춘다.

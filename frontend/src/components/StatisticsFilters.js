@@ -7,7 +7,8 @@ const StatisticsFilters = ({
   userList,
   departmentList,
   ipList,
-  logTypeList
+  logTypeList,
+  hideUserFilters = false,
 }) => {
   const handleFilterChange = (key, value) => {
     onFiltersChange({
@@ -44,46 +45,50 @@ const StatisticsFilters = ({
           </select>
         </label>
 
-        <label>
-          사용자 ID:
-          <select
-            value={filters.userId || ''}
-            onChange={(e) => handleFilterChange('userId', e.target.value)}
-          >
-            <option value="">전체</option>
-            {userList.map(user => (
-              <option key={user.userId} value={user.userId}>
-                {user.userId}
-              </option>
-            ))}
-          </select>
-        </label>
+        {!hideUserFilters && (
+          <>
+            <label>
+              사용자 ID:
+              <select
+                value={filters.userId || ''}
+                onChange={(e) => handleFilterChange('userId', e.target.value)}
+              >
+                <option value="">전체</option>
+                {(userList || []).map(user => (
+                  <option key={user.userId} value={user.userId}>
+                    {user.userId}
+                  </option>
+                ))}
+              </select>
+            </label>
 
-        <label>
-          부서:
-          <select
-            value={filters.department || ''}
-            onChange={(e) => handleFilterChange('department', e.target.value)}
-          >
-            <option value="">전체</option>
-            {departmentList.map(dept => (
-              <option key={dept} value={dept}>{dept}</option>
-            ))}
-          </select>
-        </label>
+            <label>
+              부서:
+              <select
+                value={filters.department || ''}
+                onChange={(e) => handleFilterChange('department', e.target.value)}
+              >
+                <option value="">전체</option>
+                {(departmentList || []).map(dept => (
+                  <option key={dept} value={dept}>{dept}</option>
+                ))}
+              </select>
+            </label>
 
-        <label>
-          IP:
-          <select
-            value={filters.ip || ''}
-            onChange={(e) => handleFilterChange('ip', e.target.value)}
-          >
-            <option value="">전체</option>
-            {ipList.map(ip => (
-              <option key={ip} value={ip}>{ip}</option>
-            ))}
-          </select>
-        </label>
+            <label>
+              IP:
+              <select
+                value={filters.ip || ''}
+                onChange={(e) => handleFilterChange('ip', e.target.value)}
+              >
+                <option value="">전체</option>
+                {(ipList || []).map(ip => (
+                  <option key={ip} value={ip}>{ip}</option>
+                ))}
+              </select>
+            </label>
+          </>
+        )}
       </div>
     </div>
   );

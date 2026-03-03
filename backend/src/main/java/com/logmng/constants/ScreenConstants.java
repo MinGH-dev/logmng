@@ -15,6 +15,11 @@ public final class ScreenConstants {
     public static final String SEARCH_HISTORY = "search-history";
     public static final String ACTIVITY_LOG = "activity-log";
     public static final String STATISTICS = "statistics";
+
+    /** Screens that support scope ('self'|'all'). Per req 20250303-activity-statistics-self-only-scope. */
+    private static final Set<String> SCREENS_WITH_SCOPE = Collections.unmodifiableSet(
+            Arrays.asList(SEARCH_HISTORY, ACTIVITY_LOG, STATISTICS).stream().collect(Collectors.toSet())
+    );
     public static final String PENDING_APPROVALS = "pending-approvals";
     public static final String USER_MANAGEMENT = "user-management";
     public static final String USER_PERMISSION_HIERARCHY = "user-permission-hierarchy";
@@ -61,5 +66,10 @@ public final class ScreenConstants {
 
     public static boolean isValid(String screenId) {
         return screenId != null && !screenId.isBlank() && ALL_ALLOWED_SCREENS.contains(screenId.trim());
+    }
+
+    /** Returns true if the screen supports scope (activity-log, statistics, search-history). */
+    public static boolean supportsScope(String screenId) {
+        return screenId != null && SCREENS_WITH_SCOPE.contains(screenId.trim());
     }
 }

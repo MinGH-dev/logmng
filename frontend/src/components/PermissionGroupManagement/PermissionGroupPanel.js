@@ -104,9 +104,17 @@ const PermissionGroupPanel = ({ user, onRefreshHierarchy }) => {
     }));
   };
 
+  /** Normalize allowedScreens to [{ screenId, scope? }]. API may return string[] or object array. */
+  const normalizeAllowedScreens = (arr) => {
+    if (!Array.isArray(arr)) return [];
+    return arr.map((s) =>
+      typeof s === 'string' ? { screenId: s, scope: 'self' } : { screenId: s.screenId, scope: s.scope || 'self' }
+    );
+  };
+
   const openEdit = (group) => {
     setEditGroup(group);
-    setEditAllowedScreens(Array.isArray(group?.allowedScreens) ? [...group.allowedScreens] : []);
+    setEditAllowedScreens(normalizeAllowedScreens(group?.allowedScreens));
     setEditOpen(true);
     setError(null);
   };
@@ -152,7 +160,10 @@ const PermissionGroupPanel = ({ user, onRefreshHierarchy }) => {
     setActionId('create');
     setError(null);
     try {
-      await createPermissionGroup({ code, name, description, allowedScreens: createAllowedScreens });
+      const allowedScreens = createAllowedScreens.map((s) =>
+        s.scope ? { screenId: s.screenId, scope: s.scope } : { screenId: s.screenId }
+      );
+      await createPermissionGroup({ code, name, description, allowedScreens });
       setCreateOpen(false);
       setCreateAllowedScreens([]);
       form.reset();
@@ -180,7 +191,10 @@ const PermissionGroupPanel = ({ user, onRefreshHierarchy }) => {
     setActionId('edit');
     setError(null);
     try {
-      await updatePermissionGroup(editGroup.id, { code, name, description, allowedScreens: editAllowedScreens });
+      const allowedScreens = editAllowedScreens.map((s) =>
+        s.scope ? { screenId: s.screenId, scope: s.scope } : { screenId: s.screenId }
+      );
+      await updatePermissionGroup(editGroup.id, { code, name, description, allowedScreens });
       setEditOpen(false);
       setEditGroup(null);
       await loadGroups();

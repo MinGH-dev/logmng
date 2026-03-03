@@ -3,6 +3,7 @@ package com.logmng.service;
 import com.logmng.constants.ScreenConstants;
 import com.logmng.dto.request.PermissionGroupCreateRequest;
 import com.logmng.dto.request.PermissionGroupUpdateRequest;
+import com.logmng.dto.response.AllowedScreenItem;
 import com.logmng.dto.response.AssignUserToGroupResponse;
 import com.logmng.dto.response.PermissionGroupResponse;
 import com.logmng.dto.response.UserListItemResponse;
@@ -18,8 +19,10 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 /**
@@ -251,6 +254,42 @@ public class PermissionGroupService {
         return new ArrayList<>(screens);
     }
 
+    /**
+     * Returns per-screen scope for activity-log, statistics, search-history.
+     * Key = screen_id, value = 'self' or 'all'. When user has multiple groups, if any has 'all', use 'all'; else 'self'.
+     * NULL or missing scope in DB = 'self'.
+     */
+    public Map<String, String> getScreenScopesForUser(String userId) {
+        Map<String, String> scopes = new HashMap<>();
+        if (userId == null || userId.isBlank()) {
+            return scopes;
+        }
+        try (Connection conn = dataSource.getConnection()) {
+            String sql = "SELECT pgs.screen_id, pgs.scope FROM permission_group_screen pgs " +
+                    "INNER JOIN app_user_permission_group aupg ON pgs.permission_group_id = aupg.permission_group_id " +
+                    "WHERE aupg.user_id = ? AND pgs.screen_id IN ('activity-log', 'statistics', 'search-history')";
+            try (PreparedStatement ps = conn.prepareStatement(sql)) {
+                ps.setString(1, userId.trim());
+                try (ResultSet rs = ps.executeQuery()) {
+                    while (rs.next()) {
+                        String screenId = rs.getString("screen_id");
+                        String scope = rs.getString("scope");
+                        if (screenId == null || screenId.isBlank()) continue;
+                        if (!ScreenConstants.supportsScope(screenId)) continue;
+                        String effective = "all".equalsIgnoreCase(scope) ? "all" : "self";
+                        if ("all".equals(effective) || !scopes.containsKey(screenId)) {
+                            scopes.put(screenId, effective);
+                        }
+                    }
+                }
+            }
+        } catch (SQLException e) {
+            log.error("Get screen scopes for user failed: userId={}", userId, e);
+            return scopes;
+        }
+        return scopes;
+    }
+
     public List<UserListItemResponse> listUsersInGroup(Long groupId) {
         findById(groupId);
         List<UserListItemResponse> list = new ArrayList<>();
@@ -388,45 +427,69 @@ public class PermissionGroupService {
         return s != null ? s.trim() : "";
     }
 
-    private void validateAllowedScreens(List<String> screenIds) {
-        if (screenIds == null || screenIds.isEmpty()) {
+    private void validateAllowedScreens(List<AllowedScreenItem> items) {
+        if (items == null || items.isEmpty()) {
             return;
         }
-        String invalid = ScreenConstants.findFirstInvalid(screenIds.toArray(new String[0]));
-        if (invalid != null) {
-            throw CustomException.badRequest("유효하지 않은 화면 ID입니다: " + invalid, "INVALID_SCREEN_ID");
+        for (AllowedScreenItem item : items) {
+            if (item == null || item.getScreenId() == null || item.getScreenId().isBlank()) continue;
+            String screenId = item.getScreenId().trim();
+            if (!ScreenConstants.isValid(screenId)) {
+                throw CustomException.badRequest("유효하지 않은 화면 ID입니다: " + screenId, "INVALID_SCREEN_ID");
+            }
+            if (ScreenConstants.supportsScope(screenId)) {
+                String scope = item.getScope();
+                if (scope != null && !scope.isBlank() && !"self".equalsIgnoreCase(scope) && !"all".equalsIgnoreCase(scope)) {
+                    throw CustomException.badRequest("scope는 'self' 또는 'all'이어야 합니다: " + scope, "INVALID_INPUT");
+                }
+            }
         }
     }
 
-    private List<String> loadAllowedScreens(Connection conn, long groupId) throws SQLException {
-        List<String> screens = new ArrayList<>();
-        String sql = "SELECT screen_id FROM permission_group_screen WHERE permission_group_id = ? ORDER BY screen_id";
+    private List<AllowedScreenItem> loadAllowedScreens(Connection conn, long groupId) throws SQLException {
+        List<AllowedScreenItem> screens = new ArrayList<>();
+        String sql = "SELECT screen_id, scope FROM permission_group_screen WHERE permission_group_id = ? ORDER BY screen_id";
         try (PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setLong(1, groupId);
             try (ResultSet rs = ps.executeQuery()) {
                 while (rs.next()) {
-                    screens.add(rs.getString("screen_id"));
+                    String screenId = rs.getString("screen_id");
+                    String scope = rs.getString("scope");
+                    if (screenId != null && !screenId.isBlank()) {
+                        AllowedScreenItem item = new AllowedScreenItem();
+                        item.setScreenId(screenId);
+                        if (ScreenConstants.supportsScope(screenId) && scope != null && !scope.isBlank()) {
+                            item.setScope("all".equalsIgnoreCase(scope) ? "all" : "self");
+                        }
+                        screens.add(item);
+                    }
                 }
             }
         }
         return screens;
     }
 
-    private void saveAllowedScreens(Connection conn, long groupId, List<String> screenIds) throws SQLException {
+    private void saveAllowedScreens(Connection conn, long groupId, List<AllowedScreenItem> items) throws SQLException {
         String deleteSql = "DELETE FROM permission_group_screen WHERE permission_group_id = ?";
         try (PreparedStatement ps = conn.prepareStatement(deleteSql)) {
             ps.setLong(1, groupId);
             ps.executeUpdate();
         }
-        if (screenIds != null && !screenIds.isEmpty()) {
-            String insertSql = "INSERT INTO permission_group_screen (permission_group_id, screen_id) VALUES (?, ?)";
+        if (items != null && !items.isEmpty()) {
+            String insertSql = "INSERT INTO permission_group_screen (permission_group_id, screen_id, scope) VALUES (?, ?, ?)";
             try (PreparedStatement ps = conn.prepareStatement(insertSql)) {
-                for (String screenId : screenIds) {
-                    if (screenId != null && !screenId.isBlank()) {
-                        ps.setLong(1, groupId);
-                        ps.setString(2, screenId.trim());
-                        ps.addBatch();
+                for (AllowedScreenItem item : items) {
+                    if (item == null || item.getScreenId() == null || item.getScreenId().isBlank()) continue;
+                    String screenId = item.getScreenId().trim();
+                    ps.setLong(1, groupId);
+                    ps.setString(2, screenId);
+                    String scope = null;
+                    if (ScreenConstants.supportsScope(screenId)) {
+                        String s = item.getScope();
+                        scope = "all".equalsIgnoreCase(s) ? "all" : "self";
                     }
+                    ps.setString(3, scope);
+                    ps.addBatch();
                 }
                 ps.executeBatch();
             }

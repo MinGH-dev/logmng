@@ -42,6 +42,7 @@
   - `user.clientIP`: string
   - `user.isSystemAdmin`: boolean — 시스템 관리자 여부 (req 20250303). true면 전체 화면 접근.
   - `user.allowedScreenIds`: string[] (요건 20250227-permission-group-screen-menu-access) — 사용자 권한 그룹들의 접근 가능 화면 합집합.
+  - `user.screenScopes`: Record<string, 'self'|'all'> (요건 20250303-activity-statistics-self-only-scope) — 화면별 데이터 범위. key=screen_id (activity-log, statistics, search-history), value='self'(본인만) | 'all'(전체). is_system_admin=true이면 생략 가능(프론트는 전체로 처리). **용도**: scope=self → 사용자/부서/IP 필터 숨김; scope=all → 필터 표시.
 
 ### 2.2 로그아웃
 
@@ -58,7 +59,7 @@
 
 ### 2.4 현재 사용자 정보 (GET /api/auth/me, 선택)
 
-- **GET** `/api/auth/me` — 로그인 사용자 정보 반환. `isSystemAdmin: boolean`, `allowedScreenIds: string[]` 포함 (req 20250303).
+- **GET** `/api/auth/me` — 로그인 사용자 정보 반환. `isSystemAdmin: boolean`, `allowedScreenIds: string[]`, `screenScopes: Record<string, 'self'|'all'>` 포함 (req 20250303). screenScopes는 activity-log, statistics, search-history 화면별 필터 표시 여부 결정용.
 
 ---
 
@@ -205,6 +206,8 @@
 
 **Base path**: `/api/search-history`
 
+**화면별 범위(scope)**: is_system_admin=false일 때 권한 그룹의 search-history scope 적용. scope='self' → 본인 데이터만; scope='all' → 전체. 상세: `specs/permission-group-hierarchy.spec.yaml` §4.3.
+
 - 검색 이력은 "복호화 승인 요청"이 발생한 검색을 저장하며, 사용자별 최근 이력 목록·재요청·재조회를 지원한다.
 - 승인 유효 기간: 요청일시 + 1일. 만료 시 재요청 가능.
 
@@ -311,6 +314,8 @@
 ## 8. 사용자 활동 이력 (Activity Log)
 
 **Base path**: `/api/activity-log`
+
+**화면별 범위(scope)**: is_system_admin=false일 때 권한 그룹의 activity-log scope 적용. scope='self' → userId 등 파라미터 무시, 현재 사용자 데이터만 반환; scope='all' → 파라미터 그대로 적용. 상세: `specs/permission-group-hierarchy.spec.yaml` §4.3.
 
 ### 8.1 활동 이력 검색
 
@@ -447,20 +452,21 @@
 **Base path (권한 그룹)**: `/api/permission-groups`  
 **사용자 권한 계층**: `GET /api/departments/user-permission-hierarchy`
 
-요건: `docs/requirements/20250227-user-permission-hierarchy-group.md`, `docs/requirements/20250227-permission-group-screen-menu-access.md`. 상세 스펙: `specs/permission-group-hierarchy.spec.yaml`.  
+요건: `docs/requirements/20250227-user-permission-hierarchy-group.md`, `docs/requirements/20250227-permission-group-screen-menu-access.md`, `docs/requirements/20250303-activity-statistics-self-only-scope.md`. 상세 스펙: `specs/permission-group-hierarchy.spec.yaml`.  
 모든 API는 **관리자(is_system_admin=true)** 만 호출 가능. 그 외 403, `code: "FORBIDDEN"`.  
-**화면 기반 접근**: 화면에 대응하는 API는 사용자가 해당 화면을 권한 그룹으로 허용받았거나 is_system_admin=true이어야 함. 그 외 403. 화면↔API 매핑: `specs/permission-group-hierarchy.spec.yaml` §4.3.
+**화면 기반 접근**: 화면에 대응하는 API는 사용자가 해당 화면을 권한 그룹으로 허용받았거나 is_system_admin=true이어야 함. 그 외 403. 화면↔API 매핑: `specs/permission-group-hierarchy.spec.yaml` §4.3.  
+**화면별 범위(scope)**: activity-log, statistics, search-history 화면은 권한 그룹에서 화면별 scope('self'|'all') 설정 가능. scope='self' → 본인 데이터만; scope='all' → 전체. is_system_admin=false일 때만 적용. 상세: `specs/permission-group-hierarchy.spec.yaml` §4.2, §4.3.
 
 ### 14.1 권한 그룹 목록 조회
 
 - **GET** `/api/permission-groups`
-- **Response (data)**: 배열. 각 항목: `id` (number), `code` (string), `name` (string), `description` (string | null), `sortOrder` (number, 선택), `allowedScreens` (string[], 요건 20250227-permission-group-screen-menu-access)
+- **Response (data)**: 배열. 각 항목: `id` (number), `code` (string), `name` (string), `description` (string | null), `sortOrder` (number, 선택), `allowedScreens` (배열: `{ screenId: string, scope?: 'self'|'all' }[]`, 요건 20250227·20250303). activity-log, statistics, search-history에만 scope 사용; 생략·null = 'self'.
 - **에러**: 401, 403
 
 ### 14.2 권한 그룹 생성
 
 - **POST** `/api/permission-groups`
-- **Request body** (JSON): `code` (string, 필수), `name` (string, 필수), `description` (string, 선택), `sortOrder` (number, 선택, 기본 0), `allowedScreens` (string[], 선택 — 허용 화면 목록; 그 외 400 `INVALID_SCREEN_ID`)
+- **Request body** (JSON): `code` (string, 필수), `name` (string, 필수), `description` (string, 선택), `sortOrder` (number, 선택, 기본 0), `allowedScreens` (배열: `{ screenId: string, scope?: 'self'|'all' }[]`, 선택 — 허용 화면 목록; 그 외 400 `INVALID_SCREEN_ID`). activity-log, statistics, search-history에 scope 생략 시 기본 'self'.
 - **Response (data)**: 생성된 권한 그룹 객체 (동일 필드 + `id`, `allowedScreens`)
 - **Status**: 201
 - **에러**: 400 (code/name 누락·중복), 401, 403
@@ -469,14 +475,14 @@
 
 - **GET** `/api/permission-groups/{id}`
 - **Path**: `id` — 권한 그룹 ID (Long)
-- **Response (data)**: 단일 권한 그룹 객체
+- **Response (data)**: 단일 권한 그룹 객체 (`allowedScreens: [{ screenId, scope? }]` 포함)
 - **에러**: 401, 403, 404 → `code: "PERMISSION_GROUP_NOT_FOUND"`
 
 ### 14.4 권한 그룹 수정
 
 - **PUT** `/api/permission-groups/{id}`
 - **Path**: `id` — 권한 그룹 ID (Long)
-- **Request body** (JSON): `code`, `name`, `description`, `sortOrder`, `allowedScreens` (string[], 모두 선택). `allowedScreens`는 허용 화면 목록에 있는 값만; 그 외 400 `INVALID_SCREEN_ID`
+- **Request body** (JSON): `code`, `name`, `description`, `sortOrder`, `allowedScreens` (배열: `{ screenId: string, scope?: 'self'|'all' }[]`, 모두 선택). `allowedScreens`의 screenId는 허용 화면 목록에 있는 값만; 그 외 400 `INVALID_SCREEN_ID`. scope 생략 시 'self'.
 - **Response (data)**: 수정된 권한 그룹 객체
 - **에러**: 400, 401, 403, 404 → "PERMISSION_GROUP_NOT_FOUND"
 
