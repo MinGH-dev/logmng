@@ -22,15 +22,26 @@ public final class ScreenConstants {
     );
     public static final String PENDING_APPROVALS = "pending-approvals";
     public static final String USER_MANAGEMENT = "user-management";
+    public static final String DEPARTMENT_APPROVERS = "department-approvers";
     public static final String USER_PERMISSION_HIERARCHY = "user-permission-hierarchy";
     public static final String PERMISSION_GROUP_MANAGEMENT = "permission-group-management";
 
     private static final Set<String> ALL_ALLOWED_SCREENS = Collections.unmodifiableSet(
             Arrays.asList(
                     MAIN, SEARCH_HISTORY, ACTIVITY_LOG, STATISTICS,
-                    PENDING_APPROVALS, USER_MANAGEMENT, USER_PERMISSION_HIERARCHY,
-                    PERMISSION_GROUP_MANAGEMENT
+                    PENDING_APPROVALS, USER_MANAGEMENT, DEPARTMENT_APPROVERS,
+                    USER_PERMISSION_HIERARCHY, PERMISSION_GROUP_MANAGEMENT
             ).stream().collect(Collectors.toSet())
+    );
+
+    /** Screens that support write (create/update/delete). Per spec §4.4. */
+    private static final Set<String> SCREENS_WITH_WRITE = Collections.unmodifiableSet(
+            Arrays.asList(USER_MANAGEMENT, DEPARTMENT_APPROVERS, USER_PERMISSION_HIERARCHY, PERMISSION_GROUP_MANAGEMENT).stream().collect(Collectors.toSet())
+    );
+
+    /** Screens that support approve (decrypt_approver). Per spec §4.4. */
+    private static final Set<String> SCREENS_WITH_APPROVE = Collections.unmodifiableSet(
+            Arrays.asList(SEARCH_HISTORY, PENDING_APPROVALS).stream().collect(Collectors.toSet())
     );
 
     private ScreenConstants() {
@@ -71,5 +82,15 @@ public final class ScreenConstants {
     /** Returns true if the screen supports scope (activity-log, statistics, search-history). */
     public static boolean supportsScope(String screenId) {
         return screenId != null && SCREENS_WITH_SCOPE.contains(screenId.trim());
+    }
+
+    /** Returns true if the screen supports write (user-management, department-approvers, user-permission-hierarchy, permission-group-management). Per spec §4.4. */
+    public static boolean supportsWrite(String screenId) {
+        return screenId != null && SCREENS_WITH_WRITE.contains(screenId.trim());
+    }
+
+    /** Returns true if the screen supports approve (search-history, pending-approvals). Per spec §4.4. */
+    public static boolean supportsApprove(String screenId) {
+        return screenId != null && SCREENS_WITH_APPROVE.contains(screenId.trim());
     }
 }

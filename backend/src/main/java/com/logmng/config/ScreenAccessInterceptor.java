@@ -37,7 +37,7 @@ public class ScreenAccessInterceptor implements HandlerInterceptor {
     /** Path pattern (regex) -> required screen_id(s). Order: more specific first. */
     private static final List<PathScreenRule> PATH_SCREEN_RULES = List.of(
             new PathScreenRule("^/api/departments/user-permission-hierarchy$", List.of(ScreenConstants.USER_MANAGEMENT, ScreenConstants.USER_PERMISSION_HIERARCHY)),
-            new PathScreenRule("^/api/departments.*", List.of(ScreenConstants.USER_PERMISSION_HIERARCHY)),
+            new PathScreenRule("^/api/departments.*", List.of(ScreenConstants.DEPARTMENT_APPROVERS, ScreenConstants.USER_PERMISSION_HIERARCHY)),
             new PathScreenRule("^/api/permission-groups.*", List.of(ScreenConstants.USER_MANAGEMENT, ScreenConstants.USER_PERMISSION_HIERARCHY)),
             new PathScreenRule("^/api/search-history/pending.*", List.of(ScreenConstants.PENDING_APPROVALS)),
             new PathScreenRule("^/api/search-history/[^/]+/approve.*", List.of(ScreenConstants.PENDING_APPROVALS)),

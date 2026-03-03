@@ -85,7 +85,18 @@ public class DepartmentController {
         }
     }
 
-    /** Allows isSystemAdmin OR allowedScreenIds contains user-management or user-permission-hierarchy. Per spec §4.3. */
+    /** Allows isSystemAdmin OR department-approvers or user-permission-hierarchy. For GET /api/departments. */
+    private void requireDepartmentAccess(HttpServletRequest request) {
+        if (!authService.checkAuth(request)) {
+            throw CustomException.unauthorized("로그인이 필요합니다.", "UNAUTHORIZED");
+        }
+        if (!authService.canAccessDepartmentView(request)) {
+            log.info("부서 API 접근 거부: department-approvers 또는 user-permission-hierarchy 권한 없음");
+            throw CustomException.forbidden("해당 화면에 대한 접근 권한이 없습니다.", "FORBIDDEN");
+        }
+    }
+
+    /** Allows isSystemAdmin OR user-management or user-permission-hierarchy. For user-permission-hierarchy. Per spec §4.3. */
     private void requireUserManagementAccess(HttpServletRequest request) {
         if (!authService.checkAuth(request)) {
             throw CustomException.unauthorized("로그인이 필요합니다.", "UNAUTHORIZED");
@@ -103,7 +114,7 @@ public class DepartmentController {
     public ResponseEntity<ApiResponse<?>> userPermissionHierarchy(
             @RequestParam(defaultValue = "tree") String format,
             HttpServletRequest request) {
-        requireUserManagementAccess(request);
+        requireUserManagementAccess(request);  // user-management or user-permission-hierarchy
         if ("flat".equalsIgnoreCase(format)) {
             List<DepartmentNodeWithUsersResponse> data = userPermissionHierarchyService.getHierarchyFlat();
             return ResponseEntity.ok(ApiResponse.success(data));
@@ -119,7 +130,7 @@ public class DepartmentController {
     public ResponseEntity<ApiResponse<?>> list(
             @RequestParam(defaultValue = "tree") String format,
             HttpServletRequest request) {
-        requireUserManagementAccess(request);
+        requireDepartmentAccess(request);  // department-approvers or user-permission-hierarchy
         if ("flat".equalsIgnoreCase(format)) {
             List<Map<String, Object>> data = departmentService.listFlat();
             return ResponseEntity.ok(ApiResponse.success(data));

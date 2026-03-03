@@ -49,6 +49,14 @@ public class PermissionGroupController {
         }
     }
 
+    /** Requires write function for user-management or user-permission-hierarchy. Per spec §4.4. */
+    private void requireWriteForManagement(HttpServletRequest request) {
+        if (!authService.hasWriteForManagementScreens(request)) {
+            log.info("Permission group write API denied: no write function");
+            throw CustomException.forbidden("해당 기능에 대한 권한이 없습니다.", "FUNCTION_NOT_ALLOWED");
+        }
+    }
+
     /**
      * GET /api/permission-groups — list all. §14.1
      */
@@ -67,6 +75,7 @@ public class PermissionGroupController {
             @Valid @RequestBody PermissionGroupCreateRequest body,
             HttpServletRequest request) {
         requireUserManagementAccess(request);
+        requireWriteForManagement(request);
         PermissionGroupResponse data = permissionGroupService.create(body);
         return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.success(data));
     }
@@ -92,6 +101,7 @@ public class PermissionGroupController {
             @RequestBody PermissionGroupUpdateRequest body,
             HttpServletRequest request) {
         requireUserManagementAccess(request);
+        requireWriteForManagement(request);
         PermissionGroupResponse data = permissionGroupService.update(id, body);
         return ResponseEntity.ok(ApiResponse.success(data));
     }
@@ -104,6 +114,7 @@ public class PermissionGroupController {
             @PathVariable Long id,
             HttpServletRequest request) {
         requireUserManagementAccess(request);
+        requireWriteForManagement(request);
         permissionGroupService.delete(id);
         return ResponseEntity.ok(ApiResponse.success(null));
     }
@@ -117,6 +128,7 @@ public class PermissionGroupController {
             @Valid @RequestBody Map<String, String> body,
             HttpServletRequest request) {
         requireUserManagementAccess(request);
+        requireWriteForManagement(request);
         String userId = body != null ? body.get("userId") : null;
         if (userId == null || userId.isBlank()) {
             throw CustomException.badRequest("userId는 필수이며 비어 있을 수 없습니다.", "INVALID_INPUT");
@@ -134,6 +146,7 @@ public class PermissionGroupController {
             @PathVariable String userId,
             HttpServletRequest request) {
         requireUserManagementAccess(request);
+        requireWriteForManagement(request);
         permissionGroupService.unassignUser(id, userId);
         return ResponseEntity.ok(ApiResponse.success(null));
     }

@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { getUsers } from '../../services/userService';
 import { getUserPermissionHierarchy, listPermissionGroups } from '../../services/permissionGroupService';
 import { getErrorMessage } from '../../utils/errorMessage';
-import { getAllowedScreenIds } from '../../utils/security';
+import { getAllowedScreenIds, getScreenFunctions } from '../../utils/security';
 import logger from '../../utils/logger';
 import UserGroupAssignment from '../UserGroupAssignment/UserGroupAssignment';
 import '../UserPermissionHierarchy/UserPermissionHierarchy.css';
@@ -121,10 +121,14 @@ const UserManagement = ({ user }) => {
   const [expandedCodes, setExpandedCodes] = useState(() => new Set());
 
   const ids = getAllowedScreenIds(user);
+  const screenFunctions = getScreenFunctions(user);
   const canAccessUserManagement =
     user?.isSystemAdmin === true ||
     (Array.isArray(ids) &&
       (ids.includes('user-management') || ids.includes('user-permission-hierarchy')));
+  const canWrite =
+    screenFunctions?.['user-management']?.write === true ||
+    screenFunctions?.['user-permission-hierarchy']?.write === true;
 
   const loadHierarchy = useCallback(async () => {
     if (!canAccessUserManagement) return;
@@ -198,6 +202,7 @@ const UserManagement = ({ user }) => {
             userGroups={permissionGroups}
             allGroups={allGroups}
             onRefresh={onRefresh}
+            disabled={!canWrite}
           />
         </td>
         <td>{isApprover ? '예' : '아니오'}</td>

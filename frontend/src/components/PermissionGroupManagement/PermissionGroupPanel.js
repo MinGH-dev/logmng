@@ -4,6 +4,7 @@
  * Optionally rendered standalone by PermissionGroupManagement for backward compatibility.
  */
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import { Tooltip } from '@mui/material';
 import {
   listPermissionGroups,
   createPermissionGroup,
@@ -14,7 +15,8 @@ import {
   removeUserFromGroup,
 } from '../../services/permissionGroupService';
 import { getUsers } from '../../services/userService';
-import { getAllowedScreenIds } from '../../utils/security';
+import { getAllowedScreenIds, getScreenFunctions } from '../../utils/security';
+import { ACTION_DISABLED_TOOLTIPS } from '../../constants/screenFunctionDescriptions';
 import { getErrorMessage } from '../../utils/errorMessage';
 import DataTable, { EmptyTableBody } from '../DataTable';
 import ScreenSelectionTree from './ScreenSelectionTree';
@@ -53,10 +55,14 @@ const PermissionGroupPanel = ({ user, onRefreshHierarchy }) => {
   const [editAllowedScreens, setEditAllowedScreens] = useState([]);
 
   const ids = getAllowedScreenIds(user);
+  const screenFunctions = getScreenFunctions(user);
   const canAccessPermissionGroupManagement =
     user?.isSystemAdmin === true ||
     (Array.isArray(ids) &&
       (ids.includes('permission-group-management') || ids.includes('user-permission-hierarchy')));
+  const canWrite =
+    screenFunctions?.['permission-group-management']?.write === true ||
+    screenFunctions?.['user-permission-hierarchy']?.write === true;
 
   const sortedGroups = useMemo(() => {
     if (!groups.length || !sortConfig.key) return groups;
@@ -301,9 +307,20 @@ const PermissionGroupPanel = ({ user, onRefreshHierarchy }) => {
         </div>
       )}
       <div className="permission-group-actions">
-        <button type="button" className="user-management-btn add" onClick={() => { setCreateOpen(true); setError(null); }} aria-label="권한 그룹 추가">
-          권한 그룹 추가
-        </button>
+        <Tooltip title={!canWrite ? ACTION_DISABLED_TOOLTIPS.create : ''}>
+          <span>
+            <button
+              type="button"
+              className="user-management-btn add"
+              onClick={() => { setCreateOpen(true); setError(null); }}
+              disabled={!canWrite}
+              aria-disabled={!canWrite}
+              aria-label="권한 그룹 추가"
+            >
+              권한 그룹 추가
+            </button>
+          </span>
+        </Tooltip>
       </div>
       <DataTable
         columns={GROUP_COLUMNS}
@@ -323,9 +340,48 @@ const PermissionGroupPanel = ({ user, onRefreshHierarchy }) => {
               <td>{row.name}</td>
               <td>{row.description ?? '-'}</td>
               <td>
-                <button type="button" className="user-management-btn add" onClick={() => openEdit(row)} aria-label={`수정, ${row.code}`}>수정</button>
-                <button type="button" className="user-management-btn remove" onClick={() => openDelete(row)} aria-label={`삭제, ${row.code}`}>삭제</button>
-                <button type="button" className="user-management-btn add" onClick={() => openUsersDialog(row)} aria-label={`사용자 관리, ${row.code}`}>사용자 관리</button>
+                <Tooltip title={!canWrite ? ACTION_DISABLED_TOOLTIPS.edit : ''}>
+                  <span>
+                    <button
+                      type="button"
+                      className="user-management-btn add"
+                      onClick={() => openEdit(row)}
+                      disabled={!canWrite}
+                      aria-disabled={!canWrite}
+                      aria-label={`수정, ${row.code}`}
+                    >
+                      수정
+                    </button>
+                  </span>
+                </Tooltip>
+                <Tooltip title={!canWrite ? ACTION_DISABLED_TOOLTIPS.delete : ''}>
+                  <span>
+                    <button
+                      type="button"
+                      className="user-management-btn remove"
+                      onClick={() => openDelete(row)}
+                      disabled={!canWrite}
+                      aria-disabled={!canWrite}
+                      aria-label={`삭제, ${row.code}`}
+                    >
+                      삭제
+                    </button>
+                  </span>
+                </Tooltip>
+                <Tooltip title={!canWrite ? ACTION_DISABLED_TOOLTIPS.write : ''}>
+                  <span>
+                    <button
+                      type="button"
+                      className="user-management-btn add"
+                      onClick={() => openUsersDialog(row)}
+                      disabled={!canWrite}
+                      aria-disabled={!canWrite}
+                      aria-label={`사용자 관리, ${row.code}`}
+                    >
+                      사용자 관리
+                    </button>
+                  </span>
+                </Tooltip>
               </td>
             </tr>
           ))

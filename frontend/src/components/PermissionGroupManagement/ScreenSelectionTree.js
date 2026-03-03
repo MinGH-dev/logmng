@@ -2,10 +2,18 @@
  * 2-depth checkbox tree for selecting allowed screens per permission group.
  * Uses MENU_TREE labels; a11y: role="checkbox", aria-checked, role="group".
  * For activity-log, statistics, search-history: scope dropdown ("본인만" | "전체"), default "본인만".
+ * When screen is selected, shows "부여되는 권한: 조회" etc. with tooltip for full description.
  * onChange receives [{ screenId, scope? }].
  */
 import React from 'react';
+import { Tooltip } from '@mui/material';
+import { Info as InfoIcon } from '@mui/icons-material';
 import { MENU_TREE } from '../../constants/menuTree';
+import {
+  getGrantedFunctionsSummary,
+  getScreenFunctionCapabilities,
+  FUNCTION_DESCRIPTIONS,
+} from '../../constants/screenFunctionDescriptions';
 import './ScreenSelectionTree.css';
 
 /** Screens that support scope (self | all). req 20250303-activity-statistics-self-only-scope */
@@ -60,6 +68,16 @@ const ScreenSelectionTree = ({ selectedScreens, onChange }) => {
   const isChecked = (view) => screenIdSet.has(view);
   const supportsScope = (view) => SCOPE_SUPPORTING_SCREENS.includes(view);
 
+  /** Build tooltip content for a screen: full descriptions for read/write/approve */
+  const getScreenTooltipContent = (view) => {
+    const cap = getScreenFunctionCapabilities(view);
+    const parts = [];
+    if (cap.read) parts.push(FUNCTION_DESCRIPTIONS.read);
+    if (cap.write) parts.push(FUNCTION_DESCRIPTIONS.write);
+    if (cap.approve) parts.push(FUNCTION_DESCRIPTIONS.approve);
+    return parts.join('\n\n');
+  };
+
   return (
     <div className="screen-selection-tree" role="group" aria-label="접근 화면 선택">
       {MENU_TREE.map((node) => (
@@ -71,6 +89,8 @@ const ScreenSelectionTree = ({ selectedScreens, onChange }) => {
               const checked = isChecked(view);
               const showScope = supportsScope(view) && checked;
               const scopeValue = getScopeForScreen(normalized, view);
+              const summary = getGrantedFunctionsSummary(view);
+              const tooltipContent = getScreenTooltipContent(view);
               return (
                 <li key={child.id} className="screen-selection-item">
                   <label className="screen-selection-label">
@@ -83,6 +103,16 @@ const ScreenSelectionTree = ({ selectedScreens, onChange }) => {
                     />
                     <span>{child.label}</span>
                   </label>
+                  {checked && summary && (
+                    <span className="screen-selection-functions-summary">
+                      {summary}
+                      <Tooltip title={tooltipContent} arrow placement="right">
+                        <span className="screen-selection-info-icon" role="img" aria-label="권한 설명">
+                          <InfoIcon fontSize="small" sx={{ fontSize: 16, verticalAlign: 'middle', marginLeft: 0.5 }} />
+                        </span>
+                      </Tooltip>
+                    </span>
+                  )}
                   {showScope && (
                     <select
                       className="screen-selection-scope"

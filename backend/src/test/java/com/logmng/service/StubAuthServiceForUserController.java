@@ -14,7 +14,7 @@ public class StubAuthServiceForUserController extends AuthService {
     private final AtomicBoolean canAccessUserManagementViewResult = new AtomicBoolean(true);
 
     public StubAuthServiceForUserController() {
-        super(null, null, null);
+        super(null, null, null, null);
     }
 
     public void setCheckAuth(boolean value) {

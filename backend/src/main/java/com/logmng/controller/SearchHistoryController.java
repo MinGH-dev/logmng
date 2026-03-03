@@ -70,7 +70,7 @@ public class SearchHistoryController {
             throw CustomException.unauthorized("로그인이 필요합니다.", "UNAUTHORIZED");
         }
         if (!decryptApproverService.isAdmin(isSystemAdmin(request)) && !decryptApproverService.isApprover(userId)) {
-            throw CustomException.forbidden("승인/반려는 결재자 또는 관리자만 가능합니다.", "FORBIDDEN_NOT_APPROVER");
+            throw CustomException.forbidden("해당 기능에 대한 권한이 없습니다.", "FUNCTION_NOT_ALLOWED");
         }
     }
 

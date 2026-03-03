@@ -13,7 +13,7 @@ import PermissionGroupManagement from './components/PermissionGroupManagement/Pe
 import PendingApprovals from './components/PendingApprovals/PendingApprovals';
 import AppSidebar from './components/AppSidebar';
 import AppBar from './components/AppBar';
-import { saveMinimalUserData, getMinimalUserData, getAllowedScreenIds, clearUserData } from './utils/security';
+import { saveMinimalUserData, getMinimalUserData, getAllowedScreenIds, getScreenFunctions, deriveScreenFunctionsFromAllowed, clearUserData } from './utils/security';
 import logger from './utils/logger';
 
 function App() {
@@ -69,6 +69,13 @@ function App() {
         setIsAuthenticated(true);
         const savedUser = getMinimalUserData();
         const fromApi = result.data;
+        const apiScreenFunctions = getScreenFunctions(fromApi);
+        const mergedScreenFunctions = apiScreenFunctions && typeof apiScreenFunctions === 'object'
+          ? apiScreenFunctions
+          : (savedUser?.screenFunctions && typeof savedUser.screenFunctions === 'object' ? savedUser.screenFunctions : null);
+        const fallbackScreenFunctions = !mergedScreenFunctions
+          ? deriveScreenFunctionsFromAllowed(getAllowedScreenIds(fromApi) ?? savedUser?.allowedScreenIds, fromApi?.isSystemAdmin ?? savedUser?.isSystemAdmin ?? false)
+          : null;
         const merged = savedUser
           ? {
               username: fromApi?.username ?? savedUser.username,
@@ -77,6 +84,7 @@ function App() {
               screenScopes: fromApi?.screenScopes && typeof fromApi.screenScopes === 'object'
                 ? fromApi.screenScopes
                 : savedUser?.screenScopes ?? null,
+              screenFunctions: mergedScreenFunctions ?? fallbackScreenFunctions,
             }
           : fromApi?.username
             ? {
@@ -84,6 +92,7 @@ function App() {
                 isSystemAdmin: fromApi?.isSystemAdmin ?? false,
                 allowedScreenIds: getAllowedScreenIds(fromApi),
                 screenScopes: fromApi?.screenScopes && typeof fromApi.screenScopes === 'object' ? fromApi.screenScopes : null,
+                screenFunctions: mergedScreenFunctions ?? fallbackScreenFunctions,
               }
             : null;
         if (merged) {
@@ -108,11 +117,13 @@ function App() {
       logger.error('로그인 처리 실패: 사용자 데이터가 없습니다');
       return;
     }
+    const sf = getScreenFunctions(userData);
     const minimalUserData = {
       username: userData.username || null,
       isSystemAdmin: userData.isSystemAdmin === true,
       allowedScreenIds: getAllowedScreenIds(userData),
       screenScopes: userData.screenScopes && typeof userData.screenScopes === 'object' ? userData.screenScopes : null,
+      screenFunctions: sf && typeof sf === 'object' ? sf : deriveScreenFunctionsFromAllowed(getAllowedScreenIds(userData), userData.isSystemAdmin === true),
     };
     setUser(minimalUserData);
     setIsAuthenticated(true);
@@ -249,7 +260,7 @@ function App() {
               <UserManagement user={user} />
             )}
             {currentView === 'permission-group-management' && <PermissionGroupManagement user={user} />}
-            {currentView === 'pending-approvals' && <PendingApprovals />}
+            {currentView === 'pending-approvals' && <PendingApprovals user={user} />}
             {currentView === 'main' && !selectedLogType && (
               <LogTypeSelector onSelectLogType={handleLogTypeSelect} />
             )}

@@ -311,7 +311,7 @@ public class SearchHistoryService {
             throw new RuntimeException("승인 처리 중 오류가 발생했습니다: " + e.getMessage(), e);
         }
         if (!decryptApproverService.canApproveForRequester(approverUserId, requesterUserId)) {
-            throw CustomException.forbidden("해당 요청에 대한 승인 권한이 없습니다.", "FORBIDDEN_NOT_APPROVER");
+            throw CustomException.forbidden("해당 기능에 대한 권한이 없습니다.", "FUNCTION_NOT_ALLOWED");
         }
 
         LogDbSearchRequest searchRequest;
@@ -463,7 +463,7 @@ public class SearchHistoryService {
             throw new RuntimeException("반려 처리 중 오류가 발생했습니다: " + e.getMessage(), e);
         }
         if (!decryptApproverService.canApproveForRequester(approverUserId, requesterUserId)) {
-            throw CustomException.forbidden("해당 요청에 대한 반려 권한이 없습니다.", "FORBIDDEN_NOT_APPROVER");
+            throw CustomException.forbidden("해당 기능에 대한 권한이 없습니다.", "FUNCTION_NOT_ALLOWED");
         }
         try (Connection conn = dataSource.getConnection()) {
             String sql = "UPDATE search_history SET approval_status = 'REJECTED', rejected_by = ?, rejected_at = CURRENT_TIMESTAMP, rejection_reason = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ? AND approval_status = 'PENDING'";

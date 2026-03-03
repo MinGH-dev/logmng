@@ -6,8 +6,8 @@
 ---
 metadata:
   title: "Permission group CRUD, user-group assignment, user-permission hierarchy, screen access"
-  version: "1.2"
-  requirement: "20250227-user-permission-hierarchy-group, 20250227-permission-group-screen-menu-access, 20250303-activity-statistics-self-only-scope"
+  version: "1.3"
+  requirement: "20250227-user-permission-hierarchy-group, 20250227-permission-group-screen-menu-access, 20250303-activity-statistics-self-only-scope, 20250303-screen-function-availability"
   status: "draft"
 
 ---
@@ -196,6 +196,12 @@ Single endpoint that returns department tree with users and their permission gro
 
 Existing: USER_NOT_FOUND, FORBIDDEN, INVALID_INPUT, SELF_DEMOTION_BLOCKED, LAST_ADMIN_BLOCKED remain as-is.
 
+## 3.3 API function-level enforcement (req 20250303-screen-function-availability)
+
+| code | Meaning |
+|------|--------|
+| FUNCTION_NOT_ALLOWED | User lacks the required function (approve, write) for the action. 403. Use generic message; avoid revealing resource existence or internal structure. |
+
 ---
 # 4. Screen IDs and screen-based access
 
@@ -211,6 +217,7 @@ Existing: USER_NOT_FOUND, FORBIDDEN, INVALID_INPUT, SELF_DEMOTION_BLOCKED, LAST_
 | user-management | 사용자 관리 |
 | department-approvers | 부서별 결재자 |
 | user-permission-hierarchy | 사용자 권한 계층 |
+| permission-group-management | 권한 그룹 관리 (same as user-permission-hierarchy) |
 
 Validation: PUT/POST permission-groups with `allowedScreens` must have each value in this list; otherwise 400 `INVALID_SCREEN_ID`.
 
@@ -240,3 +247,54 @@ APIs that correspond to screens must validate: user has is_system_admin=true **o
 | user-management | /api/users, /api/users/approvers, /api/users/approvers/{userId} | — |
 | department-approvers | /api/departments, /api/departments/{code}/approvers, /api/departments/{code}/members, /api/departments/{code}/approvers/default | — |
 | user-permission-hierarchy | /api/permission-groups/*, /api/departments/user-permission-hierarchy | — |
+| permission-group-management | Same as user-permission-hierarchy | — |
+
+## 4.4 screenFunctions (per-screen function availability)
+
+**Requirement**: `docs/requirements/20250303-screen-function-availability.md`
+
+### Structure
+
+```ts
+type ScreenFunctionCapability = {
+  read: boolean;
+  write?: boolean;   // present only for screens that support write
+  approve?: boolean; // present only for screens that support approve
+};
+
+// Auth response (login, GET /api/auth/me)
+screenFunctions: Record<screenId, ScreenFunctionCapability>
+```
+
+### Derivation rules
+
+- **read**: `allowedScreenIds` includes screen_id OR `is_system_admin=true`.
+- **write**: read=true AND screen supports write (user-management, department-approvers, user-permission-hierarchy, permission-group-management). Currently read implies write for these screens.
+- **approve**: read=true AND (`decrypt_approver` canApproveForRequester OR `is_system_admin=true`). Only for search-history, pending-approvals.
+
+### Per-screen mapping
+
+| screen_id | read | write | approve | Notes |
+|-----------|------|-------|---------|-------|
+| main | ✓ | — | — | Always read-only |
+| search-history | ✓ | — | ✓ | approve when decrypt_approver |
+| activity-log | ✓ | — | — | scope from screenScopes |
+| statistics | ✓ | — | — | scope from screenScopes |
+| pending-approvals | ✓ | — | ✓ | approve when decrypt_approver |
+| user-management | ✓ | ✓ | — | |
+| department-approvers | ✓ | ✓ | — | |
+| user-permission-hierarchy | ✓ | ✓ | — | |
+| permission-group-management | ✓ | ✓ | — | Same as user-permission-hierarchy |
+
+### main (검색하기) special case
+
+- main is always `{ read: true }` when user has main in allowedScreenIds.
+- No write, no approve. Search and view only.
+- Decryption is gated by search-history approval flow, not main.
+
+### API enforcement (function-level)
+
+- **Approve APIs** (POST /api/search-history/{id}/approve, POST /api/search-history/{id}/reject): Require approve=true (decrypt_approver or is_system_admin). Otherwise 403, `code: "FUNCTION_NOT_ALLOWED"`.
+- **Write APIs** (user CRUD, permission group CRUD, department approvers, etc.): Require write=true for the corresponding screen. Otherwise 403, `code: "FUNCTION_NOT_ALLOWED"`.
+- **Write + scope**: Write APIs must validate both function (write) and scope (self/all). When scope=self, editing another user's data must return 403.
+- **Error response**: 403 FUNCTION_NOT_ALLOWED must use a generic message; avoid revealing resource existence or internal structure.

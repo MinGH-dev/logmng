@@ -63,3 +63,22 @@
   outline: 2px solid #07c;
   outline-offset: 1px;
 }
+
+.screen-selection-functions-summary {
+  font-size: 0.85rem;
+  color: #555;
+  margin-left: 0.5rem;
+  display: inline-flex;
+  align-items: center;
+}
+
+.screen-selection-info-icon {
+  cursor: help;
+  color: #666;
+  display: inline-flex;
+  align-items: center;
+}
+
+.screen-selection-info-icon:hover {
+  color: #07c;
+}
