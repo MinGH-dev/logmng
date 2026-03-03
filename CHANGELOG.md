@@ -6,6 +6,18 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### 2026-03-03
+
+- **chore (docs)**: RequirementsPastSearch 토큰 최적화 — 과거 요구사항 검색 시 토큰 사용량 70~90% 절감을 위한 구조 개선.
+  - **TOPIC-INDEX.md**: `docs/requirements/TOPIC-INDEX.md` 신규 추가. 62개 요건을 11개 주제(permission, activity-log, sidebar, department 등)로 분류한 인덱스. RequirementsPastSearch가 전체 문서 검색 대신 인덱스 먼저 읽어 관련 doc ID만 추출.
+  - **읽기 범위 제한**: past-requirements-search에 §1만 읽도록 규칙 추가 (offset=1, limit=90). §2·§3·§5는 요청 시에만.
+  - **출력 제한**: 요약 300단어 이내, `DocID | one-line` 형식, 불릿만.
+  - **2단계 호출**: "ids only" 시 doc ID 목록만 반환하는 모드 지원. Requirements가 필요 시 상세 요약만 추가 요청 가능.
+  - **Requirements·AGENT-COLLABORATION 갱신**: RequirementsPastSearch 호출 시 topic 전달 및 TOPIC-INDEX 사용 안내.
+  - **RequirementsPastSearch.mdc**: Token optimization 섹션, TOPIC-INDEX 참조 추가.
+  - **generate-requirements-index.sh**: `scripts/generate-requirements-index.sh` 신규. TOPIC-INDEX에 없는 요건 doc 목록 출력. 새 요건 추가 후 인덱스 누락 확인용.
+  - **REQUIREMENT_TEMPLATE**: 검증 완료 후 TOPIC-INDEX에 한 줄 추가하는 유지보수 안내.
+
 ### 2025-03-03
 
 - **feat**: Permission group delete constraint and system administrator protection (req `docs/requirements/20250303-permission-group-delete-system-admin-protection.md`): (1) Permission group deletion allowed only when users=0; 400 `PERMISSION_GROUP_HAS_USERS` when users assigned. (2) System administrator (`is_system_admin`) immutable — role change and delete blocked; minimum one system admin enforced (`SYSTEM_ADMIN_IMMUTABLE`, `LAST_SYSTEM_ADMIN_BLOCKED`). (3) User management UI: system admin badge, disabled role dropdown, error message mappings. APIs: `GET /api/users` and hierarchy include `isSystemAdmin`; `PUT /api/users/{userId}` rejects system admin modification.

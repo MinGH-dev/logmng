@@ -24,6 +24,13 @@ Do **not** use for: writing or editing requirement docs (→ Requirements), impl
 - **Read-only**: Only read `docs/requirements/`, `docs/template/`, and optionally `specs/`. Do **not** create, edit, or delete requirement docs or code.
 - **No code**: Do not modify frontend/backend or run tests.
 
+## Token optimization
+
+- **First**: Read `docs/requirements/TOPIC-INDEX.md` to find relevant doc IDs by topic.
+- **Read scope**: Only §1 of each doc (Read offset=1, limit=90). Do NOT load full doc.
+- **Output**: Max 300 words. Format: `DocID | one-line`. Bullets only.
+- **Two-phase**: If handoff says "ids only", return only doc IDs from TOPIC-INDEX.
+
 ## Collaboration
 
 - **Invoked by**: Requirements (during authoring), or any agent giving feedback on a requirement draft, to ensure "user's recent requests in past requirements" are maintained. See `docs/workflow/AGENT-COLLABORATION-ON-REQUIREMENT.md` §1.1 and `docs/workflow/SUBAGENT-DELEGATION.md`.
@@ -32,6 +39,7 @@ Do **not** use for: writing or editing requirement docs (→ Requirements), impl
 
 ## References
 
+- **Topic index**: `docs/requirements/TOPIC-INDEX.md` — read first.
 - Requirement docs: `docs/requirements/` (naming `yyyyMMdd-name.md`).
 - Collaboration: `docs/workflow/AGENT-COLLABORATION-ON-REQUIREMENT.md` §1.1.
 - Prompt (full): `docs/cursor-subagents/past-requirements-search.md`.
