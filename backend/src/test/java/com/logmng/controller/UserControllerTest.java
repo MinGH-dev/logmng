@@ -1,8 +1,5 @@
 package com.logmng.controller;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.logmng.dto.response.UserListItemResponse;
-import com.logmng.exception.CustomException;
 import com.logmng.service.StubDecryptApproverServiceForRoleUpdate;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -10,12 +7,13 @@ import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 /**
- * UserController PUT /api/users/{userId} (role update) tests. §7.4
- * Uses StubDecryptApproverServiceForRoleUpdate to avoid Mockito on Java 25+.
+ * UserController PUT /api/users/{userId} tests. §7.4
+ * PUT returns 410 Gone (req 20250303). Uses isSystemAdmin for admin check.
  */
 class UserControllerTest {
 
@@ -47,7 +45,7 @@ class UserControllerTest {
 
         mockMvc.perform(put("/api/users/user1")
                         .sessionAttr("userId", "user2")
-                        .sessionAttr("role", "USER")
+                        .sessionAttr("isSystemAdmin", false)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"role\":\"ADMIN\"}"))
                 .andExpect(status().isForbidden())
@@ -56,86 +54,38 @@ class UserControllerTest {
     }
 
     @Test
-    void updateUserRole_whenSelfDemotion_returns400() throws Exception {
-        stubService.setUpdateException(CustomException.badRequest("자기 자신의 권한은 변경할 수 없습니다.", "SELF_DEMOTION_BLOCKED"));
-
-        mockMvc.perform(put("/api/users/admin1")
-                        .sessionAttr("userId", "admin1")
-                        .sessionAttr("role", "ADMIN")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"role\":\"USER\"}"))
-                .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.success").value(false))
-                .andExpect(jsonPath("$.code").value("SELF_DEMOTION_BLOCKED"));
-    }
-
-    @Test
-    void updateUserRole_whenSystemAdmin_returns400() throws Exception {
-        stubService.setUpdateException(CustomException.badRequest("시스템 관리자는 수정할 수 없습니다.", "SYSTEM_ADMIN_IMMUTABLE"));
-
-        mockMvc.perform(put("/api/users/admin1")
-                        .sessionAttr("userId", "admin2")
-                        .sessionAttr("role", "ADMIN")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"role\":\"USER\"}"))
-                .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.success").value(false))
-                .andExpect(jsonPath("$.code").value("SYSTEM_ADMIN_IMMUTABLE"));
-    }
-
-    @Test
-    void updateUserRole_whenLastAdmin_returns400() throws Exception {
-        stubService.setUpdateException(CustomException.badRequest("마지막 관리자 권한은 변경할 수 없습니다.", "LAST_ADMIN_BLOCKED"));
-
-        mockMvc.perform(put("/api/users/admin1")
-                        .sessionAttr("userId", "admin2")
-                        .sessionAttr("role", "ADMIN")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"role\":\"USER\"}"))
-                .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.success").value(false))
-                .andExpect(jsonPath("$.code").value("LAST_ADMIN_BLOCKED"));
-    }
-
-    @Test
-    void updateUserRole_whenUserNotFound_returns404() throws Exception {
-        stubService.setUpdateException(CustomException.notFound("해당 사용자를 찾을 수 없습니다: nonexistent", "USER_NOT_FOUND"));
-
-        mockMvc.perform(put("/api/users/nonexistent")
-                        .sessionAttr("userId", "admin1")
-                        .sessionAttr("role", "ADMIN")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"role\":\"ADMIN\"}"))
-                .andExpect(status().isNotFound())
-                .andExpect(jsonPath("$.success").value(false))
-                .andExpect(jsonPath("$.code").value("USER_NOT_FOUND"));
-    }
-
-    @Test
-    void updateUserRole_whenInvalidRole_returns400() throws Exception {
-        stubService.setUpdateException(CustomException.badRequest("role은 ADMIN 또는 USER여야 합니다.", "INVALID_INPUT"));
+    void updateUserRole_returns410Gone() throws Exception {
+        stubService.setAdmin(true);
 
         mockMvc.perform(put("/api/users/user1")
                         .sessionAttr("userId", "admin1")
-                        .sessionAttr("role", "ADMIN")
+                        .sessionAttr("isSystemAdmin", true)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"role\":\"INVALID\"}"))
-                .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.success").value(false));
+                        .content("{\"role\":\"ADMIN\"}"))
+                .andExpect(status().isGone())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.code").value("ENDPOINT_REMOVED"));
     }
 
     @Test
-    void updateUserRole_whenValid_returns200AndUpdatedUser() throws Exception {
-        stubService.setUpdateResult(new UserListItemResponse("user1", "ADMIN", "D1", false));
+    void listUsers_whenSystemAdmin_returns200() throws Exception {
+        stubService.setAdmin(true);
 
-        mockMvc.perform(put("/api/users/user1")
+        mockMvc.perform(get("/api/users")
                         .sessionAttr("userId", "admin1")
-                        .sessionAttr("role", "ADMIN")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"role\":\"ADMIN\"}"))
+                        .sessionAttr("isSystemAdmin", true))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.success").value(true))
-                .andExpect(jsonPath("$.data.userId").value("user1"))
-                .andExpect(jsonPath("$.data.role").value("ADMIN"));
+                .andExpect(jsonPath("$.success").value(true));
+    }
+
+    @Test
+    void listUsers_whenNonAdmin_returns403() throws Exception {
+        stubService.setAdmin(false);
+
+        mockMvc.perform(get("/api/users")
+                        .sessionAttr("userId", "user1")
+                        .sessionAttr("isSystemAdmin", false))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.code").value("FORBIDDEN"));
     }
 }

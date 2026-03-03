@@ -4,12 +4,6 @@
   margin: 0 auto;
 }
 
-.user-management .hierarchy-users-table select {
-  font-size: 0.85rem;
-  padding: 0.2rem 0.4rem;
-  min-width: 6rem;
-}
-
 .user-management .system-admin-badge {
   display: inline-block;
   margin-right: 0.5rem;

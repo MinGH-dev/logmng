@@ -3,6 +3,8 @@ package com.logmng.service;
 import com.logmng.dto.response.UserListItemResponse;
 
 import javax.sql.DataSource;
+import java.util.Collections;
+import java.util.List;
 import java.util.concurrent.atomic.AtomicReference;
 
 /**
@@ -36,6 +38,16 @@ public class StubDecryptApproverServiceForRoleUpdate extends DecryptApproverServ
     @Override
     public boolean isAdmin(String role) {
         return admin;
+    }
+
+    @Override
+    public boolean isAdmin(boolean isSystemAdmin) {
+        return admin;
+    }
+
+    @Override
+    public List<UserListItemResponse> listUsers() {
+        return Collections.emptyList();
     }
 
     @Override

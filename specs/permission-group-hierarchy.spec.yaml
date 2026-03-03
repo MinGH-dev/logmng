@@ -14,7 +14,7 @@ metadata:
 # 1. API contract
 
 Base URL: http://localhost:9200/api (per docs/contract.md).
-All endpoints below are **admin-only** (role=ADMIN). Otherwise 403, code: "FORBIDDEN".
+All endpoints below are **admin-only** (is_system_admin=true). Otherwise 403, code: "FORBIDDEN". (req 20250303)
 
 ## 1.1 Permission group CRUD
 
@@ -99,7 +99,7 @@ Two equivalent styles allowed; implement one and document in api-definition.
 - **Errors**: 401, 403, 404
 
 ### GET /api/permission-groups/{id}/users (optional)
-- **Response (data)**: array of user summary objects, e.g. `{ "userId", "username", "departmentCode", "role" }`.
+- **Response (data)**: array of user summary objects, e.g. `{ "userId", "username", "departmentCode", "isSystemAdmin" }` (role 제외, req 20250303).
 - **Errors**: 401, 403, 404
 
 ## 1.3 User-permission hierarchy
@@ -116,7 +116,6 @@ Single endpoint that returns department tree with users and their permission gro
   - `children`: array (recursive same structure)
   - `users`: array of user-permission objects:
     - `userId` (username): string
-    - `role`: "ADMIN" | "USER"
     - `isSystemAdmin`: boolean — system administrator flag (immutable; req 20250303)
     - `permissionGroups`: array of `{ "id", "code", "name" }` (assigned to this user)
 - **Flat format**: array of department nodes with `code`, `parentCode`, `name`, `sortOrder`, `users` (same shape as above). No `children`.
@@ -209,13 +208,13 @@ Validation: PUT/POST permission-groups with `allowedScreens` must have each valu
 ## 4.2 Auth response extension (allowedScreenIds)
 
 **POST /api/auth/login** and **GET /api/auth/me** (or equivalent) response (user object) includes:
-- `allowedScreenIds`: string[] — union of allowed screens from all of the user's permission groups. If user is ADMIN, return all screen IDs (or omit and treat ADMIN as full access).
+- `allowedScreenIds`: string[] — union of allowed screens from all of the user's permission groups. If user is system admin (is_system_admin=true), return all screen IDs.
 
 ## 4.3 Screen-based API access enforcement
 
-APIs that correspond to screens must validate: user has role=ADMIN **or** user has the required screen in at least one of their permission groups. Otherwise 403.
+APIs that correspond to screens must validate: user has is_system_admin=true **or** user has the required screen in at least one of their permission groups. Otherwise 403.
 
-| screen_id | APIs (require this screen or ADMIN) |
+| screen_id | APIs (require this screen or is_system_admin=true) |
 |-----------|------------------------------------|
 | main | /api/logs/db-refactored/*, /api/log-types/* |
 | search-history | /api/search-history/* |

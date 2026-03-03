@@ -1,6 +1,7 @@
 package com.logmng.dto.response;
 
 import com.fasterxml.jackson.annotation.JsonFormat;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -17,10 +18,15 @@ public class LoginResponse {
     
     private String clientIP;
 
-    /** Role from app_user (ADMIN | USER). Used for session. */
+    /** @deprecated Use isSystemAdmin. Not exposed in JSON (req 20250303). */
+    @Deprecated
+    @JsonIgnore
     private String role;
 
-    /** Union of allowed screens from user's permission groups. ADMIN gets all. */
+    /** System administrator flag (is_system_admin). Admin-only access uses this. */
+    private Boolean isSystemAdmin;
+
+    /** Union of allowed screens from user's permission groups. System admin gets all. */
     private List<String> allowedScreenIds;
 
     public LoginResponse() {
@@ -70,6 +76,14 @@ public class LoginResponse {
 
     public void setAllowedScreenIds(List<String> allowedScreenIds) {
         this.allowedScreenIds = allowedScreenIds;
+    }
+
+    public Boolean getIsSystemAdmin() {
+        return isSystemAdmin;
+    }
+
+    public void setIsSystemAdmin(Boolean isSystemAdmin) {
+        this.isSystemAdmin = isSystemAdmin;
     }
 }
 

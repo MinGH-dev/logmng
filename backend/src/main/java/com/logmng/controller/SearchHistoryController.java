@@ -43,11 +43,11 @@ public class SearchHistoryController {
         return userId != null ? userId.toString() : null;
     }
 
-    private static String getRole(HttpServletRequest request) {
+    private static boolean isSystemAdmin(HttpServletRequest request) {
         jakarta.servlet.http.HttpSession session = request.getSession(false);
-        if (session == null) return null;
-        Object role = session.getAttribute("role");
-        return role != null ? role.toString() : null;
+        if (session == null) return false;
+        Object v = session.getAttribute("isSystemAdmin");
+        return Boolean.TRUE.equals(v);
     }
 
     private void requireApproverOrAdmin(HttpServletRequest request) {
@@ -55,8 +55,7 @@ public class SearchHistoryController {
         if (userId == null || userId.isBlank()) {
             throw CustomException.unauthorized("로그인이 필요합니다.", "UNAUTHORIZED");
         }
-        String role = getRole(request);
-        if (!decryptApproverService.isAdmin(role) && !decryptApproverService.isApprover(userId)) {
+        if (!decryptApproverService.isAdmin(isSystemAdmin(request)) && !decryptApproverService.isApprover(userId)) {
             throw CustomException.forbidden("승인/반려는 결재자 또는 관리자만 가능합니다.", "FORBIDDEN_NOT_APPROVER");
         }
     }
@@ -92,8 +91,8 @@ public class SearchHistoryController {
             HttpServletRequest httpRequest) {
         requireApproverOrAdmin(httpRequest);
         String approverUserId = getUserId(httpRequest);
-        String role = getRole(httpRequest);
-        SearchHistoryListResponse data = searchHistoryService.listPending(approverUserId, role, page, pageSize);
+        boolean isSystemAdmin = isSystemAdmin(httpRequest);
+        SearchHistoryListResponse data = searchHistoryService.listPending(approverUserId, isSystemAdmin, page, pageSize);
         return ResponseEntity.ok(ApiResponse.success(data));
     }
 

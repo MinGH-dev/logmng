@@ -63,11 +63,11 @@ public class DepartmentController {
         return v != null ? v.toString() : null;
     }
 
-    private static String getRole(HttpServletRequest request) {
+    private static boolean isSystemAdmin(HttpServletRequest request) {
         jakarta.servlet.http.HttpSession session = request.getSession(false);
-        if (session == null) return null;
-        Object v = session.getAttribute("role");
-        return v != null ? v.toString() : null;
+        if (session == null) return false;
+        Object v = session.getAttribute("isSystemAdmin");
+        return Boolean.TRUE.equals(v);
     }
 
     private void requireAdmin(HttpServletRequest request) {
@@ -75,9 +75,8 @@ public class DepartmentController {
         if (userId == null || userId.isBlank()) {
             throw CustomException.unauthorized("로그인이 필요합니다.", "UNAUTHORIZED");
         }
-        String role = getRole(request);
-        if (!decryptApproverService.isAdmin(role)) {
-            log.info("부서/결재자 API 접근 거부: role={}", role != null ? role : "null");
+        if (!decryptApproverService.isAdmin(isSystemAdmin(request))) {
+            log.info("부서/결재자 API 접근 거부: isSystemAdmin=false");
             throw CustomException.forbidden("관리자만 부서 및 부서별 결재자를 관리할 수 있습니다.", "FORBIDDEN");
         }
     }

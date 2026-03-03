@@ -237,10 +237,10 @@ public class SearchHistoryService {
      * 승인 대기(PENDING) 목록. 결재자/관리자 전용. §6.1.5
      * 관리자: 전체. 그 외: canApproveForRequester(approverUserId, requester)인 건만.
      */
-    public SearchHistoryListResponse listPending(String approverUserId, String role, int page, int pageSize) {
+    public SearchHistoryListResponse listPending(String approverUserId, boolean isSystemAdmin, int page, int pageSize) {
         if (page < 1) page = 1;
         if (pageSize < 1 || pageSize > 100) pageSize = 20;
-        boolean isAdmin = decryptApproverService.isAdmin(role);
+        boolean isAdmin = decryptApproverService.isAdmin(isSystemAdmin);
         List<Map<String, Object>> allFiltered = new ArrayList<>();
         try (Connection conn = dataSource.getConnection()) {
             String sql = "SELECT id, user_id, search_params, requested_at FROM search_history WHERE approval_status = 'PENDING' ORDER BY requested_at DESC";

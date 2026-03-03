@@ -40,7 +40,8 @@
   - `user.username`: string
   - `user.loginTime`: string (yyyy-MM-dd'T'HH:mm:ss)
   - `user.clientIP`: string
-  - `user.allowedScreenIds`: string[] (요건 20250227-permission-group-screen-menu-access) — 사용자 권한 그룹들의 접근 가능 화면 합집합. ADMIN은 전체 화면 또는 생략(전체 접근).
+  - `user.isSystemAdmin`: boolean — 시스템 관리자 여부 (req 20250303). true면 전체 화면 접근.
+  - `user.allowedScreenIds`: string[] (요건 20250227-permission-group-screen-menu-access) — 사용자 권한 그룹들의 접근 가능 화면 합집합.
 
 ### 2.2 로그아웃
 
@@ -57,7 +58,7 @@
 
 ### 2.4 현재 사용자 정보 (GET /api/auth/me, 선택)
 
-- **GET** `/api/auth/me` — 로그인 사용자 정보 반환. 구현 시 응답에 `allowedScreenIds: string[]` 포함 (요건 20250227-permission-group-screen-menu-access). 로그인 응답과 동일 규칙.
+- **GET** `/api/auth/me` — 로그인 사용자 정보 반환. `isSystemAdmin: boolean`, `allowedScreenIds: string[]` 포함 (req 20250303).
 
 ---
 
@@ -246,7 +247,7 @@
 ### 6.1.5 승인 대기 목록 조회 (결재자·관리자 전용)
 
 - **GET** `/api/search-history/pending`
-- **권한**: 결재자(decrypt_approver에 등록된 사용자) 또는 관리자(role=ADMIN)만 호출 가능. 그 외 403.
+- **권한**: 결재자(decrypt_approver에 등록된 사용자) 또는 관리자(is_system_admin=true)만 호출 가능. 그 외 403.
 - **Query**: `page` (기본 1), `pageSize` (기본 20)
 - **Response (data)**: `SearchHistoryPendingListResponse`
   - `data`: 배열. 각 항목: `id`, `requester` (요청자 username), `searchParamsSummary` (요약 문자열), `requestedAt` (yyyy-MM-dd'T'HH:mm:ss), 기타 목록용 필드
@@ -257,7 +258,7 @@
 
 - **POST** `/api/search-history/{id}/approve`
 - **Path**: `id` — 검색 이력 ID (Long)
-- **권한**: 결재자 또는 관리자만 호출 가능. 그 외 403.
+- **권한**: 결재자 또는 관리자(is_system_admin=true)만 호출 가능. 그 외 403.
 - **Request body**: 없음
 - **Response (data)**: `{ "id": number, "approvalStatus": "APPROVED", "approvedBy": string, "approvedAt": string (yyyy-MM-dd'T'HH:mm:ss) }`
 - **에러**: 401 비인증, 403 결재자/관리자 아님 → `code: "FORBIDDEN_NOT_APPROVER"` 또는 `"NOT_APPROVER"`, 404 해당 이력 없음
@@ -266,7 +267,7 @@
 
 - **POST** `/api/search-history/{id}/reject`
 - **Path**: `id` — 검색 이력 ID (Long)
-- **권한**: 결재자 또는 관리자만 호출 가능. 그 외 403.
+- **권한**: 결재자 또는 관리자(is_system_admin=true)만 호출 가능. 그 외 403.
 - **Request body** (JSON, 선택):
 
 | 필드 | 타입 | 필수 | 설명 |
@@ -282,47 +283,28 @@
 
 **Base path**: `/api/users`
 
-모든 API는 **관리자(role=ADMIN)** 만 호출 가능. 그 외 403.
+모든 API는 **관리자(is_system_admin=true)** 만 호출 가능. 그 외 403. (req 20250303)
 
 ### 7.1 사용자 목록 조회
 
 - **GET** `/api/users`
 - **Response (data)**: 배열. 각 항목:
   - `userId` (또는 `username`): string — 로그인 ID
-  - `role`: string — "ADMIN" | "USER"
-  - `isSystemAdmin`: boolean — 시스템 관리자 여부 (수정·삭제 불가, 요건 20250303)
+  - `isSystemAdmin`: boolean — 시스템 관리자 여부 (수정·삭제 불가)
   - `departmentCode`: string | null — 부서코드
   - `position`: string | null — 직책
   - `rank`: string | null — 직급
   - `isApprover`: boolean — decrypt_approver 테이블에 존재 여부(복호화 결재자 여부)
 - **에러**: 401 비인증, 403 관리자 아님 → `code: "FORBIDDEN"` 등
 
-### 7.2 사용자 역할 변경 (요건 20250227-user-management-hierarchy-permissions)
+### 7.2 사용자 역할 변경 — 410 Gone (req 20250303)
 
 - **PUT** `/api/users/{userId}`
-- **Path**: `userId` — 역할을 변경할 사용자 ID(username, app_user.username)
-- **권한**: 관리자(role=ADMIN)만 호출 가능. 그 외 403, `code: "FORBIDDEN"`.
-- **Request body** (JSON):
-
-| 필드 | 타입 | 필수 | 설명 |
-|------|------|------|------|
-| role | string | O | "ADMIN" \| "USER" — 유효값만 허용 |
-
-- **Response (data)**: 업데이트된 사용자 요약 객체
-  - `userId` (또는 `username`): string
-  - `role`: string — "ADMIN" \| "USER" (변경 후 값)
-  - `isSystemAdmin`: boolean — 시스템 관리자 여부
-  - `departmentCode`: string \| null
-  - `isApprover`: boolean
-- **에러**:
-  - 401 비인증
-  - 403 관리자 아님 → `code: "FORBIDDEN"`
-  - 404 해당 사용자 없음 → `code: "USER_NOT_FOUND"`
-  - 400 role 누락 또는 ADMIN/USER 외 값 → `code: "INVALID_INPUT"`
-  - 400 자기 자신 역할 변경 시도 → `code: "SELF_DEMOTION_BLOCKED"`
-  - 400 마지막 관리자 강등 시도 → `code: "LAST_ADMIN_BLOCKED"`
-  - 400 대상이 시스템 관리자(수정 불가) → `code: "SYSTEM_ADMIN_IMMUTABLE"`
-  - 400 강등 시 시스템 관리자가 0명이 됨 → `code: "LAST_SYSTEM_ADMIN_BLOCKED"`
+- **Path**: `userId` — 사용자 ID(username, app_user.username)
+- **권한**: 관리자(is_system_admin=true)만 호출 가능. 그 외 403.
+- **Response**: **410 Gone** — 역할 변경 API 제거됨. 권한은 권한 그룹으로 관리.
+  - `success`: false
+  - `code`: "ENDPOINT_REMOVED"
 
 ---
 
@@ -438,7 +420,7 @@
 **Base path**: `/api/departments`
 
 부서는 code·parent_code·name으로 계층 구조. 루트는 parent_code null.  
-부서 API는 **관리자(role=ADMIN)** 만 호출 가능. 그 외 403.  
+부서 API는 **관리자(is_system_admin=true)** 만 호출 가능. 그 외 403.  
 부서별 결재자·멤버·팀장 지정 API는 제거됨(팀장 자동 지정으로 대체).
 
 ### 12.1 부서 트리 조회
@@ -466,8 +448,8 @@
 **사용자 권한 계층**: `GET /api/departments/user-permission-hierarchy`
 
 요건: `docs/requirements/20250227-user-permission-hierarchy-group.md`, `docs/requirements/20250227-permission-group-screen-menu-access.md`. 상세 스펙: `specs/permission-group-hierarchy.spec.yaml`.  
-모든 API는 **관리자(role=ADMIN)** 만 호출 가능. 그 외 403, `code: "FORBIDDEN"`.  
-**화면 기반 접근**: 화면에 대응하는 API는 사용자가 해당 화면을 권한 그룹으로 허용받았거나 ADMIN이어야 함. 그 외 403. 화면↔API 매핑: `specs/permission-group-hierarchy.spec.yaml` §4.3.
+모든 API는 **관리자(is_system_admin=true)** 만 호출 가능. 그 외 403, `code: "FORBIDDEN"`.  
+**화면 기반 접근**: 화면에 대응하는 API는 사용자가 해당 화면을 권한 그룹으로 허용받았거나 is_system_admin=true이어야 함. 그 외 403. 화면↔API 매핑: `specs/permission-group-hierarchy.spec.yaml` §4.3.
 
 ### 14.1 권한 그룹 목록 조회
 
@@ -526,7 +508,7 @@
 
 - **GET** `/api/permission-groups/{id}/users`
 - **Path**: `id` — 권한 그룹 ID (Long)
-- **Response (data)**: 배열. 각 항목: `userId`, `username`, `departmentCode`, `role` 등 사용자 요약
+- **Response (data)**: 배열. 각 항목: `userId`, `username`, `departmentCode`, `isSystemAdmin` 등 사용자 요약 (role 제외, req 20250303)
 - **에러**: 401, 403, 404
 
 ### 14.9 사용자 권한 계층 조회
@@ -534,7 +516,7 @@
 - **GET** `/api/departments/user-permission-hierarchy`
 - **Query**: `format` — "tree"(기본) | "flat"
 - **Response (data)**:
-  - **tree**: 루트 노드 배열. 각 노드: `code`, `parentCode`, `name`, `sortOrder`, `children` (재귀), `users` (배열). `users` 각 항목: `userId` (username), `role`, `isSystemAdmin` (boolean, 시스템 관리자 여부), `position` (직책), `rank` (직급), `permissionGroups` (배열: `{ id, code, name }`).
+  - **tree**: 루트 노드 배열. 각 노드: `code`, `parentCode`, `name`, `sortOrder`, `children` (재귀), `users` (배열). `users` 각 항목: `userId` (username), `isSystemAdmin` (boolean, 시스템 관리자 여부), `position` (직책), `rank` (직급), `permissionGroups` (배열: `{ id, code, name }`). role 제외 (req 20250303).
   - **flat**: 부서 노드 배열에 `users` 포함(동일 구조), `children` 없음.
 - **에러**: 401, 403
 

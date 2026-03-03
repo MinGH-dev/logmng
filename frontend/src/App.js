@@ -27,7 +27,7 @@ function App() {
   const [initialSearchApprovalId, setInitialSearchApprovalId] = useState(null);
 
   const canAccessView = (view) => {
-    if (user?.role === 'ADMIN') return true;
+    if (user?.isSystemAdmin === true) return true;
     const ids = user?.allowedScreenIds;
     if (!Array.isArray(ids) || ids.length === 0) return false;
     if (view === 'user-management') {
@@ -69,7 +69,7 @@ function App() {
         const merged = savedUser
           ? {
               username: fromApi?.username ?? savedUser.username,
-              role: fromApi?.role ?? savedUser.role,
+              isSystemAdmin: fromApi?.isSystemAdmin ?? savedUser.isSystemAdmin ?? false,
               allowedScreenIds: Array.isArray(fromApi?.allowedScreenIds)
                 ? fromApi.allowedScreenIds
                 : savedUser?.allowedScreenIds ?? null,
@@ -77,7 +77,7 @@ function App() {
           : fromApi?.username
             ? {
                 username: fromApi.username,
-                role: fromApi.role ?? null,
+                isSystemAdmin: fromApi?.isSystemAdmin ?? false,
                 allowedScreenIds: Array.isArray(fromApi?.allowedScreenIds) ? fromApi.allowedScreenIds : null,
               }
             : null;
@@ -105,7 +105,7 @@ function App() {
     }
     const minimalUserData = {
       username: userData.username || null,
-      role: userData.role || null,
+      isSystemAdmin: userData.isSystemAdmin === true,
       allowedScreenIds: Array.isArray(userData.allowedScreenIds) ? userData.allowedScreenIds : null,
     };
     setUser(minimalUserData);
@@ -144,7 +144,7 @@ function App() {
   useEffect(() => {
     if (!isAuthenticated || !user) return;
     if (currentView === 'main') return;
-    const isAdmin = user?.role === 'ADMIN';
+    const isAdmin = user?.isSystemAdmin === true;
     const ids = user?.allowedScreenIds;
     const hasAccess = isAdmin || (Array.isArray(ids) && ids.length > 0 && ids.includes(currentView));
     if (!hasAccess) setCurrentView('main');
@@ -201,7 +201,7 @@ function App() {
       >
         <AppSidebar
           open={sidebarOpen}
-          isAdmin={user?.role === 'ADMIN'}
+          isAdmin={user?.isSystemAdmin === true}
           allowedScreenIds={user?.allowedScreenIds}
           currentView={currentView}
           onNavigate={handleNavigate}
