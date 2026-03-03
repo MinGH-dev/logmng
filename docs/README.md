@@ -173,6 +173,13 @@ Agent가 작업을 완료한 후:
 
 - **dev-workflow**: 새 요건/기능 시작 시 개발 워크플로우 단계 자동 참고
 - **requirement-doc**: 요건 문서 작성 시 템플릿·파일명 규칙 적용
+- **auth-permission-domain**: 권한·접근 제어·is_system_admin·permission group·화면 접근 관련 질문 시 사용. 계약·스펙(docs/contract.md, specs/permission-group-hierarchy.spec.yaml §4.3)과 일치.
+- **search-history-decrypt-domain**: 검색 이력·복호화·승인·반려·결재자, DECRYPTION_NOT_APPROVED, ROW_NOT_IN_APPROVED_SNAPSHOT 관련 질문 시 사용.
+- **error-codes-domain**: API 에러 코드(FORBIDDEN, DECRYPTION_NOT_APPROVED 등) 관련 질문 시 사용. api-definition §11 단일 소스.
+- **department-approver-domain**: 부서·결재자 지정·decrypt_approver·user-permission-hierarchy 관련 질문 시 사용.
+- **log-search-domain**: 로그 검색·logType·pb_feplog·imagelog 관련 질문 시 사용.
+- **activity-statistics-domain**: 활동 이력·통계·scope(self/all) 관련 질문 시 사용.
+- **ui-ux-domain**: 메뉴·화면·view·adminOnly·canAccessView 관련 질문 시 사용.
 
 ### Subagents (Cursor 기본 기능만 사용)
 
@@ -196,7 +203,7 @@ Agent가 작업을 완료한 후:
 
 ---
 
-**마지막 업데이트**: 2026-02-06
+**마지막 업데이트**: 2025-03-03
 
 
 

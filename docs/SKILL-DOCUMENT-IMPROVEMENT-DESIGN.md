@@ -63,6 +63,7 @@ Improve Agent answer quality and token efficiency by:
 | **Documents = source of truth** | Contract, specs, requirements remain authoritative. Skills do not duplicate content. |
 | **Progressive disclosure** | Skill has minimal summary; details live in documents. Load documents only when summary is insufficient. |
 | **Domain alignment** | Skills and document chunks align by domain (auth-permission, search-history-decrypt, etc.). |
+| **Requirement traceability** | When answering design/behavior Q&A, cite the requirement doc (path + §section). Do **not** load full doc; use skill's Document references. Do **not** invoke RequirementsPastSearch for Q&A. |
 
 ---
 
@@ -99,10 +100,10 @@ description: <Trigger terms>. Use when user asks about <topics>.
 | 1 | auth-permission-domain | 권한, 접근 제어, is_system_admin, permission group, 관리자, 화면 접근 | Done |
 | 2 | search-history-decrypt-domain | 검색 이력, 복호화, 승인, 반려, 결재자, PENDING, DECRYPTION_NOT_APPROVED | Done |
 | 3 | error-codes-domain | 에러 코드, FORBIDDEN, DECRYPTION_NOT_APPROVED | Done |
-| 4 | department-approver-domain | 부서, 결재자 지정, department, decrypt_approver | Phase 3 |
-| 5 | log-search-domain | 로그 검색, logType, pb_feplog, imagelog | Phase 3 |
-| 6 | activity-statistics-domain | 활동 이력, 통계, scope, self, all | Phase 3 |
-| 7 | ui-ux-domain | 메뉴, 화면, view, adminOnly, canAccessView | Phase 3 |
+| 4 | department-approver-domain | 부서, 결재자 지정, department, decrypt_approver | Done |
+| 5 | log-search-domain | 로그 검색, logType, pb_feplog, imagelog | Done |
+| 6 | activity-statistics-domain | 활동 이력, 통계, scope, self, all | Done |
+| 7 | ui-ux-domain | 메뉴, 화면, view, adminOnly, canAccessView | Done |
 
 ### 3.3 Skill Authoring Rules
 
@@ -201,16 +202,33 @@ Do **not** split when:
 | 2.3 | Add document references to api-definition.md §6.1, §10, §11 | Done (skills reference existing) |
 | 2.4 | Extend test question set; run baseline/post for new domains | Done |
 
+### Phase 2.5: Requirement traceability in skills (token-efficient)
+
+**Scope**: Enhance existing domain skills. No new subagent invocation for Q&A.
+
+| Task | Description | Status |
+|------|-------------|--------|
+| 2.5.1 | Add Before answering #4 to auth-permission-domain: cite req doc (path + §) when explaining admin-only | Done |
+| 2.5.2 | Add "처리 이력" / design rationale to Document references; principle: path+section only, no full doc load | Done |
+| 2.5.3 | Add Requirement traceability principle to §2.2 | Done |
+
+**Excluded**: Invoking RequirementsPastSearch for Q&A; loading full requirement docs for simple citation.
+
+**Token optimization (skill growth)**: To prevent skill bloat, use **Core + TOPIC-INDEX**:
+- **Core**: Skill lists only 2–3 foundational requirements per domain (design principles). Do **not** add every new requirement.
+- **Full list**: `docs/requirements/TOPIC-INDEX.md` under the topic. Load only when user asks for "전체 처리 이력" or a doc not in core. TOPIC-INDEX is already maintained per new requirement.
+- **Skill update**: Add to skill only when a requirement establishes a **new design principle**. Incremental/bugfix requirements go to TOPIC-INDEX only (no skill update).
+
 ### Phase 3: Remaining Skills + Optional Document Split (Weeks 5–8)
 
 **Scope**: department-approver, log-search, activity-statistics, ui-ux skills. Optional extraction of `docs/contract/auth-permission.md`.
 
-| Task | Description |
-|------|-------------|
-| 3.1 | Create remaining domain skills |
-| 3.2 | Decide: extract auth-permission from contract.md? If yes, create `docs/contract/auth-permission.md`, update contract.md, update skill |
-| 3.3 | Review all skill descriptions for trigger overlap; refine |
-| 3.4 | Final test run; document results |
+| Task | Description | Status |
+|------|-------------|--------|
+| 3.1 | Create remaining domain skills | Done (2025-03-03) |
+| 3.2 | Decide: extract auth-permission from contract.md? If yes, create `docs/contract/auth-permission.md`, update contract.md, update skill | Deferred (no extraction; contract.md remains single file) |
+| 3.3 | Review all skill descriptions for trigger overlap; refine | Done (2025-03-03) — overlap minimal; domain boundaries clear |
+| 3.4 | Final test run; document results | Pending (test questions in §7.6; run when needed) |
 
 ### Phase 4: Maintenance & Iteration (Ongoing)
 
@@ -321,6 +339,17 @@ Use for baseline and post-skill comparison.
 
 **Validation note (2025-03-03)**: In-chat validation. Both runs: 5/5 ✓.
 
+### 7.6 Phase 3 Result Recording (department-approver, log-search, activity-statistics, ui-ux)
+
+| # | Skill | Test question (example) | Baseline | Post-skill |
+|---|-------|-------------------------|----------|------------|
+| 1 | department-approver | decrypt_approver 테이블 구조는? | — | — |
+| 2 | log-search | pb_feplog와 java_fw_imglog 차이? | — | — |
+| 3 | activity-statistics | scope=self일 때 통계 API 동작? | — | — |
+| 4 | ui-ux | canAccessView 로직은? | — | — |
+
+**Note**: Run when validating Phase 3 skills. Record ✓/△/✗ per question.
+
 ---
 
 ## 8. Risk & Mitigation
@@ -328,6 +357,7 @@ Use for baseline and post-skill comparison.
 | Risk | Mitigation |
 |------|------------|
 | Skill–doc drift | Document structure change checklist: update skill references |
+| **Skill bloat** | **Core + TOPIC-INDEX**: Skill lists only 2–3 foundational reqs per domain. Full list in TOPIC-INDEX. Add to skill only when req establishes new design principle. |
 | Over-triggering | Narrow skill descriptions; avoid generic terms |
 | Token increase | Prefer skill-only answers; load docs only when needed |
 | Maintenance burden | Start with 1 skill; expand only if value proven |
@@ -351,6 +381,10 @@ Use for baseline and post-skill comparison.
 | auth-permission-domain | `.cursor/skills/auth-permission-domain/SKILL.md` | 1 (2025-03-03) |
 | search-history-decrypt-domain | `.cursor/skills/search-history-decrypt-domain/SKILL.md` | 2 (2025-03-03) |
 | error-codes-domain | `.cursor/skills/error-codes-domain/SKILL.md` | 2 (2025-03-03) |
+| department-approver-domain | `.cursor/skills/department-approver-domain/SKILL.md` | 3 (2025-03-03) |
+| log-search-domain | `.cursor/skills/log-search-domain/SKILL.md` | 3 (2025-03-03) |
+| activity-statistics-domain | `.cursor/skills/activity-statistics-domain/SKILL.md` | 3 (2025-03-03) |
+| ui-ux-domain | `.cursor/skills/ui-ux-domain/SKILL.md` | 3 (2025-03-03) |
 
 ---
 
