@@ -25,22 +25,28 @@ function AppSidebar({
   };
 
   const filteredTree = useMemo(() => {
+    const ids = Array.isArray(allowedScreenIds) ? allowedScreenIds : [];
+    /** Show child when user has access. user-management and permission-group-management also accept user-permission-hierarchy. */
+    const canShowChild = (c) => {
+      if (!c?.view || !ids?.length) return false;
+      if (c.view === 'user-management') return ids.includes('user-management') || ids.includes('user-permission-hierarchy');
+      if (c.view === 'permission-group-management') return ids.includes('permission-group-management') || ids.includes('user-permission-hierarchy');
+      return ids.includes(c.view);
+    };
     return MENU_TREE.filter((node) => {
       if (node.adminOnly && !isAdmin) {
-        const ids = Array.isArray(allowedScreenIds) ? allowedScreenIds : [];
-        const hasAnyAllowedChild = node.children?.some((c) => c.view && ids.includes(c.view));
+        const hasAnyAllowedChild = node.children?.some((c) => canShowChild(c));
         if (!hasAnyAllowedChild) return false;
       }
       if (isAdmin) return true;
-      const ids = Array.isArray(allowedScreenIds) ? allowedScreenIds : [];
       if (ids.length === 0) return false;
-      const hasAnyAllowedChild = node.children.some((c) => c.view && ids.includes(c.view));
+      const hasAnyAllowedChild = node.children.some((c) => canShowChild(c));
       return hasAnyAllowedChild;
     }).map((node) => {
       if (isAdmin) return node;
       return {
         ...node,
-        children: node.children.filter((c) => c.view && allowedScreenIds.includes(c.view)),
+        children: node.children.filter((c) => canShowChild(c)),
       };
     });
   }, [isAdmin, allowedScreenIds]);

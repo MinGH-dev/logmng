@@ -33,6 +33,9 @@ function App() {
     if (view === 'user-management') {
       return ids.includes('user-management') || ids.includes('user-permission-hierarchy');
     }
+    if (view === 'permission-group-management') {
+      return ids.includes('permission-group-management') || ids.includes('user-permission-hierarchy');
+    }
     return ids.includes(view);
   };
 
@@ -155,7 +158,9 @@ function App() {
         ids.length > 0 &&
         (currentView === 'user-management' || currentView === 'user-permission-hierarchy'
           ? ids.includes('user-management') || ids.includes('user-permission-hierarchy')
-          : ids.includes(currentView)));
+          : currentView === 'permission-group-management'
+            ? ids.includes('permission-group-management') || ids.includes('user-permission-hierarchy')
+            : ids.includes(currentView)));
     if (!hasAccess) setCurrentView('main');
   }, [isAuthenticated, user, currentView]);
 

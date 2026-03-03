@@ -14,6 +14,7 @@ import {
   removeUserFromGroup,
 } from '../../services/permissionGroupService';
 import { getUsers } from '../../services/userService';
+import { getAllowedScreenIds } from '../../utils/security';
 import { getErrorMessage } from '../../utils/errorMessage';
 import DataTable, { EmptyTableBody } from '../DataTable';
 import ScreenSelectionTree from './ScreenSelectionTree';
@@ -51,7 +52,11 @@ const PermissionGroupPanel = ({ user, onRefreshHierarchy }) => {
   const [createAllowedScreens, setCreateAllowedScreens] = useState([]);
   const [editAllowedScreens, setEditAllowedScreens] = useState([]);
 
-  const isAdmin = user?.isSystemAdmin === true;
+  const ids = getAllowedScreenIds(user);
+  const canAccessPermissionGroupManagement =
+    user?.isSystemAdmin === true ||
+    (Array.isArray(ids) &&
+      (ids.includes('permission-group-management') || ids.includes('user-permission-hierarchy')));
 
   const sortedGroups = useMemo(() => {
     if (!groups.length || !sortConfig.key) return groups;
@@ -65,7 +70,7 @@ const PermissionGroupPanel = ({ user, onRefreshHierarchy }) => {
   }, [groups, sortConfig.key, sortConfig.direction]);
 
   const loadGroups = useCallback(async () => {
-    if (!isAdmin) return;
+    if (!canAccessPermissionGroupManagement) return;
     setLoading(true);
     setError(null);
     try {
@@ -78,10 +83,10 @@ const PermissionGroupPanel = ({ user, onRefreshHierarchy }) => {
     } finally {
       setLoading(false);
     }
-  }, [isAdmin]);
+  }, [canAccessPermissionGroupManagement]);
 
   const loadUsers = useCallback(async () => {
-    if (!isAdmin) return;
+    if (!canAccessPermissionGroupManagement) return;
     try {
       const result = await getUsers();
       const data = result.data;
@@ -90,7 +95,7 @@ const PermissionGroupPanel = ({ user, onRefreshHierarchy }) => {
       logger.error('사용자 목록 조회 실패:', e);
       setUserList([]);
     }
-  }, [isAdmin]);
+  }, [canAccessPermissionGroupManagement]);
 
   useEffect(() => {
     loadGroups();
