@@ -6,6 +6,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### 2025-03-03 (Agent Skill & Document Improvement)
+
+- **chore (docs)**: Agent Skill·문서 개선 설계 및 auth-permission-domain skill 도입.
+  - **SKILL-DOCUMENT-IMPROVEMENT-DESIGN.md**: 도메인 skill 도입·문서 분할 점진적 로드맵 설계 문서 추가. Skill as router, 문서 단일 소스, progressive disclosure 원칙.
+  - **auth-permission-domain skill**: `.cursor/skills/auth-permission-domain/SKILL.md` 신규. 권한·접근 제어·is_system_admin·permission group·화면 접근 관련 질문 시 사용. Quick reference, Document/Code references, Phase 1 테스트 질문 세트 포함.
+  - **Skill usage visibility**: db-domain, dev-workflow, requirement-doc, test-workflow skill에 `[Skill used: <name>]` 응답 선언 규칙 추가.
+  - **Phase 1 Validation Guide**: §7.4 추가 — baseline/post-skill 검증 절차(1.6–1.8) 단계별 안내.
+  - **docs/README.md**: SKILL-DOCUMENT-IMPROVEMENT-DESIGN.md 링크 추가.
+
 ### 2026-03-03
 
 - **chore (docs)**: RequirementsPastSearch 토큰 최적화 — 과거 요구사항 검색 시 토큰 사용량 70~90% 절감을 위한 구조 개선.

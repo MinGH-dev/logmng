@@ -192,6 +192,7 @@ Agent가 작업을 완료한 후:
 - 보안 가이드: `security-guide.md`
 - Agent 프롬프트: `template/AGENT_PROMPT_TEMPLATE.md`
 - 요건 템플릿: `template/REQUIREMENT_TEMPLATE.md`
+- Agent Skill·문서 개선 설계: [SKILL-DOCUMENT-IMPROVEMENT-DESIGN.md](SKILL-DOCUMENT-IMPROVEMENT-DESIGN.md) — 도메인 skill 도입·문서 분할 점진적 로드맵
 
 ---
 

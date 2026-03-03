@@ -9,6 +9,8 @@ description: >
 
 # DB Domain (project-scoped)
 
+**Skill usage visibility**: When you use this skill to answer, state at the start of your response: `[Skill used: db-domain]`
+
 Use for **schema, migrations, and DB config** in this repo. Scope: `backend/src/main/resources/db/` and DB docs only.
 
 ## Quick reference
