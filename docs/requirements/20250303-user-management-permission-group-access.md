@@ -228,6 +228,16 @@ cd frontend && npm test -- --watchAll=false
 - **TC-04**: **Pass** — user2 with user-management → sidebar shows 관리 section with 사용자 관리 (observed in browser).
 - **Bugfix-3 closed**: Backend DepartmentController and PermissionGroupController now use requireUserManagementAccess; all verification pass.
 
+### Re-verification (bugfix-4, 2026-03-03)
+
+- **Health check**: Backend 9200: 200 OK. Frontend 3001: 200. DB: connected.
+- **Root cause**: UserController used isAdmin (isSystemAdmin-only); users with user-management in allowedScreenIds received 403 from GET /api/users. Backend rebuilt (mvn clean package) and restarted.
+- **TC-01 (API)**: **Pass** — user3 login → GET /api/users, /api/departments/user-permission-hierarchy, /api/permission-groups all return 200 with data. UserController requireUserManagementAccess fix confirmed.
+- **TC-01 (Browser)**: user3 login OK, 사용자 관리 menu visible; automation had menu-click navigation issue; API verification confirms no 403.
+- **TC-02**: **Pass** — admin (is_system_admin=true) → GET /api/users returns 200.
+- **TC-03**: Skip — no user with GENERAL_USER only in current DB; user2 has user-management in allowedScreenIds.
+- **Bugfix-4 closed**: UserController now uses requireUserManagementAccess; all verification pass.
+
 ### Next steps
 
 - Done. Requirement resolved. QA commits per commit-on-complete.md.
@@ -244,8 +254,9 @@ Command: `/record-error-fix` can be used to record.
 - **Root cause (frontend)**: UserManagement.js used isSystemAdmin only, ignored allowedScreenIds. Fixed in bugfix-1.
 - **Root cause (backend)**: (1) ScreenAccessInterceptor requires user-permission-hierarchy for hierarchy/permission-groups paths; users with only user-management get 403. Bugfix-2 created.
 - **Root cause (backend)**: (2) DepartmentController and PermissionGroupController use requireAdmin (isSystemAdmin-only); controller-level check rejects user-management users even after ScreenAccessInterceptor passes. Bugfix-3 created.
-- **Actions taken**: (1) Frontend: canAccessUserManagement, getAllowedScreenIds (bugfix-1). (2) Backend: ScreenAccessInterceptor accepts user-management OR user-permission-hierarchy (bugfix-2). (3) Backend: DepartmentController, PermissionGroupController use requireUserManagementAccess (bugfix-3).
-- **Result**: Re-verification after bugfix-3 — TC-01 Pass. All APIs return 200 for user2 with user-management.
+- **Root cause (backend)**: (3) UserController.listUsers and updateUserRole used isAdmin (isSystemAdmin-only); users with user-management in allowedScreenIds received 403 from GET /api/users. Bugfix-4 created.
+- **Actions taken**: (1) Frontend: canAccessUserManagement, getAllowedScreenIds (bugfix-1). (2) Backend: ScreenAccessInterceptor accepts user-management OR user-permission-hierarchy (bugfix-2). (3) Backend: DepartmentController, PermissionGroupController use requireUserManagementAccess (bugfix-3). (4) Backend: UserController use requireUserManagementAccess (bugfix-4).
+- **Result**: Re-verification after bugfix-4 — TC-01 Pass. All APIs (users, hierarchy, permission-groups) return 200 for user3 with ADMIN_EXT.
 - **Completed**: Yes (2026-03-03)
 
 ---
