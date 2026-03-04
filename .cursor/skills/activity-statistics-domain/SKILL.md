@@ -1,7 +1,7 @@
 ---
 name: activity-statistics-domain
 description: >
-  Activity statistics: scope (self/all), daily/monthly stats, user/department/IP
+  Activity statistics: scope (self/team/all), daily/monthly stats, user/department/IP
   filters, CSV export. Use when user asks about activity statistics, scope,
   self vs all, or statistics API. 활동 이력, 통계, scope, self, all 관련 질문 시 사용.
 ---
@@ -14,14 +14,14 @@ Use for **activity statistics and scope enforcement** in this repo. Scope: /api/
 
 ## Quick reference
 
-- **Scope**: is_system_admin=false일 때 권한 그룹의 statistics scope 적용. scope='self' → userId/department/ip 무시, 현재 사용자 데이터만; scope='all' → 파라미터 그대로.
+- **Scope**: is_system_admin=false일 때 권한 그룹의 statistics scope 적용. scope='self' → 현재 사용자만; scope='team' → 동일 부서만 (기본값); scope='all' → 파라미터 그대로.
 - **APIs**: GET /api/statistics/activity/daily, /monthly, /users, /activity/export. GET /api/statistics/users, /departments, /ips (필터 옵션).
 - **applyScopeForStatistics**: scope='self' 시 userId→currentUser, department/ip→null로 override.
 
 ## When to use
 
 - Activity statistics, 활동 로그 통계
-- scope=self, scope=all
+- scope=self, scope=team (default), scope=all
 - Statistics API, CSV export
 - User/department/IP filter visibility
 

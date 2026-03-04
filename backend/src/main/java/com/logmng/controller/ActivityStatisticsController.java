@@ -6,8 +6,12 @@ import com.logmng.dto.response.LoginResponse;
 import com.logmng.exception.CustomException;
 import com.logmng.service.ActivityStatisticsService;
 import com.logmng.service.AuthService;
+import com.logmng.util.DepartmentScopeHelper;
 import com.logmng.util.ScopeHelper;
 import org.slf4j.Logger;
+
+import javax.sql.DataSource;
+import java.util.List;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
@@ -31,14 +35,16 @@ public class ActivityStatisticsController {
 
     private final ActivityStatisticsService activityStatisticsService;
     private final AuthService authService;
+    private final DataSource dataSource;
 
-    public ActivityStatisticsController(ActivityStatisticsService activityStatisticsService, AuthService authService) {
+    public ActivityStatisticsController(ActivityStatisticsService activityStatisticsService, AuthService authService, DataSource dataSource) {
         this.activityStatisticsService = activityStatisticsService;
         this.authService = authService;
+        this.dataSource = dataSource;
     }
 
-    /** Apply scope: when scope='self', override userId with current user, ignore department/ip. Uses AuthService for DB-backed scope. */
-    private String[] applyScopeForStatistics(HttpServletRequest request, String userId, String department, String ip) {
+    /** Apply scope: when scope='self' override userId; when scope='team' use allowedUserIds (same department); when 'all' use request params. */
+    private Object[] applyScopeForStatistics(HttpServletRequest request, String userId, String department, String ip) {
         LoginResponse userInfo = authService.getCurrentUserInfo(request);
         if (userInfo == null) {
             throw CustomException.unauthorized("로그인이 필요합니다.", "UNAUTHORIZED");
@@ -47,13 +53,17 @@ public class ActivityStatisticsController {
         String scope = ScopeHelper.resolveScope(ScreenConstants.STATISTICS, Boolean.TRUE.equals(userInfo.getIsSystemAdmin()),
                 scopes != null ? scopes : java.util.Collections.emptyMap());
         if ("all".equals(scope)) {
-            return new String[]{userId, department, ip};
+            return new Object[]{userId, null, department, ip};
         }
         String currentUser = userInfo.getUsername();
         if (currentUser == null || currentUser.isBlank()) {
             throw CustomException.unauthorized("로그인이 필요합니다.", "UNAUTHORIZED");
         }
-        return new String[]{currentUser, null, null};
+        if ("team".equals(scope)) {
+            List<String> teamIds = DepartmentScopeHelper.getUserIdsInSameDepartment(dataSource, currentUser);
+            return new Object[]{null, teamIds, null, null};
+        }
+        return new Object[]{currentUser, null, null, null};
     }
 
     @GetMapping("/activity/daily")
@@ -66,9 +76,9 @@ public class ActivityStatisticsController {
             @RequestParam(required = false) String ip,
             HttpServletRequest request) {
         log.debug("일별 통계 조회: startDate={}, endDate={}", startDate, endDate);
-        String[] applied = applyScopeForStatistics(request, userId, department, ip);
+        Object[] applied = applyScopeForStatistics(request, userId, department, ip);
         Map<String, Object> data = activityStatisticsService.getDailyStatistics(
-                startDate, endDate, logType, applied[0], applied[1], applied[2]);
+                startDate, endDate, logType, (String) applied[0], (List<String>) applied[1], (String) applied[2], (String) applied[3]);
         return ResponseEntity.ok(ApiResponse.success(data));
     }
 
@@ -84,9 +94,9 @@ public class ActivityStatisticsController {
         log.debug("월별 통계 조회: year={}, month={}", year, month);
         int y = year != null ? year : java.time.LocalDate.now().getYear();
         int m = month != null ? month : java.time.LocalDate.now().getMonthValue();
-        String[] applied = applyScopeForStatistics(request, userId, department, ip);
+        Object[] applied = applyScopeForStatistics(request, userId, department, ip);
         Map<String, Object> data = activityStatisticsService.getMonthlyStatistics(
-                y, m, logType, applied[0], applied[1], applied[2]);
+                y, m, logType, (String) applied[0], (List<String>) applied[1], (String) applied[2], (String) applied[3]);
         return ResponseEntity.ok(ApiResponse.success(data));
     }
 
@@ -100,9 +110,9 @@ public class ActivityStatisticsController {
             @RequestParam(required = false) String ip,
             HttpServletRequest request) {
         log.debug("전체 사용자별 통계: startDate={}, endDate={}", startDate, endDate);
-        String[] applied = applyScopeForStatistics(request, userId, department, ip);
+        Object[] applied = applyScopeForStatistics(request, userId, department, ip);
         List<Map<String, Object>> data = activityStatisticsService.getAllUserStatistics(
-                startDate, endDate, logType, applied[0], applied[1], applied[2]);
+                startDate, endDate, logType, (String) applied[0], (List<String>) applied[1], (String) applied[2], (String) applied[3]);
         return ResponseEntity.ok(ApiResponse.success(data));
     }
 
@@ -116,13 +126,16 @@ public class ActivityStatisticsController {
         String scope = ScopeHelper.resolveScope(ScreenConstants.STATISTICS, Boolean.TRUE.equals(userInfo.getIsSystemAdmin()),
                 scopes != null ? scopes : java.util.Collections.emptyMap());
         String userIdFilter = null;
+        List<String> allowedUserIds = null;
         if ("self".equals(scope)) {
             userIdFilter = userInfo.getUsername();
             if (userIdFilter == null || userIdFilter.isBlank()) {
                 throw CustomException.unauthorized("로그인이 필요합니다.", "UNAUTHORIZED");
             }
+        } else if ("team".equals(scope)) {
+            allowedUserIds = DepartmentScopeHelper.getUserIdsInSameDepartment(dataSource, userInfo.getUsername());
         }
-        List<Map<String, String>> data = activityStatisticsService.getUsers(userIdFilter);
+        List<Map<String, String>> data = activityStatisticsService.getUsers(userIdFilter, allowedUserIds);
         return ResponseEntity.ok(ApiResponse.success(data));
     }
 
@@ -142,13 +155,16 @@ public class ActivityStatisticsController {
         String scope = ScopeHelper.resolveScope(ScreenConstants.STATISTICS, Boolean.TRUE.equals(userInfo.getIsSystemAdmin()),
                 scopes != null ? scopes : java.util.Collections.emptyMap());
         String userIdFilter = null;
+        List<String> allowedUserIds = null;
         if ("self".equals(scope)) {
             userIdFilter = userInfo.getUsername();
             if (userIdFilter == null || userIdFilter.isBlank()) {
                 throw CustomException.unauthorized("로그인이 필요합니다.", "UNAUTHORIZED");
             }
+        } else if ("team".equals(scope)) {
+            allowedUserIds = DepartmentScopeHelper.getUserIdsInSameDepartment(dataSource, userInfo.getUsername());
         }
-        List<String> data = activityStatisticsService.getIps(userIdFilter);
+        List<String> data = activityStatisticsService.getIps(userIdFilter, allowedUserIds);
         return ResponseEntity.ok(ApiResponse.success(data));
     }
 
@@ -165,9 +181,9 @@ public class ActivityStatisticsController {
             @RequestParam(required = false) String ip,
             HttpServletRequest request) {
         log.debug("통계 export: type={}, startDate={}, endDate={}", type, startDate, endDate);
-        String[] applied = applyScopeForStatistics(request, userId, department, ip);
+        Object[] applied = applyScopeForStatistics(request, userId, department, ip);
         byte[] body = activityStatisticsService.exportCsv(
-                type, startDate, endDate, year, month, logType, applied[0], applied[1], applied[2]);
+                type, startDate, endDate, year, month, logType, (String) applied[0], (List<String>) applied[1], (String) applied[2], (String) applied[3]);
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.parseMediaType("text/csv; charset=UTF-8"));
         headers.setContentDispositionFormData("attachment", "activity_statistics_" + type + ".csv");

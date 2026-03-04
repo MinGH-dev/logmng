@@ -18,7 +18,7 @@ Use for **department hierarchy and decrypt approver** in this repo. Scope: depar
 - **Department API**: `GET /api/departments` (tree/flat) — admin-only. 부서별 결재자·멤버·팀장 지정 API는 제거됨.
 - **User-permission hierarchy**: `GET /api/departments/user-permission-hierarchy` — admin-only. 부서별 사용자·권한 그룹 계층.
 - **decrypt_approver**: `user_id`, `department_code` (null=전역 결재자). 결재자 지정 API(POST/DELETE /api/users/approvers)는 410 Gone.
-- **canApproveForRequester**: 전역 결재자(department_code null) → 전체; 부서별 결재자 → 요청자 소속 부서만 승인 가능.
+- **canApproveForRequester**: 전역 결재자(department_code null) → 전체; 부서별 결재자(팀장) → 요청자 소속 부서만 승인 가능. 승인 대기 목록은 이에 따라 팀장에게는 해당 팀원 요청만 노출 (req 20250304-team-scope-default).
 
 ## When to use
 

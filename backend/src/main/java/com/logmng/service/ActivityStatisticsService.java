@@ -38,23 +38,23 @@ public class ActivityStatisticsService {
      * 로그타입이 비어 있으면 '전체'로 간주하고, 각 로그타입별 집계를 합산하여 반환(전체 = 합계 정합성 유지).
      */
     public Map<String, Object> getDailyStatistics(String startDate, String endDate,
-                                                   String logType, String userId, String department, String ip) {
+                                                   String logType, String userId, List<String> allowedUserIds, String department, String ip) {
         if (logType == null || logType.trim().isEmpty()) {
-            return getDailyStatisticsAsSumOfLogTypes(startDate, endDate, userId, department, ip);
+            return getDailyStatisticsAsSumOfLogTypes(startDate, endDate, userId, allowedUserIds, department, ip);
         }
-        DailyStatisticsRaw raw = getDailyStatisticsRaw(startDate, endDate, logType, userId, department, ip);
+        DailyStatisticsRaw raw = getDailyStatisticsRaw(startDate, endDate, logType, userId, allowedUserIds, department, ip);
         return buildDailyResponse(raw.dailyStats, raw.totalSearches, raw.totalDecrypts, raw.totalLogins, raw.uniqueUsers.size());
     }
 
     /** 로그타입 '전체': 각 통계 로그타입별 집계를 합산하여 반환 */
     private Map<String, Object> getDailyStatisticsAsSumOfLogTypes(String startDate, String endDate,
-                                                                   String userId, String department, String ip) {
+                                                                   String userId, List<String> allowedUserIds, String department, String ip) {
         Map<String, Map<String, Object>> byDate = new LinkedHashMap<>();
         long totalSearches = 0, totalDecrypts = 0, totalLogins = 0;
         Set<String> uniqueUsers = new HashSet<>();
 
         for (String typeId : STATISTICS_LOG_TYPE_IDS) {
-            DailyStatisticsRaw raw = getDailyStatisticsRaw(startDate, endDate, typeId, userId, department, ip);
+            DailyStatisticsRaw raw = getDailyStatisticsRaw(startDate, endDate, typeId, userId, allowedUserIds, department, ip);
             totalSearches += raw.totalSearches;
             totalDecrypts += raw.totalDecrypts;
             totalLogins += raw.totalLogins;
@@ -97,15 +97,12 @@ public class ActivityStatisticsService {
     }
 
     private DailyStatisticsRaw getDailyStatisticsRaw(String startDate, String endDate,
-                                                     String logType, String userId, String department, String ip) {
+                                                     String logType, String userId, List<String> allowedUserIds, String department, String ip) {
         List<Map<String, Object>> dailyStats = new ArrayList<>();
         long totalSearches = 0, totalDecrypts = 0, totalLogins = 0;
         Set<String> uniqueUsers = new HashSet<>();
 
-        String sql = buildDailyMonthlyWhere(startDate, endDate, logType, userId, department, ip);
-        if (sql == null) {
-            return new DailyStatisticsRaw(dailyStats, totalSearches, totalDecrypts, totalLogins, uniqueUsers);
-        }
+        String sql = buildDailyMonthlyWhere(startDate, endDate, logType, userId, allowedUserIds, department, ip);
 
         String query =
                 "SELECT DATE(created_at) AS dt, " +
@@ -132,7 +129,11 @@ public class ActivityStatisticsService {
                     ps.setString(idx++, "%\"logType\":\"" + logType + "\"%");
                 }
             }
-            if (userId != null && !userId.isEmpty()) ps.setString(idx++, userId);
+            if (allowedUserIds != null && !allowedUserIds.isEmpty()) {
+                for (String uid : allowedUserIds) ps.setString(idx++, uid);
+            } else if (userId != null && !userId.isEmpty()) {
+                ps.setString(idx++, userId);
+            }
             if (ip != null && !ip.isEmpty()) ps.setString(idx++, ip);
 
             try (ResultSet rs = ps.executeQuery()) {
@@ -184,13 +185,13 @@ public class ActivityStatisticsService {
      * 월별 통계: 해당 월의 일별 집계와 동일한 구조
      */
     public Map<String, Object> getMonthlyStatistics(int year, int month,
-                                                      String logType, String userId, String department, String ip) {
+                                                      String logType, String userId, List<String> allowedUserIds, String department, String ip) {
         LocalDate start = LocalDate.of(year, month, 1);
         LocalDate end = start.withDayOfMonth(start.lengthOfMonth());
         String startStr = start.format(DATE_FORMAT);
         String endStr = end.format(DATE_FORMAT);
 
-        Map<String, Object> data = getDailyStatistics(startStr, endStr, logType, userId, department, ip);
+        Map<String, Object> data = getDailyStatistics(startStr, endStr, logType, userId, allowedUserIds, department, ip);
         data.put("year", year);
         data.put("month", month);
         data.put("monthLabel", year + "-" + String.format("%02d", month));
@@ -202,19 +203,19 @@ public class ActivityStatisticsService {
      * 로그타입이 비어 있으면 '전체'로 간주하고, 각 로그타입별 집계를 사용자별로 합산하여 반환.
      */
     public List<Map<String, Object>> getAllUserStatistics(String startDate, String endDate,
-                                                           String logType, String userId, String department, String ip) {
+                                                           String logType, String userId, List<String> allowedUserIds, String department, String ip) {
         if (logType == null || logType.trim().isEmpty()) {
-            return getAllUserStatisticsAsSumOfLogTypes(startDate, endDate, userId, department, ip);
+            return getAllUserStatisticsAsSumOfLogTypes(startDate, endDate, userId, allowedUserIds, department, ip);
         }
-        return getOneLogTypeUserStatistics(startDate, endDate, logType, userId, department, ip);
+        return getOneLogTypeUserStatistics(startDate, endDate, logType, userId, allowedUserIds, department, ip);
     }
 
     /** 로그타입 '전체': 각 통계 로그타입별 사용자 통계를 사용자별로 합산 */
     private List<Map<String, Object>> getAllUserStatisticsAsSumOfLogTypes(String startDate, String endDate,
-                                                                            String userId, String department, String ip) {
+                                                                            String userId, List<String> allowedUserIds, String department, String ip) {
         Map<String, Map<String, Object>> byUserId = new LinkedHashMap<>();
         for (String typeId : STATISTICS_LOG_TYPE_IDS) {
-            List<Map<String, Object>> list = getOneLogTypeUserStatistics(startDate, endDate, typeId, userId, department, ip);
+            List<Map<String, Object>> list = getOneLogTypeUserStatistics(startDate, endDate, typeId, userId, allowedUserIds, department, ip);
             for (Map<String, Object> row : list) {
                 String uId = (String) row.get("userId");
                 byUserId.computeIfAbsent(uId, id -> {
@@ -241,11 +242,8 @@ public class ActivityStatisticsService {
 
     /** 단일 로그타입에 대한 사용자별 통계 */
     private List<Map<String, Object>> getOneLogTypeUserStatistics(String startDate, String endDate,
-                                                                    String logType, String userId, String department, String ip) {
-        String where = buildDailyMonthlyWhere(startDate, endDate, logType, userId, department, ip);
-        if (where == null) {
-            return new ArrayList<>();
-        }
+                                                                    String logType, String userId, List<String> allowedUserIds, String department, String ip) {
+        String where = buildDailyMonthlyWhere(startDate, endDate, logType, userId, allowedUserIds, department, ip);
 
         String query =
                 "SELECT user_id AS \"userId\", username AS \"userName\", " +
@@ -266,7 +264,9 @@ public class ActivityStatisticsService {
                 if ("LOGIN".equalsIgnoreCase(logType)) ps.setString(idx++, "LOGIN");
                 else ps.setString(idx++, "%\"logType\":\"" + logType + "\"%");
             }
-            if (userId != null && !userId.isEmpty()) ps.setString(idx++, userId);
+            if (allowedUserIds != null && !allowedUserIds.isEmpty()) {
+                for (String uid : allowedUserIds) ps.setString(idx++, uid);
+            } else if (userId != null && !userId.isEmpty()) ps.setString(idx++, userId);
             if (ip != null && !ip.isEmpty()) ps.setString(idx++, ip);
 
             try (ResultSet rs = ps.executeQuery()) {
@@ -289,18 +289,23 @@ public class ActivityStatisticsService {
     }
 
     public List<Map<String, String>> getUsers() {
-        return getUsers(null);
+        return getUsers(null, null);
     }
 
-    /** When userIdFilter is not null, return only that user (for scope=self). */
-    public List<Map<String, String>> getUsers(String userIdFilter) {
-        String sql;
-        if (userIdFilter != null && !userIdFilter.isEmpty()) {
-            sql = "SELECT DISTINCT user_id AS \"userId\", username AS \"userName\" FROM user_activity_log WHERE user_id = ? ORDER BY user_id";
-            return runListQueryWithParam(sql, "userId", "userName", userIdFilter);
+    /** When userIdFilter is not null, return only that user (scope=self). When allowedUserIds is set, filter by IN list (scope=team). */
+    public List<Map<String, String>> getUsers(String userIdFilter, List<String> allowedUserIds) {
+        if (allowedUserIds != null && !allowedUserIds.isEmpty()) {
+            if (allowedUserIds.size() == 1) {
+                return runListQueryWithParam("SELECT DISTINCT user_id AS \"userId\", username AS \"userName\" FROM user_activity_log WHERE user_id = ? ORDER BY user_id", "userId", "userName", allowedUserIds.get(0));
+            }
+            String placeholders = String.join(",", Collections.nCopies(allowedUserIds.size(), "?"));
+            String sql = "SELECT DISTINCT user_id AS \"userId\", username AS \"userName\" FROM user_activity_log WHERE user_id IN (" + placeholders + ") ORDER BY user_id";
+            return runListQueryWithParams(sql, "userId", "userName", allowedUserIds);
         }
-        sql = "SELECT DISTINCT user_id AS \"userId\", username AS \"userName\" FROM user_activity_log ORDER BY user_id";
-        return runListQuery(sql, "userId", "userName");
+        if (userIdFilter != null && !userIdFilter.isEmpty()) {
+            return runListQueryWithParam("SELECT DISTINCT user_id AS \"userId\", username AS \"userName\" FROM user_activity_log WHERE user_id = ? ORDER BY user_id", "userId", "userName", userIdFilter);
+        }
+        return runListQuery("SELECT DISTINCT user_id AS \"userId\", username AS \"userName\" FROM user_activity_log ORDER BY user_id", "userId", "userName");
     }
 
     public List<String> getDepartments() {
@@ -309,14 +314,33 @@ public class ActivityStatisticsService {
     }
 
     public List<String> getIps() {
-        return getIps(null);
+        return getIps(null, null);
     }
 
-    /** When userIdFilter is not null, return only IPs for that user (for scope=self). */
-    public List<String> getIps(String userIdFilter) {
-        String sql;
+    /** When userIdFilter or allowedUserIds is set, filter IPs by that user or user list (scope=self or team). */
+    public List<String> getIps(String userIdFilter, List<String> allowedUserIds) {
+        if (allowedUserIds != null && !allowedUserIds.isEmpty()) {
+            String placeholders = String.join(",", Collections.nCopies(allowedUserIds.size(), "?"));
+            String sql = "SELECT DISTINCT ip_address FROM user_activity_log WHERE user_id IN (" + placeholders + ") AND ip_address IS NOT NULL AND ip_address != '' ORDER BY ip_address";
+            List<String> list = new ArrayList<>();
+            try (Connection conn = dataSource.getConnection();
+                 PreparedStatement ps = conn.prepareStatement(sql)) {
+                for (int i = 0; i < allowedUserIds.size(); i++) {
+                    ps.setString(i + 1, allowedUserIds.get(i));
+                }
+                try (ResultSet rs = ps.executeQuery()) {
+                    while (rs.next()) {
+                        list.add(rs.getString("ip_address"));
+                    }
+                }
+            } catch (SQLException e) {
+                log.error("IP 목록 조회 실패", e);
+                throw new RuntimeException("IP 목록 조회 중 오류가 발생했습니다: " + e.getMessage(), e);
+            }
+            return list;
+        }
         if (userIdFilter != null && !userIdFilter.isEmpty()) {
-            sql = "SELECT DISTINCT ip_address FROM user_activity_log WHERE user_id = ? AND ip_address IS NOT NULL AND ip_address != '' ORDER BY ip_address";
+            String sql = "SELECT DISTINCT ip_address FROM user_activity_log WHERE user_id = ? AND ip_address IS NOT NULL AND ip_address != '' ORDER BY ip_address";
             List<String> list = new ArrayList<>();
             try (Connection conn = dataSource.getConnection();
                  PreparedStatement ps = conn.prepareStatement(sql)) {
@@ -332,7 +356,7 @@ public class ActivityStatisticsService {
             }
             return list;
         }
-        sql = "SELECT DISTINCT ip_address FROM user_activity_log WHERE ip_address IS NOT NULL AND ip_address != '' ORDER BY ip_address";
+        String sql = "SELECT DISTINCT ip_address FROM user_activity_log WHERE ip_address IS NOT NULL AND ip_address != '' ORDER BY ip_address";
         List<String> list = new ArrayList<>();
         try (Connection conn = dataSource.getConnection();
              Statement st = conn.createStatement();
@@ -367,6 +391,28 @@ public class ActivityStatisticsService {
         return list;
     }
 
+    private List<Map<String, String>> runListQueryWithParams(String sql, String key1, String key2, List<String> params) {
+        List<Map<String, String>> list = new ArrayList<>();
+        try (Connection conn = dataSource.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            for (int i = 0; i < params.size(); i++) {
+                ps.setString(i + 1, params.get(i));
+            }
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    Map<String, String> row = new LinkedHashMap<>();
+                    row.put(key1, rs.getString(key1));
+                    row.put(key2, rs.getString(key2));
+                    list.add(row);
+                }
+            }
+        } catch (SQLException e) {
+            log.error("목록 조회 실패: {}", sql, e);
+            throw new RuntimeException("목록 조회 중 오류가 발생했습니다: " + e.getMessage(), e);
+        }
+        return list;
+    }
+
     private List<Map<String, String>> runListQuery(String sql, String key1, String key2) {
         List<Map<String, String>> list = new ArrayList<>();
         try (Connection conn = dataSource.getConnection();
@@ -386,11 +432,11 @@ public class ActivityStatisticsService {
     }
 
     /**
-     * WHERE 절과 파라미터 순서: startDate, endDate, (optional) logType, userId, department, ip
-     * logType이 LOGIN이면 action_type = 'LOGIN'; 그 외에는 action_detail::text LIKE '%"logType":"xxx"%'
+     * WHERE 절과 파라미터 순서: startDate, endDate, (optional) logType, [userId or allowedUserIds...], department, ip
+     * When allowedUserIds is non-null and non-empty, user filter is user_id IN (?,?,...); else when userId set, user_id = ?.
      */
     private String buildDailyMonthlyWhere(String startDate, String endDate,
-                                           String logType, String userId, String department, String ip) {
+                                           String logType, String userId, List<String> allowedUserIds, String department, String ip) {
         StringBuilder sb = new StringBuilder(" WHERE 1=1 ");
         if (startDate != null && !startDate.isEmpty()) {
             sb.append(" AND created_at >= ?::date ");
@@ -405,8 +451,11 @@ public class ActivityStatisticsService {
                 sb.append(" AND action_detail::text LIKE ? ");
             }
         }
-        if (userId != null && !userId.isEmpty()) sb.append(" AND user_id = ? ");
-        // department: user_activity_log에 컬럼 없음, 추후 확장 시 추가
+        if (allowedUserIds != null && !allowedUserIds.isEmpty()) {
+            sb.append(" AND user_id IN (").append(String.join(",", Collections.nCopies(allowedUserIds.size(), "?"))).append(") ");
+        } else if (userId != null && !userId.isEmpty()) {
+            sb.append(" AND user_id = ? ");
+        }
         if (ip != null && !ip.isEmpty()) sb.append(" AND ip_address = ? ");
         return sb.toString();
     }
@@ -415,15 +464,15 @@ public class ActivityStatisticsService {
      * CSV export (일별 또는 월별)
      */
     public byte[] exportCsv(String type, String startDate, String endDate, Integer year, Integer month,
-                            String logType, String userId, String department, String ip) {
+                            String logType, String userId, List<String> allowedUserIds, String department, String ip) {
         Map<String, Object> data;
         if ("daily".equalsIgnoreCase(type)) {
-            data = getDailyStatistics(startDate, endDate, logType, userId, department, ip);
+            data = getDailyStatistics(startDate, endDate, logType, userId, allowedUserIds, department, ip);
         } else {
             if (year == null || month == null) {
                 throw new IllegalArgumentException("월별 export 시 year, month 필요");
             }
-            data = getMonthlyStatistics(year, month, logType, userId, department, ip);
+            data = getMonthlyStatistics(year, month, logType, userId, allowedUserIds, department, ip);
         }
 
         @SuppressWarnings("unchecked")

@@ -27,6 +27,7 @@ For **RequirementsPastSearch** token optimization. Read this file first to find 
 
 ## activity-log | statistics | 활동 로그 | 통계 | scope
 
+- 20250304-team-scope-default-and-approval | 권한그룹 scope에 팀(team) 추가·기본값 팀; 승인 대기창 팀장은 팀원 요청만
 - 20260206-activity-log-statistics | 활동로그 통계 화면 (월별/일별/사용자별)
 - 20260206-activity-log-statistics-improvement | 활동 로그 통계 화면 개선
 - 20260206-activity-log-statistics-improvement-test-results | 통계 개선 테스트 결과
@@ -52,6 +53,7 @@ For **RequirementsPastSearch** token optimization. Read this file first to find 
 
 ## department | 부서 | 결재자 | hierarchy
 
+- 20250304-team-scope-default-and-approval | 팀 scope·기본값; 팀장 승인 대기창 팀원만 (department-scoped)
 - 20250227-department-approver-position | 부서 결재자: position 필드, 부서 범위 선택
 - 20250227-dept-hierarchy-daol-structure | 부서 계층: 다올투자증권 구조 (4단계)
 - 20250227-dept-hierarchy-sample-depth5 | 부서 계층 샘플 데이터 depth 5

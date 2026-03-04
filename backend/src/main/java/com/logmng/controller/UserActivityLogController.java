@@ -8,8 +8,12 @@ import com.logmng.dto.response.UserActivityLogResponse;
 import com.logmng.exception.CustomException;
 import com.logmng.service.AuthService;
 import com.logmng.service.UserActivityLogService;
+import com.logmng.util.DepartmentScopeHelper;
 import com.logmng.util.ScopeHelper;
 import org.slf4j.Logger;
+
+import javax.sql.DataSource;
+import java.util.List;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -30,10 +34,12 @@ public class UserActivityLogController {
     
     private final UserActivityLogService userActivityLogService;
     private final AuthService authService;
-    
-    public UserActivityLogController(UserActivityLogService userActivityLogService, AuthService authService) {
+    private final DataSource dataSource;
+
+    public UserActivityLogController(UserActivityLogService userActivityLogService, AuthService authService, DataSource dataSource) {
         this.userActivityLogService = userActivityLogService;
         this.authService = authService;
+        this.dataSource = dataSource;
     }
     
     /**
@@ -57,6 +63,12 @@ public class UserActivityLogController {
                 scopes != null ? scopes : java.util.Collections.emptyMap());
         if ("self".equals(scope)) {
             request.setUserId(userInfo.getUsername());
+            request.setUsername(null);
+            request.setIpAddress(null);
+        } else if ("team".equals(scope)) {
+            List<String> teamUserIds = DepartmentScopeHelper.getUserIdsInSameDepartment(dataSource, userInfo.getUsername());
+            request.setAllowedUserIds(teamUserIds);
+            request.setUserId(null);
             request.setUsername(null);
             request.setIpAddress(null);
         }
@@ -87,8 +99,9 @@ public class UserActivityLogController {
         String scope = ScopeHelper.resolveScope(ScreenConstants.ACTIVITY_LOG, Boolean.TRUE.equals(userInfo.getIsSystemAdmin()),
                 scopes != null ? scopes : java.util.Collections.emptyMap());
         String currentUserForOwnership = "self".equals(scope) ? userInfo.getUsername() : null;
+        List<String> allowedUserIdsForTeam = "team".equals(scope) ? DepartmentScopeHelper.getUserIdsInSameDepartment(dataSource, userInfo.getUsername()) : null;
         
-        Map<String, Object> data = userActivityLogService.getActivityLogDetail(id, currentUserForOwnership);
+        Map<String, Object> data = userActivityLogService.getActivityLogDetail(id, currentUserForOwnership, allowedUserIdsForTeam);
         
         ApiResponse<Map<String, Object>> response = ApiResponse.success(data);
         return ResponseEntity.ok(response);

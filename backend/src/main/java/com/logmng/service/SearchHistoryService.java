@@ -118,10 +118,15 @@ public class SearchHistoryService {
     /**
      * 사용자별 검색 이력 목록 (최신순)
      * seq = 목록 순번, isExpired = expires_at < now 또는 status EXPIRED
-     * @param scopeAll when true (scope='all'), list all users' data; otherwise filter by userId
+     * @param scopeAll when true (scope='all'), list all users' data
+     * @param allowedUserIds when scope='team', filter by user_id IN (allowedUserIds); when null and !scopeAll, filter by userId
      */
-    public SearchHistoryListResponse list(String userId, int page, int pageSize, String sortField, String sortDirection, boolean scopeAll) {
-        if (!scopeAll && (userId == null || userId.isBlank())) {
+    public SearchHistoryListResponse list(String userId, int page, int pageSize, String sortField, String sortDirection, boolean scopeAll, List<String> allowedUserIds) {
+        if (scopeAll) {
+            // no user filter
+        } else if (allowedUserIds != null && !allowedUserIds.isEmpty()) {
+            // team scope
+        } else if (userId == null || userId.isBlank()) {
             throw new IllegalArgumentException("userId is required when scope=self");
         }
         if (page < 1) page = 1;
@@ -131,24 +136,48 @@ public class SearchHistoryService {
 
         List<Map<String, Object>> results = new ArrayList<>();
         try (Connection conn = dataSource.getConnection()) {
-            String countSql = scopeAll ? "SELECT COUNT(*) FROM search_history" : "SELECT COUNT(*) FROM search_history WHERE user_id = ?";
+            String countSql;
+            if (scopeAll) {
+                countSql = "SELECT COUNT(*) FROM search_history";
+            } else if (allowedUserIds != null && !allowedUserIds.isEmpty()) {
+                String placeholders = String.join(",", Collections.nCopies(allowedUserIds.size(), "?"));
+                countSql = "SELECT COUNT(*) FROM search_history WHERE user_id IN (" + placeholders + ")";
+            } else {
+                countSql = "SELECT COUNT(*) FROM search_history WHERE user_id = ?";
+            }
             long totalCount = 0;
             try (PreparedStatement countPs = conn.prepareStatement(countSql)) {
-                if (!scopeAll) countPs.setString(1, userId);
+                int cIdx = 1;
+                if (!scopeAll && (allowedUserIds != null && !allowedUserIds.isEmpty())) {
+                    for (String uid : allowedUserIds) countPs.setString(cIdx++, uid);
+                } else if (!scopeAll) {
+                    countPs.setString(cIdx++, userId);
+                }
                 try (ResultSet rs = countPs.executeQuery()) {
                     if (rs.next()) totalCount = rs.getLong(1);
                 }
             }
 
             int offset = (page - 1) * pageSize;
-            String sql = scopeAll
-                    ? "SELECT id, user_id, log_type, search_params, requested_at, expires_at, approval_status, approved_by, approved_at, rejected_by, rejected_at, rejection_reason " +
-                    "FROM search_history ORDER BY " + safeSort + " " + safeDir + " LIMIT ? OFFSET ?"
-                    : "SELECT id, log_type, search_params, requested_at, expires_at, approval_status, approved_by, approved_at, rejected_by, rejected_at, rejection_reason " +
-                    "FROM search_history WHERE user_id = ? ORDER BY " + safeSort + " " + safeDir + " LIMIT ? OFFSET ?";
+            String sql;
+            if (scopeAll) {
+                sql = "SELECT id, user_id, log_type, search_params, requested_at, expires_at, approval_status, approved_by, approved_at, rejected_by, rejected_at, rejection_reason " +
+                        "FROM search_history ORDER BY " + safeSort + " " + safeDir + " LIMIT ? OFFSET ?";
+            } else if (allowedUserIds != null && !allowedUserIds.isEmpty()) {
+                String placeholders = String.join(",", Collections.nCopies(allowedUserIds.size(), "?"));
+                sql = "SELECT id, user_id, log_type, search_params, requested_at, expires_at, approval_status, approved_by, approved_at, rejected_by, rejected_at, rejection_reason " +
+                        "FROM search_history WHERE user_id IN (" + placeholders + ") ORDER BY " + safeSort + " " + safeDir + " LIMIT ? OFFSET ?";
+            } else {
+                sql = "SELECT id, log_type, search_params, requested_at, expires_at, approval_status, approved_by, approved_at, rejected_by, rejected_at, rejection_reason " +
+                        "FROM search_history WHERE user_id = ? ORDER BY " + safeSort + " " + safeDir + " LIMIT ? OFFSET ?";
+            }
             try (PreparedStatement ps = conn.prepareStatement(sql)) {
                 int idx = 1;
-                if (!scopeAll) ps.setString(idx++, userId);
+                if (!scopeAll && (allowedUserIds != null && !allowedUserIds.isEmpty())) {
+                    for (String uid : allowedUserIds) ps.setString(idx++, uid);
+                } else if (!scopeAll) {
+                    ps.setString(idx++, userId);
+                }
                 ps.setInt(idx++, pageSize);
                 ps.setInt(idx++, offset);
                 try (ResultSet rs = ps.executeQuery()) {
@@ -159,7 +188,7 @@ public class SearchHistoryService {
                         long id = rs.getLong("id");
                         row.put("seq", seq++);
                         row.put("id", id);
-                        if (scopeAll) row.put("userId", rs.getString("user_id"));
+                        if (scopeAll || (allowedUserIds != null && !allowedUserIds.isEmpty())) row.put("userId", rs.getString("user_id"));
                         row.put("logType", rs.getString("log_type"));
                         Timestamp reqAt = rs.getTimestamp("requested_at");
                         Timestamp expAt = rs.getTimestamp("expires_at");
@@ -189,8 +218,9 @@ public class SearchHistoryService {
     /**
      * 만료된 건 재요청: 상태 PENDING, requested_at/expires_at 갱신
      * @param scopeAll when true, skip ownership check (allow re-request for any user's record)
+     * @param allowedUserIdsForTeam when scope='team', allow if record's user_id is in this list
      */
-    public Map<String, Object> reRequest(String userId, Long id, boolean scopeAll) {
+    public Map<String, Object> reRequest(String userId, Long id, boolean scopeAll, List<String> allowedUserIdsForTeam) {
         if (userId == null || userId.isBlank()) {
             throw new IllegalArgumentException("userId is required");
         }
@@ -202,7 +232,11 @@ public class SearchHistoryService {
                     if (!rs.next()) {
                         throw new NoSuchElementException("검색 이력을 찾을 수 없습니다: id=" + id);
                     }
-                    if (!scopeAll && !userId.equals(rs.getString("user_id"))) {
+                    String rowUserId = rs.getString("user_id");
+                    boolean allowed = scopeAll
+                            || (allowedUserIdsForTeam != null && !allowedUserIdsForTeam.isEmpty() && allowedUserIdsForTeam.contains(rowUserId))
+                            || userId.equals(rowUserId);
+                    if (!allowed) {
                         throw new SecurityException("다른 사용자의 검색 이력에는 재요청할 수 없습니다.");
                     }
                     String status = rs.getString("approval_status");
@@ -214,7 +248,8 @@ public class SearchHistoryService {
                 }
             }
 
-            String updateSql = scopeAll
+            boolean byUser = !scopeAll && (allowedUserIdsForTeam == null || allowedUserIdsForTeam.isEmpty());
+            String updateSql = scopeAll || (allowedUserIdsForTeam != null && !allowedUserIdsForTeam.isEmpty())
                     ? "UPDATE search_history SET approval_status = 'PENDING', requested_at = CURRENT_TIMESTAMP, " +
                     "expires_at = CURRENT_TIMESTAMP + (? || ' hours')::interval, updated_at = CURRENT_TIMESTAMP " +
                     "WHERE id = ? RETURNING id, requested_at, expires_at, approval_status"
@@ -224,7 +259,7 @@ public class SearchHistoryService {
             try (PreparedStatement ps = conn.prepareStatement(updateSql)) {
                 ps.setString(1, String.valueOf(APPROVAL_VALIDITY_HOURS));
                 ps.setLong(2, id);
-                if (!scopeAll) ps.setString(3, userId);
+                if (byUser) ps.setString(3, userId);
                 try (ResultSet rs = ps.executeQuery()) {
                     if (rs.next()) {
                         Map<String, Object> result = new LinkedHashMap<>();
@@ -503,7 +538,7 @@ public class SearchHistoryService {
      * 검색 이력 상세 (재조회 시 검색 조건 반환)
      * @param scopeAll when true, skip ownership check (allow viewing any user's detail)
      */
-    public Map<String, Object> getDetail(String userId, Long id, boolean scopeAll) {
+    public Map<String, Object> getDetail(String userId, Long id, boolean scopeAll, List<String> allowedUserIdsForTeam) {
         if (userId == null || userId.isBlank()) {
             throw new IllegalArgumentException("userId is required");
         }
@@ -516,7 +551,11 @@ public class SearchHistoryService {
                     if (!rs.next()) {
                         throw new NoSuchElementException("검색 이력을 찾을 수 없습니다: id=" + id);
                     }
-                    if (!scopeAll && !userId.equals(rs.getString("user_id"))) {
+                    String rowUserId = rs.getString("user_id");
+                    boolean allowed = scopeAll
+                            || (allowedUserIdsForTeam != null && !allowedUserIdsForTeam.isEmpty() && allowedUserIdsForTeam.contains(rowUserId))
+                            || userId.equals(rowUserId);
+                    if (!allowed) {
                         throw new SecurityException("다른 사용자의 검색 이력은 조회할 수 없습니다.");
                     }
                     Map<String, Object> row = new LinkedHashMap<>();

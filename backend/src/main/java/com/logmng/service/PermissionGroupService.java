@@ -338,8 +338,8 @@ public class PermissionGroupService {
 
     /**
      * Returns per-screen scope for activity-log, statistics, search-history.
-     * Key = screen_id, value = 'self' or 'all'. When user has multiple groups, if any has 'all', use 'all'; else 'self'.
-     * NULL or missing scope in DB = 'self'.
+     * Key = screen_id, value = 'self', 'team', or 'all'. When user has multiple groups, if any has 'all', use 'all'; else first wins.
+     * NULL or missing scope in DB = 'team' (default for scope-supporting screens). Per req 20250304-team-scope-default-and-approval.
      */
     public Map<String, String> getScreenScopesForUser(String userId) {
         Map<String, String> scopes = new HashMap<>();
@@ -358,7 +358,9 @@ public class PermissionGroupService {
                         String scope = rs.getString("scope");
                         if (screenId == null || screenId.isBlank()) continue;
                         if (!ScreenConstants.supportsScope(screenId)) continue;
-                        String effective = "all".equalsIgnoreCase(scope) ? "all" : "self";
+                        String effective = "all".equalsIgnoreCase(scope) ? "all"
+                                : "team".equalsIgnoreCase(scope) ? "team"
+                                : (scope != null && !scope.isBlank() && "self".equalsIgnoreCase(scope)) ? "self" : "team";
                         if ("all".equals(effective) || !scopes.containsKey(screenId)) {
                             scopes.put(screenId, effective);
                         }
@@ -521,8 +523,8 @@ public class PermissionGroupService {
             }
             if (ScreenConstants.supportsScope(screenId)) {
                 String scope = item.getScope();
-                if (scope != null && !scope.isBlank() && !"self".equalsIgnoreCase(scope) && !"all".equalsIgnoreCase(scope)) {
-                    throw CustomException.badRequest("scope는 'self' 또는 'all'이어야 합니다: " + scope, "INVALID_INPUT");
+                if (scope != null && !scope.isBlank() && !"self".equalsIgnoreCase(scope) && !"team".equalsIgnoreCase(scope) && !"all".equalsIgnoreCase(scope)) {
+                    throw CustomException.badRequest("scope는 'self', 'team', 'all' 중 하나여야 합니다: " + scope, "INVALID_INPUT");
                 }
             }
             validateScreenFunctions(screenId, item.getRead(), item.getWrite(), item.getApprove());
@@ -558,8 +560,10 @@ public class PermissionGroupService {
                     if (screenId != null && !screenId.isBlank()) {
                         AllowedScreenItem item = new AllowedScreenItem();
                         item.setScreenId(screenId);
-                        if (ScreenConstants.supportsScope(screenId) && scope != null && !scope.isBlank()) {
-                            item.setScope("all".equalsIgnoreCase(scope) ? "all" : "self");
+                        if (ScreenConstants.supportsScope(screenId)) {
+                            String scopeVal = (scope == null || scope.isBlank()) ? "team"
+                                    : "all".equalsIgnoreCase(scope) ? "all" : "team".equalsIgnoreCase(scope) ? "team" : "self";
+                            item.setScope(scopeVal);
                         }
                         Boolean readVal = rs.getObject("read", Boolean.class);
                         Boolean writeVal = rs.getObject("write", Boolean.class);
@@ -592,7 +596,7 @@ public class PermissionGroupService {
                     String scope = null;
                     if (ScreenConstants.supportsScope(screenId)) {
                         String s = item.getScope();
-                        scope = "all".equalsIgnoreCase(s) ? "all" : "self";
+                        scope = "all".equalsIgnoreCase(s) ? "all" : "team".equalsIgnoreCase(s) ? "team" : (s != null && !s.isBlank() && "self".equalsIgnoreCase(s) ? "self" : "team");
                     }
                     ps.setString(3, scope);
                     ps.setObject(4, item.getRead());

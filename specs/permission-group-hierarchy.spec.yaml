@@ -33,7 +33,7 @@ All endpoints below are **admin-only** (is_system_admin=true). Otherwise 403, co
 ```ts
 type AllowedScreenItem = {
   screenId: string;           // required
-  scope?: 'self' | 'all';    // only for activity-log, statistics, search-history; omitted/null = 'self'
+  scope?: 'self' | 'team' | 'all';    // only for activity-log, statistics, search-history; omitted/null = 'team' (req 20250304-team-scope-default)
   read?: boolean;            // optional; default true when screen present (backward compat). main: read-only; omit write/approve
   write?: boolean;           // optional; only for screens that support write (management screens)
   approve?: boolean;         // optional; only for search-history, pending-approvals
@@ -45,7 +45,8 @@ type AllowedScreenItem = {
 ### Scope values (per-screen)
 
 For screens that support scope (activity-log, statistics, search-history), each screen may have:
-- `'self'`: User sees only their own data. Filter controls (user, department, IP) hidden or disabled. Default when scope omitted or null.
+- `'self'`: User sees only their own data. Filter controls (user, department, IP) hidden or disabled.
+- `'team'`: User sees data for users in the same department only (same app_user.department_code). Default when scope omitted or null (req 20250304-team-scope-default).
 - `'all'`: User sees all users' data. Filter controls available.
 
 Other screens ignore scope; only screen access is checked.
@@ -77,7 +78,7 @@ On POST/PUT permission-groups, validate each `allowedScreens` item against per-s
   - `name`: string
   - `description`: string | null
   - `sortOrder`: number (optional, default 0)
-  - `allowedScreens`: array of `AllowedScreenItem` (§1.1) — screen IDs and per-screen functions. `scope` only for activity-log, statistics, search-history; omitted or null = 'self'. `read`, `write`, `approve` explicit when stored; omitted in response when default.
+  - `allowedScreens`: array of `AllowedScreenItem` (§1.1) — screen IDs and per-screen functions. `scope` only for activity-log, statistics, search-history; omitted or null = 'team'. `read`, `write`, `approve` explicit when stored; omitted in response when default.
 - **Errors**: 401, 403
 
 ### POST /api/permission-groups
@@ -86,7 +87,7 @@ On POST/PUT permission-groups, validate each `allowedScreens` item against per-s
   - `name`: string (required)
   - `description`: string (optional)
   - `sortOrder`: number (optional, default 0)
-  - `allowedScreens`: array of `AllowedScreenItem` (optional) — validate screenId (§4); validate read/write/approve per §1.1.1. 400 `INVALID_SCREEN_ID` or `INVALID_SCREEN_FUNCTION` if invalid. For scope-supporting screens, scope defaults to 'self' when omitted.
+  - `allowedScreens`: array of `AllowedScreenItem` (optional) — validate screenId (§4); validate read/write/approve per §1.1.1. 400 `INVALID_SCREEN_ID` or `INVALID_SCREEN_FUNCTION` if invalid. For scope-supporting screens, scope defaults to 'team' when omitted.
 - **Response (data)**: created permission group object (same shape as above, with `id`, `allowedScreens`).
 - **Status**: 201 on success.
 - **Errors**: 400 validation (e.g. code/name empty, code duplicate, INVALID_SCREEN_ID, INVALID_SCREEN_FUNCTION), 401, 403
@@ -103,7 +104,7 @@ On POST/PUT permission-groups, validate each `allowedScreens` item against per-s
   - `name`: string (optional)
   - `description`: string (optional)
   - `sortOrder`: number (optional)
-  - `allowedScreens`: array of `AllowedScreenItem` (optional) — validate each screenId (§4) and read/write/approve (§1.1.1). 400 `INVALID_SCREEN_ID` or `INVALID_SCREEN_FUNCTION` if invalid. For scope-supporting screens, scope defaults to 'self' when omitted.
+  - `allowedScreens`: array of `AllowedScreenItem` (optional) — validate each screenId (§4) and read/write/approve (§1.1.1). 400 `INVALID_SCREEN_ID` or `INVALID_SCREEN_FUNCTION` if invalid. For scope-supporting screens, scope defaults to 'team' when omitted.
 - **Response (data)**: updated permission group object (includes `allowedScreens`).
 - **Errors**: 400 validation (including INVALID_SCREEN_ID, INVALID_SCREEN_FUNCTION), 401, 403, 404 → "PERMISSION_GROUP_NOT_FOUND"
 
@@ -197,7 +198,7 @@ Single endpoint that returns department tree with users and their permission gro
 - **Columns**:
   - `permission_group_id`: BIGINT NOT NULL — references permission_group(id) ON DELETE CASCADE
   - `screen_id`: VARCHAR(50) NOT NULL
-  - `scope`: VARCHAR(10) NULL — 'self' | 'all'. Only for activity-log, statistics, search-history. NULL or missing = 'self'. (req 20250303-activity-statistics-self-only-scope)
+  - `scope`: VARCHAR(10) NULL — 'self' | 'team' | 'all'. Only for activity-log, statistics, search-history. NULL or missing = 'team'. (req 20250303, 20250304-team-scope-default)
   - `read`: BOOLEAN NULL — explicit read flag. NULL = use derived default (true when screen present). main: read-only.
   - `write`: BOOLEAN NULL — explicit write flag. NULL = use derived default. Only for screens that support write (management screens).
   - `approve`: BOOLEAN NULL — explicit approve flag. NULL = use derived default. Only for search-history, pending-approvals.
@@ -264,24 +265,26 @@ Validation: PUT/POST permission-groups with `allowedScreens` must have each valu
 
 **POST /api/auth/login** and **GET /api/auth/me** (or equivalent) response (user object) includes:
 - `allowedScreenIds`: string[] — allowed screens from the user's permission group (single group per user, req 20250304). If user is system admin (is_system_admin=true), return all screen IDs.
-- `screenScopes`: Record<string, 'self'|'all'> — per-screen scope for screens that support it (activity-log, statistics, search-history). Key = screen_id, value = 'self' or 'all'. Omitted screens or is_system_admin=true: frontend treats as full scope (show filters). **Purpose**: Frontend uses this to decide whether to show/hide user, department, IP filter controls (scope=self → hide; scope=all → show).
+- `screenScopes`: Record<string, 'self'|'team'|'all'> — per-screen scope for screens that support it (activity-log, statistics, search-history). Key = screen_id, value = 'self', 'team', or 'all'. Omitted screens or is_system_admin=true: frontend treats as full scope (show filters). **Purpose**: Frontend uses this to decide whether to show/hide user, department, IP filter controls (scope=self → hide; scope=team → same department; scope=all → show).
 
 ## 4.3 Screen-based API access enforcement
 
 APIs that correspond to screens must validate: user has is_system_admin=true **or** user has the required screen in their permission group. Otherwise 403.
 
 **Scope enforcement (activity-log, statistics, search-history only)** — when is_system_admin=false:
-- Use scope from permission group for that screen (from `screenScopes` or permission_group_screen.scope).
-- scope='self' or null: Backend overrides userId with current user; ignores department, ip params. For detail/getById: enforce ownership; return 403/404 if accessing another user's data.
+- Use scope from permission group for that screen (from `screenScopes` or permission_group_screen.scope). Default for scope-supporting screens = 'team' when null/omitted.
+- scope='self': Backend overrides userId with current user; ignores department, ip params. For detail/getById: enforce ownership; return 403/404 if accessing another user's data.
+- scope='team': Filter by current user's department (same department_code only).
 - scope='all': Pass request params as-is; no override.
+- scope null/omitted: Treated as 'team' (default for scope-supporting screens).
 - is_system_admin=true: Always full scope; ignore permission group scope.
 
 | screen_id | APIs (require this screen or is_system_admin=true) | Scope enforcement when is_system_admin=false |
 |-----------|------------------------------------|---------------------------------------------|
 | main | /api/logs/db-refactored/*, /api/log-types/* | — |
-| search-history | /api/search-history/* | Use scope from permission group: self → own data only; all → pass params as-is |
-| activity-log | /api/activity-log/* | Use scope from permission group: self → override userId; all → pass params as-is |
-| statistics | /api/statistics/* | Use scope from permission group: self → override userId, ignore department/ip; all → pass params as-is |
+| search-history | /api/search-history/* | Use scope: self → own only; team → same department; all → pass params as-is |
+| activity-log | /api/activity-log/* | Use scope: self → override userId; team → same department; all → pass params as-is |
+| statistics | /api/statistics/* | Use scope: self → override userId, ignore dept/ip; team → same department; all → pass params as-is |
 | pending-approvals | /api/search-history/pending, /api/search-history/{id}/approve, /api/search-history/{id}/reject | — |
 | user-management | /api/users, /api/users/approvers, /api/users/approvers/{userId} | — |
 | department-approvers | /api/departments, /api/departments/{code}/approvers, /api/departments/{code}/members, /api/departments/{code}/approvers/default | — |
