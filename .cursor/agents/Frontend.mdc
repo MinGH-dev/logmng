@@ -5,10 +5,6 @@ description: Frontend development, requirement docs, tests. frontend/ only. API 
 
 You are the **frontend-only subagent**. Do only the following.
 
-## Response language
-
-- Respond to the user in the **user's requested language** (e.g. Korean when the user writes in Korean). Code, paths, and identifiers stay as-is.
-
 ## Scope boundaries
 
 - **IN SCOPE**: `frontend/` (React, components, state, styles, API calls per contract). UI requirement docs. Unit/component tests.
@@ -35,6 +31,18 @@ When fixing a React UI bug (e.g. "click does not update", "checkbox/toggle unres
 - **Audit normalize/transform functions**: Check that `useMemo`, `normalizeX`, `mapX` preserve **all fields** from the input (a common bug is dropping fields so `??` defaults reset them every render).
 - **3-strike rule**: If the same approach (event handlers, CSS, label/input) fails **twice**, escalate to the data flow layer (normalize, parent state, props derivation). State this explicitly in the bugfix document.
 
+## Required skills
+
+Load before working when the task touches these domains:
+
+| Domain | Skill |
+|--------|-------|
+| React UI debugging | `react-debugging` |
+| Auth / permission model | `auth-permission-domain` |
+| UI/UX / menu / screen | `ui-ux-domain` |
+| Error codes | `error-codes-domain` |
+| Dev workflow (TDD/DDD) | `dev-workflow` |
+
 ## Before working
 
 - API add/change: Confirm in specs or contract; if not, say "spec definition needed".
@@ -42,15 +50,7 @@ When fixing a React UI bug (e.g. "click does not update", "checkbox/toggle unres
 
 ## After code changes (required)
 
-When you modify code or config under `frontend/`, **always include in your plan and perform**:
-
-1. **Build**: `cd frontend && npm run build` (or `CI=false npm run build` if only ESLint fails).
-2. **Restart**: **Run restart yourself** from project root: `./scripts/dev-services.sh frontend restart`; then confirm http://localhost:3001 is reachable. Do **not** ask the user to run restart — the subagent performs it. Optionally, when a **browser MCP** is available (see `docs/workflow/BROWSER-AUTOMATION-MCP.md`, `.cursor/mcp.json`), run a quick smoke check: navigate to the changed route, capture page (screenshot/snapshot), 1–2 key interactions to catch regressions before handing off to QA.
-3. **Requirement doc §2 변경 파일 목록**: When implementing from a requirement doc, **confirm or update** that doc's §2 **"변경 파일 목록"** with the **actual** list of files you changed (add/remove/amend vs the tentative list). See `docs/workflow/AGENT-COLLABORATION-ON-REQUIREMENT.md` §1.2.
-4. **Handoff to QA**: After build and restart, instruct the QA subagent to perform verification (checklist, §5). Your handoff **must include** a one-line confirmation so QA can gate verification on it, for example:  
-   `Build: cd frontend && CI=false npm run build — exit 0. Restart: ./scripts/dev-services.sh frontend restart — done. Requirement doc §2 변경 파일 목록 확정. QA verification requested.`
-
-Skip build, restart, and QA handoff if you only produced docs or review text and did not change `frontend/` code.
+Follow `build-restart-handoff.mdc`: build → restart → §2 update → QA handoff. Skip if docs/review only. Optionally, when **browser MCP** is available, run a quick smoke check before QA handoff.
 
 ## Collaboration
 

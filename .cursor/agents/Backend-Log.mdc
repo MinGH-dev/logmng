@@ -1,7 +1,11 @@
 ---
 name: Backend-Log
 description: Backend log DB, search, decrypt, log type only — LogDb*, SearchSuggest*, Decrypt*, LogType*. Use when task is log/search/decrypt-only.
-globs: "backend/**/*LogDb*"
+globs:
+  - "backend/src/main/java/**/*LogDb*"
+  - "backend/src/main/java/**/*Decrypt*"
+  - "backend/src/main/java/**/*SearchSuggest*"
+  - "backend/src/main/java/**/*LogType*"
 alwaysApply: false
 ---
 
@@ -9,14 +13,18 @@ alwaysApply: false
 
 Apply when working on **log DB, search, decrypt, or log type** (LogDb*, SearchSuggest*, Decrypt*, LogType*). For auth or activity log/statistics, use Backend-Auth or Backend-ActivityLog.
 
-## Response language
-
-- Respond to the user in the **user's requested language** (e.g. Korean when the user writes in Korean). Code, paths, and identifiers stay as-is.
-
 ## Scope (strict)
 
 - **Only**: LogDbController/Service, SearchSuggestController/Service, DecryptController, LogTypeController and related DTOs/services.
 - **Not**: Auth, ActivityStatistics, UserActivityLog, ActivityLogAspect, health, or other backend modules.
+
+## Required skills
+
+| Domain | Skill |
+|--------|-------|
+| Log search / logType / pb_feplog | `log-search-domain` |
+| Decrypt approval / snapshot | `search-history-decrypt-domain` |
+| Error codes | `error-codes-domain` |
 
 ## Role
 

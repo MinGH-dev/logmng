@@ -43,12 +43,44 @@ Use for **menu, screen, view, and access visibility** in this repo. Scope: MENU_
 | Sidebar, menu render | frontend/src/components/AppSidebar/AppSidebar.js |
 | Screen access interceptor (backend) | backend/src/main/java/com/logmng/config/ScreenAccessInterceptor.java |
 
+## screenFunctions → UI application rules
+
+Source: `frontend/src/constants/screenFunctionDescriptions.js`
+
+**Screens with write**: user-management, department-approvers, user-permission-hierarchy, permission-group-management (`SCREENS_WITH_WRITE`).
+**Screens with approve**: search-history, pending-approvals (`SCREENS_WITH_APPROVE`).
+
+| screenFunctions value | UI behavior | Tooltip (ACTION_DISABLED_TOOLTIPS) |
+|-----------------------|-------------|-------------------------------------|
+| `write === false` | Create/Edit/Delete/Assign buttons → **disabled** | '수정 권한이 없습니다' / '생성 권한이 없습니다' / '삭제 권한이 없습니다' |
+| `approve === false` | Approve/Reject buttons → **disabled** | '승인 권한이 없습니다' / '반려 권한이 없습니다' |
+| `write === true` | Buttons enabled | — |
+| `approve === true` (and decrypt_approver) | Buttons enabled | — |
+
+Code: `screenFunctionDescriptions.js` → `ACTION_DISABLED_TOOLTIPS`, `SCREENS_WITH_WRITE`, `SCREENS_WITH_APPROVE`, `getScreenFunctionCapabilities()`.
+
+## Requirement doc completeness checklist (UI/UX)
+
+When writing a **requirement document** that adds a new screen, changes menu structure, or modifies UI based on permissions, apply this checklist before finalizing §3:
+
+- [ ] **menuTree.js**: New menu item added with correct group, path, screen ID.
+- [ ] **adminOnly**: If the screen is management-only, verify it is under the admin group.
+- [ ] **canAccessView**: Route guard in App.js checks allowedScreenIds (or is_system_admin).
+- [ ] **screenFunctions → buttons**: If the screen has write or approve, verify disabled state + tooltip when function is false (see table above).
+- [ ] **docs/design/ standards**: UI follows grid-and-table, buttons, forms-and-filters, layout-and-navigation standards.
+- [ ] **a11y**: Keyboard navigation, focus ring, aria-label on icon buttons, contrast per docs/design/buttons.md.
+
 ## Before answering
 
 1. Screen IDs: specs §4.1 목록. user-permission-hierarchy는 user-management로 리다이렉트(Option B).
 2. canAccessView: App.js. user-management 특수: user-management OR user-permission-hierarchy.
 3. adminOnly: menuTree.js의 admin 그룹. 관리자만 해당 메뉴 표시.
 4. **Requirement traceability**: When explaining design, cite requirement doc (path + §section).
+
+## Related skills
+
+- `auth-permission-domain`: screenFunctions derivation rules (read/write/approve).
+- `api-permission-map`: Backend enforcement of write/approve — UI disabled state must match backend denial.
 
 ## References
 

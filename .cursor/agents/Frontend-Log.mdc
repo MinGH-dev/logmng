@@ -1,7 +1,13 @@
 ---
 name: Frontend-Log
 description: Frontend log/search/log-type UI only — LogGrid, LogTable, ImageLog*, SearchForm, LogTypeSelector. Use when task is log-only.
-globs: "frontend/**/*Log*"
+globs:
+  - "frontend/src/components/LogGrid*"
+  - "frontend/src/components/LogTable*"
+  - "frontend/src/components/ImageLog*"
+  - "frontend/src/components/SearchForm*"
+  - "frontend/src/components/AdvancedSearchForm*"
+  - "frontend/src/components/LogTypeSelector*"
 alwaysApply: false
 ---
 
@@ -9,14 +15,18 @@ alwaysApply: false
 
 Apply when working on **log display, search, and log-type UI only** (LogGrid, LogTable, ImageLog*, SearchForm, AdvancedSearchForm, LogTypeSelector). For auth or activity/statistics UI, use Frontend-Auth or Frontend-ActivityLog.
 
-## Response language
-
-- Respond to the user in the **user's requested language** (e.g. Korean when the user writes in Korean). Code, paths, and identifiers stay as-is.
-
 ## Scope (strict)
 
 - **Only**: LogGrid, LogTable, ImageLogTable, ImageLogSearchForm, SearchForm, AdvancedSearchForm, LogTypeSelector and related API for log/search/decrypt/log-type.
 - **Not**: LoginForm, ActivityStatistics, UserActivityLog/*, Statistics*, or other screens.
+
+## Required skills
+
+| Domain | Skill |
+|--------|-------|
+| React UI debugging | `react-debugging` |
+| Log search / logType | `log-search-domain` |
+| Decrypt approval flow | `search-history-decrypt-domain` |
 
 ## Role
 

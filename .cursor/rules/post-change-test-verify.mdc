@@ -1,6 +1,9 @@
 ---
 description: After code change — run tests and verification; on failure create bugfix child and retry
-alwaysApply: true
+alwaysApply: false
+globs:
+  - frontend/src/**
+  - backend/src/**
 ---
 
 # Post-Change Test & Verify (Required)

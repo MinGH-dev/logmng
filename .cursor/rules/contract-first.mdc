@@ -1,6 +1,13 @@
 ---
-description: Contract-first — read and follow contract/specs for API, DB, front-backend (always)
-alwaysApply: true
+description: Contract-first — read and follow contract/specs for API, DB, front-backend
+alwaysApply: false
+globs:
+  - backend/**
+  - frontend/src/services/**
+  - frontend/src/utils/api*
+  - specs/**
+  - docs/contract.md
+  - docs/api-definition.md
 ---
 
 # Contract-first

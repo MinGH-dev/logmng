@@ -1,0 +1,31 @@
+---
+description: After code changes — build, restart, update §2, hand off to QA
+alwaysApply: false
+globs:
+  - backend/src/**
+  - frontend/src/**
+---
+
+# Build / Restart / QA Handoff (Required after code changes)
+
+When you modify code or config under `backend/` or `frontend/`, **always** perform these steps. Skip if you only produced docs or review text.
+
+## Steps
+
+1. **Build**
+   - Backend: `cd backend && mvn test` (or `mvn package`). Fix failures and re-run.
+   - Frontend: `cd frontend && npm run build` (or `CI=false npm run build`). Fix failures and re-run.
+
+2. **Restart** (run yourself, do not ask user)
+   - From project root: `./scripts/dev-services.sh {frontend|backend|all} restart`
+   - Backend: wait 5–10s, then `curl -s http://localhost:9200/api/health` → 200/OK.
+   - Frontend: confirm http://localhost:3001 is reachable.
+
+3. **Requirement doc §2 변경 파일 목록**
+   - When implementing from a requirement doc, **confirm or update** §2 "변경 파일 목록" with actual files changed. See `docs/workflow/AGENT-COLLABORATION-ON-REQUIREMENT.md` §1.2.
+
+4. **Handoff to QA**
+   - Include a one-line confirmation so QA can gate verification:
+     `Build: [command] — exit 0. Restart: [command] — done. §2 변경 파일 목록 확정. QA verification requested.`
+
+Reference: `docs/workflow/AGENT-COLLABORATION-ON-REQUIREMENT.md` §1.2, `docs/workflow/SUBAGENT-DELEGATION.md`.

@@ -10,6 +10,8 @@
 
 Copy this template to create `docs/requirements/yyyyMMdd-short-name.md`. Use lowercase English and hyphens for the file name.
 
+**Date**: For `yyyyMMdd` and in-document dates (Date, Completed, §5 test run date, 작성일), use the **current year and date** from `.cursor/CURRENT-DATE-CONVENTION.md` so the correct year is used even when the conversation context is wrong.
+
 **After verification**: Add the new doc to `docs/requirements/TOPIC-INDEX.md` under the matching topic (one line: `- doc-id | one-line §1 summary`). Run `./scripts/generate-requirements-index.sh` to check for docs not yet in the index.
 
 ---
@@ -79,6 +81,8 @@ When **Security** subagent has reviewed: summarize risks, acceptance criteria, a
 
 Define test cases before unit/integration test execution. Update when the requirement or error fix changes.
 
+**Domain-specific completeness**: If a relevant domain skill has a **§3 completeness checklist** (e.g. `api-permission-map` for permission/access-control requirements), apply that checklist before finalizing §3.
+
 | ID | Type | Scenario (input / condition) | Expected result | Verification (unit / integration / manual) |
 |----|------|------------------------------|-----------------|--------------------------------------------|
 | TC-01 | Normal | [Description] | [Expected] | Unit (mvn test / npm test) or integration (curl) |
@@ -99,6 +103,7 @@ Define test cases before unit/integration test execution. Update when the requir
 
 ### Test data
 - [Test data description]
+- When derivation rules or defaults apply, provide **executable SQL** (INSERT/UPDATE) so QA can set up test data without guessing.
 
 ### Test environment
 - Frontend: `http://localhost:3001` (or per contract)
@@ -149,8 +154,11 @@ For requirements that change UI, layout, forms, tables, or a11y, add this sectio
 - [Result description]
 
 **Commands:**
+
+Provide **one executable command per TC** in §3 (login + request). Do not use "example pattern" for a subset; cover **every** TC so QA can copy-paste and run.
+
 ```bash
-[Test commands]
+[Test commands — one per TC]
 ```
 
 **Outcome:**

@@ -11,10 +11,6 @@ Use this agent for: **security review**, **PII**, **decryption scope**, **access
 
 Do **not** use for: implementing code (Backend/Frontend/DB); writing non-security parts of requirements (Requirements agent). Use for **security review of requirements and design** only.
 
-## Response language
-
-- Respond to the user in the **user's requested language** (e.g. Korean when the user writes in Korean). Code, paths, and identifiers stay as-is.
-
 ## Role
 
 - **Requirement security review**: Review requirement docs (`docs/requirements/*.md`) for PII handling, access control, decryption approval scope, logging of sensitive data, and compliance. Propose or add **§2.1 Security review** (or Security Review appendix) with: risks, acceptance criteria, and design recommendations.
@@ -31,6 +27,15 @@ Do **not** use for: implementing code (Backend/Frontend/DB); writing non-securit
 
 - Read `docs/security-guide.md` and the relevant requirement doc or spec.
 - For decryption/PII/access: consider least privilege, scope of approval (e.g. snapshot vs. same query), audit trail, and data retention.
+- **Load relevant domain skills** for accurate review:
+
+| Review concern | Domain skill to read |
+|----------------|---------------------|
+| API permission enforcement (write/approve gating, FORBIDDEN vs FUNCTION_NOT_ALLOWED) | `api-permission-map` |
+| Decryption approval flow (PENDING/APPROVED, snapshot, DECRYPTION_NOT_APPROVED) | `search-history-decrypt-domain` |
+| Permission model (is_system_admin, screenFunctions derivation, allowedScreenIds) | `auth-permission-domain` |
+| Approver scope (canApproveForRequester, department-based vs global) | `department-approver-domain` |
+| Error codes (security-relevant: FORBIDDEN, FUNCTION_NOT_ALLOWED, ENDPOINT_REMOVED) | `error-codes-domain` |
 
 ## Collaboration
 

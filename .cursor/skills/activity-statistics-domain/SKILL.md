@@ -50,6 +50,11 @@ Use for **activity statistics and scope enforcement** in this repo. Scope: /api/
 3. is_system_admin=true: 항상 전체; scope 무시.
 4. **Requirement traceability**: When explaining design, cite requirement doc (path + §section).
 
+## Related skills
+
+- `auth-permission-domain`: **Dependency** — is_system_admin bypass and scope resolution depend on permission model.
+- `api-permission-map`: Screen-access-only and scope-enforced API classification for statistics endpoints.
+
 ## References
 
 - Spec: specs/permission-group-hierarchy.spec.yaml §4

@@ -22,6 +22,14 @@ Write requirement docs per the rules below. **Do not write §1 (user scenario, e
 - **Path**: `docs/requirements/yyyyMMdd-name.md`
 - **Format**: `yyyyMMdd` (8 digits), name in lowercase English and hyphens (e.g. `20260220-image-log-search.md`)
 
+## Date source (avoid wrong year)
+
+- **Current year and date**: Read **`.cursor/CURRENT-DATE-CONVENTION.md`** and use the **current year** (and month/day rules) from that file for:
+  - Requirement doc **filename** prefix `yyyyMMdd`
+  - **In-document dates** (§5 test run date, 작성일, Completed, Date, verification date, etc.)
+- That file overrides any incorrect "Today's date" from the conversation context (e.g. user_info showing a wrong year). Use the year from the convention file; use month/day from the convention rules or from context when the context year is wrong.
+- If the user explicitly states the current year or date, prefer that for the session.
+
 ## Template
 
 Use `docs/template/REQUIREMENT_TEMPLATE.md`. Structure:
@@ -32,6 +40,15 @@ Use `docs/template/REQUIREMENT_TEMPLATE.md`. Structure:
 4. Checklist (frontend/backend/integration/docs)
 5. Test results (date, result, issues and resolution)
 7. Final version (Korean) — add after verification complete (see DOCUMENT-LANGUAGE-POLICY)
+
+## §3 domain-specific completeness
+
+When the requirement touches a domain that has its own **completeness checklist** in a skill, **read and apply that checklist** before finalizing §3. Examples:
+
+- **Permission / access control**: Use `api-permission-map` skill → §Requirement doc completeness checklist.
+- **Other domains**: If a domain skill (e.g. `log-search-domain`, `search-history-decrypt-domain`) defines a completeness section, apply it.
+
+This keeps the requirement-doc skill domain-agnostic; domain knowledge lives in the domain skill.
 
 ## For error/bug-fix requirements
 
