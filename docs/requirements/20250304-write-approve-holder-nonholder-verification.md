@@ -1,5 +1,9 @@
 # 20250304 - Write/Approve holder vs non-holder verification
 
+**Superseded by**: `docs/requirements/20250304-permission-group-function-verification.md` (single source of truth for permission group function verification).
+
+---
+
 ## 1. User requirement
 
 ### Requirement description
