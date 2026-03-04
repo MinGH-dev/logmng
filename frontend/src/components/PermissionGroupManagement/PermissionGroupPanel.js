@@ -55,6 +55,9 @@ const PermissionGroupPanel = ({ user, onRefreshHierarchy }) => {
   const [addUserId, setAddUserId] = useState('');
   const [usersDialogError, setUsersDialogError] = useState(null);
   const [usersDialogActionId, setUsersDialogActionId] = useState(null);
+  const [createDialogError, setCreateDialogError] = useState(null);
+  const [editDialogError, setEditDialogError] = useState(null);
+  const [deleteDialogError, setDeleteDialogError] = useState(null);
   const [createAllowedScreens, setCreateAllowedScreens] = useState([]);
   const [editAllowedScreens, setEditAllowedScreens] = useState([]);
 
@@ -161,12 +164,14 @@ const PermissionGroupPanel = ({ user, onRefreshHierarchy }) => {
     setEditAllowedScreens(normalizeAllowedScreens(group?.allowedScreens));
     setEditOpen(true);
     setError(null);
+    setEditDialogError(null);
   };
 
   const openDelete = (group) => {
     setGroupToDelete(group);
     setDeleteOpen(true);
     setError(null);
+    setDeleteDialogError(null);
   };
 
   const openUsersDialog = async (group) => {
@@ -198,11 +203,11 @@ const PermissionGroupPanel = ({ user, onRefreshHierarchy }) => {
     const name = (form.name && form.name.value && form.name.value.trim()) || '';
     const description = (form.description && form.description.value && form.description.value.trim()) || null;
     if (!code || !name) {
-      setError('코드와 이름을 입력하세요.');
+      setCreateDialogError('코드와 이름을 입력하세요.');
       return;
     }
     setActionId('create');
-    setError(null);
+    setCreateDialogError(null);
     try {
       const allowedScreens = toAllowedScreensPayload(createAllowedScreens);
       await createPermissionGroup({ code, name, description, allowedScreens });
@@ -213,7 +218,7 @@ const PermissionGroupPanel = ({ user, onRefreshHierarchy }) => {
       notifyHierarchyRefresh();
     } catch (e) {
       logger.error('권한 그룹 생성 실패:', e);
-      setError(getErrorMessage(e, '생성에 실패했습니다.'));
+      setCreateDialogError(getErrorMessage(e, '추가에 실패했습니다.'));
     } finally {
       setActionId(null);
     }
@@ -227,11 +232,11 @@ const PermissionGroupPanel = ({ user, onRefreshHierarchy }) => {
     const name = (form.name && form.name.value && form.name.value.trim()) || '';
     const description = (form.description && form.description.value && form.description.value.trim()) || null;
     if (!code || !name) {
-      setError('코드와 이름을 입력하세요.');
+      setEditDialogError('코드와 이름을 입력하세요.');
       return;
     }
     setActionId('edit');
-    setError(null);
+    setEditDialogError(null);
     try {
       const allowedScreens = toAllowedScreensPayload(editAllowedScreens);
       await updatePermissionGroup(editGroup.id, { code, name, description, allowedScreens });
@@ -241,7 +246,7 @@ const PermissionGroupPanel = ({ user, onRefreshHierarchy }) => {
       notifyHierarchyRefresh();
     } catch (e) {
       logger.error('권한 그룹 수정 실패:', e);
-      setError(getErrorMessage(e, '수정에 실패했습니다.'));
+      setEditDialogError(getErrorMessage(e, '수정에 실패했습니다.'));
     } finally {
       setActionId(null);
     }
@@ -250,7 +255,7 @@ const PermissionGroupPanel = ({ user, onRefreshHierarchy }) => {
   const handleDeleteConfirm = async () => {
     if (!groupToDelete || !groupToDelete.id) return;
     setActionId('delete');
-    setError(null);
+    setDeleteDialogError(null);
     try {
       await deletePermissionGroup(groupToDelete.id);
       setDeleteOpen(false);
@@ -259,7 +264,7 @@ const PermissionGroupPanel = ({ user, onRefreshHierarchy }) => {
       notifyHierarchyRefresh();
     } catch (e) {
       logger.error('권한 그룹 삭제 실패:', e);
-      setError(getErrorMessage(e, '삭제에 실패했습니다.'));
+      setDeleteDialogError(getErrorMessage(e, '삭제에 실패했습니다.'));
     } finally {
       setActionId(null);
     }
@@ -341,7 +346,7 @@ const PermissionGroupPanel = ({ user, onRefreshHierarchy }) => {
             <button
               type="button"
               className="user-management-btn add"
-              onClick={() => { setCreateOpen(true); setError(null); }}
+              onClick={() => { setCreateOpen(true); setError(null); setCreateDialogError(null); }}
               disabled={!canWrite}
               aria-disabled={!canWrite}
               aria-label="권한 그룹 추가"
@@ -421,6 +426,9 @@ const PermissionGroupPanel = ({ user, onRefreshHierarchy }) => {
         <div className="permission-group-dialog-overlay" role="dialog" aria-modal="true" aria-labelledby="dialog-create-title">
           <div className="permission-group-dialog">
             <h3 id="dialog-create-title">권한 그룹 추가</h3>
+            {createDialogError && (
+              <div className="user-management-error" role="alert">{createDialogError}</div>
+            )}
             <form onSubmit={handleCreateSubmit}>
               <div className="permission-group-form-row">
                 <label htmlFor="create-code">코드 <span aria-hidden>*</span></label>
@@ -443,7 +451,7 @@ const PermissionGroupPanel = ({ user, onRefreshHierarchy }) => {
               </div>
               <div className="permission-group-dialog-actions">
                 <button type="submit" className="user-management-btn add" disabled={!!actionId}>{(actionId === 'create') ? '처리 중...' : '추가'}</button>
-                <button type="button" className="user-management-btn" onClick={() => { setCreateOpen(false); setError(null); }}>취소</button>
+                <button type="button" className="user-management-btn" onClick={() => { setCreateOpen(false); setError(null); setCreateDialogError(null); }}>취소</button>
               </div>
             </form>
           </div>
@@ -454,6 +462,9 @@ const PermissionGroupPanel = ({ user, onRefreshHierarchy }) => {
         <div className="permission-group-dialog-overlay" role="dialog" aria-modal="true" aria-labelledby="dialog-edit-title">
           <div className="permission-group-dialog">
             <h3 id="dialog-edit-title">권한 그룹 수정</h3>
+            {editDialogError && (
+              <div className="user-management-error" role="alert">{editDialogError}</div>
+            )}
             <form onSubmit={handleEditSubmit}>
               <div className="permission-group-form-row">
                 <label htmlFor="edit-code">코드 <span aria-hidden>*</span></label>
@@ -476,7 +487,7 @@ const PermissionGroupPanel = ({ user, onRefreshHierarchy }) => {
               </div>
               <div className="permission-group-dialog-actions">
                 <button type="submit" className="user-management-btn add" disabled={!!actionId}>{(actionId === 'edit') ? '처리 중...' : '저장'}</button>
-                <button type="button" className="user-management-btn" onClick={() => { setEditOpen(false); setEditGroup(null); setError(null); }}>취소</button>
+                <button type="button" className="user-management-btn" onClick={() => { setEditOpen(false); setEditGroup(null); setError(null); setEditDialogError(null); }}>취소</button>
               </div>
             </form>
           </div>
@@ -487,12 +498,15 @@ const PermissionGroupPanel = ({ user, onRefreshHierarchy }) => {
         <div className="permission-group-dialog-overlay" role="dialog" aria-modal="true" aria-labelledby="dialog-delete-title">
           <div className="permission-group-dialog">
             <h3 id="dialog-delete-title">권한 그룹 삭제</h3>
+            {deleteDialogError && (
+              <div className="user-management-error" role="alert">{deleteDialogError}</div>
+            )}
             <p>삭제하시겠습니까? 사용자가 할당되어 있으면 삭제할 수 없습니다. &quot;{groupToDelete.name}&quot; ({groupToDelete.code})</p>
             <div className="permission-group-dialog-actions">
               <button type="button" className="user-management-btn remove" onClick={handleDeleteConfirm} disabled={!!actionId} aria-label="삭제 확인">
                 {(actionId === 'delete') ? '처리 중...' : '삭제'}
               </button>
-              <button type="button" className="user-management-btn" onClick={() => { setDeleteOpen(false); setGroupToDelete(null); setError(null); }}>취소</button>
+              <button type="button" className="user-management-btn" onClick={() => { setDeleteOpen(false); setGroupToDelete(null); setError(null); setDeleteDialogError(null); }}>취소</button>
             </div>
           </div>
         </div>

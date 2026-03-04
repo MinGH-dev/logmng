@@ -8,6 +8,7 @@ For **RequirementsPastSearch** token optimization. Read this file first to find 
 
 ## permission | access-control | 화면 접근 | 권한 그룹 | is_system_admin
 
+- 20260304-permission-group-modal-error-visibility | Show permission-group create/edit/delete errors inside modals; fix APPROVE_USER + search-history + team error
 - 20250304-permission-group-function-verification | 권한 그룹 수정/승인: 보유자 정상 이용·미보유자 행사 불가 검증 (verification only; single source)
 - 20250303-screen-function-availability | 화면별 기능 사용 가능 여부 (read/write/approve); main read-only; common format
 - 20250303-screen-function-checkbox-selection | 조회/수정/승인 체크박스로 명시적 선택 (permission group config)
@@ -91,6 +92,7 @@ For **RequirementsPastSearch** token optimization. Read this file first to find 
 
 ## grid | UX | ux-standards | 그리드
 
+- 20260304-permission-group-modal-error-visibility | Error message visibility inside permission-group modals (not behind overlay)
 - 20260226-grid-design-unification | 그리드 디자인 통일
 - 20260226-ux-grid-review-and-push | UX grid review and push
 - 20260226-ux-grid-review-report | UX grid review 리포트

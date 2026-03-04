@@ -186,4 +186,30 @@ flowchart TB
 
 ---
 
-**마지막 업데이트**: 2025-03-03
+## 🔄 최근 변경 (2025-03-04)
+
+### 워크플로우·도구 변경
+
+- **테스트 코드 구현 필수화 (Step 4)**: 구현 단계(Backend/Frontend)에서 §3 테스트 케이스에 대한 자동화 테스트 코드를 **반드시 작성**해야 합니다. (`mvn test` / `npm test`로 실행 가능). 기존에는 테스트 실행만 요구했으나, 이제 테스트 코드 작성까지 구현 에이전트의 책임입니다.
+- **요건 템플릿 Definition of Done 추가**: `docs/template/REQUIREMENT_TEMPLATE.md` §3에 "Mandatory automated tests" 절이 추가되어, 수정·추가된 모든 코드에 자동화 테스트가 필요함을 명시합니다.
+- **WORKFLOW_CHECKLIST Step 5 업데이트**: 단위/통합 테스트 **구현** + 실행으로 변경.
+- **에이전트 위임 규칙 명확화**: `agent-collaboration.mdc`에서 테스트 코드 작성이 Step 4(Backend/Frontend 서브에이전트) 소관임을 명시. 메인 채팅에서 직접 테스트 코드를 작성하지 않습니다.
+
+### 새로운 Skills
+
+- **api-permission-map**: API 엔드포인트별 권한 검증 맵 — 모든 API → 컨트롤러 → 권한 체크 메서드 → 거부 시 에러 코드. 권한 검증 테스트 계획, 403 에러 매핑 작업 시 사용.
+- **db-domain**: PostgreSQL 스키마, 마이그레이션, 설정 스크립트. DB 스키마 설계·마이그레이션·setup.sh 관련 질문 시 사용.
+- **test-workflow**: 테스트·검증 워크플로우 — §3 테스트 계획, 단위/통합 실행, §5 기록, 검증(재시작·헬스 체크).
+- **react-debugging**: React 디버깅 가이드.
+
+### 주요 요건 문서 추가 (2025-03-03 ~ 03-04)
+
+- 권한 그룹 모달 에러 표시 (`20260304-permission-group-modal-error-visibility`)
+- 권한 스코프 팀 및 승인 대기 (`20250304-permission-scope-team-and-approval-pending`)
+- 권한 그룹 기능 검증 (`20250304-permission-group-function-verification`)
+- 사용자당 단일 권한 그룹 (`20250304-single-permission-group-per-user`)
+- 화면별 기능 사용 가능 여부 (`20250303-screen-function-availability`)
+
+---
+
+**마지막 업데이트**: 2025-03-04

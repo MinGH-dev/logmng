@@ -83,6 +83,8 @@ Define test cases before unit/integration test execution. Update when the requir
 
 **Domain-specific completeness**: If a relevant domain skill has a **§3 completeness checklist** (e.g. `api-permission-map` for permission/access-control requirements), apply that checklist before finalizing §3.
 
+**Mandatory automated tests (Definition of Done)**: For every requirement, **all modified or added code** must be covered by automated tests. For each TC whose verification method is **Unit** or **Integration**, the implementing agent (Step 4 — Backend, Frontend, or DB) **must add or extend** test code (JUnit, Jest, or documented integration/curl) so that the TC is executed as part of `mvn test` / `npm test` or a documented integration procedure. TCs marked **Manual** or **Manual / browser** only are exempt. This ensures QA has runnable tests for every automated TC and avoids "no test code was written" gaps. See `docs/workflow/SUBAGENT-DELEGATION.md` §3 (Step 4).
+
 | ID | Type | Scenario (input / condition) | Expected result | Verification (unit / integration / manual) |
 |----|------|------------------------------|-----------------|--------------------------------------------|
 | TC-01 | Normal | [Description] | [Expected] | Unit (mvn test / npm test) or integration (curl) |

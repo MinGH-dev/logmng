@@ -180,6 +180,10 @@ Agent가 작업을 완료한 후:
 - **log-search-domain**: 로그 검색·logType·pb_feplog·imagelog 관련 질문 시 사용.
 - **activity-statistics-domain**: 활동 이력·통계·scope(self/all) 관련 질문 시 사용.
 - **ui-ux-domain**: 메뉴·화면·view·adminOnly·canAccessView 관련 질문 시 사용.
+- **api-permission-map**: API 엔드포인트별 권한 검증 맵 — 모든 API → 컨트롤러 → 권한 체크 메서드 → 에러 코드. 권한 검증 테스트 계획·403 에러 매핑 시 사용.
+- **db-domain**: PostgreSQL 스키마·마이그레이션·설정 스크립트. DB 스키마 설계·마이그레이션·setup.sh 관련 질문 시 사용.
+- **test-workflow**: 테스트·검증 워크플로우 — §3 테스트 계획, 단위/통합 실행, §5 기록, 검증(재시작·헬스 체크) 관련 작업 시 사용.
+- **react-debugging**: React 프론트엔드 디버깅 가이드.
 
 ### Subagents (Cursor 기본 기능만 사용)
 
@@ -203,7 +207,16 @@ Agent가 작업을 완료한 후:
 
 ---
 
-**마지막 업데이트**: 2025-03-03
+## 🔄 최근 도구·워크플로우 변경 (2025-03-04)
+
+- **테스트 코드 구현 필수화**: Step 4(Backend/Frontend) 구현 시 §3 TC에 대한 자동화 테스트 코드 작성이 필수. `WORKFLOW_CHECKLIST.md` Step 5도 "구현 + 실행"으로 업데이트.
+- **요건 템플릿 Definition of Done**: `REQUIREMENT_TEMPLATE.md` §3에 "Mandatory automated tests" 절 추가.
+- **에이전트 위임 명확화**: 테스트 코드 작성은 Step 4(Backend/Frontend 서브에이전트) 소관. `AGENT-COLLABORATION-ON-REQUIREMENT.md` Step 4에 명시.
+- **새 Skills 4종 추가**: `api-permission-map`, `db-domain`, `test-workflow`, `react-debugging` (위 Skills 목록 참조).
+
+---
+
+**마지막 업데이트**: 2025-03-04
 
 
 
