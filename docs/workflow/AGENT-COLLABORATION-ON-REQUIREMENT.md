@@ -25,15 +25,16 @@ When a **new requirement** or **error-fix request** occurs, agents collaborate i
 - **Optional steps**: Security (PII/decrypt/access); Contract (API/DB change); DBA (schema); Architecture (performance **and commonization when frontend/backend**); Consistency (new conventions); UX (UI/design); Review (before QA).
 - **Single source of truth**: Requirement doc is the hub. Each agent updates only its designated sections or owned docs (e.g. Consistency → CONSISTENCY-STANDARDS.md; Review applies it but does not edit it).
 - **Response language**: Agents respond to the user in the **user's requested language** (e.g. Korean when the user writes in Korean). See `.cursor/rules/language-policy.mdc`.
+- **Cursor infrastructure update**: When a requirement changes the domain model (e.g. permission model, data schema), the relevant `.cursor/skills/` files must be updated to reflect the new model. See §1.4.
 
 ### 1.1 Requirements authoring: parallel consensus and orchestration
 
 When the **Requirements** subagent writes the requirement doc, it **must not write §1 (user scenario, expected outcome) and §2 (codebase summary, problem analysis, solution) from its own judgment alone**. Instead it **obtains input in parallel from experts and from development/DB/QA**, then **orchestrates** (merges) that input into §1·§2.
 
 1. **Past user requests (when user has not explicitly requested a change)**  
-   When the user has **not** explicitly requested a change to prior behavior or scope, **invoke RequirementsPastSearch** (via mcp_task with subagent_type RequirementsPastSearch when available, or instruct the user to switch and pass the topic/feature). Pass: "Topic: [topic]. What did the user recently request in past requirements? Summarize so we preserve it (max 300 words, bullets)." RequirementsPastSearch uses `docs/requirements/TOPIC-INDEX.md` and reads only §1 of relevant docs for token efficiency. Use the summary when drafting §1·§2 so continuity is maintained. If the user **has** explicitly requested a change (e.g. "이거 바꿔줘", "검색 필드를 A, B로만"), do not override that with past content.
+   When the user has **not** explicitly requested a change to prior behavior or scope, **invoke RequirementsPastSearch** (via the Task tool with `subagent_type="RequirementsPastSearch"` when available, or instruct the user to switch and pass the topic/feature). Pass: "Topic: [topic]. What did the user recently request in past requirements? Summarize so we preserve it (max 300 words, bullets)." RequirementsPastSearch uses `docs/requirements/TOPIC-INDEX.md` and reads only §1 of relevant docs for token efficiency. Use the summary when drafting §1·§2 so continuity is maintained. If the user **has** explicitly requested a change (e.g. "이거 바꿔줘", "검색 필드를 A, B로만"), do not override that with past content.
 2. **Parallel invocation (consensus input)**  
-   Invoke **in parallel** (e.g. multiple mcp_task calls in one turn) the following, as applicable to the user request or error:
+   Invoke **in parallel** (e.g. multiple Task tool calls in one turn) the following, as applicable to the user request or error:
    - **Experts** (when the requirement touches their domain):
      - **Security**: PII, decryption scope, or access control → request §2.1 or security appendix.
      - **Contract**: API or DB contract/spec change → request contract/spec constraints for §2.
@@ -71,7 +72,20 @@ When **Backend**, **Frontend**, or **DB** (Step 4) implement from the requiremen
 - **Security** (access rules, PII handling): e.g. "Requirement doc X — need access rule for role R on resource S."
 - **Consistency** (naming, error codes): e.g. "Requirement doc X — need error code and message for case C."
 
-**How to query**: Invoke the expert subagent via **mcp_task** with a short description and the requirement doc path (e.g. "Requirement doc: docs/requirements/yyyyMMdd-name.md. Question: [focused question]. Please return [expected output]."). If mcp_task is unavailable, ask the user to have the main agent invoke that subagent with the same question. **Do not invent** answers in another agent's domain; get the answer from the owning agent, then continue implementation.
+**How to query**: Invoke the expert subagent via the **Task tool** with a short description and the requirement doc path (e.g. `Task(subagent_type="UX", prompt="Requirement doc: docs/requirements/yyyyMMdd-name.md. Question: [focused question]. Please return [expected output].")`). If the Task tool is unavailable, ask the user to have the main agent invoke that subagent with the same question. **Do not invent** answers in another agent's domain; get the answer from the owning agent, then continue implementation.
+
+### 1.4 Cursor infrastructure update: when a domain model changes
+
+When a requirement **changes the domain model** (e.g. permission model from multi-group to single-group, data schema restructuring, workflow change), the **Cursor infrastructure files** (`.cursor/skills/`, `specs/`, `.cursor/rules/`) may become stale and cause agents to produce incorrect implementations.
+
+**Procedure**:
+
+1. **Requirements (Step 1)**: When authoring §2, identify which `.cursor/skills/{domain}/` files and `specs/*.spec.yaml` files describe the changing domain. List them in §2 under **"Cursor 도구 업데이트 대상"** (Cursor tool update targets).
+2. **Contract (Step 3)**: Updates `specs/*.spec.yaml` as usual — this covers spec files.
+3. **Implementing agent (Step 4)**: Before or as part of implementation, update the `.cursor/skills/{domain}/` files listed in §2 to reflect the new domain model. This ensures other agents (and future invocations) read correct domain knowledge. Ownership: per `CURSOR-SUBAGENTS-DESIGN.md` §2.6 — each implementing agent owns skills for its domain.
+4. **If no implementing agent is invoked** (e.g. the main agent performs "do it in this chat"): the main agent updates both skills and specs directly.
+
+**Why**: Skills and specs serve as domain knowledge for all agents. If they describe an outdated model, agents will generate code based on stale assumptions.
 
 ---
 
@@ -99,7 +113,7 @@ When **Backend**, **Frontend**, or **DB** (Step 4) implement from the requiremen
 When the user is in the **default (main) chat**, the main agent **does not perform** work that belongs to a dedicated subagent. Instead it **instructs the user** to switch to that subagent and pass the right input (requirement doc, context, etc.). This applies to **all steps** (1–6): Requirements, Security, Contract, DBA, Architecture, Consistency, UX, Frontend, Backend, DB, Review, QA, Documentation, Release.
 
 - **Full delegation table** (Step → Subagent → what to pass): `docs/workflow/SUBAGENT-DELEGATION.md`
-- **Model per subagent** (token optimization, user visibility): `docs/workflow/SUBAGENT-MODEL-SELECTION.md` — main agent passes `model` when invoking mcp_task and reports it to the user.
+- **Model per subagent** (token optimization, user visibility): `docs/workflow/SUBAGENT-MODEL-SELECTION.md` — main agent passes `model` when invoking the Task tool and reports it to the user.
 - **Rule**: `.cursor/rules/agent-collaboration.mdc` §5
 
 Exception: if the user says "code only here", "skip subagent", or "do it in this chat", the main agent may perform the relevant step(s) in the current chat.

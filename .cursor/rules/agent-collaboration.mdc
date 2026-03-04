@@ -7,7 +7,7 @@ alwaysApply: true
 
 ## Delegation gate
 
-**Before** performing any step (requirement doc, implementation, build/restart, verification, §5/§6, commit): if a **dedicated subagent** exists for that step (see `docs/workflow/SUBAGENT-DELEGATION.md` §1) and the user did **not** say "code only here", "skip subagent", or "do it in this chat" — **invoke that subagent via mcp_task** instead. Do not perform in this chat.
+**Before** performing any step (requirement doc, implementation, build/restart, verification, §5/§6, commit): if a **dedicated subagent** exists for that step (see `docs/workflow/SUBAGENT-DELEGATION.md` §1) and the user did **not** say "code only here", "skip subagent", or "do it in this chat" — **invoke that subagent via the Task tool** (with `subagent_type` matching the step; see `SUBAGENT-DELEGATION.md` §2.2 for mapping) instead. Do not perform in this chat.
 
 ## Collaboration sequence
 
@@ -17,7 +17,8 @@ Follow `docs/workflow/AGENT-COLLABORATION-ON-REQUIREMENT.md`: Step 1 Requirement
 
 - **Gate**: No development (Step 4) before requirement doc + §3 is complete. See `error-first-workflow.mdc`.
 - **Commit**: QA subagent commits per `.cursor/commands/commit-on-complete.md`. Main agent does not commit when delegation is active.
-- **Model reporting**: State the subagent and model from `docs/workflow/SUBAGENT-MODEL-SELECTION.md` §2.1 when invoking (e.g. "Delegating to Backend (model: sonnet4.6)").
+- **Model reporting**: State the subagent and model tier from `docs/workflow/SUBAGENT-MODEL-SELECTION.md` §1 when invoking (e.g. "Delegating to Backend (default model)…"). Use natural language, not internal alias names.
+- **Cursor infrastructure**: When the requirement changes a domain model, update `.cursor/skills/` files per `AGENT-COLLABORATION-ON-REQUIREMENT.md` §1.4.
 - **Exception**: "code only here" / "skip subagent" / "do it in this chat" → main agent may perform steps directly.
 
 ## Cross-domain conflict resolution (Meta-Rules)

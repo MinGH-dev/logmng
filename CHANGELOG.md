@@ -6,6 +6,17 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### 2025-03-04 (워크플로·서브에이전트 문서 정리)
+
+- **feat (permission-group)**: 사용자당 단일 권한 그룹 (req 20250304-single-permission-group-per-user). 사용자–권한그룹 관계를 1:1로 변경; DB `app_user_permission_group.user_id` UNIQUE 제약, 백엔드 assign 시 기존 그룹 자동 교체, 프론트 UserGroupAssignment 배지 UI → 단일 드롭다운으로 전환. 스펙·auth-permission-domain·api-permission-map 스킬 반영.
+- **chore (docs)**: 서브에이전트 위임·모델 선택·역할 경계 문서 및 용어 통일.
+  - **SUBAGENT-DELEGATION.md**: §2.2 Task tool 매핑 테이블 추가; 문서 전반 "mcp_task" → "Task tool"로 용어 통일.
+  - **SUBAGENT-MODEL-SELECTION.md**: 모델 파라미터 제약 정리 — Light/Default 티어 도입, Task tool 실제 제약(model enum `fast`만 지원) 반영; 사용자 보고는 자연어로 명시.
+  - **CURSOR-SUBAGENTS-DESIGN.md** §2.6: `.cursor/skills/`, `.cursor/rules/`, `.cursor/agents/`, `specs/`, `docs/workflow/` 역할 경계 추가.
+  - **AGENT-COLLABORATION-ON-REQUIREMENT.md**: §1.4 "Cursor infrastructure update" 추가(도메인 모델 변경 시 skills/specs 갱신); §1.1·§1.3 "mcp_task" → "Task tool".
+  - **.cursor/rules/agent-collaboration.mdc**: 위임 게이트에서 "Task tool" 명시; 모델 보고 규칙 및 Cursor 인프라(스킬/스펙) 갱신 규칙 반영.
+  - **.cursor/TERMINOLOGY.md**: "mcp_task" → "Task tool" 및 매핑 참조 반영.
+
 ### 2025-03-03 (Agent Skill Phase 3)
 
 - **chore (docs)**: Phase 3 도메인 skill 4개 추가 및 설계 문서 갱신.

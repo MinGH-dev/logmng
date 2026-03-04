@@ -164,7 +164,7 @@ WHERE permission_group_id = <id> AND screen_id = 'pending-approvals';
 
 ## Related skills
 
-- `auth-permission-domain`: Conceptual permission model (is_system_admin, permission groups, screen access)
+- `auth-permission-domain`: Conceptual permission model (is_system_admin, single permission group per user, screen access)
 - `error-codes-domain`: Full error code list (api-definition.md §11)
 
 ## Code references

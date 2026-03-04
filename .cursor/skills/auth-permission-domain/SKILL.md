@@ -1,7 +1,7 @@
 ---
 name: auth-permission-domain
 description: >
-  Auth and permission domain: is_system_admin, permission groups, screen-based access
+  Auth and permission domain: is_system_admin, permission group (single per user), screen-based access
   (all screens including user-management), scope (self/all). Use when user asks about
   permissions, access control, is_system_admin, permission group, or screen access.
   Use for 403 Forbidden errors, 'Access Denied', '관리자만 접근할 수 있습니다',
@@ -13,7 +13,7 @@ description: >
 
 **Skill usage visibility**: When you use this skill to answer, state at the start of your response: `[Skill used: auth-permission-domain]`
 
-Use for **permission, access control, and auth** in this repo. Scope: is_system_admin, permission groups, screen-based access.
+Use for **permission, access control, and auth** in this repo. Scope: is_system_admin, permission group (single per user, req 20250304), screen-based access.
 
 ## Access check logic (single rule per contract/spec)
 
@@ -51,7 +51,7 @@ For detailed API-to-permission-check mapping, see skill: `api-permission-map`.
 
 ## Quick reference
 
-- **All screen APIs** (user-management, permission-groups, hierarchy, main, search-history, etc.): `is_system_admin` OR user has screen in `allowedScreenIds` (from permission groups).
+- **All screen APIs** (user-management, permission-groups, hierarchy, main, search-history, etc.): `is_system_admin` OR user has screen in `allowedScreenIds` (from user's single permission group).
 - **Scope** (activity-log, statistics, search-history only): `self` = own data; `all` = full. `is_system_admin` → always full.
 - **is_system_admin**: DB column `app_user.is_system_admin`. Not settable via API; init-data or DB direct edit only.
 
@@ -86,7 +86,7 @@ For detailed API-to-permission-check mapping, see skill: `api-permission-map`.
 
 ## Before answering
 
-1. For screen access (user-management, permission-groups, hierarchy): Answer per contract/spec — `is_system_admin` OR `allowedScreenIds` contains the screen. Permission groups **can** grant access.
+1. For screen access (user-management, permission-groups, hierarchy): Answer per contract/spec — `is_system_admin` OR `allowedScreenIds` contains the screen. The user's single permission group grants access.
 2. For "user has group X but 403": Check (1) `allowedScreenIds` includes the required screen; (2) implementation may use `isSystemAdmin` only (bug). Reference: `specs/permission-group-hierarchy.spec.yaml` §4.3.
 3. For scope questions: Only activity-log, statistics, search-history use scope. Others ignore.
 4. **Requirement traceability**: When explaining design or "처리 이력", cite requirement doc (path + §section). Use **core** refs above; do **not** load full doc. For "전체 처리 이력", load `docs/requirements/TOPIC-INDEX.md` §permission only. Do **not** invoke RequirementsPastSearch for Q&A.

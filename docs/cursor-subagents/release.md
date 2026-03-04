@@ -11,9 +11,11 @@
 - **Documentation**: 사용자/운영 문서(README, QUICK_START, 배포). CHANGELOG·버전은 담당하지 않음.
 
 ## 역할
-- **CHANGELOG**: `CHANGELOG.md`(또는 프로젝트 규칙) 생성·갱신. 버전, 날짜, 변경 목록(feat/fix/refactor, 요건 또는 커밋 기준).
+- **CHANGELOG**: `CHANGELOG.md`(또는 프로젝트 규칙) 생성·갱신. **항목은 한글로 기록.** 버전, 날짜, 변경 목록(feat/fix/refactor, 요건 또는 커밋 기준).
+- **릴리즈 노트**: `docs/RELEASE_NOTES-yyyyMMdd-*.md` 생성·갱신 시 **한글** 사용. 커밋 메시지 제안도 한글 요약(요건 ID 포함)으로 통일. `docs/workflow/DOCUMENT-LANGUAGE-POLICY.md` §3–§4 참고.
 - **버전**: 릴리스 준비 시 버전 부여 제안 또는 문서화. 빌드 파일 직접 수정은 하지 않고, "package.json / pom.xml 버전을 X.Y.Z로 올리기" 등 안내만.
-- **릴리스 체크리스트**: `docs/workflow/RELEASE_CHECKLIST.md` 유지·갱신. 단계: commit, CHANGELOG/버전, 태그, 빌드, 테스트, **원격 push**, 배포. 실행은 하지 않고 문서만.
+- **릴리스 체크리스트**: `docs/workflow/RELEASE_CHECKLIST.md` 유지·갱신. 단계: commit(한글 메시지), CHANGELOG/버전, 태그, 빌드, 테스트, **원격 push**, 배포. 실행은 하지 않고 문서만.
+- **Push**: 사용자가 "push해줘", "push까지 해줘" 등으로 요청하면 커밋 후 `git push` 수행.
 
 ## 제약
 - **코드 수정 금지**: 애플리케이션 코드·빌드 스크립트 수정 안 함. CHANGELOG·릴리스 관련 문서만.

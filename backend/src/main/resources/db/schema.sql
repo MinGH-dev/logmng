@@ -181,11 +181,13 @@ CREATE TABLE IF NOT EXISTS permission_group (
     sort_order INT DEFAULT 0
 );
 
--- 사용자–권한 그룹 다대다 (user_id = app_user.username). permission_group 삭제 시 CASCADE; 역방향 조회용 인덱스.
+-- 사용자–권한 그룹 1:1 (user_id = app_user.username, UNIQUE). permission_group 삭제 시 CASCADE; 역방향 조회용 인덱스.
+-- req 20250304-single-permission-group-per-user: 사용자당 최대 1개 권한 그룹.
 CREATE TABLE IF NOT EXISTS app_user_permission_group (
     user_id VARCHAR(100) NOT NULL,
     permission_group_id BIGINT NOT NULL,
     PRIMARY KEY (user_id, permission_group_id),
+    CONSTRAINT uq_user_permission_group_user UNIQUE (user_id),
     CONSTRAINT fk_app_user_permission_group_user FOREIGN KEY (user_id) REFERENCES app_user(username) ON DELETE CASCADE,
     CONSTRAINT fk_app_user_permission_group_group FOREIGN KEY (permission_group_id) REFERENCES permission_group(id) ON DELETE CASCADE
 );
