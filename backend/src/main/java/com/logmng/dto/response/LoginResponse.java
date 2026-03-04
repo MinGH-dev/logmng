@@ -33,6 +33,9 @@ public class LoginResponse {
     /** Per-screen scope for activity-log, statistics, search-history. Key=screenId, value='self'|'all'. is_system_admin=true → omit or all 'all'. */
     private Map<String, String> screenScopes;
 
+    /** Per-screen function availability. Key=screenId, value={read, write?, approve?}. Per req 20250303-screen-function-availability. */
+    private Map<String, ScreenFunctionCapability> screenFunctions;
+
     public LoginResponse() {
     }
     
@@ -96,6 +99,14 @@ public class LoginResponse {
 
     public void setScreenScopes(Map<String, String> screenScopes) {
         this.screenScopes = screenScopes;
+    }
+
+    public Map<String, ScreenFunctionCapability> getScreenFunctions() {
+        return screenFunctions;
+    }
+
+    public void setScreenFunctions(Map<String, ScreenFunctionCapability> screenFunctions) {
+        this.screenFunctions = screenFunctions;
     }
 }
 

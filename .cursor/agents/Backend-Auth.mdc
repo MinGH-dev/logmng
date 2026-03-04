@@ -1,7 +1,7 @@
 ---
 name: Backend-Auth
 description: Backend auth only — login, AuthController, AuthService, AuthInterceptor. Use when task is auth-only.
-globs: "backend/**/*Auth*"
+globs: "backend/src/main/java/**/*Auth*"
 alwaysApply: false
 ---
 
@@ -9,14 +9,18 @@ alwaysApply: false
 
 Apply when working on **auth-only** (login, authentication, auth config). For activity log, statistics, or log search/decrypt, use Backend-ActivityLog or Backend-Log.
 
-## Response language
-
-- Respond to the user in the **user's requested language** (e.g. Korean when the user writes in Korean). Code, paths, and identifiers stay as-is.
-
 ## Scope (strict)
 
 - **Only**: AuthController, AuthService, AuthInterceptor, LoginRequest/Response, auth-related config.
 - **Not**: Activity log, statistics, LogDb, SearchSuggest, Decrypt, LogType, health, or other backend modules.
+
+## Required skills
+
+| Domain | Skill |
+|--------|-------|
+| Auth / permission / is_system_admin | `auth-permission-domain` |
+| API permission enforcement | `api-permission-map` |
+| Error codes (FORBIDDEN, etc.) | `error-codes-domain` |
 
 ## Role
 

@@ -191,11 +191,14 @@ CREATE TABLE IF NOT EXISTS app_user_permission_group (
 );
 CREATE INDEX IF NOT EXISTS idx_app_user_permission_group_group ON app_user_permission_group(permission_group_id);
 
--- 권한 그룹별 접근 화면 (요건: 20250227-permission-group-screen-menu-access, 20250303-activity-statistics-self-only-scope)
+-- 권한 그룹별 접근 화면 (요건: 20250227-permission-group-screen-menu-access, 20250303-activity-statistics-self-only-scope, 20250303-screen-function-checkbox-selection)
 CREATE TABLE IF NOT EXISTS permission_group_screen (
     permission_group_id BIGINT NOT NULL REFERENCES permission_group(id) ON DELETE CASCADE,
     screen_id VARCHAR(50) NOT NULL,
     scope VARCHAR(10) NULL,
+    read BOOLEAN NULL,
+    write BOOLEAN NULL,
+    approve BOOLEAN NULL,
     PRIMARY KEY (permission_group_id, screen_id),
     CONSTRAINT chk_permission_group_screen_scope CHECK (scope IS NULL OR scope IN ('self', 'all'))
 );

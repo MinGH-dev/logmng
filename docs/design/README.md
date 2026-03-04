@@ -29,6 +29,35 @@ When a request concerns a **specific screen or feature** and something is **not 
 
 See `.cursor/agents/UX.mdc` § "Approval when outside or conflicting with standards".
 
+## Accessibility (a11y) checklist
+
+Target: WCAG 2.1 AA. Apply when adding or modifying UI components.
+
+### Interactive elements
+- [ ] **Keyboard navigation**: All interactive elements (buttons, links, inputs, menus) reachable and operable via Tab/Enter/Escape.
+- [ ] **Focus ring**: Visible focus indicator on all focusable elements (do not remove `outline`).
+- [ ] **aria-label**: Icon-only buttons and links have `aria-label` or `aria-labelledby`.
+- [ ] **Disabled state**: `disabled` attribute set (not just visual); tooltip explains why (see `ACTION_DISABLED_TOOLTIPS`).
+
+### Color and contrast
+- [ ] **Text contrast**: Minimum 4.5:1 for normal text, 3:1 for large text (18px+ or 14px+ bold).
+- [ ] **Non-color indicators**: Do not rely on color alone to convey state (add icon, text, or pattern).
+
+### Forms
+- [ ] **Labels**: Every input has a visible `<label>` or `aria-label`.
+- [ ] **Error messages**: Error state announced to screen readers (`aria-describedby` or `role="alert"`).
+- [ ] **Required fields**: Indicated visually and with `aria-required="true"`.
+
+### Tables
+- [ ] **Table headers**: `<th>` with `scope="col"` or `scope="row"`.
+- [ ] **Sortable columns**: Sort state conveyed via `aria-sort`.
+
+### General
+- [ ] **Page title**: Each view/screen has a descriptive `<title>` or heading.
+- [ ] **Skip link**: "Skip to content" link for keyboard users (optional but recommended).
+
+Reference: `docs/design/buttons.md` §a11y, UX.mdc §WCAG.
+
 ## For agents and humans
 
 - **UX agent**: Must consult these standards for every design review and reference them in recommendations. When outside or conflicting, obtain user approval before defining or changing a standard.

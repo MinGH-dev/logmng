@@ -6,6 +6,7 @@ import com.logmng.dto.request.SearchHistoryCreateRequest;
 import com.logmng.dto.response.ApiResponse;
 import com.logmng.dto.response.SearchHistoryListResponse;
 import com.logmng.exception.CustomException;
+import com.logmng.service.AuthService;
 import com.logmng.service.DecryptApproverService;
 import com.logmng.service.SearchHistoryService;
 import com.logmng.util.ScopeHelper;
@@ -31,11 +32,14 @@ public class SearchHistoryController {
 
     private final SearchHistoryService searchHistoryService;
     private final DecryptApproverService decryptApproverService;
+    private final AuthService authService;
 
     public SearchHistoryController(SearchHistoryService searchHistoryService,
-                                   DecryptApproverService decryptApproverService) {
+                                   DecryptApproverService decryptApproverService,
+                                   AuthService authService) {
         this.searchHistoryService = searchHistoryService;
         this.decryptApproverService = decryptApproverService;
+        this.authService = authService;
     }
 
     private static String getUserId(HttpServletRequest request) {
@@ -64,13 +68,18 @@ public class SearchHistoryController {
         return v instanceof Map ? (Map<String, String>) v : null;
     }
 
+    /** Requires (isAdmin or isApprover) AND (isAdmin or screenFunctions.approve for search-history/pending-approvals). Per spec §4.4. */
     private void requireApproverOrAdmin(HttpServletRequest request) {
         String userId = getUserId(request);
         if (userId == null || userId.isBlank()) {
             throw CustomException.unauthorized("로그인이 필요합니다.", "UNAUTHORIZED");
         }
-        if (!decryptApproverService.isAdmin(isSystemAdmin(request)) && !decryptApproverService.isApprover(userId)) {
-            throw CustomException.forbidden("승인/반려는 결재자 또는 관리자만 가능합니다.", "FORBIDDEN_NOT_APPROVER");
+        boolean isAdmin = decryptApproverService.isAdmin(isSystemAdmin(request));
+        if (!isAdmin && !decryptApproverService.isApprover(userId)) {
+            throw CustomException.forbidden("해당 기능에 대한 권한이 없습니다.", "FUNCTION_NOT_ALLOWED");
+        }
+        if (!isAdmin && !authService.hasApproveForSearchHistory(request)) {
+            throw CustomException.forbidden("해당 기능에 대한 권한이 없습니다.", "FUNCTION_NOT_ALLOWED");
         }
     }
 

@@ -13,7 +13,7 @@ import PermissionGroupManagement from './components/PermissionGroupManagement/Pe
 import PendingApprovals from './components/PendingApprovals/PendingApprovals';
 import AppSidebar from './components/AppSidebar';
 import AppBar from './components/AppBar';
-import { saveMinimalUserData, getMinimalUserData, clearUserData } from './utils/security';
+import { saveMinimalUserData, getMinimalUserData, getAllowedScreenIds, getScreenFunctions, deriveScreenFunctionsFromAllowed, clearUserData } from './utils/security';
 import logger from './utils/logger';
 
 function App() {
@@ -28,10 +28,13 @@ function App() {
 
   const canAccessView = (view) => {
     if (user?.isSystemAdmin === true) return true;
-    const ids = user?.allowedScreenIds;
-    if (!Array.isArray(ids) || ids.length === 0) return false;
+    const ids = getAllowedScreenIds(user);
+    if (!ids || ids.length === 0) return false;
     if (view === 'user-management') {
       return ids.includes('user-management') || ids.includes('user-permission-hierarchy');
+    }
+    if (view === 'permission-group-management') {
+      return ids.includes('permission-group-management') || ids.includes('user-permission-hierarchy');
     }
     return ids.includes(view);
   };
@@ -66,23 +69,30 @@ function App() {
         setIsAuthenticated(true);
         const savedUser = getMinimalUserData();
         const fromApi = result.data;
+        const apiScreenFunctions = getScreenFunctions(fromApi);
+        const mergedScreenFunctions = apiScreenFunctions && typeof apiScreenFunctions === 'object'
+          ? apiScreenFunctions
+          : (savedUser?.screenFunctions && typeof savedUser.screenFunctions === 'object' ? savedUser.screenFunctions : null);
+        const fallbackScreenFunctions = !mergedScreenFunctions
+          ? deriveScreenFunctionsFromAllowed(getAllowedScreenIds(fromApi) ?? savedUser?.allowedScreenIds, fromApi?.isSystemAdmin ?? savedUser?.isSystemAdmin ?? false)
+          : null;
         const merged = savedUser
           ? {
               username: fromApi?.username ?? savedUser.username,
               isSystemAdmin: fromApi?.isSystemAdmin ?? savedUser.isSystemAdmin ?? false,
-              allowedScreenIds: Array.isArray(fromApi?.allowedScreenIds)
-                ? fromApi.allowedScreenIds
-                : savedUser?.allowedScreenIds ?? null,
+              allowedScreenIds: getAllowedScreenIds(fromApi) ?? savedUser?.allowedScreenIds ?? null,
               screenScopes: fromApi?.screenScopes && typeof fromApi.screenScopes === 'object'
                 ? fromApi.screenScopes
                 : savedUser?.screenScopes ?? null,
+              screenFunctions: mergedScreenFunctions ?? fallbackScreenFunctions,
             }
           : fromApi?.username
             ? {
                 username: fromApi.username,
                 isSystemAdmin: fromApi?.isSystemAdmin ?? false,
-                allowedScreenIds: Array.isArray(fromApi?.allowedScreenIds) ? fromApi.allowedScreenIds : null,
+                allowedScreenIds: getAllowedScreenIds(fromApi),
                 screenScopes: fromApi?.screenScopes && typeof fromApi.screenScopes === 'object' ? fromApi.screenScopes : null,
+                screenFunctions: mergedScreenFunctions ?? fallbackScreenFunctions,
               }
             : null;
         if (merged) {
@@ -107,11 +117,13 @@ function App() {
       logger.error('로그인 처리 실패: 사용자 데이터가 없습니다');
       return;
     }
+    const sf = getScreenFunctions(userData);
     const minimalUserData = {
       username: userData.username || null,
       isSystemAdmin: userData.isSystemAdmin === true,
-      allowedScreenIds: Array.isArray(userData.allowedScreenIds) ? userData.allowedScreenIds : null,
+      allowedScreenIds: getAllowedScreenIds(userData),
       screenScopes: userData.screenScopes && typeof userData.screenScopes === 'object' ? userData.screenScopes : null,
+      screenFunctions: sf && typeof sf === 'object' ? sf : deriveScreenFunctionsFromAllowed(getAllowedScreenIds(userData), userData.isSystemAdmin === true),
     };
     setUser(minimalUserData);
     setIsAuthenticated(true);
@@ -150,8 +162,16 @@ function App() {
     if (!isAuthenticated || !user) return;
     if (currentView === 'main') return;
     const isAdmin = user?.isSystemAdmin === true;
-    const ids = user?.allowedScreenIds;
-    const hasAccess = isAdmin || (Array.isArray(ids) && ids.length > 0 && ids.includes(currentView));
+    const ids = getAllowedScreenIds(user);
+    const hasAccess =
+      isAdmin ||
+      (ids &&
+        ids.length > 0 &&
+        (currentView === 'user-management' || currentView === 'user-permission-hierarchy'
+          ? ids.includes('user-management') || ids.includes('user-permission-hierarchy')
+          : currentView === 'permission-group-management'
+            ? ids.includes('permission-group-management') || ids.includes('user-permission-hierarchy')
+            : ids.includes(currentView)));
     if (!hasAccess) setCurrentView('main');
   }, [isAuthenticated, user, currentView]);
 
@@ -207,7 +227,7 @@ function App() {
         <AppSidebar
           open={sidebarOpen}
           isAdmin={user?.isSystemAdmin === true}
-          allowedScreenIds={user?.allowedScreenIds}
+          allowedScreenIds={getAllowedScreenIds(user) ?? []}
           currentView={currentView}
           onNavigate={handleNavigate}
           onSearchMain={handleSearchMain}
@@ -240,7 +260,7 @@ function App() {
               <UserManagement user={user} />
             )}
             {currentView === 'permission-group-management' && <PermissionGroupManagement user={user} />}
-            {currentView === 'pending-approvals' && <PendingApprovals />}
+            {currentView === 'pending-approvals' && <PendingApprovals user={user} />}
             {currentView === 'main' && !selectedLogType && (
               <LogTypeSelector onSelectLogType={handleLogTypeSelect} />
             )}

@@ -1,7 +1,10 @@
 ---
 name: Frontend-ActivityLog
 description: Frontend activity log and statistics UI only — ActivityStatistics, UserActivityLog/*, Statistics*. Use when task is activity/statistics-only.
-globs: "frontend/**/*Activity*"
+globs:
+  - "frontend/src/components/ActivityStatistics*"
+  - "frontend/src/components/UserActivityLog/*"
+  - "frontend/src/services/userActivityLogService*"
 alwaysApply: false
 ---
 
@@ -9,14 +12,17 @@ alwaysApply: false
 
 Apply when working on **activity log and statistics UI only** (ActivityStatistics, UserActivityLog, Statistics*). For auth or log/search UI, use Frontend-Auth or Frontend-Log.
 
-## Response language
-
-- Respond to the user in the **user's requested language** (e.g. Korean when the user writes in Korean). Code, paths, and identifiers stay as-is.
-
 ## Scope (strict)
 
 - **Only**: ActivityStatistics, UserActivityLog/*, StatisticsView, StatisticsHeader, StatisticsFilters, StatisticsChart, StatisticsTable, UserStatisticsTable, userActivityLogService.
 - **Not**: LoginForm, LogGrid, LogTable, ImageLog*, SearchForm, AdvancedSearchForm, LogTypeSelector, or other screens.
+
+## Required skills
+
+| Domain | Skill |
+|--------|-------|
+| React UI debugging | `react-debugging` |
+| Activity statistics / scope / CSV | `activity-statistics-domain` |
 
 ## Role
 

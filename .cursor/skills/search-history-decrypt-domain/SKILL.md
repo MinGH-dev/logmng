@@ -48,11 +48,29 @@ Use for **search history, decryption approval, and approver** in this repo. Scop
 | isApprover, canApproveForRequester | **backend/src/main/java/com/logmng/service/DecryptApproverService.java** |
 | Frontend decrypt error handling | **frontend/src/components/ImageLogTable.js**, **frontend/src/utils/security.js** |
 
+## Requirement doc completeness checklist (decryption/approval)
+
+When writing a **requirement document** that involves decryption approval, search history, or snapshot verification, apply this checklist before finalizing §3:
+
+- [ ] **DECRYPTION_NOT_APPROVED TC**: TC where user requests decryption without approved search history → 403 DECRYPTION_NOT_APPROVED.
+- [ ] **ROW_NOT_IN_APPROVED_SNAPSHOT TC**: TC where user requests decryption for a row not in the approved snapshot → 403 ROW_NOT_IN_APPROVED_SNAPSHOT.
+- [ ] **Approver vs admin TC**: TC distinguishing decrypt_approver (department-scoped) from is_system_admin (global). canApproveForRequester for non-global approver.
+- [ ] **Approval flow TC**: PENDING → approve → APPROVED → decrypt succeeds; PENDING → reject → REJECTED → decrypt fails.
+- [ ] **Snapshot expiry/re-request**: If applicable, TC for expired approval and re-request flow.
+- [ ] **§5 curl commands**: Login as requester, approver, admin; per-TC curl for search-history and decrypt APIs.
+
 ## Before answering
 
 1. DECRYPTION_NOT_APPROVED: searchHistoryId·본인 소유·APPROVED·미만료 검사 실패. '복호화 승인 요청' 후 결재자/관리자 승인 필요.
 2. ROW_NOT_IN_APPROVED_SNAPSHOT: 승인 시점 검색 결과(스냅샷)에 포함된 row만 복호화 가능. 스냅샷에 없는 guid → 403.
 3. 결재자 vs 관리자: decrypt_approver(부서별/전역) 또는 is_system_admin. 둘 다 승인/반려 가능.
+
+## Related skills
+
+- `department-approver-domain`: **Dependency** — canApproveForRequester (approver scope: global vs department) determines who can approve/reject.
+- `auth-permission-domain`: is_system_admin bypass; screenFunctions.approve derivation.
+- `api-permission-map`: Approve-gated API enforcement (requireApproverOrAdmin).
+- `error-codes-domain`: DECRYPTION_NOT_APPROVED, ROW_NOT_IN_APPROVED_SNAPSHOT codes.
 
 ## References
 

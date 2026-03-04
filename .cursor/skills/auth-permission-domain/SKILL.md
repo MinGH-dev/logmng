@@ -29,6 +29,26 @@ API request
 
 **Key**: All screen APIs (including user-management, permission-groups, hierarchy) use the same rule: `is_system_admin` OR `allowedScreenIds` contains the required screen. Single source: `specs/permission-group-hierarchy.spec.yaml` §4.3, `docs/contract.md` §화면 기반 접근 제어.
 
+## screenFunctions (per-screen function availability)
+
+```
+screenFunctions: Record<screenId, { read: boolean, write?: boolean, approve?: boolean }>
+```
+
+**Derivation rules** (AuthService.resolveScreenFunctions):
+- **read**: always true if screen is in allowedScreenIds.
+- **write**: only for management screens (user-management, department-approvers, user-permission-hierarchy, permission-group-management). When `permission_group_screen.write` is null → **derived as true** (read implies write). Explicit `write=false` in DB overrides.
+- **approve**: only for search-history, pending-approvals. Requires (`decrypt_approver` OR `is_system_admin`). Explicit `approve=false` in DB overrides.
+
+## Error code distinction (FORBIDDEN vs FUNCTION_NOT_ALLOWED)
+
+| Layer | Code | Meaning |
+|-------|------|---------|
+| Screen access (interceptor or controller) | `FORBIDDEN` | User does not have the screen in allowedScreenIds |
+| Function denied (write or approve) | `FUNCTION_NOT_ALLOWED` | User has screen access but lacks the specific function (write=false or not approver) |
+
+For detailed API-to-permission-check mapping, see skill: `api-permission-map`.
+
 ## Quick reference
 
 - **All screen APIs** (user-management, permission-groups, hierarchy, main, search-history, etc.): `is_system_admin` OR user has screen in `allowedScreenIds` (from permission groups).
@@ -76,3 +96,4 @@ API request
 - Contract: docs/contract.md
 - Spec: specs/permission-group-hierarchy.spec.yaml
 - Improvement design: docs/SKILL-DOCUMENT-IMPROVEMENT-DESIGN.md
+- API permission enforcement map: `.cursor/skills/api-permission-map/SKILL.md`

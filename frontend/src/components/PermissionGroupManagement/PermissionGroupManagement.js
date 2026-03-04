@@ -5,12 +5,17 @@
  */
 import React from 'react';
 import PermissionGroupPanel from './PermissionGroupPanel';
+import { getAllowedScreenIds } from '../../utils/security';
 import './PermissionGroupManagement.css';
 
 const PermissionGroupManagement = ({ user }) => {
-  const isAdmin = user?.isSystemAdmin === true;
+  const ids = getAllowedScreenIds(user);
+  const canAccessPermissionGroupManagement =
+    user?.isSystemAdmin === true ||
+    (Array.isArray(ids) &&
+      (ids.includes('permission-group-management') || ids.includes('user-permission-hierarchy')));
 
-  if (!isAdmin) {
+  if (!canAccessPermissionGroupManagement) {
     return (
       <div className="permission-group-management">
         <h2>권한 그룹 관리</h2>

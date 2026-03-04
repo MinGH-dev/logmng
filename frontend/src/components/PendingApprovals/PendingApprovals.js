@@ -1,9 +1,12 @@
 import React, { useState, useEffect } from 'react';
+import { Tooltip } from '@mui/material';
 import {
   getPendingList,
   approveSearchHistory,
   rejectSearchHistory,
 } from '../../services/searchHistoryService';
+import { getScreenFunctions } from '../../utils/security';
+import { ACTION_DISABLED_TOOLTIPS } from '../../constants/screenFunctionDescriptions';
 import DataTable, { EmptyTableBody } from '../DataTable';
 import logger from '../../utils/logger';
 import './PendingApprovals.css';
@@ -18,7 +21,9 @@ const PENDING_COLUMNS = [
 
 const FORBIDDEN_CODES = ['FORBIDDEN_NOT_APPROVER', 'NOT_APPROVER'];
 
-const PendingApprovals = () => {
+const PendingApprovals = ({ user }) => {
+  const screenFunctions = getScreenFunctions(user);
+  const canApprove = screenFunctions?.['pending-approvals']?.approve === true;
   const [list, setList] = useState([]);
   const [pagination, setPagination] = useState({ currentPage: 1, totalPages: 1, totalCount: 0 });
   const [loading, setLoading] = useState(false);
@@ -173,12 +178,36 @@ const PendingApprovals = () => {
                 <td className="pending-approvals-summary">{row.searchParamsSummary ?? '-'}</td>
                 <td>{row.requestedAt ?? '-'}</td>
                 <td>
-                  <button type="button" className="pending-approvals-btn approve" onClick={() => handleApprove(row.id)} disabled={actionId === row.id} aria-label={actionId === row.id ? '승인 처리 중' : `승인, 요청 ID ${row.id}`}>
-                    {actionId === row.id ? '처리 중...' : '승인'}
-                  </button>
-                  <button type="button" className="pending-approvals-btn reject" onClick={() => openRejectModal(row.id)} disabled={actionId === row.id} aria-label={`반려, 요청 ID ${row.id}`}>
-                    반려
-                  </button>
+                  <Tooltip title={!canApprove ? ACTION_DISABLED_TOOLTIPS.approve : ''}>
+                    <span>
+                      <button
+                        type="button"
+                        className="pending-approvals-btn approve"
+                        onClick={() => handleApprove(row.id)}
+                        disabled={!canApprove || actionId === row.id}
+                        aria-disabled={!canApprove}
+                        aria-describedby={!canApprove ? `approve-tooltip-${row.id}` : undefined}
+                        aria-label={actionId === row.id ? '승인 처리 중' : `승인, 요청 ID ${row.id}`}
+                      >
+                        {actionId === row.id ? '처리 중...' : '승인'}
+                      </button>
+                    </span>
+                  </Tooltip>
+                  <Tooltip title={!canApprove ? ACTION_DISABLED_TOOLTIPS.reject : ''}>
+                    <span>
+                      <button
+                        type="button"
+                        className="pending-approvals-btn reject"
+                        onClick={() => openRejectModal(row.id)}
+                        disabled={!canApprove || actionId === row.id}
+                        aria-disabled={!canApprove}
+                        aria-describedby={!canApprove ? `reject-tooltip-${row.id}` : undefined}
+                        aria-label={`반려, 요청 ID ${row.id}`}
+                      >
+                        반려
+                      </button>
+                    </span>
+                  </Tooltip>
                 </td>
               </tr>
             ))
@@ -201,9 +230,20 @@ const PendingApprovals = () => {
               <button type="button" className="back-button" onClick={closeRejectModal}>
                 취소
               </button>
-              <button type="button" className="pending-approvals-btn reject" onClick={handleRejectSubmit} disabled={actionId === rejectModal.id}>
-                {actionId === rejectModal.id ? '처리 중...' : '반려'}
-              </button>
+              <Tooltip title={!canApprove ? ACTION_DISABLED_TOOLTIPS.reject : ''}>
+                <span>
+                  <button
+                    type="button"
+                    className="pending-approvals-btn reject"
+                    onClick={handleRejectSubmit}
+                    disabled={!canApprove || actionId === rejectModal.id}
+                    aria-disabled={!canApprove}
+                    aria-label="반려 확인"
+                  >
+                    {actionId === rejectModal.id ? '처리 중...' : '반려'}
+                  </button>
+                </span>
+              </Tooltip>
             </div>
           </div>
         </div>

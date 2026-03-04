@@ -53,6 +53,47 @@ export const removeSecureStorage = (key) => {
 };
 
 /**
+ * Normalize allowedScreenIds from user-like object (handles camelCase and snake_case).
+ * @param {object} user - User or userData object
+ * @returns {string[]|null} Allowed screen IDs or null
+ */
+export const getAllowedScreenIds = (user) => {
+  if (!user) return null;
+  const ids = user.allowedScreenIds ?? user.allowed_screen_ids;
+  return Array.isArray(ids) ? ids : null;
+};
+
+/**
+ * Normalize screenFunctions from user-like object (handles camelCase and snake_case).
+ * @param {object} user - User or userData object
+ * @returns {Record<string,{read:boolean,write?:boolean,approve?:boolean}>|null} screenFunctions or null
+ */
+export const getScreenFunctions = (user) => {
+  if (!user) return null;
+  const sf = user.screenFunctions ?? user.screen_functions;
+  return sf && typeof sf === 'object' ? sf : null;
+};
+
+/**
+ * Derive minimal screenFunctions from allowedScreenIds when backend does not provide screenFunctions.
+ * Returns read-only capability; write/approve default to false (safe fallback).
+ * @param {string[]|null} allowedScreenIds
+ * @param {boolean} isSystemAdmin
+ * @returns {Record<string,{read:boolean}>}
+ */
+export const deriveScreenFunctionsFromAllowed = (allowedScreenIds, isSystemAdmin) => {
+  const result = {};
+  if (isSystemAdmin && !Array.isArray(allowedScreenIds)) {
+    return result;
+  }
+  const ids = Array.isArray(allowedScreenIds) ? allowedScreenIds : [];
+  ids.forEach((screenId) => {
+    result[screenId] = { read: true };
+  });
+  return result;
+};
+
+/**
  * 사용자 정보를 최소화하여 저장
  * @param {object} userData - 사용자 데이터
  */
@@ -61,12 +102,14 @@ export const saveMinimalUserData = (userData) => {
     return;
   }
 
-  // 필요한 최소한의 정보만 저장 (isSystemAdmin, allowedScreenIds, screenScopes — 메뉴·화면 접근·필터 표시용)
+  const sf = getScreenFunctions(userData);
+  // 필요한 최소한의 정보만 저장 (isSystemAdmin, allowedScreenIds, screenScopes, screenFunctions — 메뉴·화면 접근·액션 제어용)
   const minimalData = {
     username: userData.username || null,
     isSystemAdmin: userData.isSystemAdmin === true,
-    allowedScreenIds: Array.isArray(userData.allowedScreenIds) ? userData.allowedScreenIds : null,
+    allowedScreenIds: getAllowedScreenIds(userData),
     screenScopes: userData.screenScopes && typeof userData.screenScopes === 'object' ? userData.screenScopes : null,
+    screenFunctions: sf && typeof sf === 'object' ? sf : null,
   };
 
   setSecureStorage('user', minimalData);
@@ -139,6 +182,9 @@ export default {
   removeSecureStorage,
   saveMinimalUserData,
   getMinimalUserData,
+  getAllowedScreenIds,
+  getScreenFunctions,
+  deriveScreenFunctionsFromAllowed,
   clearUserData,
   sanitizeErrorMessage,
   getUserFriendlyErrorMessage

@@ -1,6 +1,6 @@
 ---
 description: Todo list MUST follow workflow order — read WORKFLOW_CHECKLIST before TodoWrite for dev/error-fix tasks
-alwaysApply: true
+alwaysApply: false
 ---
 
 # Workflow-Aligned Todo List

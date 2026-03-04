@@ -53,6 +53,13 @@ Use for **department hierarchy and decrypt approver** in this repo. Scope: depar
 2. decrypt_approver: user_id + department_code (null=전역). 결재자 추가/해제 API는 410 Gone.
 3. **Requirement traceability**: When explaining design, cite requirement doc (path + §section). Use core refs; do not load full doc.
 
+## Related skills
+
+- `search-history-decrypt-domain`: **Depends on this skill** — canApproveForRequester determines which pending requests an approver can approve/reject.
+- `auth-permission-domain`: Permission model; decrypt_approver is one condition for approve gate.
+- `api-permission-map`: API-level permission checks for approve-gated endpoints.
+- `db-domain`: decrypt_approver table schema (`backend/src/main/resources/db/schema.sql`).
+
 ## References
 
 - API: docs/api-definition.md §12, §14.9

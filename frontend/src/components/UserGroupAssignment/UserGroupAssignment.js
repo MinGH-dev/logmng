@@ -4,8 +4,10 @@
  * §2.2 Architecture: UserGroupAssignment extraction.
  */
 import React, { useState } from 'react';
+import { Tooltip } from '@mui/material';
 import { addUserToGroup, removeUserFromGroup } from '../../services/permissionGroupService';
 import { getErrorMessage } from '../../utils/errorMessage';
+import { ACTION_DISABLED_TOOLTIPS } from '../../constants/screenFunctionDescriptions';
 import logger from '../../utils/logger';
 import '../UserManagement/UserManagement.css';
 import './UserGroupAssignment.css';
@@ -60,30 +62,40 @@ const UserGroupAssignment = ({ userId, userGroups = [], allGroups = [], onRefres
           return (
             <span key={gid} className="user-group-badge">
               {name}
-              <button
-                type="button"
-                className="user-group-badge-remove"
-                onClick={() => handleRemove(gid)}
-                disabled={disabled || actionId === String(gid)}
-                aria-label={`권한 그룹 제거, ${name}`}
-              >
-                ×
-              </button>
+              <Tooltip title={disabled ? ACTION_DISABLED_TOOLTIPS.write : ''}>
+                <span>
+                  <button
+                    type="button"
+                    className="user-group-badge-remove"
+                    onClick={() => handleRemove(gid)}
+                    disabled={disabled || actionId === String(gid)}
+                    aria-disabled={disabled}
+                    aria-label={`권한 그룹 제거, ${name}`}
+                  >
+                    ×
+                  </button>
+                </span>
+              </Tooltip>
             </span>
           );
         })}
         {addableGroups.length > 0 && (
           <>
             {!addOpen ? (
-              <button
-                type="button"
-                className="user-management-btn add user-group-add-btn"
-                onClick={() => { setAddOpen(true); setError(null); }}
-                disabled={disabled}
-                aria-label="권한 그룹 추가"
-              >
-                + 추가
-              </button>
+              <Tooltip title={disabled ? ACTION_DISABLED_TOOLTIPS.write : ''}>
+                <span>
+                  <button
+                    type="button"
+                    className="user-management-btn add user-group-add-btn"
+                    onClick={() => { setAddOpen(true); setError(null); }}
+                    disabled={disabled}
+                    aria-disabled={disabled}
+                    aria-label="권한 그룹 추가"
+                  >
+                    + 추가
+                  </button>
+                </span>
+              </Tooltip>
             ) : (
               <span className="user-group-add-inline">
                 <select

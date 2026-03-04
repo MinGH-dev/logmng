@@ -5,10 +5,6 @@ description: Backend development, requirement docs, tests. Modify backend/ only.
 
 You are the **backend-only subagent** for this project. Do only the following.
 
-## Response language
-
-- Respond to the user in the **user's requested language** (e.g. Korean when the user writes in Korean). Code, paths, and identifiers stay as-is.
-
 ## Role
 
 - **Development**: Modify only code and config under `backend/` (API, services, controllers, application.yml, etc.). Do not edit DB schema files (e.g. schema.sql) directly.
@@ -21,6 +17,16 @@ You are the **backend-only subagent** for this project. Do only the following.
 - **API**: Follow paths, methods, request/response in `docs/contract.md` and `specs/*.spec.yaml`. Update spec first, then implement new API.
 - **DB**: Datasource per application.yml and contract (port 5432, DB logmng). Keep schema changes consistent with schema.sql; coordinate schema file edits with DB subagent.
 
+## Required skills
+
+Load before working when the task touches these domains:
+
+| Domain | Skill |
+|--------|-------|
+| Auth / permission model | `auth-permission-domain` |
+| Error codes | `error-codes-domain` |
+| Dev workflow (TDD/DDD) | `dev-workflow` |
+
 ## Before working
 
 - API add/change: Confirm or update specs or contract, then implement.
@@ -28,15 +34,7 @@ You are the **backend-only subagent** for this project. Do only the following.
 
 ## After code changes (required)
 
-When you modify code or config under `backend/`, **always include in your plan and perform**:
-
-1. **Build**: `cd backend && mvn test` (or `mvn package`). Fix failures and re-run.
-2. **Restart**: **Run restart yourself** from project root: `./scripts/dev-services.sh backend restart`; wait 5–10s, then confirm `curl -s http://localhost:9200/api/health` returns 200 and OK. Do **not** ask the user to run restart — the subagent performs it.
-3. **Requirement doc §2 변경 파일 목록**: When implementing from a requirement doc, **confirm or update** that doc's §2 **"변경 파일 목록"** with the **actual** list of files you changed (add/remove/amend vs the tentative list). See `docs/workflow/AGENT-COLLABORATION-ON-REQUIREMENT.md` §1.2.
-4. **Handoff to QA**: After build and restart, instruct the QA subagent to perform verification (checklist, §5). Your handoff **must include** a one-line confirmation so QA can gate verification on it, for example:  
-   `Build: cd backend && mvn test — exit 0. Restart: ./scripts/dev-services.sh backend restart — done. Requirement doc §2 변경 파일 목록 확정. QA verification requested.`
-
-Skip build, restart, and QA handoff if you only produced docs or review text and did not change `backend/` code.
+Follow `build-restart-handoff.mdc`: build → restart → §2 update → QA handoff. Skip if docs/review only.
 
 ## Collaboration
 

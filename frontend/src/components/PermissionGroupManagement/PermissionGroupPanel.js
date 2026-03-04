@@ -4,6 +4,7 @@
  * Optionally rendered standalone by PermissionGroupManagement for backward compatibility.
  */
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import { Tooltip } from '@mui/material';
 import {
   listPermissionGroups,
   createPermissionGroup,
@@ -14,6 +15,12 @@ import {
   removeUserFromGroup,
 } from '../../services/permissionGroupService';
 import { getUsers } from '../../services/userService';
+import { getAllowedScreenIds, getScreenFunctions } from '../../utils/security';
+import {
+  ACTION_DISABLED_TOOLTIPS,
+  SCREENS_WITH_WRITE,
+  SCREENS_WITH_APPROVE,
+} from '../../constants/screenFunctionDescriptions';
 import { getErrorMessage } from '../../utils/errorMessage';
 import DataTable, { EmptyTableBody } from '../DataTable';
 import ScreenSelectionTree from './ScreenSelectionTree';
@@ -51,7 +58,15 @@ const PermissionGroupPanel = ({ user, onRefreshHierarchy }) => {
   const [createAllowedScreens, setCreateAllowedScreens] = useState([]);
   const [editAllowedScreens, setEditAllowedScreens] = useState([]);
 
-  const isAdmin = user?.isSystemAdmin === true;
+  const ids = getAllowedScreenIds(user);
+  const screenFunctions = getScreenFunctions(user);
+  const canAccessPermissionGroupManagement =
+    user?.isSystemAdmin === true ||
+    (Array.isArray(ids) &&
+      (ids.includes('permission-group-management') || ids.includes('user-permission-hierarchy')));
+  const canWrite =
+    screenFunctions?.['permission-group-management']?.write === true ||
+    screenFunctions?.['user-permission-hierarchy']?.write === true;
 
   const sortedGroups = useMemo(() => {
     if (!groups.length || !sortConfig.key) return groups;
@@ -65,7 +80,7 @@ const PermissionGroupPanel = ({ user, onRefreshHierarchy }) => {
   }, [groups, sortConfig.key, sortConfig.direction]);
 
   const loadGroups = useCallback(async () => {
-    if (!isAdmin) return;
+    if (!canAccessPermissionGroupManagement) return;
     setLoading(true);
     setError(null);
     try {
@@ -78,10 +93,10 @@ const PermissionGroupPanel = ({ user, onRefreshHierarchy }) => {
     } finally {
       setLoading(false);
     }
-  }, [isAdmin]);
+  }, [canAccessPermissionGroupManagement]);
 
   const loadUsers = useCallback(async () => {
-    if (!isAdmin) return;
+    if (!canAccessPermissionGroupManagement) return;
     try {
       const result = await getUsers();
       const data = result.data;
@@ -90,7 +105,7 @@ const PermissionGroupPanel = ({ user, onRefreshHierarchy }) => {
       logger.error('사용자 목록 조회 실패:', e);
       setUserList([]);
     }
-  }, [isAdmin]);
+  }, [canAccessPermissionGroupManagement]);
 
   useEffect(() => {
     loadGroups();
@@ -104,13 +119,42 @@ const PermissionGroupPanel = ({ user, onRefreshHierarchy }) => {
     }));
   };
 
-  /** Normalize allowedScreens to [{ screenId, scope? }]. API may return string[] or object array. */
+  /** Normalize allowedScreens to [{ screenId, scope?, read?, write?, approve? }]. API may return string[] or object array.
+   * Preserves explicit false for write/approve when API returns partial data. Aligns with ScreenSelectionTree normalizeSelected. req 20250303-permission-group-checkbox-not-working */
   const normalizeAllowedScreens = (arr) => {
+    const scopeScreens = ['activity-log', 'statistics', 'search-history'];
     if (!Array.isArray(arr)) return [];
-    return arr.map((s) =>
-      typeof s === 'string' ? { screenId: s, scope: 'self' } : { screenId: s.screenId, scope: s.scope || 'self' }
-    );
+    return arr.map((s) => {
+      const base = typeof s === 'string'
+        ? { screenId: s, scope: scopeScreens.includes(s) ? 'self' : undefined }
+        : {
+            screenId: s.screenId,
+            scope: s.scope || (scopeScreens.includes(s.screenId) ? 'self' : undefined),
+            read: s.read,
+            write: s.write,
+            approve: s.approve,
+          };
+      const hasWrite = SCREENS_WITH_WRITE.includes(base.screenId);
+      const hasApprove = SCREENS_WITH_APPROVE.includes(base.screenId);
+      return {
+        ...base,
+        read: base.read ?? true,
+        write: base.write ?? (hasWrite ? true : undefined),
+        approve: base.approve ?? (hasApprove ? false : undefined),
+      };
+    });
   };
+
+  /** Build API payload for allowedScreens. Sends screenId, scope (when applicable), read, write, approve per spec §1.1. */
+  const toAllowedScreensPayload = (screens) =>
+    screens.map((s) => {
+      const item = { screenId: s.screenId };
+      if (s.scope) item.scope = s.scope;
+      if (s.read !== undefined) item.read = s.read;
+      if (s.write !== undefined) item.write = s.write;
+      if (s.approve !== undefined) item.approve = s.approve;
+      return item;
+    });
 
   const openEdit = (group) => {
     setEditGroup(group);
@@ -160,9 +204,7 @@ const PermissionGroupPanel = ({ user, onRefreshHierarchy }) => {
     setActionId('create');
     setError(null);
     try {
-      const allowedScreens = createAllowedScreens.map((s) =>
-        s.scope ? { screenId: s.screenId, scope: s.scope } : { screenId: s.screenId }
-      );
+      const allowedScreens = toAllowedScreensPayload(createAllowedScreens);
       await createPermissionGroup({ code, name, description, allowedScreens });
       setCreateOpen(false);
       setCreateAllowedScreens([]);
@@ -191,9 +233,7 @@ const PermissionGroupPanel = ({ user, onRefreshHierarchy }) => {
     setActionId('edit');
     setError(null);
     try {
-      const allowedScreens = editAllowedScreens.map((s) =>
-        s.scope ? { screenId: s.screenId, scope: s.scope } : { screenId: s.screenId }
-      );
+      const allowedScreens = toAllowedScreensPayload(editAllowedScreens);
       await updatePermissionGroup(editGroup.id, { code, name, description, allowedScreens });
       setEditOpen(false);
       setEditGroup(null);
@@ -296,9 +336,20 @@ const PermissionGroupPanel = ({ user, onRefreshHierarchy }) => {
         </div>
       )}
       <div className="permission-group-actions">
-        <button type="button" className="user-management-btn add" onClick={() => { setCreateOpen(true); setError(null); }} aria-label="권한 그룹 추가">
-          권한 그룹 추가
-        </button>
+        <Tooltip title={!canWrite ? ACTION_DISABLED_TOOLTIPS.create : ''}>
+          <span>
+            <button
+              type="button"
+              className="user-management-btn add"
+              onClick={() => { setCreateOpen(true); setError(null); }}
+              disabled={!canWrite}
+              aria-disabled={!canWrite}
+              aria-label="권한 그룹 추가"
+            >
+              권한 그룹 추가
+            </button>
+          </span>
+        </Tooltip>
       </div>
       <DataTable
         columns={GROUP_COLUMNS}
@@ -318,9 +369,48 @@ const PermissionGroupPanel = ({ user, onRefreshHierarchy }) => {
               <td>{row.name}</td>
               <td>{row.description ?? '-'}</td>
               <td>
-                <button type="button" className="user-management-btn add" onClick={() => openEdit(row)} aria-label={`수정, ${row.code}`}>수정</button>
-                <button type="button" className="user-management-btn remove" onClick={() => openDelete(row)} aria-label={`삭제, ${row.code}`}>삭제</button>
-                <button type="button" className="user-management-btn add" onClick={() => openUsersDialog(row)} aria-label={`사용자 관리, ${row.code}`}>사용자 관리</button>
+                <Tooltip title={!canWrite ? ACTION_DISABLED_TOOLTIPS.edit : ''}>
+                  <span>
+                    <button
+                      type="button"
+                      className="user-management-btn add"
+                      onClick={() => openEdit(row)}
+                      disabled={!canWrite}
+                      aria-disabled={!canWrite}
+                      aria-label={`수정, ${row.code}`}
+                    >
+                      수정
+                    </button>
+                  </span>
+                </Tooltip>
+                <Tooltip title={!canWrite ? ACTION_DISABLED_TOOLTIPS.delete : ''}>
+                  <span>
+                    <button
+                      type="button"
+                      className="user-management-btn remove"
+                      onClick={() => openDelete(row)}
+                      disabled={!canWrite}
+                      aria-disabled={!canWrite}
+                      aria-label={`삭제, ${row.code}`}
+                    >
+                      삭제
+                    </button>
+                  </span>
+                </Tooltip>
+                <Tooltip title={!canWrite ? ACTION_DISABLED_TOOLTIPS.write : ''}>
+                  <span>
+                    <button
+                      type="button"
+                      className="user-management-btn add"
+                      onClick={() => openUsersDialog(row)}
+                      disabled={!canWrite}
+                      aria-disabled={!canWrite}
+                      aria-label={`사용자 관리, ${row.code}`}
+                    >
+                      사용자 관리
+                    </button>
+                  </span>
+                </Tooltip>
               </td>
             </tr>
           ))
@@ -381,7 +471,7 @@ const PermissionGroupPanel = ({ user, onRefreshHierarchy }) => {
                 <span className="permission-group-form-label">접근 화면</span>
                 <ScreenSelectionTree
                   selectedScreens={editAllowedScreens}
-                  onChange={setEditAllowedScreens}
+                  onChange={(next) => setEditAllowedScreens(next)}
                 />
               </div>
               <div className="permission-group-dialog-actions">

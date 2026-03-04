@@ -1,39 +1,22 @@
 ---
-description: Language policy — instructions in English, user response in requested language (dev only)
+description: Language policy — instructions English, user response in requested language
 alwaysApply: true
 ---
 
 # Language Policy
 
-## Instruction documents (English)
+## Instructions: English
 
-All content that instructs the agent must be in **English**:
+All `.cursor/rules/`, `.cursor/commands/`, `.cursor/skills/`, `.cursor/agents/`, `docs/workflow/`, `docs/template/` content must be in **English**.
 
-- `.cursor/rules/**/*.mdc` — rule body and structure
-- `.cursor/commands/**/*.md` — slash command text
-- `.cursor/skills/**/SKILL.md` — skill instructions
-- `.cursor/agents/**/*.mdc` — agent role and constraints
-- **Tool-facing docs**: `docs/workflow/*.md`, `docs/template/*.md`, `docs/cursor-subagents/*.md` — all in English (section titles, procedures, handoff rules). See `docs/workflow/DOCUMENT-LANGUAGE-POLICY.md`.
+## User-facing output: requested language
 
-Rationale: instruction-following and token efficiency tend to be more reliable when the instruction layer is in English. Handoffs and directions stay clear. The model still outputs in the user's language when the user requests it.
+Respond in the **user's requested language** (e.g. Korean). Code, file paths, identifiers stay as-is.
 
-## Requirement documents: English first, Korean final
+## Requirement documents
 
-- **Authoring**: Requirement docs are written **in English first** (§1, §2, §3). Use `docs/template/REQUIREMENT_TEMPLATE.md` (English).
-- **After all verification is complete**: Produce a **final Korean version** — either add a section "§ Final version (Korean)" in the same doc or create `yyyyMMdd-name-ko.md` with the full content in Korean. See `docs/workflow/DOCUMENT-LANGUAGE-POLICY.md` §2.
-- **Commit message**: Every commit that closes a requirement **must reference the requirement doc** (e.g. `req yyyyMMdd-name` or `docs/requirements/yyyyMMdd-name.md`) so each commit is traceable to the work done. See `.cursor/commands/commit-on-complete.md`.
+- **Author** in English first (§1, §2, §3). Template: `docs/template/REQUIREMENT_TEMPLATE.md`.
+- **After verification**: add Korean final version (§ Final version or `-ko.md`).
+- **Commit message**: reference the requirement doc (e.g. `req yyyyMMdd-name`).
 
-## User-facing response (requested language)
-
-- **User-facing replies** (explanations, summaries, error messages, suggestions) MUST be in the **user's requested language** (e.g. Korean if the user asked in Korean or set "Always respond in 한국어").
-- Code, file paths, identifiers, and technical terms may stay as-is; only the surrounding natural language follows the user's language.
-
-## Instruction → output split
-
-- **Instructions** (rules, commands, skills, agent prompts): English so that direction is clear and consistent for the model.
-- **Output to the user**: In the **user's requested language** (e.g. Korean when the user writes in Korean or has "Always respond in 한국어"). Code, file paths, and technical identifiers stay as-is; only the surrounding explanations, summaries, and messages follow the user's language.
-
-## What stays language-agnostic or mixed
-
-- File paths, repo structure, and doc references: no change.
-- User-facing docs (e.g. `docs/requirements/*.md`, README) may use the project's usual language; instruction documents in `.cursor/` follow the rule above.
+Detail: `docs/workflow/DOCUMENT-LANGUAGE-POLICY.md`.

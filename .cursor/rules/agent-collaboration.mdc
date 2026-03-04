@@ -5,55 +5,29 @@ alwaysApply: true
 
 # Agent Collaboration on Requirement
 
-## Delegation gate (check before performing any step)
+## Delegation gate
 
-**Before** writing a requirement doc, implementing (editing code in `frontend/` or `backend/`), running build/restart, running verification, updating §5/§6, or committing: if that step has a **dedicated subagent** (see table in `docs/workflow/SUBAGENT-DELEGATION.md`) and the user did **not** say "code only here", "skip subagent", or "do it in this chat" — **do not perform the step**. Instead, **directly invoke** that subagent via **mcp_task** (pass the handoff input as the `prompt` and the matching `subagent_type`). Performing the step in the current chat is allowed **only** when the user explicitly requested it.
+**Before** performing any step (requirement doc, implementation, build/restart, verification, §5/§6, commit): if a **dedicated subagent** exists for that step (see `docs/workflow/SUBAGENT-DELEGATION.md` §1) and the user did **not** say "code only here", "skip subagent", or "do it in this chat" — **invoke that subagent via mcp_task** instead. Do not perform in this chat.
 
-## Main agent role (delegation via direct invocation)
+## Collaboration sequence
 
-When subagent delegation is in effect, the **main agent (default chat)** does not execute steps that belong to a subagent. It **directly delivers** work to subagents:
+Follow `docs/workflow/AGENT-COLLABORATION-ON-REQUIREMENT.md`: Step 1 Requirements → Step 2 Security (if PII/access) → Step 3 Contract/DBA/Architecture/Consistency/UX → Step 4 Backend/Frontend/DB → Step 4.5 Review (optional) → Step 5 QA → Step 6 Documentation/Release.
 
-- **Receives** the user request (requirement, feature, error fix).
-- **Identifies** which step(s) and which subagent(s) are needed (see delegation table and mcp_task mapping in `docs/workflow/SUBAGENT-DELEGATION.md`).
-- **Invokes the subagent** by calling **mcp_task** with:
-  - `subagent_type`: the matching type (e.g. Requirements, Backend, Frontend, QA).
-  - `prompt`: the exact handoff input (requirement doc path, task description, expected output).
-  - `description`: short 3–5 word summary of the task.
-  - `model` (optional): **Omit** because mcp_task does not accept `claude-haiku-4.5`/`sonnet4.6`. §2.1 model names are for **user-facing report only**.
-- **Reports model to user**: When invoking a subagent, **state in the user-facing message** the subagent and the **actual model name** from `docs/workflow/SUBAGENT-MODEL-SELECTION.md` §2.1 for that subagent (e.g. "Delegating to Backend (model: sonnet4.6)…", "Invoking Release (model: claude-haiku-4.5)…"). Do **not** report "default"; always use the configured model name from §2.1. See `docs/workflow/SUBAGENT-MODEL-SELECTION.md` §5.
-- If the user says "manual handoff" or "I'll switch myself", or if mcp_task is unavailable, **instruct the user** to switch to that subagent and provide the same input to pass.
+## Key rules
 
-The main agent **does not** perform any step itself: no requirement doc, no implementation, no build, no restart, no verification, no §5/§6 update, no commit. **Commit** after QA is done by the **QA subagent** per `.cursor/commands/commit-on-complete.md` (push only when the user requests).
+- **Gate**: No development (Step 4) before requirement doc + §3 is complete. See `error-first-workflow.mdc`.
+- **Commit**: QA subagent commits per `.cursor/commands/commit-on-complete.md`. Main agent does not commit when delegation is active.
+- **Model reporting**: State the subagent and model from `docs/workflow/SUBAGENT-MODEL-SELECTION.md` §2.1 when invoking (e.g. "Delegating to Backend (model: sonnet4.6)").
+- **Exception**: "code only here" / "skip subagent" / "do it in this chat" → main agent may perform steps directly.
 
-**Exception**: If the user says "code only here", "skip subagent", or "do it in this chat", the main agent may perform the relevant step(s) in the current chat (including build, verify, commit).
+## Cross-domain conflict resolution (Meta-Rules)
 
----
+When a change **spans multiple agent scopes** (e.g. Backend + DB, Frontend + Contract):
 
-When the user requests a **new requirement**, **feature**, or **error fix** (and does not say "code only" or "skip docs"):
+1. **Single owner per file**: Each file has exactly one owning agent (by scope). No agent modifies files outside its scope.
+2. **Coordination via requirement doc**: The requirement doc §2 lists tentative changes per scope. Each implementing agent confirms its own §2 file list.
+3. **Conflict detection**: If an agent discovers its implementation requires changes in another scope (e.g. Backend needs a schema change), it **does not** modify the other scope. Instead, it documents the need in the requirement doc and **hands off to the owning agent** (e.g. DB agent for schema).
+4. **Review as final arbiter**: When Step 4 involves multiple implementing agents, **Review agent** (Step 4.5) checks cross-scope consistency (API shape matches frontend calls, schema matches backend entities).
+5. **Merge order**: DB schema first → Backend API → Frontend UI. Later agents adapt to earlier agents' output.
 
-1. **Follow the collaboration sequence** in `docs/workflow/AGENT-COLLABORATION-ON-REQUIREMENT.md`:
-   - **Step 1**: Requirements — requirement doc (§1, §2, §3) first. **During authoring**, Requirements **solicits feedback** from relevant expert subagents (Security, Contract, UX, DBA, Architecture, Consistency) per §1.1; after the doc is complete, **each responsible subagent** performs its step in sequence. No code before Step 1 is complete.
-   - **Step 2**: Security — if PII, decryption scope, or access control; add §2.1 or security review.
-   - **Step 3**: Contract (API/DB change), DBA (schema), Architecture (performance **and commonization when frontend/backend**), **Consistency** (new conventions), **UX** (UI/design) — as needed.
-   - **Step 4**: Backend / Frontend / DB — implement using requirement doc, §3, contract, and any review output.
-   - **Step 4.5**: **Review** (optional) — review change against contract, workflow, quality, CONSISTENCY-STANDARDS; no code edit.
-   - **Step 5**: QA — test scenarios, §5 (and §6 for error fixes), verification.
-   - **Step 6**: **Documentation** (user/ops docs), **Release** (CHANGELOG, release checklist) — as needed.
-
-2. **Single hub**: The requirement doc (`docs/requirements/yyyyMMdd-name.md`) is the shared artifact. Each agent reads or updates only the sections assigned in the collaboration doc.
-
-3. **Handoffs**: When invoking or delegating to another agent (e.g. via Subagent or explicit instruction), state the **input** they get (e.g. "requirement doc draft", "contract updated") and the **output** expected (e.g. "§2.1 security review", "implementation in backend/").
-
-4. **Gate**: Do not start Step 4 (development) until Step 1 (requirement doc + §3 test plan) is complete. Same for error fixes: requirement doc + §3 first (see `error-first-workflow.mdc`).
-
-5. **Delegation for all steps**: For any step that has a dedicated subagent, **do not perform that step in the main chat**; instead **invoke that subagent via mcp_task** (subagent_type + prompt = handoff input). Full mapping and fallback: `docs/workflow/SUBAGENT-DELEGATION.md` §1 and §2.2.
-   - **Step 1**: Requirement doc authoring → **Requirements** subagent (user request or error message). The main agent **must not** write the requirement doc when delegation is in effect; only the Requirements subagent performs Step 1.
-   - **Step 2**: Security review (PII/decrypt/access control) → **Security** subagent (requirement doc §1·§2).
-   - **Step 3**: Contract/spec (API or DB) → **Contract**; schema/index design → **DBA**; performance/scale **or frontend/backend commonization** → **Architecture**; new conventions → **Consistency**; UI/design/a11y → **UX** (each when relevant).
-   - **Step 4**: Implementation in `frontend/` → **Frontend**; `backend/` → **Backend**; DB only → **DB**. When they need detail the requirement doc does not specify (e.g. UX, Contract, DBA), they **query that expert subagent** per §1.2; for UI/layout optionally **UX** first, then **Frontend**.
-   - **Step 4.5**: Change review (optional) → **Review** subagent.
-   - **Step 5**: Verification, §5/§6 → **QA** subagent (after build and restart). The main agent **must not** run verification or update §5 when delegation is in effect; only QA performs Step 5. After verification, **QA** performs commit per `.cursor/commands/commit-on-complete.md`; the main agent does not commit.
-   - **Step 6**: User/ops docs → **Documentation**; CHANGELOG/release → **Release** subagent.
-   - **Exception**: If the user says "code only here", "skip subagent", or "do it in this chat", you may perform the relevant step(s) in the current chat.
-
-Reference: `docs/workflow/AGENT-COLLABORATION-ON-REQUIREMENT.md`, `docs/workflow/CURSOR-SUBAGENTS-DESIGN.md` §3, `docs/workflow/SUBAGENT-DELEGATION.md`.
+Reference: `docs/workflow/SUBAGENT-DELEGATION.md`, `docs/workflow/AGENT-COLLABORATION-ON-REQUIREMENT.md`, `docs/workflow/CURSOR-SUBAGENTS-DESIGN.md` §3.

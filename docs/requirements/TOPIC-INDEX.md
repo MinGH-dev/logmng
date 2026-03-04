@@ -8,8 +8,18 @@ For **RequirementsPastSearch** token optimization. Read this file first to find 
 
 ## permission | access-control | 화면 접근 | 권한 그룹 | is_system_admin
 
+- 20250304-write-approve-holder-nonholder-verification | Verify write/approve holders can use functions; non-holders get 403 (FORBIDDEN/FUNCTION_NOT_ALLOWED); new analysis
+- 20250304-permission-function-holder-nonholder-verification | Holder uses write/approve; non-holder denied (403 FORBIDDEN/FUNCTION_NOT_ALLOWED); verification-only
+- 20250304-holder-nonholder-function-verification | 권한 보유자 기능 정상 이용·미보유자 권한 행사 불가 검증 (write/approve API, 새 분석)
+- 20250304-permission-group-function-verification | 권한 그룹 수정/승인: 보유자 정상 이용, 미보유자 행사 불가 검증 (verification only)
+- 20250303-screen-function-availability | 화면별 기능 사용 가능 여부 (read/write/approve); main read-only; common format
+- 20250303-screen-function-checkbox-selection | 조회/수정/승인 체크박스로 명시적 선택 (permission group config)
 - 20250227-permission-group-screen-menu-access | 권한 그룹별 화면 접근 설정; ADMIN or group allows screen; GENERAL_USER
+- 20250303-permission-group-management-access-fix | 권한 그룹 관리: user-permission-hierarchy 허용 시 "관리자만 접근" 오류 수정
 - 20250227-permission-group-screen-menu-access-bugfix-1 | Admin 섹션: non-admin with user-management in allowedScreenIds → 사이드바 표시
+- 20250303-user-management-permission-group-access | 사용자관리: 권한 그룹으로 user-management 허용 시 "관리자만 접근" 오류 수정
+- 20250303-user-management-permission-group-access-bugfix-1 | Frontend: canAccessUserManagement
+- 20250303-user-management-permission-group-access-bugfix-2 | Backend: hierarchy/permission-groups API accept user-management OR user-permission-hierarchy
 - 20250227-permission-group-separate-menu | 권한 그룹 메뉴 분리
 - 20250227-permission-management-in-hierarchy | 권한 관리를 사용자 권한 계층 화면에 통합
 - 20250227-permission-user-management-close-button | 권한 그룹 사용자 할당 모달 닫기 버튼 가시성
@@ -58,6 +68,9 @@ For **RequirementsPastSearch** token optimization. Read this file first to find 
 - 20250227-user-permission-hierarchy-group | 사용자 권한 계층 및 권한 그룹 관리
 - 20250227-user-permission-hierarchy-group-bugfix-1 | DB schema·init-data 미적용
 - 20250227-user2-approver-display-bugfix | user2 결재자 표시 오류
+- 20250303-user-management-permission-group-access | 사용자관리: 권한 그룹으로 user-management 허용 시 "관리자만 접근" 오류 수정
+- 20250303-user-management-permission-group-access-bugfix-1 | Frontend: canAccessUserManagement
+- 20250303-user-management-permission-group-access-bugfix-2 | Backend: hierarchy/permission-groups API accept user-management OR user-permission-hierarchy
 
 ## decryption | 복호화 | search-history | 검색 이력 | approval
 

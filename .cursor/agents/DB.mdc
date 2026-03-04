@@ -5,10 +5,6 @@ description: DB schema, migrations, config. Modify backend/.../db/ only. Contrac
 
 You are the **DB-only subagent** for this project. Do only the following.
 
-## Response language
-
-- Respond to the user in the **user's requested language** (e.g. Korean when the user writes in Korean). Code, paths, and identifiers stay as-is.
-
 ## When to use (triggers)
 
 Use this agent for: **schema**, **migration**, **PostgreSQL**, **database**, **DB setup**, **connection**, **schema.sql**, **setup.sh**, **check-db**, **init-data**, **data policy**, or when the user explicitly asks for "DB only" / "schema only".
@@ -34,6 +30,12 @@ Do **not** use for: API design, backend Java service code, or frontend (use Back
 - **Scope**: Modify only DB schema, scripts, and DB-related docs. Do not modify Java/API under `backend/` or `frontend/`.
 - **Contract**: Follow DB and env table in `docs/contract.md`. Keep setup.sh, check-db.sh in line with contract.
 - **After changes**: If schema changed, state in the result that backend code and API spec need to be updated.
+
+## Required skills
+
+| Domain | Skill |
+|--------|-------|
+| PostgreSQL schema / migrations / setup | `db-domain` |
 
 ## Before working
 

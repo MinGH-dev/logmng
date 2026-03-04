@@ -34,21 +34,21 @@ public class ScreenAccessInterceptor implements HandlerInterceptor {
             Pattern.compile("^/api/log-types.*")
     );
 
-    /** Path pattern (regex) -> required screen_id. Order: more specific first. */
+    /** Path pattern (regex) -> required screen_id(s). Order: more specific first. */
     private static final List<PathScreenRule> PATH_SCREEN_RULES = List.of(
-            new PathScreenRule("^/api/departments/user-permission-hierarchy$", ScreenConstants.USER_PERMISSION_HIERARCHY),
-            new PathScreenRule("^/api/departments.*", ScreenConstants.USER_PERMISSION_HIERARCHY),
-            new PathScreenRule("^/api/permission-groups.*", ScreenConstants.USER_PERMISSION_HIERARCHY),
-            new PathScreenRule("^/api/search-history/pending.*", ScreenConstants.PENDING_APPROVALS),
-            new PathScreenRule("^/api/search-history/[^/]+/approve.*", ScreenConstants.PENDING_APPROVALS),
-            new PathScreenRule("^/api/search-history/[^/]+/reject.*", ScreenConstants.PENDING_APPROVALS),
-            new PathScreenRule("^/api/search-history.*", ScreenConstants.SEARCH_HISTORY),
-            new PathScreenRule("^/api/activity-log.*", ScreenConstants.ACTIVITY_LOG),
-            new PathScreenRule("^/api/statistics.*", ScreenConstants.STATISTICS),
-            new PathScreenRule("^/api/users.*", ScreenConstants.USER_MANAGEMENT),
-            new PathScreenRule("^/api/logs/db-refactored.*", ScreenConstants.MAIN),
-            new PathScreenRule("^/api/logs/decrypt.*", ScreenConstants.MAIN),
-            new PathScreenRule("^/api/search.*", ScreenConstants.MAIN)
+            new PathScreenRule("^/api/departments/user-permission-hierarchy$", List.of(ScreenConstants.USER_MANAGEMENT, ScreenConstants.USER_PERMISSION_HIERARCHY)),
+            new PathScreenRule("^/api/departments.*", List.of(ScreenConstants.DEPARTMENT_APPROVERS, ScreenConstants.USER_PERMISSION_HIERARCHY)),
+            new PathScreenRule("^/api/permission-groups.*", List.of(ScreenConstants.USER_MANAGEMENT, ScreenConstants.USER_PERMISSION_HIERARCHY)),
+            new PathScreenRule("^/api/search-history/pending.*", List.of(ScreenConstants.PENDING_APPROVALS)),
+            new PathScreenRule("^/api/search-history/[^/]+/approve.*", List.of(ScreenConstants.PENDING_APPROVALS)),
+            new PathScreenRule("^/api/search-history/[^/]+/reject.*", List.of(ScreenConstants.PENDING_APPROVALS)),
+            new PathScreenRule("^/api/search-history.*", List.of(ScreenConstants.SEARCH_HISTORY)),
+            new PathScreenRule("^/api/activity-log.*", List.of(ScreenConstants.ACTIVITY_LOG)),
+            new PathScreenRule("^/api/statistics.*", List.of(ScreenConstants.STATISTICS)),
+            new PathScreenRule("^/api/users.*", List.of(ScreenConstants.USER_MANAGEMENT)),
+            new PathScreenRule("^/api/logs/db-refactored.*", List.of(ScreenConstants.MAIN)),
+            new PathScreenRule("^/api/logs/decrypt.*", List.of(ScreenConstants.MAIN)),
+            new PathScreenRule("^/api/search.*", List.of(ScreenConstants.MAIN))
     );
 
     private final AuthService authService;
@@ -77,23 +77,24 @@ public class ScreenAccessInterceptor implements HandlerInterceptor {
         if (Boolean.TRUE.equals(userInfo.getIsSystemAdmin())) {
             return true;
         }
-        String requiredScreen = findRequiredScreen(path);
-        if (requiredScreen == null) {
+        List<String> requiredScreens = findRequiredScreens(path);
+        if (requiredScreens == null || requiredScreens.isEmpty()) {
             return true;
         }
         List<String> allowed = userInfo.getAllowedScreenIds();
-        if (allowed != null && allowed.contains(requiredScreen)) {
+        boolean hasAccess = allowed != null && requiredScreens.stream().anyMatch(allowed::contains);
+        if (hasAccess) {
             return true;
         }
-        log.warn("Screen access denied: path={} requiredScreen={} user={}", path, requiredScreen, userInfo.getUsername());
+        log.warn("Screen access denied: path={} requiredScreens={} user={}", path, requiredScreens, userInfo.getUsername());
         sendForbidden(response);
         return false;
     }
 
-    private String findRequiredScreen(String path) {
+    private List<String> findRequiredScreens(String path) {
         for (PathScreenRule rule : PATH_SCREEN_RULES) {
             if (rule.pattern.matcher(path).matches()) {
-                return rule.screenId;
+                return rule.screenIds;
             }
         }
         return null;
@@ -113,11 +114,11 @@ public class ScreenAccessInterceptor implements HandlerInterceptor {
 
     private static class PathScreenRule {
         final Pattern pattern;
-        final String screenId;
+        final List<String> screenIds;
 
-        PathScreenRule(String regex, String screenId) {
+        PathScreenRule(String regex, List<String> screenIds) {
             this.pattern = Pattern.compile(regex);
-            this.screenId = screenId;
+            this.screenIds = screenIds;
         }
     }
 }

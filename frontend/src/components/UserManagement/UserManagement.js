@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { getUsers } from '../../services/userService';
 import { getUserPermissionHierarchy, listPermissionGroups } from '../../services/permissionGroupService';
 import { getErrorMessage } from '../../utils/errorMessage';
+import { getAllowedScreenIds, getScreenFunctions } from '../../utils/security';
 import logger from '../../utils/logger';
 import UserGroupAssignment from '../UserGroupAssignment/UserGroupAssignment';
 import '../UserPermissionHierarchy/UserPermissionHierarchy.css';
@@ -119,10 +120,18 @@ const UserManagement = ({ user }) => {
   const [error, setError] = useState(null);
   const [expandedCodes, setExpandedCodes] = useState(() => new Set());
 
-  const isAdmin = user?.isSystemAdmin === true;
+  const ids = getAllowedScreenIds(user);
+  const screenFunctions = getScreenFunctions(user);
+  const canAccessUserManagement =
+    user?.isSystemAdmin === true ||
+    (Array.isArray(ids) &&
+      (ids.includes('user-management') || ids.includes('user-permission-hierarchy')));
+  const canWrite =
+    screenFunctions?.['user-management']?.write === true ||
+    screenFunctions?.['user-permission-hierarchy']?.write === true;
 
   const loadHierarchy = useCallback(async () => {
-    if (!isAdmin) return;
+    if (!canAccessUserManagement) return;
     setLoading(true);
     setError(null);
     try {
@@ -153,7 +162,7 @@ const UserManagement = ({ user }) => {
     } finally {
       setLoading(false);
     }
-  }, [isAdmin]);
+  }, [canAccessUserManagement]);
 
   useEffect(() => {
     loadHierarchy();
@@ -193,6 +202,7 @@ const UserManagement = ({ user }) => {
             userGroups={permissionGroups}
             allGroups={allGroups}
             onRefresh={onRefresh}
+            disabled={!canWrite}
           />
         </td>
         <td>{isApprover ? '예' : '아니오'}</td>
@@ -200,7 +210,7 @@ const UserManagement = ({ user }) => {
     );
   };
 
-  if (!isAdmin) {
+  if (!canAccessUserManagement) {
     return (
       <div className="user-management">
         <h2>사용자 관리</h2>

@@ -1,5 +1,6 @@
 package com.logmng.controller;
 
+import com.logmng.service.StubAuthServiceForUserController;
 import com.logmng.service.StubDecryptApproverServiceForRoleUpdate;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -12,18 +13,20 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 /**
- * UserController PUT /api/users/{userId} tests. §7.4
- * PUT returns 410 Gone (req 20250303). Uses isSystemAdmin for admin check.
+ * UserController tests. §7.4
+ * Uses AuthService.canAccessUserManagementView for access check (bugfix-4).
  */
 class UserControllerTest {
 
     private MockMvc mockMvc;
     private StubDecryptApproverServiceForRoleUpdate stubService;
+    private StubAuthServiceForUserController stubAuthService;
 
     @BeforeEach
     void setUp() {
         stubService = new StubDecryptApproverServiceForRoleUpdate();
-        UserController controller = new UserController(stubService);
+        stubAuthService = new StubAuthServiceForUserController();
+        UserController controller = new UserController(stubService, stubAuthService);
         mockMvc = MockMvcBuilders.standaloneSetup(controller)
                 .setControllerAdvice(new com.logmng.exception.GlobalExceptionHandler())
                 .build();
@@ -31,6 +34,8 @@ class UserControllerTest {
 
     @Test
     void updateUserRole_whenNotLoggedIn_returns401() throws Exception {
+        stubAuthService.setCheckAuth(false);
+
         mockMvc.perform(put("/api/users/user1")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"role\":\"USER\"}"))
@@ -41,7 +46,8 @@ class UserControllerTest {
 
     @Test
     void updateUserRole_whenNonAdmin_returns403() throws Exception {
-        stubService.setAdmin(false);
+        stubAuthService.setCheckAuth(true);
+        stubAuthService.setCanAccessUserManagementView(false);
 
         mockMvc.perform(put("/api/users/user1")
                         .sessionAttr("userId", "user2")
@@ -55,7 +61,8 @@ class UserControllerTest {
 
     @Test
     void updateUserRole_returns410Gone() throws Exception {
-        stubService.setAdmin(true);
+        stubAuthService.setCheckAuth(true);
+        stubAuthService.setCanAccessUserManagementView(true);
 
         mockMvc.perform(put("/api/users/user1")
                         .sessionAttr("userId", "admin1")
@@ -69,7 +76,8 @@ class UserControllerTest {
 
     @Test
     void listUsers_whenSystemAdmin_returns200() throws Exception {
-        stubService.setAdmin(true);
+        stubAuthService.setCheckAuth(true);
+        stubAuthService.setCanAccessUserManagementView(true);
 
         mockMvc.perform(get("/api/users")
                         .sessionAttr("userId", "admin1")
@@ -80,7 +88,8 @@ class UserControllerTest {
 
     @Test
     void listUsers_whenNonAdmin_returns403() throws Exception {
-        stubService.setAdmin(false);
+        stubAuthService.setCheckAuth(true);
+        stubAuthService.setCanAccessUserManagementView(false);
 
         mockMvc.perform(get("/api/users")
                         .sessionAttr("userId", "user1")

@@ -1,22 +1,14 @@
 ---
-description: Error-first — when input is mainly error message/log, require requirement doc + §3 before development
+description: Error-first — require requirement doc + §3 before development when input is error/bug
 alwaysApply: true
 ---
 
 # Error-First Workflow
 
-When the user message is **mainly** an error message, stack trace, or a request like "fix this error" (and they did not say e.g. "only change the code"):
+When the user message is **mainly** an error message, stack trace, or "fix this error" (and not "code only here" / "do it in this chat"):
 
-## Must do
+1. **Requirement doc + §3 test plan first** — delegate to Requirements subagent (or write directly if user said "do it in this chat"). No code before doc is done.
+2. **Then** development (code change, API, frontend).
+3. **Do not** propose implementation todos from an error alone without a requirement doc.
 
-1. **First**: Requirement doc + §3 test plan before any development.
-   - **When using subagent delegation**: Do **not** write the requirement doc in the main chat. **Delegate Step 1 to the Requirements subagent**: instruct the user to switch to the **Requirements** subagent and pass the user request or error message. Output: requirement doc `docs/requirements/yyyyMMdd-name.md` (§1, §2, §3). See `docs/workflow/SUBAGENT-DELEGATION.md`.
-   - **Exception** (user said "code only here" or "do it in this chat"): Gather/analyze requirements → write **requirement doc** (§1 user requirement, §2 design) → define **§3 test approach (test cases)**.
-2. **Only then**: Propose or do development (code change, API, frontend change).
-
-## Must not do
-
-- Do **not** propose only implementation todos or code changes (e.g. "implement stats API", "change api.js") from the error message alone.
-- Do **not** move to development without a requirement doc and §3 test plan.
-
-See: `docs/workflow/WORKFLOW_CHECKLIST.md`, `docs/workflow/ERROR-FIX-WORKFLOW-FLOWCHART.md`, `docs/template/REQUIREMENT_TEMPLATE.md`.
+Detail: `docs/workflow/WORKFLOW_CHECKLIST.md`, `docs/workflow/ERROR-FIX-WORKFLOW-FLOWCHART.md`, `docs/template/REQUIREMENT_TEMPLATE.md`.

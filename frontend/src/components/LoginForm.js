@@ -64,8 +64,8 @@ const LoginForm = ({ onLogin }) => {
       const result = await response.json();
 
       if (result.success) {
-        // API 응답 구조에 따라 user 데이터 추출
-        const userData = result.user || result.data?.user || result.data || null;
+        // API 응답 구조: login → result.data.user, check → result.data (flat). Prefer nested user for login.
+        const userData = result.data?.user ?? (result.data?.username ? result.data : null) ?? result.user ?? null;
         
         if (userData) {
           logger.info('✅ 로그인 성공:', { username: userData.username || 'unknown' });

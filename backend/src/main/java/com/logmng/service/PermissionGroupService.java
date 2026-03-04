@@ -228,6 +228,7 @@ public class PermissionGroupService {
 
     /**
      * Returns union of allowed screen IDs from all permission groups the user belongs to.
+     * Excludes screens with read=false (explicit). read=null or read=true grants access.
      * Used for login/me response. Caller should pass all screens for ADMIN.
      */
     public List<String> getAllowedScreenIdsForUser(String userId) {
@@ -238,7 +239,7 @@ public class PermissionGroupService {
         try (Connection conn = dataSource.getConnection()) {
             String sql = "SELECT DISTINCT pgs.screen_id FROM permission_group_screen pgs " +
                     "INNER JOIN app_user_permission_group aupg ON pgs.permission_group_id = aupg.permission_group_id " +
-                    "WHERE aupg.user_id = ? ORDER BY pgs.screen_id";
+                    "WHERE aupg.user_id = ? AND (pgs.read IS NULL OR pgs.read = true) ORDER BY pgs.screen_id";
             try (PreparedStatement ps = conn.prepareStatement(sql)) {
                 ps.setString(1, userId.trim());
                 try (ResultSet rs = ps.executeQuery()) {
@@ -252,6 +253,73 @@ public class PermissionGroupService {
             return List.of();
         }
         return new ArrayList<>(screens);
+    }
+
+    /**
+     * Returns per-screen read/write/approve from permission_group_screen for the user's groups.
+     * Key = screen_id, value = {read, write, approve} (Boolean; null = use derivation).
+     * When user has multiple groups with same screen, aggregates: write=true if any has true or null; approve=true if any has true or null.
+     */
+    public Map<String, ScreenFunctionFromDb> getScreenFunctionsForUser(String userId) {
+        Map<String, ScreenFunctionFromDb> result = new HashMap<>();
+        if (userId == null || userId.isBlank()) {
+            return result;
+        }
+        try (Connection conn = dataSource.getConnection()) {
+            String sql = "SELECT pgs.screen_id, pgs.read, pgs.write, pgs.approve FROM permission_group_screen pgs " +
+                    "INNER JOIN app_user_permission_group aupg ON pgs.permission_group_id = aupg.permission_group_id " +
+                    "WHERE aupg.user_id = ?";
+            try (PreparedStatement ps = conn.prepareStatement(sql)) {
+                ps.setString(1, userId.trim());
+                try (ResultSet rs = ps.executeQuery()) {
+                    while (rs.next()) {
+                        String screenId = rs.getString("screen_id");
+                        if (screenId == null || screenId.isBlank()) continue;
+                        Boolean readVal = rs.getObject("read", Boolean.class);
+                        Boolean writeVal = rs.getObject("write", Boolean.class);
+                        Boolean approveVal = rs.getObject("approve", Boolean.class);
+                        result.merge(screenId, new ScreenFunctionFromDb(readVal, writeVal, approveVal), this::mergeScreenFunction);
+                    }
+                }
+            }
+        } catch (SQLException e) {
+            log.error("Get screen functions for user failed: userId={}", userId, e);
+            return result;
+        }
+        return result;
+    }
+
+    private ScreenFunctionFromDb mergeScreenFunction(ScreenFunctionFromDb a, ScreenFunctionFromDb b) {
+        Boolean read = orNullAsTrue(a.read, b.read);
+        Boolean write = mostPermissive(a.write, b.write);
+        Boolean approve = mostPermissive(a.approve, b.approve);
+        return new ScreenFunctionFromDb(read, write, approve);
+    }
+
+    private static Boolean orNullAsTrue(Boolean a, Boolean b) {
+        if (Boolean.TRUE.equals(a) || Boolean.TRUE.equals(b)) return true;
+        if (a == null || b == null) return null;
+        return false;
+    }
+
+    /** For write/approve: true > null (derivation) > false. */
+    private static Boolean mostPermissive(Boolean a, Boolean b) {
+        if (Boolean.TRUE.equals(a) || Boolean.TRUE.equals(b)) return true;
+        if (a == null || b == null) return null;
+        return false;
+    }
+
+    /** Per-screen read/write/approve from DB. null = use derivation. */
+    public static final class ScreenFunctionFromDb {
+        public final Boolean read;
+        public final Boolean write;
+        public final Boolean approve;
+
+        public ScreenFunctionFromDb(Boolean read, Boolean write, Boolean approve) {
+            this.read = read;
+            this.write = write;
+            this.approve = approve;
+        }
     }
 
     /**
@@ -443,12 +511,30 @@ public class PermissionGroupService {
                     throw CustomException.badRequest("scope는 'self' 또는 'all'이어야 합니다: " + scope, "INVALID_INPUT");
                 }
             }
+            validateScreenFunctions(screenId, item.getRead(), item.getWrite(), item.getApprove());
+        }
+    }
+
+    /**
+     * Validates read/write/approve per screen per §1.1.1. main: read-only; write/approve only on supported screens.
+     */
+    private void validateScreenFunctions(String screenId, Boolean read, Boolean write, Boolean approve) {
+        if (ScreenConstants.MAIN.equals(screenId)) {
+            if (Boolean.TRUE.equals(write) || Boolean.TRUE.equals(approve)) {
+                throw CustomException.badRequest("main 화면은 조회만 지원합니다. write 또는 approve를 지정할 수 없습니다.", "INVALID_SCREEN_FUNCTION");
+            }
+        }
+        if (Boolean.TRUE.equals(write) && !ScreenConstants.supportsWrite(screenId)) {
+            throw CustomException.badRequest("해당 화면은 write를 지원하지 않습니다: " + screenId, "INVALID_SCREEN_FUNCTION");
+        }
+        if (Boolean.TRUE.equals(approve) && !ScreenConstants.supportsApprove(screenId)) {
+            throw CustomException.badRequest("해당 화면은 approve를 지원하지 않습니다: " + screenId, "INVALID_SCREEN_FUNCTION");
         }
     }
 
     private List<AllowedScreenItem> loadAllowedScreens(Connection conn, long groupId) throws SQLException {
         List<AllowedScreenItem> screens = new ArrayList<>();
-        String sql = "SELECT screen_id, scope FROM permission_group_screen WHERE permission_group_id = ? ORDER BY screen_id";
+        String sql = "SELECT screen_id, scope, read, write, approve FROM permission_group_screen WHERE permission_group_id = ? ORDER BY screen_id";
         try (PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setLong(1, groupId);
             try (ResultSet rs = ps.executeQuery()) {
@@ -461,6 +547,12 @@ public class PermissionGroupService {
                         if (ScreenConstants.supportsScope(screenId) && scope != null && !scope.isBlank()) {
                             item.setScope("all".equalsIgnoreCase(scope) ? "all" : "self");
                         }
+                        Boolean readVal = rs.getObject("read", Boolean.class);
+                        Boolean writeVal = rs.getObject("write", Boolean.class);
+                        Boolean approveVal = rs.getObject("approve", Boolean.class);
+                        if (readVal != null) item.setRead(readVal);
+                        if (writeVal != null) item.setWrite(writeVal);
+                        if (approveVal != null) item.setApprove(approveVal);
                         screens.add(item);
                     }
                 }
@@ -476,7 +568,7 @@ public class PermissionGroupService {
             ps.executeUpdate();
         }
         if (items != null && !items.isEmpty()) {
-            String insertSql = "INSERT INTO permission_group_screen (permission_group_id, screen_id, scope) VALUES (?, ?, ?)";
+            String insertSql = "INSERT INTO permission_group_screen (permission_group_id, screen_id, scope, read, write, approve) VALUES (?, ?, ?, ?, ?, ?)";
             try (PreparedStatement ps = conn.prepareStatement(insertSql)) {
                 for (AllowedScreenItem item : items) {
                     if (item == null || item.getScreenId() == null || item.getScreenId().isBlank()) continue;
@@ -489,6 +581,9 @@ public class PermissionGroupService {
                         scope = "all".equalsIgnoreCase(s) ? "all" : "self";
                     }
                     ps.setString(3, scope);
+                    ps.setObject(4, item.getRead());
+                    ps.setObject(5, item.getWrite());
+                    ps.setObject(6, item.getApprove());
                     ps.addBatch();
                 }
                 ps.executeBatch();

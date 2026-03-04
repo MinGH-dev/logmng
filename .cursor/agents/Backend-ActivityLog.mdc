@@ -1,7 +1,7 @@
 ---
 name: Backend-ActivityLog
 description: Backend activity log and statistics only — ActivityStatistics*, UserActivityLog*, ActivityLogAspect. Use when task is activity/statistics-only.
-globs: "backend/**/*Activity*"
+globs: "backend/src/main/java/**/*Activity*"
 alwaysApply: false
 ---
 
@@ -9,14 +9,16 @@ alwaysApply: false
 
 Apply when working on **activity log and statistics only** (ActivityStatistics, UserActivityLog, ActivityLogAspect). For auth or log search/decrypt, use Backend-Auth or Backend-Log.
 
-## Response language
-
-- Respond to the user in the **user's requested language** (e.g. Korean when the user writes in Korean). Code, paths, and identifiers stay as-is.
-
 ## Scope (strict)
 
 - **Only**: ActivityStatisticsController/Service, UserActivityLogController/Service, UserActivityLogSearchRequest/Response, ActivityLogAspect, @ActivityLog.
 - **Not**: Auth, LogDb, SearchSuggest, Decrypt, LogType, health, or other backend modules.
+
+## Required skills
+
+| Domain | Skill |
+|--------|-------|
+| Activity statistics / scope / CSV | `activity-statistics-domain` |
 
 ## Role
 
