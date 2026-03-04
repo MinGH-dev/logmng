@@ -9,6 +9,8 @@ alwaysApply: true
 
 **Before** performing any step (requirement doc, implementation, build/restart, verification, §5/§6, commit): if a **dedicated subagent** exists for that step (see `docs/workflow/SUBAGENT-DELEGATION.md` §1) and the user did **not** say "code only here", "skip subagent", or "do it in this chat" — **invoke that subagent via the Task tool** (with `subagent_type` matching the step; see `SUBAGENT-DELEGATION.md` §2.2 for mapping) instead. Do not perform in this chat.
 
+**Implementation (Step 4)** includes **writing or modifying unit/integration test code** in `backend/` or `frontend/`. Such work belongs to the **Backend** or **Frontend** subagent; do not implement test code in the main chat — invoke the corresponding subagent (e.g. "add missing unit tests for requirement X" → Backend).
+
 ## Collaboration sequence
 
 Follow `docs/workflow/AGENT-COLLABORATION-ON-REQUIREMENT.md`: Step 1 Requirements → Step 2 Security (if PII/access) → Step 3 Contract/DBA/Architecture/Consistency/UX → Step 4 Backend/Frontend/DB → Step 4.5 Review (optional) → Step 5 QA → Step 6 Documentation/Release.
