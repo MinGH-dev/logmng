@@ -109,7 +109,7 @@ function SearchParamsDetailView({ searchParams }) {
   );
 }
 
-const SearchHistoryList = ({ onBackToMain, onReSearch }) => {
+const SearchHistoryList = ({ onBackToMain, onReSearch, user }) => {
   const [list, setList] = useState([]);
   const [pagination, setPagination] = useState({ currentPage: 1, totalPages: 1, totalCount: 0 });
   const [loading, setLoading] = useState(false);
@@ -253,25 +253,32 @@ const SearchHistoryList = ({ onBackToMain, onReSearch }) => {
         {list.length === 0 ? (
           <EmptyTableBody colSpan={7} message="검색 이력이 없습니다. 복호화 승인 요청을 한 검색이 여기에 표시됩니다." />
         ) : (
-          list.map((row) => (
-            <tr key={row.id}>
-              <td>{row.seq}</td>
-              <td>{row.requestedAt}</td>
-              <td className="search-history-summary">{row.searchParamsSummary || '-'}</td>
-              <td>{STATUS_LABEL[row.approvalStatus] || row.approvalStatus}</td>
-              <ApprovalHistoryCell row={row} />
-              <td>{row.expiresAt}</td>
-              <td>
-                <button type="button" className="search-history-btn re-search" onClick={() => handleReSearch(row)} aria-label={`재조회, ID ${row.id}`}>재조회</button>
-                <button type="button" className="search-history-btn detail" onClick={() => handleViewDetail(row)} aria-label={`자세히 보기, ID ${row.id}`}>자세히 보기</button>
-                {row.isExpired && (
-                  <button type="button" className="search-history-btn re-request" onClick={() => handleReRequest(row.id)} disabled={reRequestingId === row.id} aria-label={reRequestingId === row.id ? '재요청 처리 중' : `재요청, ID ${row.id}`}>
-                    {reRequestingId === row.id ? '처리 중...' : '재요청'}
-                  </button>
-                )}
-              </td>
-            </tr>
-          ))
+          list.map((row) => {
+            const isRequester = row.userId === user?.username;
+            return (
+              <tr key={row.id}>
+                <td>{row.seq}</td>
+                <td>{row.requestedAt}</td>
+                <td className="search-history-summary">{row.searchParamsSummary || '-'}</td>
+                <td>{STATUS_LABEL[row.approvalStatus] || row.approvalStatus}</td>
+                <ApprovalHistoryCell row={row} />
+                <td>{row.expiresAt}</td>
+                <td>
+                  {isRequester && (
+                    <button type="button" className="search-history-btn re-search" onClick={() => handleReSearch(row)} aria-label={`재조회, ID ${row.id}`}>재조회</button>
+                  )}
+                  {isRequester && (
+                    <button type="button" className="search-history-btn detail" onClick={() => handleViewDetail(row)} aria-label={`자세히 보기, ID ${row.id}`}>자세히 보기</button>
+                  )}
+                  {isRequester && row.isExpired && (
+                    <button type="button" className="search-history-btn re-request" onClick={() => handleReRequest(row.id)} disabled={reRequestingId === row.id} aria-label={reRequestingId === row.id ? '재요청 처리 중' : `재요청, ID ${row.id}`}>
+                      {reRequestingId === row.id ? '처리 중...' : '재요청'}
+                    </button>
+                  )}
+                </td>
+              </tr>
+            );
+          })
         )}
       </DataTable>
 

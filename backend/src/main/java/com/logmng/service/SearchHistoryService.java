@@ -168,7 +168,7 @@ public class SearchHistoryService {
                 sql = "SELECT id, user_id, log_type, search_params, requested_at, expires_at, approval_status, approved_by, approved_at, rejected_by, rejected_at, rejection_reason " +
                         "FROM search_history WHERE user_id IN (" + placeholders + ") ORDER BY " + safeSort + " " + safeDir + " LIMIT ? OFFSET ?";
             } else {
-                sql = "SELECT id, log_type, search_params, requested_at, expires_at, approval_status, approved_by, approved_at, rejected_by, rejected_at, rejection_reason " +
+                sql = "SELECT id, user_id, log_type, search_params, requested_at, expires_at, approval_status, approved_by, approved_at, rejected_by, rejected_at, rejection_reason " +
                         "FROM search_history WHERE user_id = ? ORDER BY " + safeSort + " " + safeDir + " LIMIT ? OFFSET ?";
             }
             try (PreparedStatement ps = conn.prepareStatement(sql)) {
@@ -188,7 +188,7 @@ public class SearchHistoryService {
                         long id = rs.getLong("id");
                         row.put("seq", seq++);
                         row.put("id", id);
-                        if (scopeAll || (allowedUserIds != null && !allowedUserIds.isEmpty())) row.put("userId", rs.getString("user_id"));
+                        row.put("userId", rs.getString("user_id"));
                         row.put("logType", rs.getString("log_type"));
                         Timestamp reqAt = rs.getTimestamp("requested_at");
                         Timestamp expAt = rs.getTimestamp("expires_at");
@@ -233,11 +233,8 @@ public class SearchHistoryService {
                         throw new NoSuchElementException("검색 이력을 찾을 수 없습니다: id=" + id);
                     }
                     String rowUserId = rs.getString("user_id");
-                    boolean allowed = scopeAll
-                            || (allowedUserIdsForTeam != null && !allowedUserIdsForTeam.isEmpty() && allowedUserIdsForTeam.contains(rowUserId))
-                            || userId.equals(rowUserId);
-                    if (!allowed) {
-                        throw new SecurityException("다른 사용자의 검색 이력에는 재요청할 수 없습니다.");
+                    if (!userId.equals(rowUserId)) {
+                        throw CustomException.forbidden("해당 검색 이력은 요청자만 조회할 수 있습니다.", "FUNCTION_NOT_ALLOWED");
                     }
                     String status = rs.getString("approval_status");
                     Timestamp expiresAt = rs.getTimestamp("expires_at");
@@ -248,18 +245,26 @@ public class SearchHistoryService {
                 }
             }
 
-            boolean byUser = !scopeAll && (allowedUserIdsForTeam == null || allowedUserIdsForTeam.isEmpty());
-            String updateSql = scopeAll || (allowedUserIdsForTeam != null && !allowedUserIdsForTeam.isEmpty())
-                    ? "UPDATE search_history SET approval_status = 'PENDING', requested_at = CURRENT_TIMESTAMP, " +
-                    "expires_at = CURRENT_TIMESTAMP + (? || ' hours')::interval, updated_at = CURRENT_TIMESTAMP " +
-                    "WHERE id = ? RETURNING id, requested_at, expires_at, approval_status"
-                    : "UPDATE search_history SET approval_status = 'PENDING', requested_at = CURRENT_TIMESTAMP, " +
-                    "expires_at = CURRENT_TIMESTAMP + (? || ' hours')::interval, updated_at = CURRENT_TIMESTAMP " +
-                    "WHERE id = ? AND user_id = ? RETURNING id, requested_at, expires_at, approval_status";
+            // Requester-only: always update with user_id in WHERE (use Java timestamps for DB portability; no RETURNING for H2 compatibility)
+            java.sql.Timestamp requestedAt = java.sql.Timestamp.valueOf(LocalDateTime.now());
+            java.sql.Timestamp expiresAt = java.sql.Timestamp.valueOf(LocalDateTime.now().plusHours(APPROVAL_VALIDITY_HOURS));
+            String updateSql = "UPDATE search_history SET approval_status = 'PENDING', requested_at = ?, " +
+                    "expires_at = ?, updated_at = CURRENT_TIMESTAMP " +
+                    "WHERE id = ? AND user_id = ?";
             try (PreparedStatement ps = conn.prepareStatement(updateSql)) {
-                ps.setString(1, String.valueOf(APPROVAL_VALIDITY_HOURS));
-                ps.setLong(2, id);
-                if (byUser) ps.setString(3, userId);
+                ps.setTimestamp(1, requestedAt);
+                ps.setTimestamp(2, expiresAt);
+                ps.setLong(3, id);
+                ps.setString(4, userId);
+                int updated = ps.executeUpdate();
+                if (updated == 0) {
+                    throw new NoSuchElementException("검색 이력을 찾을 수 없습니다: id=" + id);
+                }
+            }
+            String selectAfterUpdateSql = "SELECT id, requested_at, expires_at, approval_status FROM search_history WHERE id = ? AND user_id = ?";
+            try (PreparedStatement ps = conn.prepareStatement(selectAfterUpdateSql)) {
+                ps.setLong(1, id);
+                ps.setString(2, userId);
                 try (ResultSet rs = ps.executeQuery()) {
                     if (rs.next()) {
                         Map<String, Object> result = new LinkedHashMap<>();
@@ -552,11 +557,8 @@ public class SearchHistoryService {
                         throw new NoSuchElementException("검색 이력을 찾을 수 없습니다: id=" + id);
                     }
                     String rowUserId = rs.getString("user_id");
-                    boolean allowed = scopeAll
-                            || (allowedUserIdsForTeam != null && !allowedUserIdsForTeam.isEmpty() && allowedUserIdsForTeam.contains(rowUserId))
-                            || userId.equals(rowUserId);
-                    if (!allowed) {
-                        throw new SecurityException("다른 사용자의 검색 이력은 조회할 수 없습니다.");
+                    if (!userId.equals(rowUserId)) {
+                        throw CustomException.forbidden("해당 검색 이력은 요청자만 조회할 수 있습니다.", "FUNCTION_NOT_ALLOWED");
                     }
                     Map<String, Object> row = new LinkedHashMap<>();
                     row.put("id", rs.getLong("id"));
