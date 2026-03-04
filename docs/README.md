@@ -138,9 +138,18 @@ Agent가 작업을 완료한 후:
 2. 테스트 결과 기록
 3. 체크리스트 완료 표시
 
-## ⚡ Cursor Skills & Commands
+## ⚡ 전체 도구 레이어
 
-프로젝트에 등록된 Cursor 기능으로 빠르게 워크플로우를 적용할 수 있습니다.
+프로젝트는 **6개 레이어**의 도구가 협력합니다. 전체 흐름도는 [README.md (루트)](../README.md)의 "전체 도구 워크플로우" 참조.
+
+| 레이어 | 위치 | 수량 | 역할 |
+|--------|------|------|------|
+| **Rules** | `.cursor/rules/` | 14종 | 자동 적용 제약·원칙·게이트 (보안, 위임 순서, 계약 우선 등) |
+| **Commands** | `.cursor/commands/` | 31종 | 슬래시 커맨드 — 요건 시작, 검증, 서비스 제어, 상태 확인 |
+| **Skills** | `.cursor/skills/` | 13종 | 도메인 지식 자동 로드 — 컨텍스트 기반 |
+| **Agents** | `.cursor/agents/` | 21종 | 단계별 서브에이전트 위임 (요건→리뷰→구현→QA→릴리스) |
+| **Scripts** | `scripts/` | 3종 | 서비스 관리, 문서 인덱스 생성, 미추적 문서 검출 |
+| **MCP** | `.cursor/mcp.json` | 1종 | Browser Puppeteer — 프론트 UI 자동화 검증 |
 
 **적용 범위**: 아래 규칙·커맨드·스킬은 **dev 워크스페이스 전용**입니다. Cursor에서 `dev` 폴더를 루트로 열었을 때만 적용되며, `~/.cursor/` 등 글로벌 설정으로 복사하지 마세요. (자세한 내용: `.cursor/README.md`)
 
@@ -185,14 +194,42 @@ Agent가 작업을 완료한 후:
 - **test-workflow**: 테스트·검증 워크플로우 — §3 테스트 계획, 단위/통합 실행, §5 기록, 검증(재시작·헬스 체크) 관련 작업 시 사용.
 - **react-debugging**: React 프론트엔드 디버깅 가이드.
 
-### Subagents (Cursor 기본 기능만 사용)
+### Agents (21종 — `.cursor/agents/`)
 
-- **Frontend / Backend / DB** 는 **Cursor Settings → Subagents**에서 생성하고, 프롬프트는 **docs/cursor-subagents/** 의 `frontend.md`, `backend.md`, `db.md` 를 복사해 넣습니다.
-- 각 Subagent: **개발**, **요구사항 정리**, **테스트 자동화**를 담당 영역 안에서 수행.
-- 설계·워크플로우: **docs/workflow/CURSOR-SUBAGENTS-DESIGN.md**
+단계별 서브에이전트 위임으로 동작합니다. 메인 에이전트가 단계를 식별하고 해당 Agent에 위임합니다.
+
+| Step | Agents | 역할 |
+|------|--------|------|
+| 1 | Requirements · RequirementsPastSearch | 요건 문서 §1·§2·§3 |
+| 2–3 | Security · Contract · DBA · Architecture · Consistency · UX | 전문가 리뷰 (코드 수정 없음) |
+| 4 | Frontend (Log·Auth·ActivityLog) · Backend (Log·Auth·ActivityLog) · DB | 구현 + 테스트 코드 작성 |
+| 4.5 | Review (선택) | 코드 리뷰 |
+| 5 | QA | 검증·§5/§6·커밋 |
+| 6 | Documentation · Release | 문서·릴리스 |
+
+- 설계·역할·경계: [CURSOR-SUBAGENTS-DESIGN.md](workflow/CURSOR-SUBAGENTS-DESIGN.md)
+- 위임 표·매핑: [SUBAGENT-DELEGATION.md](workflow/SUBAGENT-DELEGATION.md)
 - 프로젝트 custom sub-agent(mcp_task, run-*-agent)는 **사용하지 않음**.
 
-위 명령·스킬·규칙은 `.cursor/commands/`, `.cursor/skills/`, `.cursor/rules/`에 정의되어 있습니다.
+### Rules (14종 — `.cursor/rules/`)
+
+모든 채팅·서브에이전트에 자동 적용되는 제약·원칙입니다.
+
+| 규칙 | 역할 |
+|------|------|
+| `core-principles` | 병렬 호출, 도구 우선순위, 품질 게이트 |
+| `agent-collaboration` | 위임 순서·게이트, 테스트 코드 = Step 4 |
+| `error-first-workflow` | 에러→요건 문서 먼저 |
+| `security-permissions` | 위험 명령 차단 |
+| `contract-first` | API·DB 변경 시 계약 먼저 |
+| `language-policy` | 응답 한국어, 문서 영어 우선 |
+| `workflow-todos` | Todo가 CHECKLIST 순서를 따름 |
+| `post-change-test-verify` | 코드 변경 후 테스트·검증 자동 |
+| `build-restart-handoff` | 빌드·재시작 핸드오프 |
+| `file-reading-optimization` | 파일 크기별 단계적 로딩 |
+| `frontend-agent` / `backend-agent` / `db-agent` | 구현 에이전트 스코프 제한 |
+
+위 명령·스킬·규칙·에이전트는 `.cursor/commands/`, `.cursor/skills/`, `.cursor/rules/`, `.cursor/agents/`에 정의되어 있습니다.
 
 ## 📞 도움말
 
