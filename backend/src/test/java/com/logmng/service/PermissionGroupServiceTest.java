@@ -94,4 +94,29 @@ class PermissionGroupServiceTest {
         assertThat(response.getAllowedScreens().get(0).getScreenId()).isEqualTo("activity-log");
         assertThat(response.getAllowedScreens().get(0).getScope()).isEqualTo("team");
     }
+
+    /**
+     * TC-02 coverage: search-history with scope=team and approve=true (APPROVE_USER-like) is accepted and persisted.
+     * Req: 20260304-permission-group-modal-error-visibility (Part 2).
+     */
+    @Test
+    void create_withSearchHistoryScopeTeamAndApprove_storesSuccessfully() {
+        PermissionGroupCreateRequest req = new PermissionGroupCreateRequest();
+        req.setCode("approve_team");
+        req.setName("Approve User Team");
+        AllowedScreenItem searchHistory = new AllowedScreenItem();
+        searchHistory.setScreenId("search-history");
+        searchHistory.setScope("team");
+        searchHistory.setApprove(true);
+        req.setAllowedScreens(List.of(searchHistory));
+
+        var response = service.create(req);
+        assertThat(response).isNotNull();
+        assertThat(response.getCode()).isEqualTo("approve_team");
+        assertThat(response.getAllowedScreens()).hasSize(1);
+        AllowedScreenItem item = response.getAllowedScreens().get(0);
+        assertThat(item.getScreenId()).isEqualTo("search-history");
+        assertThat(item.getScope()).isEqualTo("team");
+        assertThat(item.getApprove()).isTrue();
+    }
 }
