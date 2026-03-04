@@ -19,7 +19,7 @@ Use for **search history, decryption approval, and approver** in this repo. Scop
 - **Search history flow**: POST search-history → PENDING → 결재자/관리자 승인 → APPROVED → 복호화 가능. 만료 시 재요청.
 - **DECRYPTION_NOT_APPROVED**: searchHistoryId 없거나, 해당 검색 이력이 본인 소유·APPROVED·미만료가 아님. 복호화 전 '복호화 승인 요청' 필요.
 - **ROW_NOT_IN_APPROVED_SNAPSHOT**: 승인 시점 스냅샷에 포함된 row만 복호화 가능. 스냅샷에 없는 guid로 요청 시 403.
-- **결재자 vs 관리자**: 결재자 = decrypt_approver 테이블 등록; 관리자 = is_system_admin. 둘 다 승인/반려 가능. 관리자는 전체 PENDING 접근; 결재자는 canApproveForRequester(요청자 소속 부서)인 건만.
+- **결재자 vs 관리자**: 결재자 = decrypt_approver 테이블 등록; 관리자 = is_system_admin. 둘 다 승인/반려 가능. 관리자는 전체 PENDING 접근; 결재자(팀장, 부서별 결재자)는 canApproveForRequester(요청자 소속 부서)인 건만 — 승인 대기창에는 해당 팀원의 승인요청만 노출 (req 20250304-team-scope-default).
 
 ## When to use
 

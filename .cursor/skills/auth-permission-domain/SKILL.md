@@ -2,7 +2,7 @@
 name: auth-permission-domain
 description: >
   Auth and permission domain: is_system_admin, permission group (single per user), screen-based access
-  (all screens including user-management), scope (self/all). Use when user asks about
+  (all screens including user-management), scope (self/team/all). Use when user asks about
   permissions, access control, is_system_admin, permission group, or screen access.
   Use for 403 Forbidden errors, 'Access Denied', '관리자만 접근할 수 있습니다',
   or when identifying which API/screen requires which permission.
@@ -52,7 +52,7 @@ For detailed API-to-permission-check mapping, see skill: `api-permission-map`.
 ## Quick reference
 
 - **All screen APIs** (user-management, permission-groups, hierarchy, main, search-history, etc.): `is_system_admin` OR user has screen in `allowedScreenIds` (from user's single permission group).
-- **Scope** (activity-log, statistics, search-history only): `self` = own data; `all` = full. `is_system_admin` → always full.
+- **Scope** (activity-log, statistics, search-history only): `self` = own data; `team` = same department (default when omitted); `all` = full. `is_system_admin` → always full.
 - **is_system_admin**: DB column `app_user.is_system_admin`. Not settable via API; init-data or DB direct edit only.
 
 ## When to use

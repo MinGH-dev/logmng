@@ -134,8 +134,18 @@ public class UserActivityLogService {
                 params.add(java.sql.Date.valueOf(endDate));
             }
             
-            // 사용자 ID 조건
-            if (request.getUserId() != null && !request.getUserId().trim().isEmpty()) {
+            // 사용자 ID 조건: scope=team → allowedUserIds; scope=self → userId; else optional userId from request
+            if (request.getAllowedUserIds() != null && !request.getAllowedUserIds().isEmpty()) {
+                List<String> ids = request.getAllowedUserIds();
+                if (ids.size() == 1) {
+                    sql.append("AND user_id = ? ");
+                    params.add(ids.get(0));
+                } else {
+                    String placeholders = String.join(",", Collections.nCopies(ids.size(), "?"));
+                    sql.append("AND user_id IN (").append(placeholders).append(") ");
+                    params.addAll(ids);
+                }
+            } else if (request.getUserId() != null && !request.getUserId().trim().isEmpty()) {
                 sql.append("AND user_id = ? ");
                 params.add(request.getUserId());
             }
@@ -248,8 +258,9 @@ public class UserActivityLogService {
     /**
      * 사용자 활동 이력 상세 조회.
      * @param currentUserIdForOwnership when scope='self', verify row.user_id == currentUserIdForOwnership; 403 if not owner.
+     * @param allowedUserIdsForTeam when scope='team', row.user_id must be in this list; ignored if null/empty.
      */
-    public Map<String, Object> getActivityLogDetail(Long id, String currentUserIdForOwnership) {
+    public Map<String, Object> getActivityLogDetail(Long id, String currentUserIdForOwnership, List<String> allowedUserIdsForTeam) {
         log.info("🔍 사용자 활동 이력 상세 조회: id={}", id);
         
         try (Connection connection = dataSource.getConnection()) {
@@ -266,6 +277,9 @@ public class UserActivityLogService {
                     if (rs.next()) {
                         String rowUserId = rs.getString("user_id");
                         if (currentUserIdForOwnership != null && !currentUserIdForOwnership.equals(rowUserId)) {
+                            throw CustomException.forbidden("다른 사용자의 활동 이력은 조회할 수 없습니다.", "FORBIDDEN");
+                        }
+                        if (allowedUserIdsForTeam != null && !allowedUserIdsForTeam.isEmpty() && !allowedUserIdsForTeam.contains(rowUserId)) {
                             throw CustomException.forbidden("다른 사용자의 활동 이력은 조회할 수 없습니다.", "FORBIDDEN");
                         }
                         Map<String, Object> row = new LinkedHashMap<>();

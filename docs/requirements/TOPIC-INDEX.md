@@ -8,6 +8,7 @@ For **RequirementsPastSearch** token optimization. Read this file first to find 
 
 ## permission | access-control | 화면 접근 | 권한 그룹 | is_system_admin
 
+- 20260304-permission-group-modal-error-visibility | Show permission-group create/edit/delete errors inside modals; fix APPROVE_USER + search-history + team error
 - 20250304-permission-group-function-verification | 권한 그룹 수정/승인: 보유자 정상 이용·미보유자 행사 불가 검증 (verification only; single source)
 - 20250303-screen-function-availability | 화면별 기능 사용 가능 여부 (read/write/approve); main read-only; common format
 - 20250303-screen-function-checkbox-selection | 조회/수정/승인 체크박스로 명시적 선택 (permission group config)
@@ -27,6 +28,7 @@ For **RequirementsPastSearch** token optimization. Read this file first to find 
 
 ## activity-log | statistics | 활동 로그 | 통계 | scope
 
+- 20250304-team-scope-default-and-approval | 권한그룹 scope에 팀(team) 추가·기본값 팀; 승인 대기창 팀장은 팀원 요청만
 - 20260206-activity-log-statistics | 활동로그 통계 화면 (월별/일별/사용자별)
 - 20260206-activity-log-statistics-improvement | 활동 로그 통계 화면 개선
 - 20260206-activity-log-statistics-improvement-test-results | 통계 개선 테스트 결과
@@ -52,6 +54,7 @@ For **RequirementsPastSearch** token optimization. Read this file first to find 
 
 ## department | 부서 | 결재자 | hierarchy
 
+- 20250304-team-scope-default-and-approval | 팀 scope·기본값; 팀장 승인 대기창 팀원만 (department-scoped)
 - 20250227-department-approver-position | 부서 결재자: position 필드, 부서 범위 선택
 - 20250227-dept-hierarchy-daol-structure | 부서 계층: 다올투자증권 구조 (4단계)
 - 20250227-dept-hierarchy-sample-depth5 | 부서 계층 샘플 데이터 depth 5
@@ -89,6 +92,7 @@ For **RequirementsPastSearch** token optimization. Read this file first to find 
 
 ## grid | UX | ux-standards | 그리드
 
+- 20260304-permission-group-modal-error-visibility | Error message visibility inside permission-group modals (not behind overlay)
 - 20260226-grid-design-unification | 그리드 디자인 통일
 - 20260226-ux-grid-review-and-push | UX grid review and push
 - 20260226-ux-grid-review-report | UX grid review 리포트

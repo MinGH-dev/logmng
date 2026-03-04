@@ -1,7 +1,7 @@
 /**
  * 2-depth checkbox tree for selecting allowed screens per permission group.
  * Uses MENU_TREE labels; a11y: role="checkbox", aria-checked, role="group".
- * For activity-log, statistics, search-history: scope dropdown ("본인만" | "전체"), default "본인만".
+ * For activity-log, statistics, search-history: scope dropdown ("본인만" | "팀" | "전체"), default "팀".
  * When screen is selected, shows checkboxes for read (label only), write, approve where applicable.
  * req 20250303-screen-function-checkbox-selection
  * onChange receives [{ screenId, scope?, read?, write?, approve? }].
@@ -20,23 +20,27 @@ import './ScreenSelectionTree.css';
 /** Read label when screen is selected: read is always on. UX: clarify "조회 ✓" so it's clear read is always on. */
 const READ_LABEL_DISPLAY = '조회 ✓';
 
-/** Screens that support scope (self | all). req 20250303-activity-statistics-self-only-scope */
+/** Screens that support scope (self | team | all). req 20250304-team-scope-default-and-approval */
 const SCOPE_SUPPORTING_SCREENS = ['activity-log', 'statistics', 'search-history'];
 
 const SCOPE_OPTIONS = [
   { value: 'self', label: '본인만' },
+  { value: 'team', label: '팀' },
   { value: 'all', label: '전체' },
 ];
 
-/** Normalize selectedScreens to [{ screenId, scope?, read?, write?, approve? }] */
+/** Default scope for scope-supporting screens when omitted. req 20250304-team-scope-default-and-approval */
+const DEFAULT_SCOPE = 'team';
+
+/** Normalize selectedScreens to [{ screenId, scope?, read?, write?, approve? }]. Undefined/null scope for scope-supporting screens → 'team'. */
 const normalizeSelected = (selected) => {
   if (!Array.isArray(selected)) return [];
   return selected.map((s) => {
     const base = typeof s === 'string'
-      ? { screenId: s, scope: SCOPE_SUPPORTING_SCREENS.includes(s) ? 'self' : undefined }
+      ? { screenId: s, scope: SCOPE_SUPPORTING_SCREENS.includes(s) ? DEFAULT_SCOPE : undefined }
       : {
           screenId: s.screenId,
-          scope: s.scope || (SCOPE_SUPPORTING_SCREENS.includes(s.screenId) ? 'self' : undefined),
+          scope: s.scope ?? (SCOPE_SUPPORTING_SCREENS.includes(s.screenId) ? DEFAULT_SCOPE : undefined),
           read: s.read,
           write: s.write,
           approve: s.approve,
@@ -72,7 +76,7 @@ const ScreenSelectionTree = ({ selectedScreens, onChange }) => {
     if (idx >= 0) {
       next.splice(idx, 1);
     } else {
-      const scope = SCOPE_SUPPORTING_SCREENS.includes(view) ? 'self' : undefined;
+      const scope = SCOPE_SUPPORTING_SCREENS.includes(view) ? DEFAULT_SCOPE : undefined;
       next.push({
         screenId: view,
         scope,
@@ -121,7 +125,7 @@ const ScreenSelectionTree = ({ selectedScreens, onChange }) => {
               const checked = isChecked(view);
               const item = getItemForScreen(normalized, view);
               const showScope = supportsScope(view) && checked;
-              const scopeValue = item?.scope || 'self';
+              const scopeValue = item?.scope ?? (supportsScope(view) ? DEFAULT_SCOPE : 'self');
               const showWrite = supportsWrite(view) && checked;
               const showApprove = supportsApprove(view) && checked;
               const writeChecked = item?.write ?? true;

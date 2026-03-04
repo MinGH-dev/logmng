@@ -1,9 +1,11 @@
 package com.logmng.dto.request;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
+
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.List;
 
 /**
  * 사용자 활동 이력 검색 요청 DTO
@@ -24,7 +26,10 @@ public class UserActivityLogSearchRequest {
     
     @JsonProperty("ipAddress")
     private String ipAddress;
-    
+
+    /** When scope=team, set by controller: only logs for these user ids are returned. Not from client. */
+    private List<String> allowedUserIds;
+
     private Integer page = 1;
     private Integer pageSize = 20;
     private String sortField = "created_at";
@@ -78,7 +83,15 @@ public class UserActivityLogSearchRequest {
     public void setIpAddress(String ipAddress) {
         this.ipAddress = ipAddress;
     }
-    
+
+    public List<String> getAllowedUserIds() {
+        return allowedUserIds;
+    }
+
+    public void setAllowedUserIds(List<String> allowedUserIds) {
+        this.allowedUserIds = allowedUserIds;
+    }
+
     public Integer getPage() {
         return page != null ? page : 1;
     }

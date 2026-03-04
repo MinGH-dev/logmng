@@ -202,7 +202,7 @@ CREATE TABLE IF NOT EXISTS permission_group_screen (
     write BOOLEAN NULL,
     approve BOOLEAN NULL,
     PRIMARY KEY (permission_group_id, screen_id),
-    CONSTRAINT chk_permission_group_screen_scope CHECK (scope IS NULL OR scope IN ('self', 'all'))
+    CONSTRAINT chk_permission_group_screen_scope CHECK (scope IS NULL OR scope IN ('self', 'all', 'team'))
 );
 CREATE INDEX IF NOT EXISTS idx_permission_group_screen_screen ON permission_group_screen(screen_id);
 
