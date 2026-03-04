@@ -78,7 +78,8 @@ Cursor에서 이 프로젝트를 작업할 때 **무엇을 어떻게 요청하�
 
 - **도구 문서**: `docs/workflow`, `docs/template`, `.cursor/` 등 도구가 참조하는 문서는 영어로 통일하는 방향으로 반영됩니다.
 - **요건 문서**: 영문으로 먼저 작성(§1·§2·§3)하고, **검증이 모두 끝난 뒤** 같은 문서에 § Final version (Korean)을 추가하거나 `-ko.md` 한글 최종본을 만들 수 있습니다.
-- **커밋 메시지**: 요건을 마무리하는 커밋에는 `req yyyyMMdd-name` 또는 `docs/requirements/yyyyMMdd-name.md`를 넣어서, 커밋 버전별로 어떤 요건 작업인지 추적할 수 있게 합니다.
+- **커밋 메시지**: 요건을 마무리하는 커밋에는 `req yyyyMMdd-name` 또는 `docs/requirements/yyyyMMdd-name.md`를 넣어서, 커밋 버전별로 어떤 요건 작업인지 추적할 수 있게 합니다. **요약은 한글**로 작성해 릴리즈 노트·CHANGELOG와 통일합니다.
+- **릴리즈 노트·CHANGELOG**: `docs/RELEASE_NOTES-*.md` 및 CHANGELOG 항목은 **한글**로 기록합니다. 정책: [DOCUMENT-LANGUAGE-POLICY.md](workflow/DOCUMENT-LANGUAGE-POLICY.md) §3–§4.
 
 ### 참고
 
@@ -98,8 +99,8 @@ Cursor에서 이 프로젝트를 작업할 때 **무엇을 어떻게 요청하�
 
 ### 어떻게 진행되나요?
 
-- **Release** 서브에이전트가 CHANGELOG 반영, 커밋, 푸시를 수행합니다.
-- 도구/문서만 바꾼 경우 CHANGELOG + 해당 파일들만 커밋하고, 사용자가 "push까지"라고 하면 `git push`까지 실행합니다.
+- **Release** 서브에이전트가 CHANGELOG·릴리즈 노트(한글) 반영, 커밋(한글 메시지), 푸시를 수행합니다.
+- 도구/문서만 바꾼 경우 CHANGELOG + 해당 파일들만 커밋하고, 사용자가 "push까지"라고 하면 `git push`까지 실행합니다. 릴리스 체크리스트에서는 **원격 push까지 수행**을 권장합니다.
 - "로컬과 원격 동일한지 체크하고 push할 게 있으면 올려줘"라고 하면, 로컬이 원격보다 앞선 커밋이 있을 때만 push합니다. 이미 동일하면 "push할 내용 없음"으로 안내합니다.
 
 ### 주의

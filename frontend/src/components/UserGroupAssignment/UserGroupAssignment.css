@@ -4,52 +4,28 @@
   gap: 0.25rem;
 }
 
-.user-group-assignment-badges {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 0.35rem;
-}
-
-.user-group-badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.2rem;
-  padding: 0.15rem 0.4rem;
-  font-size: 0.8rem;
-  background: #e8f4fc;
-  border: 1px solid #07c;
-  border-radius: 4px;
-}
-
-.user-group-badge-remove {
-  padding: 0 0.2rem;
-  font-size: 1rem;
-  line-height: 1;
-  border: none;
-  background: transparent;
-  color: #c00;
-  cursor: pointer;
-}
-
-.user-group-badge-remove:hover:not(:disabled) {
-  color: #a00;
-}
-
-.user-group-add-btn {
-  padding: 0.15rem 0.4rem !important;
-  font-size: 0.8rem !important;
-}
-
-.user-group-add-inline {
+.user-group-select-wrapper {
   display: inline-flex;
   align-items: center;
   gap: 0.35rem;
 }
 
-.user-group-add-inline select {
+.user-group-select {
   font-size: 0.85rem;
   padding: 0.2rem 0.4rem;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  min-width: 140px;
+}
+
+.user-group-select:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.user-group-loading {
+  font-size: 0.8rem;
+  color: #666;
 }
 
 .user-group-assignment-error {

@@ -2,13 +2,15 @@
 
 릴리스 시 수행할 단계. Release 서브에이전트는 이 문서를 유지·갱신하며, **실행은 담당하지 않음**(개발자 또는 사용자가 체크리스트대로 수행).
 
+**언어**: 릴리즈 노트(`docs/RELEASE_NOTES-*.md`)·CHANGELOG 항목은 **한글**로 기록. 커밋 메시지도 한글 요약(요건 ID 포함) 사용. 정책: `docs/workflow/DOCUMENT-LANGUAGE-POLICY.md` §3–§4.
+
 ## 순서
 
 1. **요건 해결 확인**  
    - 검증 통과, §5·§6 반영, 로컬 commit 완료 (`commit-on-complete.md`).
 
 2. **CHANGELOG·버전**  
-   - CHANGELOG에 해당 릴리스 항목 추가.  
+   - CHANGELOG에 해당 릴리스 항목 **한글**로 추가.  
    - 필요 시 버전 부여(예: package.json / pom.xml X.Y.Z). Release 에이전트가 안내만 함.
 
 3. **태그**  
@@ -20,7 +22,7 @@
    - 통합/수동 검증 필요 시 수행.
 
 5. **원격 push**  
-   - 현재 브랜치를 원격에 반영: `git push origin <branch>` (예: `git push origin feat/xxx`).  
+   - 릴리스 완료 시 **원격 push까지 수행** 권장. 현재 브랜치 반영: `git push origin <branch>` (예: `git push origin feat/xxx`).  
    - 태그 푸시 시: `git push origin vX.Y.Z` (태그 사용 시).
 
 6. **배포**  
@@ -29,6 +31,8 @@
 
 ## 수행 기록 (참고)
 
+- **2025-03-04**: 단일 권한 그룹( req 20250304-single-permission-group-per-user ) 반영 및 워크플로·서브에이전트 문서 정리. CHANGELOG 2025-03-04 feat·chore 항목 추가, 커밋 후 `git push` 수행. (1–2, 5 수행)
+- **2025-03-04**: 워크플로·서브에이전트 문서 정리 (SUBAGENT-DELEGATION Task tool 매핑, SUBAGENT-MODEL-SELECTION 재정비, CURSOR-SUBAGENTS-DESIGN §2.6 역할 경계, AGENT-COLLABORATION §1.4, agent-collaboration.mdc, TERMINOLOGY). CHANGELOG 2025-03-04 항목 추가. (1–2 수행, 버전 부여 없음)
 - **2025-03-03**: Agent Skill Phase 3 — department-approver, log-search, activity-statistics, ui-ux domain skills 추가. CHANGELOG·RELEASE_NOTES·README 갱신, 커밋 후 `git push` 수행. (1–2, 5 수행)
 - **2025-03-03**: Permission group delete constraint + system administrator protection (req `20250303-permission-group-delete-system-admin-protection`). CHANGELOG 2025-03-03 항목 추가, 릴리스 커밋 후 `git push` 수행. (1–2, 5 수행)
 - **2026-02-27**: docs/workflow, .cursor 업데이트 (DB-AGENT-REVIEW, QA-BROWSER-TEST-TROUBLESHOOTING, SUBAGENT-MODEL-SELECTION, agent delegation). CHANGELOG 2026-02-27 항목 추가, 릴리스 커밋 후 `git push` 수행. (1–2, 5 수행)

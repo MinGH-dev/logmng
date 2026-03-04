@@ -8,10 +8,7 @@ For **RequirementsPastSearch** token optimization. Read this file first to find 
 
 ## permission | access-control | 화면 접근 | 권한 그룹 | is_system_admin
 
-- 20250304-write-approve-holder-nonholder-verification | Verify write/approve holders can use functions; non-holders get 403 (FORBIDDEN/FUNCTION_NOT_ALLOWED); new analysis
-- 20250304-permission-function-holder-nonholder-verification | Holder uses write/approve; non-holder denied (403 FORBIDDEN/FUNCTION_NOT_ALLOWED); verification-only
-- 20250304-holder-nonholder-function-verification | 권한 보유자 기능 정상 이용·미보유자 권한 행사 불가 검증 (write/approve API, 새 분석)
-- 20250304-permission-group-function-verification | 권한 그룹 수정/승인: 보유자 정상 이용, 미보유자 행사 불가 검증 (verification only)
+- 20250304-permission-group-function-verification | 권한 그룹 수정/승인: 보유자 정상 이용·미보유자 행사 불가 검증 (verification only; single source)
 - 20250303-screen-function-availability | 화면별 기능 사용 가능 여부 (read/write/approve); main read-only; common format
 - 20250303-screen-function-checkbox-selection | 조회/수정/승인 체크박스로 명시적 선택 (permission group config)
 - 20250227-permission-group-screen-menu-access | 권한 그룹별 화면 접근 설정; ADMIN or group allows screen; GENERAL_USER

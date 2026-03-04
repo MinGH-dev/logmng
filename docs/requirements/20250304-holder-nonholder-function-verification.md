@@ -1,5 +1,9 @@
 # 20250304 - Permission holder vs non-holder function verification
 
+**Superseded by**: `docs/requirements/20250304-permission-group-function-verification.md` (single source of truth for permission group function verification).
+
+---
+
 ## 1. User requirement
 
 ### Requirement description

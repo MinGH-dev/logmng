@@ -43,12 +43,21 @@ All documents that agents, commands, and workflow reference **must be in English
 
 ---
 
-## 3. Commit message: reference requirement doc for traceability
+## 3. Release notes and CHANGELOG: Korean
+
+- **Release notes** (e.g. `docs/RELEASE_NOTES-yyyyMMdd-*.md`) and **CHANGELOG** entries are **written in Korean** so that stakeholders and readers can follow changes in the project language.
+- Release subagent and release checklist follow this. See `.cursor/agents/Release.mdc`, `docs/workflow/RELEASE_CHECKLIST.md`.
+
+---
+
+## 4. Commit message: reference requirement doc, Korean summary
 
 - Every commit that completes a requirement or bugfix **must reference the requirement document** so that **per commit version** it is clear what work was done.
-- **Format**: Include the requirement doc path or short ID in the commit message. Examples:
-  - `feat: frontend - UX standards compliance audit, §5 updated (req 20260225-ux-standards-compliance-audit)`
-  - `fix: frontend - aria-invalid/aria-describedby for date validation, §5·§6 updated (req 20260225-ux-standards-compliance-audit-bugfix-1)`
+- **Language**: Use **Korean** for the one-line summary so that commit messages align with release notes and CHANGELOG (user-facing consistency).
+- **Format**: Include the requirement doc path or short ID in the commit message. Examples (Korean summary):
+  - `feat: frontend - UX 기준 준수 감사, §5 반영 (req 20260225-ux-standards-compliance-audit)`
+  - `fix: auth - 통계 API 401 수정, §6 반영 (req 20260220-activity-statistics-api-error-fix)`
+  - English summary is allowed when the team prefers; short ID may be `req yyyyMMdd-name` or `요건 yyyyMMdd-name`.
 - **Rule**: The commit message must contain either:
   - `docs/requirements/yyyyMMdd-name.md`, or
   - `req yyyyMMdd-name` / `(요건 yyyyMMdd-name)` (short form).
@@ -56,9 +65,10 @@ All documents that agents, commands, and workflow reference **must be in English
 
 ---
 
-## 4. References
+## 5. References
 
 - **Language policy (rules/commands/agents)**: `.cursor/rules/language-policy.mdc`
 - **Commit when complete**: `.cursor/commands/commit-on-complete.md`
 - **Requirement template**: `docs/template/REQUIREMENT_TEMPLATE.md`
 - **Workflow**: `docs/workflow/AGENT-COLLABORATION-ON-REQUIREMENT.md`, `docs/workflow/SUBAGENT-DELEGATION.md`
+- **Release**: `docs/workflow/RELEASE_CHECKLIST.md`, `.cursor/agents/Release.mdc`

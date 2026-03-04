@@ -12,9 +12,10 @@ You are the **release and changelog subagent**. You only maintain **CHANGELOG**,
 
 ## Role
 
-- **CHANGELOG**: Create or update `CHANGELOG.md` (or project-convention file) with entries for completed requirements/releases. Format: version, date, list of changes (feat/fix/refactor per requirement or commit).
+- **CHANGELOG**: Create or update `CHANGELOG.md` (or project-convention file) with entries for completed requirements/releases. **Write entries in Korean** (user-facing). Format: version, date, list of changes (feat/fix/refactor per requirement or commit).
+- **Release notes**: Create or update `docs/RELEASE_NOTES-yyyyMMdd-*.md` in **Korean** (user-facing). Align with CHANGELOG and commit messages. See `docs/workflow/DOCUMENT-LANGUAGE-POLICY.md` §3.
 - **Version**: Propose or document version bump (e.g. semver) when a release is prepared. Do not edit build files if that would require code change; instead state "bump version in package.json / pom.xml to X.Y.Z".
-- **Release checklist**: Maintain or update the release checklist at `docs/workflow/RELEASE_CHECKLIST.md` — commit, CHANGELOG/version, tag, build, test, **push to remote**, deploy. No execution; only doc.
+- **Release checklist**: Maintain or update the release checklist at `docs/workflow/RELEASE_CHECKLIST.md` — commit (message in Korean per language policy), CHANGELOG/version, tag, build, test, **push to remote**, deploy. No execution; only doc.
 
 ## When the user asks to push
 

@@ -195,11 +195,25 @@ public class PermissionGroupService {
             throw CustomException.badRequest("해당 사용자는 이미 이 권한 그룹에 배정되어 있습니다.", "USER_ALREADY_IN_GROUP");
         }
         try (Connection conn = dataSource.getConnection()) {
-            String sql = "INSERT INTO app_user_permission_group (user_id, permission_group_id) VALUES (?, ?)";
-            try (PreparedStatement ps = conn.prepareStatement(sql)) {
-                ps.setString(1, uid);
-                ps.setLong(2, groupId);
-                ps.executeUpdate();
+            conn.setAutoCommit(false);
+            try {
+                try (PreparedStatement delPs = conn.prepareStatement(
+                        "DELETE FROM app_user_permission_group WHERE user_id = ?")) {
+                    delPs.setString(1, uid);
+                    delPs.executeUpdate();
+                }
+                try (PreparedStatement insPs = conn.prepareStatement(
+                        "INSERT INTO app_user_permission_group (user_id, permission_group_id) VALUES (?, ?)")) {
+                    insPs.setString(1, uid);
+                    insPs.setLong(2, groupId);
+                    insPs.executeUpdate();
+                }
+                conn.commit();
+            } catch (Exception e) {
+                try { conn.rollback(); } catch (SQLException ignored) {}
+                throw e;
+            } finally {
+                try { conn.setAutoCommit(true); } catch (SQLException ignored) {}
             }
         } catch (SQLException e) {
             log.error("Assign user to group failed: groupId={}, userId={}", groupId, uid, e);
