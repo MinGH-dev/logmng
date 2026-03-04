@@ -60,6 +60,25 @@ Use **Material-UI (MUI)** for layout and components:
 
 ---
 
+## z-index hierarchy
+
+All custom overlays, modals, and fixed elements must follow this hierarchy to avoid occlusion conflicts.
+
+| Layer | z-index | Examples |
+|-------|---------|----------|
+| Sidebar / Drawer | 1200 | MUI `theme.zIndex.drawer` |
+| AppBar | 1201 | MUI `theme.zIndex.drawer + 1` |
+| **Modal overlays** | **1300** | Custom dialog overlays (e.g. `.permission-group-dialog-overlay`) |
+| MUI Modal/Dialog | 1300 | MUI `theme.zIndex.modal` |
+| Toast / Snackbar | 1400 | MUI `theme.zIndex.snackbar` |
+| Tooltip | 1500 | MUI `theme.zIndex.tooltip` |
+
+- Custom modal overlays **must** use `z-index: 1300` or higher so they appear above the AppBar (1201).
+- Do **not** use `z-index: 1000` or lower for modals — the AppBar will cover the modal header and close button.
+- When UX reviews a screen with modals/dialogs, check z-index against this table.
+
+---
+
 ## Review checklist
 
 For every new menu or screen:

@@ -471,7 +471,7 @@ const PermissionGroupPanel = ({ user, onRefreshHierarchy }) => {
                 <span className="permission-group-form-label">접근 화면</span>
                 <ScreenSelectionTree
                   selectedScreens={editAllowedScreens}
-                  onChange={setEditAllowedScreens}
+                  onChange={(next) => setEditAllowedScreens(next)}
                 />
               </div>
               <div className="permission-group-dialog-actions">

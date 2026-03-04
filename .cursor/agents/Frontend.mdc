@@ -26,6 +26,15 @@ You are the **frontend-only subagent**. Do only the following.
 - **Performance**: Avoid unnecessary re-renders; code splitting for heavy parts; bundle awareness.
 - **Security and logging**: `docs/security-guide.md`.
 
+## Bug fix methodology (required)
+
+When fixing a React UI bug (e.g. "click does not update", "checkbox/toggle unresponsive"):
+
+- **Read and follow** `.cursor/skills/react-debugging/SKILL.md` before making any code change.
+- **Trace the full data flow**: event handler → state setter → re-render → normalize/transform → derived state → rendered value. Do not stop at "the handler fires."
+- **Audit normalize/transform functions**: Check that `useMemo`, `normalizeX`, `mapX` preserve **all fields** from the input (a common bug is dropping fields so `??` defaults reset them every render).
+- **3-strike rule**: If the same approach (event handlers, CSS, label/input) fails **twice**, escalate to the data flow layer (normalize, parent state, props derivation). State this explicitly in the bugfix document.
+
 ## Before working
 
 - API add/change: Confirm in specs or contract; if not, say "spec definition needed".

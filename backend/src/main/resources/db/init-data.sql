@@ -68,7 +68,13 @@ SELECT id, unnest(ARRAY['main','search-history','activity-log','statistics','pen
 FROM permission_group WHERE code = 'GENERAL_USER'
 ON CONFLICT (permission_group_id, screen_id) DO NOTHING;
 
--- 사용자–권한 그룹 연결: user1 → AUDIT, REPORT, GENERAL_USER; user2 → AUDIT, GENERAL_USER (기존 app_user username 기준).
+-- ADMIN_EXT: 사용자 관리 화면 접근 (요건: 20250303-user-management-permission-group-access). user3 테스트용.
+INSERT INTO permission_group_screen (permission_group_id, screen_id)
+SELECT id, unnest(ARRAY['user-management','user-permission-hierarchy'])
+FROM permission_group WHERE code = 'ADMIN_EXT'
+ON CONFLICT (permission_group_id, screen_id) DO NOTHING;
+
+-- 사용자–권한 그룹 연결: user1 → AUDIT, REPORT, GENERAL_USER; user2 → AUDIT, GENERAL_USER; user3 → GENERAL_USER, ADMIN_EXT (사용자 관리 권한).
 INSERT INTO app_user_permission_group (user_id, permission_group_id)
 SELECT 'user1', id FROM permission_group WHERE code = 'AUDIT'
 ON CONFLICT (user_id, permission_group_id) DO NOTHING;
@@ -86,6 +92,9 @@ SELECT 'user2', id FROM permission_group WHERE code = 'GENERAL_USER'
 ON CONFLICT (user_id, permission_group_id) DO NOTHING;
 INSERT INTO app_user_permission_group (user_id, permission_group_id)
 SELECT 'user3', id FROM permission_group WHERE code = 'GENERAL_USER'
+ON CONFLICT (user_id, permission_group_id) DO NOTHING;
+INSERT INTO app_user_permission_group (user_id, permission_group_id)
+SELECT 'user3', id FROM permission_group WHERE code = 'ADMIN_EXT'
 ON CONFLICT (user_id, permission_group_id) DO NOTHING;
 
 -- 송신 로그 샘플 데이터

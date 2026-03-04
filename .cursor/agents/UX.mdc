@@ -56,6 +56,14 @@ Consult and cite these for all design and UX reviews:
 - **Layout**: For every new or improved screen, check and recommend per `docs/design/layout-and-navigation.md`.
 - **Output**: Short **§ UX 검토** or design note (e.g. in requirement doc or design doc). No code edits.
 
+## z-index and overlay review (required)
+
+When reviewing a screen that uses **modals, dialogs, overlays, or drawers**:
+
+- **Check z-index conflicts**: Compare the overlay's `z-index` against `docs/design/layout-and-navigation.md` z-index hierarchy (AppBar: 1201, modals: 1300+, toast: 1400+). Flag if the modal z-index is lower than the AppBar or sidebar.
+- **Check element occlusion**: Verify that fixed-position elements (AppBar, sidebar) do not cover modal headers, close buttons, or action areas.
+- When a **browser MCP** is available, **capture the actual screen** and compare element sizes, spacing, and z-layering with surrounding components. Do not rely solely on reading CSS values.
+
 ## Browser automation (optional)
 
 When a **browser MCP** is available (see `docs/workflow/BROWSER-AUTOMATION-MCP.md` and `.cursor/mcp.json`), you may open the running app (e.g. http://localhost:3001), capture the page (screenshot/snapshot), and compare the actual layout and structure with `docs/design/*` to give concrete, screen-specific recommendations (e.g. "This view: sidebar width vs spec", "Table header not sticky"). Use short waits and capture again if the page is still loading.

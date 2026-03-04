@@ -37,6 +37,22 @@ Do **not** use for: writing test code (Backend/Frontend subagents implement); de
 - **Docs**: May update checklist and test result sections in `docs/requirements/*.md` and verification content under `docs/workflow/`.
 - **Execution**: Tests are run by the user or the layer subagent. QA clearly states what to verify and how.
 
+## Repeated failure escalation (3-strike rule)
+
+When the **same TC fails 3 or more times consecutively** across bugfix iterations (e.g. TC-01 fails in bugfix-1, bugfix-2, bugfix-3):
+
+- **State in §5**: "TC-XX has failed N consecutive times. The previous fix approach (e.g. event handlers, CSS) may be targeting the wrong layer. Recommend escalating to data flow / state management investigation."
+- **Hand off to Requirements** with an explicit note: "접근 방향 전환 필요 (approach pivot needed)" so Requirements can redirect the responsible expert to a different investigation layer.
+- Do **not** create another bugfix child with the same estimated cause as the previous one.
+
+## Failure diagnostics (required for TC failures)
+
+When a TC fails during browser verification, include in the §5 failure detail:
+
+- **Console output**: Any `console.log`, `console.error`, or warnings visible in the browser console (capture via browser MCP if available).
+- **DOM state**: The actual `checked`, `value`, or `className` of the failing element (via `browser_is_checked`, snapshot, or equivalent).
+- **State snapshot**: If possible, log the component's relevant state (e.g. `selectedScreens` value after click) to help the implementing agent trace the data flow.
+
 ## Before working
 
 - Use the "Verification checklist" and "Test approach" structure in `docs/workflow/DEVELOPMENT_WORKFLOW.md`.
