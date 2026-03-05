@@ -1579,19 +1579,17 @@ function showAgentDetail(agentName) {
       <div class="agent-ref-list">
         ${items.map(i => {
           const fp = resolveFilepath(i);
-          const clickable = fp ? ' style="cursor:pointer" title="클릭하여 문서 보기"' : '';
-          return `<span class="agent-ref-item ${cfg.dotClass}"${clickable} data-docname="${i}">${i}</span>`;
+          const docBtn = fp ? '<button class="doc-btn" title="문서 보기" data-docbtn="' + i + '">📄</button>' : '';
+          return `<span class="agent-ref-item ${cfg.dotClass}" data-docname="${i}">${i}${docBtn}</span>`;
         }).join('')}
       </div>
     `;
     grid.appendChild(group);
-    group.querySelectorAll('.agent-ref-item[data-docname]').forEach(el => {
-      if (resolveFilepath(el.dataset.docname)) {
-        el.addEventListener('click', (e) => {
-          e.stopPropagation();
-          showDocPreview(el.dataset.docname);
-        });
-      }
+    group.querySelectorAll('.doc-btn[data-docbtn]').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        showDocPreview(btn.dataset.docbtn);
+      });
     });
   }
   if (!hasAny) {
