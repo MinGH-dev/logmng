@@ -39,6 +39,12 @@ function App() {
     return ids.includes(view);
   };
 
+  const getFirstAllowedScreen = (u) => {
+    if (u?.isSystemAdmin === true) return 'main';
+    const ids = getAllowedScreenIds(u);
+    return (ids && ids.length > 0) ? ids[0] : 'main';
+  };
+
   useEffect(() => {
     checkAuthStatus();
     const savedLogType = localStorage.getItem('selectedLogType');
@@ -50,6 +56,17 @@ function App() {
       }
     }
   }, []);
+
+  useEffect(() => {
+    if (!isAuthenticated || !user) return;
+    if (user?.isSystemAdmin === true) return;
+    const ids = getAllowedScreenIds(user);
+    if (ids && ids.includes('main')) return;
+    if (currentView === 'main') {
+      setCurrentView(getFirstAllowedScreen(user));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isAuthenticated, user]);
 
   const AUTH_CHECK_TIMEOUT_MS = 5000;
 
@@ -160,7 +177,6 @@ function App() {
 
   useEffect(() => {
     if (!isAuthenticated || !user) return;
-    if (currentView === 'main') return;
     const isAdmin = user?.isSystemAdmin === true;
     const ids = getAllowedScreenIds(user);
     const hasAccess =
@@ -172,12 +188,12 @@ function App() {
           : currentView === 'permission-group-management'
             ? ids.includes('permission-group-management') || ids.includes('user-permission-hierarchy')
             : ids.includes(currentView)));
-    if (!hasAccess) setCurrentView('main');
+    if (!hasAccess) setCurrentView(getFirstAllowedScreen(user));
   }, [isAuthenticated, user, currentView]);
 
   const handleNavigate = (view) => {
     if (!canAccessView(view)) {
-      setCurrentView('main');
+      setCurrentView(getFirstAllowedScreen(user));
       return;
     }
     setCurrentView(view);
@@ -261,10 +277,10 @@ function App() {
             )}
             {currentView === 'permission-group-management' && <PermissionGroupManagement user={user} />}
             {currentView === 'pending-approvals' && <PendingApprovals user={user} />}
-            {currentView === 'main' && !selectedLogType && (
+            {currentView === 'main' && canAccessView('main') && !selectedLogType && (
               <LogTypeSelector onSelectLogType={handleLogTypeSelect} />
             )}
-            {currentView === 'main' && selectedLogType && (
+            {currentView === 'main' && canAccessView('main') && selectedLogType && (
               <LogGrid
                 logType={selectedLogType}
                 initialSearchParams={initialSearchParams}

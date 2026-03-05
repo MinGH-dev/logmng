@@ -6,6 +6,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### 2025-03-05 (approve-only permission group, requester-only actions)
+
+- **feat (approve-only-permission-group)**: APPROVE_USER 패턴 — 팀장 전용 승인 권한 그룹 (로그 검색 불가, 복호화 승인만 가능). DB init-data에 APPROVE_USER 그룹 추가 (pending-approvals 화면만, approve=true); 프론트엔드 main 화면 미허용 사용자 → 첫 번째 허용 화면으로 리다이렉트 (`getFirstAllowedScreen()`, `canAccessView('main')` 가드); auth-permission-domain·department-approver-domain·search-history-decrypt-domain 스킬 반영. (req 20260304-approve-only-permission-group)
+- **feat (search-history)**: 요청자 전용 동작 제한 — 재조회/재요청/자세히보기는 기록 소유자만 가능 (관리자·scope 우회 불가). api-permission-map 스킬에 Requester-only APIs 섹션 추가.
+- **docs**: Interactive Cursor tools treemap (`docs/cursor-tools-treemap.html`) — Rules, Skills, Commands, Workflow Docs, Templates, Subagents의 시각적 맵 및 협업 플로우(Step 1-6)·문서 참조 관계 표시. README 링크 추가.
+- **docs**: T7 SSD 마이그레이션 가이드 (`docs/setup/T7-MIGRATION-GUIDE.md`).
+
 ### 2025-03-04 (워크플로·서브에이전트 문서 정리)
 
 - **feat (permission-group)**: 사용자당 단일 권한 그룹 (req 20250304-single-permission-group-per-user). 사용자–권한그룹 관계를 1:1로 변경; DB `app_user_permission_group.user_id` UNIQUE 제약, 백엔드 assign 시 기존 그룹 자동 교체, 프론트 UserGroupAssignment 배지 UI → 단일 드롭다운으로 전환. 스펙·auth-permission-domain·api-permission-map 스킬 반영.
