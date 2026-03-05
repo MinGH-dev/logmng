@@ -38,7 +38,6 @@ body {
 .header {
   text-align: center;
   padding: 40px 20px 20px;
-  position: relative;
 }
 .header h1 {
   font-family: 'JetBrains Mono', monospace;
@@ -75,7 +74,6 @@ body {
   border-radius: 3px;
 }
 
-/* Main Flow */
 .flow-container {
   max-width: 1400px;
   margin: 0 auto;
@@ -89,6 +87,13 @@ body {
   margin-bottom: 16px;
   padding-left: 8px;
   border-left: 3px solid var(--accent-subagent);
+}
+.flow-hint {
+  font-size: 12px;
+  color: var(--text-dim);
+  margin-bottom: 12px;
+  padding-left: 12px;
+  font-style: italic;
 }
 .flow-steps {
   display: flex;
@@ -104,7 +109,6 @@ body {
   border: 1px solid var(--border);
   border-radius: 10px;
   padding: 16px;
-  position: relative;
   transition: all 0.3s ease;
 }
 .step-card:hover {
@@ -142,13 +146,21 @@ body {
   color: var(--text-muted);
   cursor: pointer;
   transition: all 0.2s;
+  position: relative;
 }
 .agent-chip:hover {
   background: var(--glow-subagent);
   border-color: var(--accent-subagent);
   color: var(--text);
 }
+.agent-chip.active {
+  background: var(--glow-subagent);
+  border-color: var(--accent-subagent);
+  color: var(--text);
+  box-shadow: 0 0 8px var(--glow-subagent);
+}
 .agent-chip.light { opacity: 0.7; font-style: italic; }
+.agent-chip.light.active { opacity: 1; }
 .step-arrow {
   display: flex;
   align-items: center;
@@ -156,6 +168,121 @@ body {
   font-size: 20px;
   flex-shrink: 0;
 }
+
+/* Agent Detail Panel */
+.agent-detail-panel {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 0 20px;
+  overflow: hidden;
+  max-height: 0;
+  opacity: 0;
+  transition: max-height 0.4s ease, opacity 0.3s ease, margin 0.3s ease;
+}
+.agent-detail-panel.open {
+  max-height: 600px;
+  opacity: 1;
+  margin-bottom: 20px;
+}
+.agent-detail-inner {
+  background: var(--surface);
+  border: 1px solid var(--accent-subagent);
+  border-radius: 12px;
+  padding: 20px 24px;
+  box-shadow: 0 4px 24px rgba(59,130,246,0.1);
+}
+.agent-detail-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+.agent-detail-name {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--accent-subagent);
+}
+.agent-detail-step {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  color: var(--text-dim);
+  padding: 2px 10px;
+  border-radius: 10px;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+}
+.agent-detail-close {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12px;
+  color: var(--text-dim);
+  cursor: pointer;
+  padding: 4px 10px;
+  border-radius: 4px;
+  border: 1px solid var(--border);
+  background: transparent;
+  transition: all 0.2s;
+}
+.agent-detail-close:hover {
+  border-color: var(--accent-template);
+  color: var(--accent-template);
+}
+.agent-detail-scope {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-bottom: 16px;
+  padding: 8px 12px;
+  background: var(--surface2);
+  border-radius: 6px;
+  border-left: 3px solid var(--accent-subagent);
+}
+.agent-refs-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 12px;
+}
+.agent-ref-group {
+  padding: 10px 12px;
+  background: var(--surface2);
+  border-radius: 8px;
+  border: 1px solid var(--border);
+}
+.agent-ref-group-title {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  margin-bottom: 8px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.agent-ref-group-title .dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 2px;
+  flex-shrink: 0;
+}
+.agent-ref-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.agent-ref-item {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  padding: 2px 6px;
+  border-radius: 3px;
+  border: 1px solid;
+}
+.agent-ref-item.rules { color: var(--accent-rules); border-color: rgba(249,115,22,0.3); background: var(--glow-rules); }
+.agent-ref-item.skills { color: var(--accent-skills); border-color: rgba(6,182,212,0.3); background: var(--glow-skills); }
+.agent-ref-item.commands { color: var(--accent-commands); border-color: rgba(168,85,247,0.3); background: var(--glow-commands); }
+.agent-ref-item.workflow { color: var(--accent-workflow); border-color: rgba(16,185,129,0.3); background: var(--glow-workflow); }
+.agent-ref-item.template { color: var(--accent-template); border-color: rgba(244,63,94,0.3); background: var(--glow-template); }
+.agent-ref-item.other { color: var(--text-dim); border-color: var(--border); background: var(--surface); }
+.no-refs { font-size: 11px; color: var(--text-dim); font-style: italic; }
 
 /* Sections */
 .sections {
@@ -173,9 +300,6 @@ body {
   overflow: hidden;
   transition: all 0.3s;
 }
-.section:hover {
-  border-color: var(--border);
-}
 .section-header {
   padding: 16px 20px;
   display: flex;
@@ -184,9 +308,7 @@ body {
   cursor: pointer;
   user-select: none;
 }
-.section-header:hover {
-  background: var(--surface2);
-}
+.section-header:hover { background: var(--surface2); }
 .section-icon {
   width: 32px;
   height: 32px;
@@ -223,7 +345,6 @@ body {
 }
 .section-body.open { display: block; }
 
-/* Item rows */
 .item {
   padding: 10px 12px;
   margin: 4px 0;
@@ -233,9 +354,7 @@ body {
   cursor: pointer;
   transition: all 0.2s;
 }
-.item:hover {
-  border-color: var(--border);
-}
+.item:hover { border-color: var(--border); }
 .item-name {
   font-family: 'JetBrains Mono', monospace;
   font-size: 12px;
@@ -279,7 +398,6 @@ body {
 .ref-tag.template { color: var(--accent-template); border-color: rgba(244,63,94,0.3); background: var(--glow-template); }
 .ref-tag.other { color: var(--text-dim); border-color: var(--border); background: var(--surface); }
 
-/* Ref map section */
 .ref-map {
   max-width: 1400px;
   margin: 30px auto;
@@ -340,7 +458,6 @@ body {
   transition: width 0.6s ease;
 }
 
-/* Commands grid */
 .cmd-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
@@ -375,7 +492,6 @@ body {
   margin: 12px 0 8px;
 }
 
-/* Scrollbar */
 ::-webkit-scrollbar { width: 6px; height: 6px; }
 ::-webkit-scrollbar-track { background: var(--bg); }
 ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
@@ -401,13 +517,14 @@ body {
 <!-- ═══════ COLLABORATION FLOW ═══════ -->
 <div class="flow-container">
   <div class="flow-title">▸ 협업 순서 (Collaboration Sequence)</div>
+  <div class="flow-hint">서브에이전트를 클릭하면 실행 시 참조하는 도구 목록이 표시됩니다</div>
   <div class="flow-steps">
     <div class="step-card">
       <div class="step-num">Step 1</div>
       <div class="step-name">요건 정의</div>
       <div class="step-agents">
-        <div class="agent-chip">Requirements</div>
-        <div class="agent-chip light">RequirementsPastSearch</div>
+        <div class="agent-chip" data-agent="Requirements" onclick="showAgentDetail('Requirements')">Requirements</div>
+        <div class="agent-chip light" data-agent="RequirementsPastSearch" onclick="showAgentDetail('RequirementsPastSearch')">RequirementsPastSearch</div>
       </div>
     </div>
     <div class="step-arrow">→</div>
@@ -415,7 +532,7 @@ body {
       <div class="step-num">Step 2</div>
       <div class="step-name">보안 검토</div>
       <div class="step-agents">
-        <div class="agent-chip">Security</div>
+        <div class="agent-chip" data-agent="Security" onclick="showAgentDetail('Security')">Security</div>
       </div>
     </div>
     <div class="step-arrow">→</div>
@@ -423,11 +540,11 @@ body {
       <div class="step-num">Step 3</div>
       <div class="step-name">설계 검토</div>
       <div class="step-agents">
-        <div class="agent-chip">Contract</div>
-        <div class="agent-chip">DBA</div>
-        <div class="agent-chip">Architecture</div>
-        <div class="agent-chip">Consistency</div>
-        <div class="agent-chip">UX</div>
+        <div class="agent-chip" data-agent="Contract" onclick="showAgentDetail('Contract')">Contract</div>
+        <div class="agent-chip" data-agent="DBA" onclick="showAgentDetail('DBA')">DBA</div>
+        <div class="agent-chip" data-agent="Architecture" onclick="showAgentDetail('Architecture')">Architecture</div>
+        <div class="agent-chip" data-agent="Consistency" onclick="showAgentDetail('Consistency')">Consistency</div>
+        <div class="agent-chip" data-agent="UX" onclick="showAgentDetail('UX')">UX</div>
       </div>
     </div>
     <div class="step-arrow">→</div>
@@ -435,11 +552,15 @@ body {
       <div class="step-num">Step 4</div>
       <div class="step-name">구현</div>
       <div class="step-agents">
-        <div class="agent-chip">Backend</div>
-        <div class="agent-chip">Frontend</div>
-        <div class="agent-chip">DB</div>
-        <div class="agent-chip light">Backend-Auth / Log / ActivityLog</div>
-        <div class="agent-chip light">Frontend-Auth / Log / ActivityLog</div>
+        <div class="agent-chip" data-agent="Backend" onclick="showAgentDetail('Backend')">Backend</div>
+        <div class="agent-chip" data-agent="Frontend" onclick="showAgentDetail('Frontend')">Frontend</div>
+        <div class="agent-chip" data-agent="DB" onclick="showAgentDetail('DB')">DB</div>
+        <div class="agent-chip light" data-agent="Backend-Auth" onclick="showAgentDetail('Backend-Auth')">Backend-Auth</div>
+        <div class="agent-chip light" data-agent="Backend-Log" onclick="showAgentDetail('Backend-Log')">Backend-Log</div>
+        <div class="agent-chip light" data-agent="Backend-ActivityLog" onclick="showAgentDetail('Backend-ActivityLog')">Backend-ActivityLog</div>
+        <div class="agent-chip light" data-agent="Frontend-Auth" onclick="showAgentDetail('Frontend-Auth')">Frontend-Auth</div>
+        <div class="agent-chip light" data-agent="Frontend-Log" onclick="showAgentDetail('Frontend-Log')">Frontend-Log</div>
+        <div class="agent-chip light" data-agent="Frontend-ActivityLog" onclick="showAgentDetail('Frontend-ActivityLog')">Frontend-ActivityLog</div>
       </div>
     </div>
     <div class="step-arrow">→</div>
@@ -447,7 +568,7 @@ body {
       <div class="step-num">Step 4.5</div>
       <div class="step-name">리뷰</div>
       <div class="step-agents">
-        <div class="agent-chip">Review</div>
+        <div class="agent-chip" data-agent="Review" onclick="showAgentDetail('Review')">Review</div>
       </div>
     </div>
     <div class="step-arrow">→</div>
@@ -455,7 +576,7 @@ body {
       <div class="step-num">Step 5</div>
       <div class="step-name">QA & 커밋</div>
       <div class="step-agents">
-        <div class="agent-chip">QA</div>
+        <div class="agent-chip" data-agent="QA" onclick="showAgentDetail('QA')">QA</div>
       </div>
     </div>
     <div class="step-arrow">→</div>
@@ -463,10 +584,25 @@ body {
       <div class="step-num">Step 6</div>
       <div class="step-name">문서 & 릴리스</div>
       <div class="step-agents">
-        <div class="agent-chip light">Documentation</div>
-        <div class="agent-chip light">Release</div>
+        <div class="agent-chip light" data-agent="Documentation" onclick="showAgentDetail('Documentation')">Documentation</div>
+        <div class="agent-chip light" data-agent="Release" onclick="showAgentDetail('Release')">Release</div>
       </div>
     </div>
+  </div>
+</div>
+
+<!-- ═══════ AGENT DETAIL PANEL ═══════ -->
+<div class="agent-detail-panel" id="agentDetailPanel">
+  <div class="agent-detail-inner">
+    <div class="agent-detail-header">
+      <div style="display:flex; align-items:center; gap:12px">
+        <div class="agent-detail-name" id="agentName"></div>
+        <div class="agent-detail-step" id="agentStep"></div>
+      </div>
+      <button class="agent-detail-close" onclick="closeAgentDetail()">✕ 닫기</button>
+    </div>
+    <div class="agent-detail-scope" id="agentScope"></div>
+    <div class="agent-refs-grid" id="agentRefsGrid"></div>
   </div>
 </div>
 
@@ -482,7 +618,6 @@ body {
       <div class="section-toggle">▼</div>
     </div>
     <div class="section-body">
-
       <div class="item" onclick="toggleRefs(this)" style="border-left: 3px solid var(--accent-rules)">
         <div class="item-name" style="color:var(--accent-rules)">agent-collaboration.mdc</div>
         <div class="item-desc">에이전트 협업 순서 규정. Step 1~6 위임 게이트. 요건 문서 없이 개발 금지.</div>
@@ -499,7 +634,6 @@ body {
           <span class="ref-tag skills">.cursor/skills/</span>
         </div>
       </div>
-
       <div class="item" onclick="toggleRefs(this)" style="border-left: 3px solid var(--accent-rules)">
         <div class="item-name" style="color:var(--accent-rules)">core-principles.mdc</div>
         <div class="item-desc">응답 언어, 병렬 도구, 도구 우선순위, 품질 게이트, 보안 원칙. 모든 규칙의 허브.</div>
@@ -517,7 +651,6 @@ body {
           <span class="ref-tag other">docs/security-guide.md</span>
         </div>
       </div>
-
       <div class="item" onclick="toggleRefs(this)" style="border-left: 3px solid var(--accent-rules)">
         <div class="item-name" style="color:var(--accent-rules)">error-first-workflow.mdc</div>
         <div class="item-desc">에러/버그 수정 시 요건 문서 + §3 테스트 계획 먼저 작성.</div>
@@ -528,7 +661,6 @@ body {
           <span class="ref-tag template">REQUIREMENT_TEMPLATE</span>
         </div>
       </div>
-
       <div class="item" onclick="toggleRefs(this)" style="border-left: 3px solid var(--accent-rules)">
         <div class="item-name" style="color:var(--accent-rules)">post-change-test-verify.mdc</div>
         <div class="item-desc">코드 변경 후 테스트·검증 실행. 실패 시 bugfix 자식 요건 생성.</div>
@@ -543,10 +675,8 @@ body {
           <span class="ref-tag workflow">DEVELOPMENT_WORKFLOW</span>
           <span class="ref-tag workflow">WORKFLOW_CHECKLIST</span>
           <span class="ref-tag workflow">SUBAGENT-DELEGATION</span>
-          <span class="ref-tag workflow">WHY-TESTS-VERIFY-NOT-AUTO</span>
         </div>
       </div>
-
       <div class="item" onclick="toggleRefs(this)" style="border-left: 3px solid var(--accent-rules)">
         <div class="item-name" style="color:var(--accent-rules)">contract-first.mdc</div>
         <div class="item-desc">API·DB 작업 시 계약/스펙 먼저 확인.</div>
@@ -557,7 +687,6 @@ body {
           <span class="ref-tag other">schema.sql</span>
         </div>
       </div>
-
       <div class="item" onclick="toggleRefs(this)" style="border-left: 3px solid var(--accent-rules)">
         <div class="item-name" style="color:var(--accent-rules)">workflow-todos.mdc</div>
         <div class="item-desc">TodoWrite 시 WORKFLOW_CHECKLIST 순서 필수 준수.</div>
@@ -570,7 +699,6 @@ body {
           <span class="ref-tag commands">commit-on-complete</span>
         </div>
       </div>
-
       <div class="item" onclick="toggleRefs(this)" style="border-left: 3px solid var(--accent-rules)">
         <div class="item-name" style="color:var(--accent-rules)">language-policy.mdc</div>
         <div class="item-desc">규칙/스킬/워크플로우는 영어, 사용자 응답은 요청 언어.</div>
@@ -580,7 +708,6 @@ body {
           <span class="ref-tag workflow">DOCUMENT-LANGUAGE-POLICY</span>
         </div>
       </div>
-
       <div class="item" onclick="toggleRefs(this)" style="border-left: 3px solid var(--accent-rules)">
         <div class="item-name" style="color:var(--accent-rules)">build-restart-handoff.mdc</div>
         <div class="item-desc">코드 변경 후 빌드·재시작·§2 갱신·QA 핸드오프.</div>
@@ -590,19 +717,16 @@ body {
           <span class="ref-tag workflow">SUBAGENT-DELEGATION</span>
         </div>
       </div>
-
       <div class="item" style="border-left: 3px solid var(--accent-rules)">
         <div class="item-name" style="color:var(--accent-rules)">security-permissions.mdc</div>
         <div class="item-desc">읽기/실행 금지 경로, 위험 명령 확인 필수.</div>
       </div>
-
       <div class="item" style="border-left: 3px solid var(--accent-rules)">
         <div class="item-name" style="color:var(--accent-rules)">file-reading-optimization.mdc</div>
         <div class="item-desc">파일 크기별 계층적 로딩으로 토큰 절약.</div>
       </div>
-
       <div class="item" style="border-left: 3px solid var(--accent-rules)">
-        <div class="item-name" style="color:var(--accent-rules)">frontend-agent.mdc / backend-agent.mdc / db-agent.mdc</div>
+        <div class="item-name" style="color:var(--accent-rules)">frontend-agent / backend-agent / db-agent</div>
         <div class="item-desc">각 구현 서브에이전트 전용 규칙. 스코프 제한.</div>
       </div>
     </div>
@@ -617,7 +741,6 @@ body {
       <div class="section-toggle">▼</div>
     </div>
     <div class="section-body">
-
       <div class="cmd-category">워크플로우 스킬</div>
       <div class="item" onclick="toggleRefs(this)" style="border-left: 3px solid var(--accent-skills)">
         <div class="item-name" style="color:var(--accent-skills)">dev-workflow</div>
@@ -630,7 +753,6 @@ body {
           <span class="ref-tag rules">workflow-todos</span>
         </div>
       </div>
-
       <div class="item" onclick="toggleRefs(this)" style="border-left: 3px solid var(--accent-skills)">
         <div class="item-name" style="color:var(--accent-skills)">test-workflow</div>
         <div class="item-desc">§3 테스트 계획·실행·§5 기록·검증 워크플로우.</div>
@@ -644,7 +766,6 @@ body {
           <span class="ref-tag commands">commit-on-complete</span>
         </div>
       </div>
-
       <div class="item" onclick="toggleRefs(this)" style="border-left: 3px solid var(--accent-skills)">
         <div class="item-name" style="color:var(--accent-skills)">requirement-doc</div>
         <div class="item-desc">요건 문서 작성·수정. 템플릿·명명 규칙 적용.</div>
@@ -659,48 +780,17 @@ body {
           <span class="ref-tag commands">commit-on-complete</span>
         </div>
       </div>
-
       <div class="cmd-category">도메인 스킬</div>
-      <div class="item" style="border-left: 3px solid var(--accent-skills)">
-        <div class="item-name" style="color:var(--accent-skills)">auth-permission-domain</div>
-        <div class="item-desc">is_system_admin, 권한 그룹, 화면별 접근, scope (self/team/all).</div>
-      </div>
-      <div class="item" style="border-left: 3px solid var(--accent-skills)">
-        <div class="item-name" style="color:var(--accent-skills)">api-permission-map</div>
-        <div class="item-desc">API 엔드포인트 → 컨트롤러 → 권한 체크 → 거부 에러코드 매핑.</div>
-      </div>
-      <div class="item" style="border-left: 3px solid var(--accent-skills)">
-        <div class="item-name" style="color:var(--accent-skills)">search-history-decrypt-domain</div>
-        <div class="item-desc">검색 이력, 복호화 승인 흐름 (PENDING/APPROVED/REJECTED).</div>
-      </div>
-      <div class="item" style="border-left: 3px solid var(--accent-skills)">
-        <div class="item-name" style="color:var(--accent-skills)">department-approver-domain</div>
-        <div class="item-desc">부서 계층, 결재자 지정, canApproveForRequester.</div>
-      </div>
-      <div class="item" style="border-left: 3px solid var(--accent-skills)">
-        <div class="item-name" style="color:var(--accent-skills)">log-search-domain</div>
-        <div class="item-desc">로그 검색 API, logType (pb_feplog, java_fw_imglog).</div>
-      </div>
-      <div class="item" style="border-left: 3px solid var(--accent-skills)">
-        <div class="item-name" style="color:var(--accent-skills)">activity-statistics-domain</div>
-        <div class="item-desc">활동 통계, scope, daily/monthly, CSV export.</div>
-      </div>
-      <div class="item" style="border-left: 3px solid var(--accent-skills)">
-        <div class="item-name" style="color:var(--accent-skills)">error-codes-domain</div>
-        <div class="item-desc">에러 코드: FORBIDDEN, DECRYPTION_NOT_APPROVED 등.</div>
-      </div>
-      <div class="item" style="border-left: 3px solid var(--accent-skills)">
-        <div class="item-name" style="color:var(--accent-skills)">ui-ux-domain</div>
-        <div class="item-desc">메뉴 트리, view, screen ID, adminOnly, sidebar.</div>
-      </div>
-      <div class="item" style="border-left: 3px solid var(--accent-skills)">
-        <div class="item-name" style="color:var(--accent-skills)">db-domain</div>
-        <div class="item-desc">PostgreSQL 스키마, 마이그레이션, setup 스크립트.</div>
-      </div>
-      <div class="item" style="border-left: 3px solid var(--accent-skills)">
-        <div class="item-name" style="color:var(--accent-skills)">react-debugging</div>
-        <div class="item-desc">React 디버깅 기법.</div>
-      </div>
+      <div class="item" style="border-left: 3px solid var(--accent-skills)"><div class="item-name" style="color:var(--accent-skills)">auth-permission-domain</div><div class="item-desc">is_system_admin, 권한 그룹, 화면별 접근, scope (self/team/all).</div></div>
+      <div class="item" style="border-left: 3px solid var(--accent-skills)"><div class="item-name" style="color:var(--accent-skills)">api-permission-map</div><div class="item-desc">API 엔드포인트 → 컨트롤러 → 권한 체크 → 거부 에러코드 매핑.</div></div>
+      <div class="item" style="border-left: 3px solid var(--accent-skills)"><div class="item-name" style="color:var(--accent-skills)">search-history-decrypt-domain</div><div class="item-desc">검색 이력, 복호화 승인 흐름 (PENDING/APPROVED/REJECTED).</div></div>
+      <div class="item" style="border-left: 3px solid var(--accent-skills)"><div class="item-name" style="color:var(--accent-skills)">department-approver-domain</div><div class="item-desc">부서 계층, 결재자 지정, canApproveForRequester.</div></div>
+      <div class="item" style="border-left: 3px solid var(--accent-skills)"><div class="item-name" style="color:var(--accent-skills)">log-search-domain</div><div class="item-desc">로그 검색 API, logType (pb_feplog, java_fw_imglog).</div></div>
+      <div class="item" style="border-left: 3px solid var(--accent-skills)"><div class="item-name" style="color:var(--accent-skills)">activity-statistics-domain</div><div class="item-desc">활동 통계, scope, daily/monthly, CSV export.</div></div>
+      <div class="item" style="border-left: 3px solid var(--accent-skills)"><div class="item-name" style="color:var(--accent-skills)">error-codes-domain</div><div class="item-desc">에러 코드: FORBIDDEN, DECRYPTION_NOT_APPROVED 등.</div></div>
+      <div class="item" style="border-left: 3px solid var(--accent-skills)"><div class="item-name" style="color:var(--accent-skills)">ui-ux-domain</div><div class="item-desc">메뉴 트리, view, screen ID, adminOnly, sidebar.</div></div>
+      <div class="item" style="border-left: 3px solid var(--accent-skills)"><div class="item-name" style="color:var(--accent-skills)">db-domain</div><div class="item-desc">PostgreSQL 스키마, 마이그레이션, setup 스크립트.</div></div>
+      <div class="item" style="border-left: 3px solid var(--accent-skills)"><div class="item-name" style="color:var(--accent-skills)">react-debugging</div><div class="item-desc">React 디버깅 기법.</div></div>
     </div>
   </div>
 
@@ -713,7 +803,6 @@ body {
       <div class="section-toggle">▼</div>
     </div>
     <div class="section-body">
-
       <div class="cmd-category">핵심 허브 문서</div>
       <div class="item" onclick="toggleRefs(this)" style="border-left: 3px solid var(--accent-workflow)">
         <div class="item-name" style="color:var(--accent-workflow)">AGENT-COLLABORATION-ON-REQUIREMENT.md</div>
@@ -726,16 +815,13 @@ body {
           <span class="ref-tag workflow">SUBAGENT-MODEL-SELECTION</span>
           <span class="ref-tag workflow">CONSISTENCY-STANDARDS</span>
           <span class="ref-tag workflow">WORKFLOW_CHECKLIST</span>
-          <span class="ref-tag workflow">CURSOR-AND-TOOLS-INTEGRATION</span>
           <span class="ref-tag template">REQUIREMENT_TEMPLATE</span>
           <span class="ref-tag rules">language-policy</span>
           <span class="ref-tag skills">.cursor/skills/</span>
           <span class="ref-tag commands">new-requirement</span>
           <span class="ref-tag other">docs/contract.md</span>
-          <span class="ref-tag other">TOPIC-INDEX</span>
         </div>
       </div>
-
       <div class="item" onclick="toggleRefs(this)" style="border-left: 3px solid var(--accent-workflow)">
         <div class="item-name" style="color:var(--accent-workflow)">SUBAGENT-DELEGATION.md</div>
         <div class="item-desc">Step별 서브에이전트 위임 테이블 및 게이트 규정. (참조 10건)</div>
@@ -744,7 +830,6 @@ body {
           <span class="ref-tag workflow">CURSOR-SUBAGENTS-DESIGN</span>
           <span class="ref-tag workflow">AGENT-COLLABORATION-ON-REQUIREMENT</span>
           <span class="ref-tag workflow">HANDOFF-CHECKLIST</span>
-          <span class="ref-tag workflow">BROWSER-AUTOMATION-VERIFICATION-POLICY</span>
           <span class="ref-tag workflow">SUBAGENT-MODEL-SELECTION</span>
           <span class="ref-tag template">REQUIREMENT_TEMPLATE</span>
           <span class="ref-tag commands">commit-on-complete</span>
@@ -752,7 +837,6 @@ body {
           <span class="ref-tag rules">agent-collaboration</span>
         </div>
       </div>
-
       <div class="item" onclick="toggleRefs(this)" style="border-left: 3px solid var(--accent-workflow)">
         <div class="item-name" style="color:var(--accent-workflow)">CURSOR-SUBAGENTS-DESIGN.md</div>
         <div class="item-desc">서브에이전트 역할·범위·등록 방법 정의. (참조 12건+)</div>
@@ -761,62 +845,30 @@ body {
           <span class="ref-tag workflow">SUBAGENT-MODEL-SELECTION</span>
           <span class="ref-tag workflow">SUBAGENT-DELEGATION</span>
           <span class="ref-tag workflow">AGENT-COLLABORATION-ON-REQUIREMENT</span>
-          <span class="ref-tag workflow">CONSISTENCY-STANDARDS</span>
           <span class="ref-tag workflow">DEVELOPMENT_WORKFLOW</span>
-          <span class="ref-tag workflow">CURSOR-AND-TOOLS-INTEGRATION</span>
           <span class="ref-tag rules">agent-collaboration</span>
           <span class="ref-tag rules">language-policy</span>
           <span class="ref-tag commands">verify</span>
           <span class="ref-tag other">docs/contract.md</span>
         </div>
       </div>
-
       <div class="item" onclick="toggleRefs(this)" style="border-left: 3px solid var(--accent-workflow)">
         <div class="item-name" style="color:var(--accent-workflow)">WORKFLOW_CHECKLIST.md</div>
         <div class="item-desc">새 요건·버그 수정 시 순서와 게이트 체크리스트. (참조 5건)</div>
         <div class="item-refs">
           <div class="ref-title">참조 문서</div>
           <span class="ref-tag workflow">DEVELOPMENT_WORKFLOW</span>
-          <span class="ref-tag workflow">CURSOR-SUBAGENTS-DESIGN</span>
-          <span class="ref-tag workflow">CURSOR-AND-TOOLS-INTEGRATION</span>
           <span class="ref-tag template">REQUIREMENT_TEMPLATE</span>
           <span class="ref-tag commands">commit-on-complete</span>
         </div>
       </div>
-
       <div class="cmd-category">기타 워크플로우 문서</div>
-      <div class="item" style="border-left: 3px solid var(--accent-workflow)">
-        <div class="item-name" style="color:var(--accent-workflow)">HANDOFF-CHECKLIST.md</div>
-        <div class="item-desc">Backend/Frontend/DB/Review/QA별 핸드오프 체크리스트.</div>
-      </div>
-      <div class="item" style="border-left: 3px solid var(--accent-workflow)">
-        <div class="item-name" style="color:var(--accent-workflow)">ERROR-FIX-WORKFLOW-FLOWCHART.md</div>
-        <div class="item-desc">오류 수정 시 Skills/Sub-Agent/Commands 사용 시점 흐름도.</div>
-      </div>
-      <div class="item" style="border-left: 3px solid var(--accent-workflow)">
-        <div class="item-name" style="color:var(--accent-workflow)">WORKFLOW_MODES.md</div>
-        <div class="item-desc">TDD vs DDD 개발 방식 선택 가이드.</div>
-      </div>
-      <div class="item" style="border-left: 3px solid var(--accent-workflow)">
-        <div class="item-name" style="color:var(--accent-workflow)">SUBAGENT-MODEL-SELECTION.md</div>
-        <div class="item-desc">서브에이전트별 모델 티어 (Light / Default).</div>
-      </div>
-      <div class="item" style="border-left: 3px solid var(--accent-workflow)">
-        <div class="item-name" style="color:var(--accent-workflow)">DEVELOPMENT_WORKFLOW.md</div>
-        <div class="item-desc">개발 워크플로우 상세 절차.</div>
-      </div>
-      <div class="item" style="border-left: 3px solid var(--accent-workflow)">
-        <div class="item-name" style="color:var(--accent-workflow)">DOCUMENT-LANGUAGE-POLICY.md</div>
-        <div class="item-desc">문서 언어 정책 상세.</div>
-      </div>
-      <div class="item" style="border-left: 3px solid var(--accent-workflow)">
-        <div class="item-name" style="color:var(--accent-workflow)">CONSISTENCY-STANDARDS.md</div>
-        <div class="item-desc">네이밍·구조·에러코드 일관성 표준.</div>
-      </div>
-      <div class="item" style="border-left: 3px solid var(--accent-workflow)">
-        <div class="item-name" style="color:var(--accent-workflow)">BROWSER-AUTOMATION-VERIFICATION-POLICY.md</div>
-        <div class="item-desc">브라우저 자동화 검증 정책.</div>
-      </div>
+      <div class="item" style="border-left: 3px solid var(--accent-workflow)"><div class="item-name" style="color:var(--accent-workflow)">HANDOFF-CHECKLIST.md</div><div class="item-desc">Backend/Frontend/DB/Review/QA별 핸드오프 체크리스트.</div></div>
+      <div class="item" style="border-left: 3px solid var(--accent-workflow)"><div class="item-name" style="color:var(--accent-workflow)">ERROR-FIX-WORKFLOW-FLOWCHART.md</div><div class="item-desc">오류 수정 시 Skills/Sub-Agent/Commands 사용 시점 흐름도.</div></div>
+      <div class="item" style="border-left: 3px solid var(--accent-workflow)"><div class="item-name" style="color:var(--accent-workflow)">WORKFLOW_MODES.md</div><div class="item-desc">TDD vs DDD 개발 방식 선택 가이드.</div></div>
+      <div class="item" style="border-left: 3px solid var(--accent-workflow)"><div class="item-name" style="color:var(--accent-workflow)">SUBAGENT-MODEL-SELECTION.md</div><div class="item-desc">서브에이전트별 모델 티어 (Light / Default).</div></div>
+      <div class="item" style="border-left: 3px solid var(--accent-workflow)"><div class="item-name" style="color:var(--accent-workflow)">DEVELOPMENT_WORKFLOW.md</div><div class="item-desc">개발 워크플로우 상세 절차.</div></div>
+      <div class="item" style="border-left: 3px solid var(--accent-workflow)"><div class="item-name" style="color:var(--accent-workflow)">BROWSER-AUTOMATION-VERIFICATION-POLICY.md</div><div class="item-desc">브라우저 자동화 검증 정책.</div></div>
     </div>
   </div>
 
@@ -829,22 +881,10 @@ body {
       <div class="section-toggle">▼</div>
     </div>
     <div class="section-body">
-      <div class="item" style="border-left: 3px solid var(--accent-template)">
-        <div class="item-name" style="color:var(--accent-template)">REQUIREMENT_TEMPLATE.md</div>
-        <div class="item-desc">요건 문서 §1 사용자 요건 · §2 설계 · §3 테스트 계획 · §5 결과 · §6 에러 구제 템플릿.</div>
-      </div>
-      <div class="item" style="border-left: 3px solid var(--accent-template)">
-        <div class="item-name" style="color:var(--accent-template)">BUGFIX_CHILD_TEMPLATE.md</div>
-        <div class="item-desc">테스트/검증 실패 시 생성하는 버그픽스 자식 요건 템플릿.</div>
-      </div>
-      <div class="item" style="border-left: 3px solid var(--accent-template)">
-        <div class="item-name" style="color:var(--accent-template)">ERROR_FIX_RESULT_TEMPLATE.md</div>
-        <div class="item-desc">에러 수정 결과 기록 (§6) 템플릿.</div>
-      </div>
-      <div class="item" style="border-left: 3px solid var(--accent-template)">
-        <div class="item-name" style="color:var(--accent-template)">AGENT_PROMPT_TEMPLATE.md</div>
-        <div class="item-desc">서브에이전트 핸드오프 프롬프트 템플릿.</div>
-      </div>
+      <div class="item" style="border-left: 3px solid var(--accent-template)"><div class="item-name" style="color:var(--accent-template)">REQUIREMENT_TEMPLATE.md</div><div class="item-desc">요건 문서 §1·§2·§3·§5·§6 템플릿.</div></div>
+      <div class="item" style="border-left: 3px solid var(--accent-template)"><div class="item-name" style="color:var(--accent-template)">BUGFIX_CHILD_TEMPLATE.md</div><div class="item-desc">테스트/검증 실패 시 버그픽스 자식 요건 템플릿.</div></div>
+      <div class="item" style="border-left: 3px solid var(--accent-template)"><div class="item-name" style="color:var(--accent-template)">ERROR_FIX_RESULT_TEMPLATE.md</div><div class="item-desc">에러 수정 결과 기록 (§6) 템플릿.</div></div>
+      <div class="item" style="border-left: 3px solid var(--accent-template)"><div class="item-name" style="color:var(--accent-template)">AGENT_PROMPT_TEMPLATE.md</div><div class="item-desc">서브에이전트 핸드오프 프롬프트 템플릿.</div></div>
     </div>
   </div>
 
@@ -857,7 +897,6 @@ body {
       <div class="section-toggle">▼</div>
     </div>
     <div class="section-body">
-
       <div class="cmd-category">워크플로우 명령어</div>
       <div class="cmd-grid">
         <div class="cmd-item"><div class="cmd-name">new-requirement</div><div class="cmd-desc">Requirements 서브에이전트로 요건 문서 작성</div></div>
@@ -867,20 +906,18 @@ body {
         <div class="cmd-item"><div class="cmd-name">verify</div><div class="cmd-desc">재시작 + 헬스체크 + 브라우저 검증</div></div>
         <div class="cmd-item"><div class="cmd-name">commit-on-complete</div><div class="cmd-desc">검증 통과 후 §5/§6 업데이트 후 커밋</div></div>
         <div class="cmd-item"><div class="cmd-name">follow-workflow</div><div class="cmd-desc">TODO를 WORKFLOW_CHECKLIST 순서로 정렬</div></div>
-        <div class="cmd-item"><div class="cmd-name">dry-run-handoff</div><div class="cmd-desc">핸드오프 프롬프트 시뮬레이션 (코드 변경 없음)</div></div>
+        <div class="cmd-item"><div class="cmd-name">dry-run-handoff</div><div class="cmd-desc">핸드오프 프롬프트 시뮬레이션</div></div>
         <div class="cmd-item"><div class="cmd-name">run-tests</div><div class="cmd-desc">§3 정의 → 테스트 실행 → §5 기록</div></div>
         <div class="cmd-item"><div class="cmd-name">record-error-fix</div><div class="cmd-desc">§6 에러 구제 결과 기록</div></div>
       </div>
-
       <div class="cmd-category">인프라 명령어</div>
       <div class="cmd-grid">
         <div class="cmd-item"><div class="cmd-name">start-all / stop-all / restart-all</div><div class="cmd-desc">전체 서비스 시작/중지/재시작</div></div>
-        <div class="cmd-item"><div class="cmd-name">start-backend / stop / restart</div><div class="cmd-desc">백엔드 (9200) 관리</div></div>
-        <div class="cmd-item"><div class="cmd-name">start-frontend / stop / restart</div><div class="cmd-desc">프론트엔드 (3001) 관리</div></div>
-        <div class="cmd-item"><div class="cmd-name">start-db / stop / restart</div><div class="cmd-desc">PostgreSQL 관리</div></div>
+        <div class="cmd-item"><div class="cmd-name">start/stop/restart-backend</div><div class="cmd-desc">백엔드 (9200) 관리</div></div>
+        <div class="cmd-item"><div class="cmd-name">start/stop/restart-frontend</div><div class="cmd-desc">프론트엔드 (3001) 관리</div></div>
+        <div class="cmd-item"><div class="cmd-name">start/stop/restart-db</div><div class="cmd-desc">PostgreSQL 관리</div></div>
         <div class="cmd-item"><div class="cmd-name">check-backend / frontend / db</div><div class="cmd-desc">헬스체크</div></div>
       </div>
-
       <div class="cmd-category">에이전트 호출 명령어</div>
       <div class="cmd-grid">
         <div class="cmd-item"><div class="cmd-name">agent-backend</div><div class="cmd-desc">이 채팅에서 Backend 에이전트로 동작</div></div>
@@ -895,42 +932,12 @@ body {
 <div class="ref-map">
   <div class="ref-map-title">▸ 핵심 허브 문서 (가장 많이 참조되는 문서)</div>
   <div class="hub-grid">
-    <div class="hub-card">
-      <div class="hub-name" style="color:var(--accent-workflow)">AGENT-COLLABORATION-ON-REQUIREMENT.md</div>
-      <div class="hub-role">에이전트 협업의 "헌법" — 순서·역할·핸드오프 규칙</div>
-      <div class="hub-refs-count">참조하는 문서 13건 / 참조받는 곳 5+</div>
-      <div class="hub-bar"><div class="hub-bar-fill" style="width:100%"></div></div>
-    </div>
-    <div class="hub-card">
-      <div class="hub-name" style="color:var(--accent-workflow)">SUBAGENT-DELEGATION.md</div>
-      <div class="hub-role">Step별 서브에이전트 위임 테이블 + 게이트</div>
-      <div class="hub-refs-count">참조하는 문서 10건 / 참조받는 곳 6+</div>
-      <div class="hub-bar"><div class="hub-bar-fill" style="width:85%"></div></div>
-    </div>
-    <div class="hub-card">
-      <div class="hub-name" style="color:var(--accent-workflow)">WORKFLOW_CHECKLIST.md</div>
-      <div class="hub-role">새 요건·버그 수정의 순서 체크리스트 (첫 게이트)</div>
-      <div class="hub-refs-count">참조하는 문서 5건 / 참조받는 곳 7+</div>
-      <div class="hub-bar"><div class="hub-bar-fill" style="width:75%"></div></div>
-    </div>
-    <div class="hub-card">
-      <div class="hub-name" style="color:var(--accent-workflow)">CURSOR-SUBAGENTS-DESIGN.md</div>
-      <div class="hub-role">서브에이전트 역할·범위·등록 방법 설계서</div>
-      <div class="hub-refs-count">참조하는 문서 12건+ / 참조받는 곳 4+</div>
-      <div class="hub-bar"><div class="hub-bar-fill" style="width:70%"></div></div>
-    </div>
-    <div class="hub-card">
-      <div class="hub-name" style="color:var(--accent-template)">REQUIREMENT_TEMPLATE.md</div>
-      <div class="hub-role">§1·§2·§3·§5·§6 요건 문서의 구조 정의</div>
-      <div class="hub-refs-count">참조받는 곳 8+</div>
-      <div class="hub-bar"><div class="hub-bar-fill" style="width:65%"></div></div>
-    </div>
-    <div class="hub-card">
-      <div class="hub-name" style="color:var(--accent-commands)">commit-on-complete.md</div>
-      <div class="hub-role">검증 통과 → §5/§6 갱신 → 커밋의 최종 게이트</div>
-      <div class="hub-refs-count">참조받는 곳 7+</div>
-      <div class="hub-bar"><div class="hub-bar-fill" style="width:60%"></div></div>
-    </div>
+    <div class="hub-card"><div class="hub-name" style="color:var(--accent-workflow)">AGENT-COLLABORATION-ON-REQUIREMENT.md</div><div class="hub-role">에이전트 협업의 "헌법" — 순서·역할·핸드오프 규칙</div><div class="hub-refs-count">참조하는 문서 13건 / 참조받는 곳 5+</div><div class="hub-bar"><div class="hub-bar-fill" style="width:100%"></div></div></div>
+    <div class="hub-card"><div class="hub-name" style="color:var(--accent-workflow)">SUBAGENT-DELEGATION.md</div><div class="hub-role">Step별 서브에이전트 위임 테이블 + 게이트</div><div class="hub-refs-count">참조하는 문서 10건 / 참조받는 곳 6+</div><div class="hub-bar"><div class="hub-bar-fill" style="width:85%"></div></div></div>
+    <div class="hub-card"><div class="hub-name" style="color:var(--accent-workflow)">WORKFLOW_CHECKLIST.md</div><div class="hub-role">새 요건·버그 수정의 순서 체크리스트 (첫 게이트)</div><div class="hub-refs-count">참조하는 문서 5건 / 참조받는 곳 7+</div><div class="hub-bar"><div class="hub-bar-fill" style="width:75%"></div></div></div>
+    <div class="hub-card"><div class="hub-name" style="color:var(--accent-template)">REQUIREMENT_TEMPLATE.md</div><div class="hub-role">§1·§2·§3·§5·§6 요건 문서의 구조 정의</div><div class="hub-refs-count">참조받는 곳 8+</div><div class="hub-bar"><div class="hub-bar-fill" style="width:65%"></div></div></div>
+    <div class="hub-card"><div class="hub-name" style="color:var(--accent-commands)">commit-on-complete.md</div><div class="hub-role">검증 통과 → §5/§6 갱신 → 커밋의 최종 게이트</div><div class="hub-refs-count">참조받는 곳 7+</div><div class="hub-bar"><div class="hub-bar-fill" style="width:60%"></div></div></div>
+    <div class="hub-card"><div class="hub-name" style="color:var(--accent-other, var(--text-dim))">docs/contract.md</div><div class="hub-role">API·DB·포트 계약 — 10개 이상 에이전트가 참조</div><div class="hub-refs-count">참조받는 곳 10+</div><div class="hub-bar"><div class="hub-bar-fill" style="width:90%"></div></div></div>
   </div>
 </div>
 
@@ -962,6 +969,265 @@ body {
 </div>
 
 <script>
+const AGENT_DATA = {
+  Requirements: {
+    step: 'Step 1', scope: '요건 문서 작성 — docs/requirements/, specs/, docs/template/',
+    rules: [],
+    skills: ['requirement-doc'],
+    commands: ['new-requirement'],
+    workflow: ['WORKFLOW_CHECKLIST', 'DEVELOPMENT_WORKFLOW', 'AGENT-COLLABORATION-ON-REQUIREMENT', 'BROWSER-AUTOMATION-VERIFICATION-POLICY'],
+    templates: ['REQUIREMENT_TEMPLATE'],
+    other: ['docs/contract.md']
+  },
+  RequirementsPastSearch: {
+    step: 'Step 1 (지원)', scope: '과거 요건 문서 검색 (읽기 전용) — docs/requirements/, TOPIC-INDEX',
+    rules: [],
+    skills: [],
+    commands: [],
+    workflow: ['AGENT-COLLABORATION-ON-REQUIREMENT', 'SUBAGENT-DELEGATION'],
+    templates: [],
+    other: ['docs/requirements/TOPIC-INDEX.md']
+  },
+  Security: {
+    step: 'Step 2', scope: '보안 검토 (코드 수정 없음) — §2.1 보안 리뷰 작성',
+    rules: [],
+    skills: ['api-permission-map', 'auth-permission-domain', 'search-history-decrypt-domain', 'department-approver-domain', 'error-codes-domain'],
+    commands: [],
+    workflow: ['AGENT-COLLABORATION-ON-REQUIREMENT', 'WORKFLOW_CHECKLIST', 'CURSOR-SUBAGENTS-DESIGN'],
+    templates: ['REQUIREMENT_TEMPLATE'],
+    other: ['docs/security-guide.md']
+  },
+  Contract: {
+    step: 'Step 3a', scope: 'API 계약 확인·갱신 (코드 수정 없음) — docs/contract.md, specs/',
+    rules: [],
+    skills: [],
+    commands: [],
+    workflow: ['AGENT-COLLABORATION-ON-REQUIREMENT', 'DEVELOPMENT_WORKFLOW'],
+    templates: [],
+    other: ['docs/contract.md', 'specs/*.spec.yaml']
+  },
+  DBA: {
+    step: 'Step 3b', scope: '스키마·인덱스·성능 설계 검토 (코드 수정 없음)',
+    rules: [],
+    skills: ['db-domain', 'search-history-decrypt-domain', 'activity-statistics-domain', 'department-approver-domain'],
+    commands: [],
+    workflow: ['AGENT-COLLABORATION-ON-REQUIREMENT'],
+    templates: [],
+    other: ['docs/contract.md', 'schema.sql']
+  },
+  Architecture: {
+    step: 'Step 3c', scope: '성능·확장성·공통화 검토 (코드 수정 없음)',
+    rules: [],
+    skills: ['db-domain', 'search-history-decrypt-domain', 'activity-statistics-domain', 'department-approver-domain'],
+    commands: [],
+    workflow: ['AGENT-COLLABORATION-ON-REQUIREMENT', 'CURSOR-SUBAGENTS-DESIGN'],
+    templates: [],
+    other: ['docs/contract.md']
+  },
+  Consistency: {
+    step: 'Step 3d', scope: '컨벤션·네이밍·에러코드 일관성 (코드 수정 없음)',
+    rules: [],
+    skills: ['error-codes-domain'],
+    commands: [],
+    workflow: ['AGENT-COLLABORATION-ON-REQUIREMENT', 'CONSISTENCY-STANDARDS'],
+    templates: [],
+    other: ['docs/contract.md', 'docs/api-definition.md']
+  },
+  UX: {
+    step: 'Step 3d', scope: 'UI/UX·접근성·디자인 시스템 검토 (코드 수정 없음)',
+    rules: [],
+    skills: [],
+    commands: [],
+    workflow: ['AGENT-COLLABORATION-ON-REQUIREMENT', 'CURSOR-SUBAGENTS-DESIGN'],
+    templates: [],
+    other: ['docs/design/*', 'docs/cursor-subagents/ux-design.md', '.cursor/mcp.json']
+  },
+  Backend: {
+    step: 'Step 4', scope: '백엔드 구현 + 테스트 코드 — backend/',
+    rules: ['build-restart-handoff'],
+    skills: ['auth-permission-domain', 'error-codes-domain', 'dev-workflow'],
+    commands: [],
+    workflow: ['DEVELOPMENT_WORKFLOW', 'AGENT-COLLABORATION-ON-REQUIREMENT', 'CURSOR-SUBAGENTS-DESIGN'],
+    templates: ['REQUIREMENT_TEMPLATE'],
+    other: ['docs/contract.md', 'specs/*.spec.yaml']
+  },
+  Frontend: {
+    step: 'Step 4', scope: '프론트엔드 구현 + 테스트 코드 — frontend/',
+    rules: ['build-restart-handoff'],
+    skills: ['react-debugging', 'auth-permission-domain', 'ui-ux-domain', 'error-codes-domain', 'dev-workflow'],
+    commands: [],
+    workflow: ['DEVELOPMENT_WORKFLOW', 'AGENT-COLLABORATION-ON-REQUIREMENT', 'CURSOR-SUBAGENTS-DESIGN'],
+    templates: ['REQUIREMENT_TEMPLATE'],
+    other: ['docs/contract.md', 'docs/security-guide.md', '.cursor/mcp.json']
+  },
+  DB: {
+    step: 'Step 4', scope: '스키마·마이그레이션·설정 — backend/.../db/',
+    rules: [],
+    skills: ['db-domain'],
+    commands: [],
+    workflow: ['DEVELOPMENT_WORKFLOW', 'WORKFLOW_CHECKLIST', 'AGENT-COLLABORATION-ON-REQUIREMENT'],
+    templates: ['REQUIREMENT_TEMPLATE'],
+    other: ['docs/contract.md', 'schema.sql', 'setup.sh', 'init-data.sql']
+  },
+  'Backend-Auth': {
+    step: 'Step 4 (모듈)', scope: '백엔드 인증·권한 모듈 — backend/ (auth 범위)',
+    rules: [],
+    skills: ['auth-permission-domain', 'api-permission-map', 'error-codes-domain'],
+    commands: [],
+    workflow: ['DEVELOPMENT_WORKFLOW'],
+    templates: [],
+    other: ['docs/contract.md', 'docs/security-guide.md']
+  },
+  'Backend-Log': {
+    step: 'Step 4 (모듈)', scope: '백엔드 로그 검색·복호화 모듈 — backend/ (log 범위)',
+    rules: [],
+    skills: ['log-search-domain', 'search-history-decrypt-domain', 'error-codes-domain'],
+    commands: [],
+    workflow: ['DEVELOPMENT_WORKFLOW', 'AGENT-COLLABORATION-ON-REQUIREMENT'],
+    templates: [],
+    other: ['docs/contract.md', 'docs/security-guide.md']
+  },
+  'Backend-ActivityLog': {
+    step: 'Step 4 (모듈)', scope: '백엔드 활동 이력·통계 모듈 — backend/ (activity 범위)',
+    rules: [],
+    skills: ['activity-statistics-domain'],
+    commands: [],
+    workflow: ['DEVELOPMENT_WORKFLOW'],
+    templates: [],
+    other: ['docs/contract.md']
+  },
+  'Frontend-Auth': {
+    step: 'Step 4 (모듈)', scope: '프론트엔드 인증 UI — frontend/ (auth 범위)',
+    rules: [],
+    skills: ['react-debugging', 'auth-permission-domain', 'ui-ux-domain'],
+    commands: [],
+    workflow: ['DEVELOPMENT_WORKFLOW'],
+    templates: [],
+    other: ['docs/contract.md', 'docs/security-guide.md']
+  },
+  'Frontend-Log': {
+    step: 'Step 4 (모듈)', scope: '프론트엔드 로그 검색·이력 UI — frontend/ (log 범위)',
+    rules: [],
+    skills: ['react-debugging', 'log-search-domain', 'search-history-decrypt-domain'],
+    commands: [],
+    workflow: ['DEVELOPMENT_WORKFLOW'],
+    templates: [],
+    other: ['docs/contract.md', 'docs/security-guide.md']
+  },
+  'Frontend-ActivityLog': {
+    step: 'Step 4 (모듈)', scope: '프론트엔드 활동 이력·통계 UI — frontend/ (activity 범위)',
+    rules: [],
+    skills: ['react-debugging', 'activity-statistics-domain'],
+    commands: [],
+    workflow: ['DEVELOPMENT_WORKFLOW'],
+    templates: [],
+    other: ['docs/contract.md']
+  },
+  Review: {
+    step: 'Step 4.5', scope: '코드 리뷰 — 계약·품질·일관성 검증 (코드 수정 없음)',
+    rules: [],
+    skills: ['auth-permission-domain', 'error-codes-domain', 'log-search-domain', 'search-history-decrypt-domain', 'activity-statistics-domain'],
+    commands: ['review'],
+    workflow: ['AGENT-COLLABORATION-ON-REQUIREMENT', 'CONSISTENCY-STANDARDS'],
+    templates: [],
+    other: ['docs/contract.md', 'specs/*.spec.yaml']
+  },
+  QA: {
+    step: 'Step 5', scope: '검증·§5 결과 기록·커밋 — 전체 범위 읽기, 요건 문서 쓰기',
+    rules: [],
+    skills: ['test-workflow'],
+    commands: ['verify', 'commit-on-complete', 'run-tests', 'check-backend', 'check-frontend-backend'],
+    workflow: ['DEVELOPMENT_WORKFLOW', 'WORKFLOW_CHECKLIST', 'AGENT-COLLABORATION-ON-REQUIREMENT', 'SUBAGENT-DELEGATION', 'BROWSER-AUTOMATION-VERIFICATION-POLICY'],
+    templates: ['REQUIREMENT_TEMPLATE'],
+    other: ['docs/contract.md']
+  },
+  Documentation: {
+    step: 'Step 6', scope: 'README·가이드·배포 문서 — docs/, README.md',
+    rules: [],
+    skills: [],
+    commands: [],
+    workflow: ['AGENT-COLLABORATION-ON-REQUIREMENT'],
+    templates: [],
+    other: ['README.md', 'docs/QUICK_START.md', 'docs/contract.md']
+  },
+  Release: {
+    step: 'Step 6', scope: 'CHANGELOG·버전·릴리스 체크리스트',
+    rules: [],
+    skills: [],
+    commands: ['commit-on-complete'],
+    workflow: ['AGENT-COLLABORATION-ON-REQUIREMENT', 'RELEASE_CHECKLIST', 'DOCUMENT-LANGUAGE-POLICY'],
+    templates: [],
+    other: ['CHANGELOG.md']
+  }
+};
+
+const CATEGORY_CONFIG = {
+  rules:     { label: 'Rules',         color: '#f97316', dotClass: 'rules' },
+  skills:    { label: 'Skills',        color: '#06b6d4', dotClass: 'skills' },
+  commands:  { label: 'Commands',      color: '#a855f7', dotClass: 'commands' },
+  workflow:  { label: 'Workflow Docs', color: '#10b981', dotClass: 'workflow' },
+  templates: { label: 'Templates',     color: '#f43f5e', dotClass: 'template' },
+  other:     { label: 'Other Docs',    color: '#64748b', dotClass: 'other' }
+};
+
+let currentAgent = null;
+
+function showAgentDetail(agentName) {
+  const data = AGENT_DATA[agentName];
+  if (!data) return;
+
+  document.querySelectorAll('.agent-chip.active').forEach(c => c.classList.remove('active'));
+  document.querySelectorAll(`.agent-chip[data-agent="${agentName}"]`).forEach(c => c.classList.add('active'));
+
+  if (currentAgent === agentName) {
+    closeAgentDetail();
+    return;
+  }
+  currentAgent = agentName;
+
+  document.getElementById('agentName').textContent = agentName;
+  document.getElementById('agentStep').textContent = data.step;
+  document.getElementById('agentScope').textContent = data.scope;
+
+  const grid = document.getElementById('agentRefsGrid');
+  grid.innerHTML = '';
+
+  const categories = ['rules', 'skills', 'commands', 'workflow', 'templates', 'other'];
+  let hasAny = false;
+  for (const cat of categories) {
+    const items = data[cat];
+    if (!items || items.length === 0) continue;
+    hasAny = true;
+    const cfg = CATEGORY_CONFIG[cat];
+    const group = document.createElement('div');
+    group.className = 'agent-ref-group';
+    group.innerHTML = `
+      <div class="agent-ref-group-title">
+        <div class="dot" style="background:${cfg.color}"></div>
+        <span style="color:${cfg.color}">${cfg.label}</span>
+        <span style="color:var(--text-dim); font-weight:400">(${items.length})</span>
+      </div>
+      <div class="agent-ref-list">
+        ${items.map(i => `<span class="agent-ref-item ${cfg.dotClass}">${i}</span>`).join('')}
+      </div>
+    `;
+    grid.appendChild(group);
+  }
+  if (!hasAny) {
+    grid.innerHTML = '<div class="no-refs">참조하는 도구가 없습니다 (독립 실행)</div>';
+  }
+
+  const panel = document.getElementById('agentDetailPanel');
+  panel.classList.add('open');
+  panel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+
+function closeAgentDetail() {
+  currentAgent = null;
+  document.getElementById('agentDetailPanel').classList.remove('open');
+  document.querySelectorAll('.agent-chip.active').forEach(c => c.classList.remove('active'));
+}
+
 function toggleSection(header) {
   const body = header.nextElementSibling;
   const toggle = header.querySelector('.section-toggle');
