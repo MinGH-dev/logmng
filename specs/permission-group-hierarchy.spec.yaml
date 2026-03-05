@@ -351,3 +351,38 @@ screenFunctions: Record<screenId, ScreenFunctionCapability>
 - **Write APIs** (user CRUD, permission group CRUD, department approvers, etc.): Require write=true for the corresponding screen. Otherwise 403, `code: "FUNCTION_NOT_ALLOWED"`.
 - **Write + scope**: Write APIs must validate both function (write) and scope (self/all). When scope=self, editing another user's data must return 403.
 - **Error response**: 403 FUNCTION_NOT_ALLOWED must use a generic message; avoid revealing resource existence or internal structure.
+
+---
+# 5. Approval-only permission groups
+
+## 5.1 Definition (condition-based, group name irrelevant)
+
+A permission group is **approval-only** when ALL of the following are true:
+- `allowedScreenIds` does **NOT** include `main` (no log search access)
+- `allowedScreenIds` **includes** `pending-approvals` (approval screen access)
+- (Optional) `approve=true` for the pending-approvals screen (can perform approve/reject)
+
+This definition applies to **any** group matching the condition — e.g. APPROVE_USER, TEAM_APPROVER, REGIONAL_APPROVER. The group **name/code is irrelevant**; only the screen configuration matters.
+
+## 5.2 Applicable rules
+
+The following rules apply identically to **all** approval-only groups:
+
+| Rule | Behavior |
+|------|----------|
+| **Login redirect** | If `main` is not in `allowedScreenIds`, redirect to the first allowed screen (e.g. pending-approvals). |
+| **Menu filtering** | Sidebar shows only screens in `allowedScreenIds`. No `main` → no "로그 검색", "통계" menus. |
+| **API enforcement** | `main` not in `allowedScreenIds` → log search API returns 403 FORBIDDEN. `pending-approvals` + `decrypt_approver` → approve/reject API allowed. |
+| **Action hiding** | Screen action buttons that navigate to or depend on a screen the user lacks access to must be hidden (e.g. 재조회, 재요청 hidden when no `main`). |
+
+## 5.3 Examples
+
+- **APPROVE_USER**: `allowedScreenIds = [pending-approvals]`, approve=true. Team leader decrypt approver.
+- **TEAM_APPROVER**: Same screen configuration, different name. Same rules apply.
+- **CUSTOM_APPROVER**: Any custom group with no `main` + `pending-approvals`. Same rules apply.
+
+## 5.4 Reference
+
+- Skills: `.cursor/skills/auth-permission-domain/SKILL.md` §Approval-only permission group
+- Requirement: `docs/requirements/20260304-approve-only-permission-group.md`
+- Generalization: `docs/requirements/20260305-approval-only-group-generalization.md`

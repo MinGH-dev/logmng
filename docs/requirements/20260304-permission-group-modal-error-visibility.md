@@ -4,13 +4,13 @@
 
 ### Requirement description
 
-In **group permission management** (그룹별 권한관리), when granting the APPROVE_USER group's "로그 검색이력" (search-history) permission with scope "팀" (team), an error can occur on save. The error message is currently rendered at the top of the panel (outside the modal). Because the modal overlay has a higher z-index (1300), the message appears **behind** the overlay and the user cannot see or confirm it.
+In **group permission management** (그룹별 권한관리), when granting a permission group's (e.g. 승인 전용 권한 그룹 APPROVE_USER) "로그 검색이력" (search-history) permission with scope "팀" (team), an error can occur on save. The error message is currently rendered at the top of the panel (outside the modal). Because the modal overlay has a higher z-index (1300), the message appears **behind** the overlay and the user cannot see or confirm it.
 
-The requirement has two parts, in order: **(1) UX/tool improvement first** — show submit/API errors **inside** the create, edit, and delete modals so they are always visible; **(2)** then investigate and fix the underlying error (if any) when saving APPROVE_USER + search-history + team, and any related improvements, following role delegation rules.
+The requirement has two parts, in order: **(1) UX/tool improvement first** — show submit/API errors **inside** the create, edit, and delete modals so they are always visible; **(2)** then investigate and fix the underlying error (if any) when saving 승인 전용 권한 그룹(예: APPROVE_USER) + search-history + team, and any related improvements, following role delegation rules.
 
 ### User scenario
 
-1. User opens **Permission group management** and opens the **Edit** dialog for a permission group (e.g. APPROVE_USER).
+1. User opens **Permission group management** and opens the **Edit** dialog for a permission group (e.g. 승인 전용 권한 그룹 such as APPROVE_USER).
 2. User sets "로그 검색이력" (search-history) permission with scope "팀" (team) and clicks **Save**.
 3. The update API returns an error (e.g. validation or 4xx/5xx).
 4. **Problem**: The error message is rendered at the panel top (outside the modal). The create/edit/delete modal overlay has `z-index: 1300`, so the error div (in normal document flow, no z-index) appears **behind** the overlay. The user cannot see or read the message.
@@ -19,7 +19,7 @@ The requirement has two parts, in order: **(1) UX/tool improvement first** — s
 ### Expected outcome
 
 - **Part 1 (UX)**: Create, edit, and delete modals show their API/validation errors **inside** the modal content (same pattern as the users dialog with `usersDialogError`), so the user always sees the message. Error block uses `role="alert"` and consistent styling (e.g. `.user-management-error`). Placement: inside the dialog content area, e.g. above the action buttons.
-- **Part 2 (Underlying error)**: After errors are visible, reproduce the failure for APPROVE_USER + search-history + scope team; identify root cause (caller auth, payload, backend validation, or DB). Either fix the bug so the save succeeds, or document the rule and return a clear, visible error inside the modal.
+- **Part 2 (Underlying error)**: After errors are visible, reproduce the failure for 승인 전용 권한 그룹(예: APPROVE_USER) + search-history + scope team; identify root cause (caller auth, payload, backend validation, or DB). Either fix the bug so the save succeeds, or document the rule and return a clear, visible error inside the modal.
 - **Regression**: Create and delete modals also show their API/validation errors inside the dialog, not only the edit modal.
 
 ---

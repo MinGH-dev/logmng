@@ -146,37 +146,61 @@ const ScreenSelectionTree = ({ selectedScreens, onChange }) => {
                   </label>
                   {checked && (
                     <span className="screen-selection-functions" role="group" aria-label={`${child.label} 권한`}>
-                      <span className="screen-selection-read-label" aria-hidden="true">
-                        {READ_LABEL_DISPLAY}
-                      </span>
-                      {showWrite && (
-                        <button
-                          type="button"
-                          className={`screen-selection-fn-toggle ${writeChecked ? 'is-on' : ''}`}
-                          onClick={() => changeWrite(view, !writeChecked)}
-                          aria-pressed={writeChecked}
-                          aria-label={`${child.label} ${FUNCTION_LABELS.write}`}
+                      {showApprove ? (
+                        <span
+                          className="screen-selection-approve-radio"
+                          role="radiogroup"
+                          aria-label={`${child.label} 권한 유형`}
                         >
-                          {FUNCTION_LABELS.write}{writeChecked ? ' ✓' : ''}
-                        </button>
-                      )}
-                      {showApprove && (
-                        <Tooltip title={APPROVE_CHECKBOX_TOOLTIP} arrow placement="right">
-                          <button
-                            type="button"
-                            className={`screen-selection-fn-toggle ${approveChecked ? 'is-on' : ''}`}
-                            onClick={() => changeApprove(view, !approveChecked)}
-                            aria-pressed={approveChecked}
-                            aria-label={`${child.label} ${FUNCTION_LABELS.approve}`}
-                            aria-describedby={approveTooltipId}
+                          <label
+                            className={`screen-selection-radio-option${!approveChecked ? ' is-selected' : ''}`}
                           >
-                            {FUNCTION_LABELS.approve}{approveChecked ? ' ✓' : ''}
-                          </button>
-                        </Tooltip>
+                            <input
+                              type="radio"
+                              name={`approve-${child.id}`}
+                              value="view-only"
+                              checked={!approveChecked}
+                              onChange={() => changeApprove(view, false)}
+                            />
+                            <span>조회만</span>
+                          </label>
+                          <Tooltip title={APPROVE_CHECKBOX_TOOLTIP} arrow placement="right">
+                            <label
+                              className={`screen-selection-radio-option${approveChecked ? ' is-selected' : ''}`}
+                            >
+                              <input
+                                type="radio"
+                                name={`approve-${child.id}`}
+                                value="approve"
+                                checked={approveChecked}
+                                onChange={() => changeApprove(view, true)}
+                                aria-describedby={approveTooltipId}
+                              />
+                              <span>{FUNCTION_LABELS.approve}</span>
+                            </label>
+                          </Tooltip>
+                          <span id={approveTooltipId} className="screen-selection-sr-only" aria-hidden="true">
+                            {APPROVE_CHECKBOX_TOOLTIP}
+                          </span>
+                        </span>
+                      ) : (
+                        <>
+                          <span className="screen-selection-read-label" aria-hidden="true">
+                            {READ_LABEL_DISPLAY}
+                          </span>
+                          {showWrite && (
+                            <button
+                              type="button"
+                              className={`screen-selection-fn-toggle ${writeChecked ? 'is-on' : ''}`}
+                              onClick={() => changeWrite(view, !writeChecked)}
+                              aria-pressed={writeChecked}
+                              aria-label={`${child.label} ${FUNCTION_LABELS.write}`}
+                            >
+                              {FUNCTION_LABELS.write}{writeChecked ? ' ✓' : ''}
+                            </button>
+                          )}
+                        </>
                       )}
-                      <span id={approveTooltipId} className="screen-selection-sr-only" aria-hidden="true">
-                        {APPROVE_CHECKBOX_TOOLTIP}
-                      </span>
                     </span>
                   )}
                   {showScope && (

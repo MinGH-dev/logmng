@@ -19,7 +19,7 @@ Use for **department hierarchy and decrypt approver** in this repo. Scope: depar
 - **User-permission hierarchy**: `GET /api/departments/user-permission-hierarchy` — admin-only. 부서별 사용자·권한 그룹 계층.
 - **decrypt_approver**: `user_id`, `department_code` (null=전역 결재자). 결재자 지정 API(POST/DELETE /api/users/approvers)는 410 Gone.
 - **canApproveForRequester**: 전역 결재자(department_code null) → 전체; 부서별 결재자(팀장) → 요청자 소속 부서만 승인 가능. 승인 대기 목록은 이에 따라 팀장에게는 해당 팀원 요청만 노출 (req 20250304-team-scope-default).
-- **APPROVE_USER pattern**: 팀장은 로그 조회 불가 규칙에 따라 `pending-approvals`만 부여된 권한 그룹(APPROVE_USER)에 배정되고, `decrypt_approver`에 등록됨. 로그 검색(`main`) 접근 없이 승인/반려만 수행. 상세: `auth-permission-domain` SKILL §APPROVE_USER pattern.
+- **승인 전용 권한 그룹 (approval-only)**: 승인 전용 권한 그룹(조건: `allowedScreenIds`에 `main` 없음 + `pending-approvals` 있음)에 배정된 사용자(예: 팀장)는 로그 검색 불가, 승인/반려만 수행. 예: APPROVE_USER, TEAM_APPROVER 등 — 그룹 이름과 무관하게 동일 규칙 적용. `decrypt_approver` 등록 필수. 상세: `auth-permission-domain` SKILL §Approval-only permission group.
 
 ## When to use
 

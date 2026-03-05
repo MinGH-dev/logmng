@@ -36,5 +36,6 @@
 - **화면별 범위(scope)**: activity-log, statistics, search-history는 권한 그룹별 scope('self'|'team'|'all') 적용, 기본값 'team' (생략/NULL 시). is_system_admin=false일 때 scope='self' → 본인 데이터만; scope='team' → 동일 부서(department_code)만; scope='all' → 전체. 상세: `specs/permission-group-hierarchy.spec.yaml` §4.3, `docs/requirements/20250303-activity-statistics-self-only-scope.md`, `docs/requirements/20250304-team-scope-default-and-approval.md`.
 - **screenFunctions** (req 20250303-screen-function-availability): 로그인·GET /api/auth/me 응답에 `screenFunctions: Record<screenId, { read, write?, approve? }>` 포함. 화면별 read/write/approve 가능 여부. main은 항상 read-only. **screenFunctions explicit storage**: permission_group_screen.read/write/approve에 명시 저장 시 해당 값 사용; NULL이면 기존 derivation 규칙 적용. 상세: `specs/permission-group-hierarchy.spec.yaml` §4.4.
 - **API function-level enforcement**: approve(승인/반려), write(생성·수정·삭제) API는 해당 function 권한 검증. 권한 없으면 403, `code: "FUNCTION_NOT_ALLOWED"`. write API는 function과 scope 모두 검증; scope=self일 때 타인 데이터 수정 시 403.
+- **승인 전용 권한 그룹 (approval-only)**: `allowedScreenIds`에 `main` 없이 `pending-approvals`만 가진 그룹(예: APPROVE_USER, TEAM_APPROVER 등)은 **그룹 이름과 무관하게** 동일 UX/API 규칙(리다이렉트, 메뉴 필터링, 로그 API 403, 액션 숨김) 적용. 상세: `specs/permission-group-hierarchy.spec.yaml` §5.
 
 이 문서는 dev 워크스페이스 전용이다. 변경 시 docs/README.md 등과 맞춘다.

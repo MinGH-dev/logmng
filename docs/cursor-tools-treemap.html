@@ -177,7 +177,6 @@ body {
   flex-shrink: 0;
 }
 
-/* Agent Detail Panel */
 .agent-detail-panel {
   max-width: 1400px;
   margin: 0 auto;
@@ -292,7 +291,6 @@ body {
 .agent-ref-item.other { color: var(--text-dim); border-color: var(--border); background: var(--surface); }
 .no-refs { font-size: 11px; color: var(--text-dim); font-style: italic; }
 
-/* Sections */
 .sections {
   max-width: 1400px;
   margin: 30px auto;
@@ -505,7 +503,6 @@ body {
 ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
 ::-webkit-scrollbar-thumb:hover { background: var(--text-dim); }
 
-/* Doc Preview Drawer */
 .doc-overlay {
   display: none;
   position: fixed;
@@ -628,7 +625,6 @@ body {
   background: var(--glow-subagent);
 }
 
-/* Markdown dark theme */
 .md-content { font-size: 13px; line-height: 1.7; color: var(--text); }
 .md-content h1 { font-size: 20px; font-weight: 700; margin: 24px 0 12px; padding-bottom: 6px; border-bottom: 1px solid var(--border); color: var(--text); }
 .md-content h2 { font-size: 17px; font-weight: 700; margin: 20px 0 10px; color: var(--text); }
@@ -704,84 +700,14 @@ body {
   <div class="legend-item"><div class="legend-dot" style="background:var(--accent-subagent)"></div>Subagents</div>
 </div>
 
-<!-- ═══════ COLLABORATION FLOW ═══════ -->
+<!-- Flow Steps (rendered by JS) -->
 <div class="flow-container">
   <div class="flow-title">▸ 협업 순서 (Collaboration Sequence)</div>
   <div class="flow-hint">서브에이전트를 클릭하면 실행 시 참조하는 도구 목록이 표시됩니다</div>
-  <div class="flow-steps">
-    <div class="step-card">
-      <div class="step-num">Step 1</div>
-      <div class="step-name">요건 정의</div>
-      <div class="step-agents">
-        <div class="agent-chip" data-agent="Requirements" onclick="showAgentDetail('Requirements')">Requirements</div>
-        <div class="agent-chip light" data-agent="RequirementsPastSearch" onclick="showAgentDetail('RequirementsPastSearch')">RequirementsPastSearch</div>
-      </div>
-    </div>
-    <div class="step-arrow">→</div>
-    <div class="step-card">
-      <div class="step-num">Step 2</div>
-      <div class="step-name">보안 검토</div>
-      <div class="step-agents">
-        <div class="agent-chip" data-agent="Security" onclick="showAgentDetail('Security')">Security</div>
-      </div>
-    </div>
-    <div class="step-arrow">→</div>
-    <div class="step-card">
-      <div class="step-num">Step 3</div>
-      <div class="step-name">설계 검토</div>
-      <div class="step-agents">
-        <div class="agent-chip" data-agent="Contract" onclick="showAgentDetail('Contract')">Contract</div>
-        <div class="agent-chip" data-agent="DBA" onclick="showAgentDetail('DBA')">DBA</div>
-        <div class="agent-chip" data-agent="Architecture" onclick="showAgentDetail('Architecture')">Architecture</div>
-        <div class="agent-chip" data-agent="Consistency" onclick="showAgentDetail('Consistency')">Consistency</div>
-        <div class="agent-chip" data-agent="UX" onclick="showAgentDetail('UX')">UX</div>
-      </div>
-    </div>
-    <div class="step-arrow">→</div>
-    <div class="step-card">
-      <div class="step-num">Step 4</div>
-      <div class="step-name">구현</div>
-      <div class="step-agents">
-        <div class="agent-chip" data-agent="Backend" onclick="showAgentDetail('Backend')">Backend</div>
-        <div class="agent-chip" data-agent="Frontend" onclick="showAgentDetail('Frontend')">Frontend</div>
-        <div class="agent-chip" data-agent="DB" onclick="showAgentDetail('DB')">DB</div>
-        <div class="agent-chip light" data-agent="Backend-Auth" onclick="showAgentDetail('Backend-Auth')">Backend-Auth</div>
-        <div class="agent-chip light" data-agent="Backend-Log" onclick="showAgentDetail('Backend-Log')">Backend-Log</div>
-        <div class="agent-chip light" data-agent="Backend-ActivityLog" onclick="showAgentDetail('Backend-ActivityLog')">Backend-ActivityLog</div>
-        <div class="agent-chip light" data-agent="Frontend-Auth" onclick="showAgentDetail('Frontend-Auth')">Frontend-Auth</div>
-        <div class="agent-chip light" data-agent="Frontend-Log" onclick="showAgentDetail('Frontend-Log')">Frontend-Log</div>
-        <div class="agent-chip light" data-agent="Frontend-ActivityLog" onclick="showAgentDetail('Frontend-ActivityLog')">Frontend-ActivityLog</div>
-      </div>
-    </div>
-    <div class="step-arrow">→</div>
-    <div class="step-card">
-      <div class="step-num">Step 4.5</div>
-      <div class="step-name">리뷰</div>
-      <div class="step-agents">
-        <div class="agent-chip" data-agent="Review" onclick="showAgentDetail('Review')">Review</div>
-      </div>
-    </div>
-    <div class="step-arrow">→</div>
-    <div class="step-card">
-      <div class="step-num">Step 5</div>
-      <div class="step-name">QA & 커밋</div>
-      <div class="step-agents">
-        <div class="agent-chip" data-agent="QA" onclick="showAgentDetail('QA')">QA</div>
-      </div>
-    </div>
-    <div class="step-arrow">→</div>
-    <div class="step-card">
-      <div class="step-num">Step 6</div>
-      <div class="step-name">문서 & 릴리스</div>
-      <div class="step-agents">
-        <div class="agent-chip light" data-agent="Documentation" onclick="showAgentDetail('Documentation')">Documentation</div>
-        <div class="agent-chip light" data-agent="Release" onclick="showAgentDetail('Release')">Release</div>
-      </div>
-    </div>
-  </div>
+  <div class="flow-steps" id="flowSteps"></div>
 </div>
 
-<!-- ═══════ AGENT DETAIL PANEL ═══════ -->
+<!-- Agent Detail Panel -->
 <div class="agent-detail-panel" id="agentDetailPanel">
   <div class="agent-detail-inner">
     <div class="agent-detail-header">
@@ -796,7 +722,7 @@ body {
   </div>
 </div>
 
-<!-- ═══════ DOC PREVIEW DRAWER ═══════ -->
+<!-- Doc Preview Drawer -->
 <div class="doc-overlay" id="docOverlay">
   <div class="doc-backdrop" onclick="closeDocPreview()"></div>
   <div class="doc-drawer">
@@ -811,342 +737,16 @@ body {
   </div>
 </div>
 
-<!-- ═══════ SECTIONS ═══════ -->
-<div class="sections">
+<!-- Sections (rendered by JS) -->
+<div class="sections" id="sectionsContainer"></div>
 
-  <!-- RULES -->
-  <div class="section" style="border-top: 2px solid var(--accent-rules)">
-    <div class="section-header" onclick="toggleSection(this)">
-      <div class="section-icon" style="background:var(--glow-rules); color:var(--accent-rules)">⚡</div>
-      <div class="section-title" style="color:var(--accent-rules)">Rules (.cursor/rules/)</div>
-      <div class="section-count">14 files</div>
-      <div class="section-toggle">▼</div>
-    </div>
-    <div class="section-body">
-      <div class="item" onclick="toggleRefs(this)" style="border-left: 3px solid var(--accent-rules)">
-        <div class="item-name" style="color:var(--accent-rules)">agent-collaboration.mdc</div>
-        <div class="item-desc">에이전트 협업 순서 규정. Step 1~6 위임 게이트. 요건 문서 없이 개발 금지.</div>
-        <div class="item-refs">
-          <div class="ref-title">참조 문서</div>
-          <span class="ref-tag workflow">SUBAGENT-DELEGATION</span>
-          <span class="ref-tag workflow">AGENT-COLLABORATION-ON-REQUIREMENT</span>
-          <span class="ref-tag workflow">HANDOFF-CHECKLIST</span>
-          <span class="ref-tag workflow">CURSOR-SUBAGENTS-DESIGN</span>
-          <span class="ref-tag workflow">SUBAGENT-MODEL-SELECTION</span>
-          <span class="ref-tag rules">error-first-workflow</span>
-          <span class="ref-tag commands">commit-on-complete</span>
-          <span class="ref-tag commands">dry-run-handoff</span>
-          <span class="ref-tag skills">.cursor/skills/</span>
-        </div>
-      </div>
-      <div class="item" onclick="toggleRefs(this)" style="border-left: 3px solid var(--accent-rules)">
-        <div class="item-name" style="color:var(--accent-rules)">core-principles.mdc</div>
-        <div class="item-desc">응답 언어, 병렬 도구, 도구 우선순위, 품질 게이트, 보안 원칙. 모든 규칙의 허브.</div>
-        <div class="item-refs">
-          <div class="ref-title">참조 문서</div>
-          <span class="ref-tag rules">post-change-test-verify</span>
-          <span class="ref-tag rules">error-first-workflow</span>
-          <span class="ref-tag rules">contract-first</span>
-          <span class="ref-tag rules">workflow-todos</span>
-          <span class="ref-tag rules">security-permissions</span>
-          <span class="ref-tag commands">verify</span>
-          <span class="ref-tag commands">commit-on-complete</span>
-          <span class="ref-tag workflow">WORKFLOW_CHECKLIST</span>
-          <span class="ref-tag other">docs/contract.md</span>
-          <span class="ref-tag other">docs/security-guide.md</span>
-        </div>
-      </div>
-      <div class="item" onclick="toggleRefs(this)" style="border-left: 3px solid var(--accent-rules)">
-        <div class="item-name" style="color:var(--accent-rules)">error-first-workflow.mdc</div>
-        <div class="item-desc">에러/버그 수정 시 요건 문서 + §3 테스트 계획 먼저 작성.</div>
-        <div class="item-refs">
-          <div class="ref-title">참조 문서</div>
-          <span class="ref-tag workflow">WORKFLOW_CHECKLIST</span>
-          <span class="ref-tag workflow">ERROR-FIX-WORKFLOW-FLOWCHART</span>
-          <span class="ref-tag template">REQUIREMENT_TEMPLATE</span>
-        </div>
-      </div>
-      <div class="item" onclick="toggleRefs(this)" style="border-left: 3px solid var(--accent-rules)">
-        <div class="item-name" style="color:var(--accent-rules)">post-change-test-verify.mdc</div>
-        <div class="item-desc">코드 변경 후 테스트·검증 실행. 실패 시 bugfix 자식 요건 생성.</div>
-        <div class="item-refs">
-          <div class="ref-title">참조 문서</div>
-          <span class="ref-tag commands">run-tests</span>
-          <span class="ref-tag commands">verify</span>
-          <span class="ref-tag commands">restart-all</span>
-          <span class="ref-tag commands">commit-on-complete</span>
-          <span class="ref-tag skills">test-workflow</span>
-          <span class="ref-tag template">BUGFIX_CHILD_TEMPLATE</span>
-          <span class="ref-tag workflow">DEVELOPMENT_WORKFLOW</span>
-          <span class="ref-tag workflow">WORKFLOW_CHECKLIST</span>
-          <span class="ref-tag workflow">SUBAGENT-DELEGATION</span>
-        </div>
-      </div>
-      <div class="item" onclick="toggleRefs(this)" style="border-left: 3px solid var(--accent-rules)">
-        <div class="item-name" style="color:var(--accent-rules)">contract-first.mdc</div>
-        <div class="item-desc">API·DB 작업 시 계약/스펙 먼저 확인.</div>
-        <div class="item-refs">
-          <div class="ref-title">참조 문서</div>
-          <span class="ref-tag other">docs/contract.md</span>
-          <span class="ref-tag other">specs/*.spec.yaml</span>
-          <span class="ref-tag other">schema.sql</span>
-        </div>
-      </div>
-      <div class="item" onclick="toggleRefs(this)" style="border-left: 3px solid var(--accent-rules)">
-        <div class="item-name" style="color:var(--accent-rules)">workflow-todos.mdc</div>
-        <div class="item-desc">TodoWrite 시 WORKFLOW_CHECKLIST 순서 필수 준수.</div>
-        <div class="item-refs">
-          <div class="ref-title">참조 문서</div>
-          <span class="ref-tag workflow">WORKFLOW_CHECKLIST</span>
-          <span class="ref-tag workflow">WORKFLOW_MODES</span>
-          <span class="ref-tag workflow">DEVELOPMENT_WORKFLOW</span>
-          <span class="ref-tag commands">verify</span>
-          <span class="ref-tag commands">commit-on-complete</span>
-        </div>
-      </div>
-      <div class="item" onclick="toggleRefs(this)" style="border-left: 3px solid var(--accent-rules)">
-        <div class="item-name" style="color:var(--accent-rules)">language-policy.mdc</div>
-        <div class="item-desc">규칙/스킬/워크플로우는 영어, 사용자 응답은 요청 언어.</div>
-        <div class="item-refs">
-          <div class="ref-title">참조 문서</div>
-          <span class="ref-tag template">REQUIREMENT_TEMPLATE</span>
-          <span class="ref-tag workflow">DOCUMENT-LANGUAGE-POLICY</span>
-        </div>
-      </div>
-      <div class="item" onclick="toggleRefs(this)" style="border-left: 3px solid var(--accent-rules)">
-        <div class="item-name" style="color:var(--accent-rules)">build-restart-handoff.mdc</div>
-        <div class="item-desc">코드 변경 후 빌드·재시작·§2 갱신·QA 핸드오프.</div>
-        <div class="item-refs">
-          <div class="ref-title">참조 문서</div>
-          <span class="ref-tag workflow">AGENT-COLLABORATION-ON-REQUIREMENT</span>
-          <span class="ref-tag workflow">SUBAGENT-DELEGATION</span>
-        </div>
-      </div>
-      <div class="item" style="border-left: 3px solid var(--accent-rules)">
-        <div class="item-name" style="color:var(--accent-rules)">security-permissions.mdc</div>
-        <div class="item-desc">읽기/실행 금지 경로, 위험 명령 확인 필수.</div>
-      </div>
-      <div class="item" style="border-left: 3px solid var(--accent-rules)">
-        <div class="item-name" style="color:var(--accent-rules)">file-reading-optimization.mdc</div>
-        <div class="item-desc">파일 크기별 계층적 로딩으로 토큰 절약.</div>
-      </div>
-      <div class="item" style="border-left: 3px solid var(--accent-rules)">
-        <div class="item-name" style="color:var(--accent-rules)">frontend-agent / backend-agent / db-agent</div>
-        <div class="item-desc">각 구현 서브에이전트 전용 규칙. 스코프 제한.</div>
-      </div>
-    </div>
-  </div>
-
-  <!-- SKILLS -->
-  <div class="section" style="border-top: 2px solid var(--accent-skills)">
-    <div class="section-header" onclick="toggleSection(this)">
-      <div class="section-icon" style="background:var(--glow-skills); color:var(--accent-skills)">🧠</div>
-      <div class="section-title" style="color:var(--accent-skills)">Skills (.cursor/skills/)</div>
-      <div class="section-count">13 skills</div>
-      <div class="section-toggle">▼</div>
-    </div>
-    <div class="section-body">
-      <div class="cmd-category">워크플로우 스킬</div>
-      <div class="item" onclick="toggleRefs(this)" style="border-left: 3px solid var(--accent-skills)">
-        <div class="item-name" style="color:var(--accent-skills)">dev-workflow</div>
-        <div class="item-desc">요건·테스트 계획 우선 개발 순서. TDD/DDD 선택 적용.</div>
-        <div class="item-refs">
-          <div class="ref-title">참조 문서</div>
-          <span class="ref-tag workflow">WORKFLOW_CHECKLIST</span>
-          <span class="ref-tag workflow">DEVELOPMENT_WORKFLOW</span>
-          <span class="ref-tag workflow">WORKFLOW_MODES</span>
-          <span class="ref-tag rules">workflow-todos</span>
-        </div>
-      </div>
-      <div class="item" onclick="toggleRefs(this)" style="border-left: 3px solid var(--accent-skills)">
-        <div class="item-name" style="color:var(--accent-skills)">test-workflow</div>
-        <div class="item-desc">§3 테스트 계획·실행·§5 기록·검증 워크플로우.</div>
-        <div class="item-refs">
-          <div class="ref-title">참조 문서</div>
-          <span class="ref-tag template">REQUIREMENT_TEMPLATE</span>
-          <span class="ref-tag workflow">WORKFLOW_CHECKLIST</span>
-          <span class="ref-tag rules">post-change-test-verify</span>
-          <span class="ref-tag commands">run-tests</span>
-          <span class="ref-tag commands">verify</span>
-          <span class="ref-tag commands">commit-on-complete</span>
-        </div>
-      </div>
-      <div class="item" onclick="toggleRefs(this)" style="border-left: 3px solid var(--accent-skills)">
-        <div class="item-name" style="color:var(--accent-skills)">requirement-doc</div>
-        <div class="item-desc">요건 문서 작성·수정. 템플릿·명명 규칙 적용.</div>
-        <div class="item-refs">
-          <div class="ref-title">참조 문서</div>
-          <span class="ref-tag rules">agent-collaboration</span>
-          <span class="ref-tag workflow">SUBAGENT-DELEGATION</span>
-          <span class="ref-tag workflow">AGENT-COLLABORATION-ON-REQUIREMENT</span>
-          <span class="ref-tag template">REQUIREMENT_TEMPLATE</span>
-          <span class="ref-tag template">ERROR_FIX_RESULT_TEMPLATE</span>
-          <span class="ref-tag workflow">DOCUMENT-LANGUAGE-POLICY</span>
-          <span class="ref-tag commands">commit-on-complete</span>
-        </div>
-      </div>
-      <div class="cmd-category">도메인 스킬</div>
-      <div class="item" style="border-left: 3px solid var(--accent-skills)"><div class="item-name" style="color:var(--accent-skills)">auth-permission-domain</div><div class="item-desc">is_system_admin, 권한 그룹, 화면별 접근, scope (self/team/all).</div></div>
-      <div class="item" style="border-left: 3px solid var(--accent-skills)"><div class="item-name" style="color:var(--accent-skills)">api-permission-map</div><div class="item-desc">API 엔드포인트 → 컨트롤러 → 권한 체크 → 거부 에러코드 매핑.</div></div>
-      <div class="item" style="border-left: 3px solid var(--accent-skills)"><div class="item-name" style="color:var(--accent-skills)">search-history-decrypt-domain</div><div class="item-desc">검색 이력, 복호화 승인 흐름 (PENDING/APPROVED/REJECTED).</div></div>
-      <div class="item" style="border-left: 3px solid var(--accent-skills)"><div class="item-name" style="color:var(--accent-skills)">department-approver-domain</div><div class="item-desc">부서 계층, 결재자 지정, canApproveForRequester.</div></div>
-      <div class="item" style="border-left: 3px solid var(--accent-skills)"><div class="item-name" style="color:var(--accent-skills)">log-search-domain</div><div class="item-desc">로그 검색 API, logType (pb_feplog, java_fw_imglog).</div></div>
-      <div class="item" style="border-left: 3px solid var(--accent-skills)"><div class="item-name" style="color:var(--accent-skills)">activity-statistics-domain</div><div class="item-desc">활동 통계, scope, daily/monthly, CSV export.</div></div>
-      <div class="item" style="border-left: 3px solid var(--accent-skills)"><div class="item-name" style="color:var(--accent-skills)">error-codes-domain</div><div class="item-desc">에러 코드: FORBIDDEN, DECRYPTION_NOT_APPROVED 등.</div></div>
-      <div class="item" style="border-left: 3px solid var(--accent-skills)"><div class="item-name" style="color:var(--accent-skills)">ui-ux-domain</div><div class="item-desc">메뉴 트리, view, screen ID, adminOnly, sidebar.</div></div>
-      <div class="item" style="border-left: 3px solid var(--accent-skills)"><div class="item-name" style="color:var(--accent-skills)">db-domain</div><div class="item-desc">PostgreSQL 스키마, 마이그레이션, setup 스크립트.</div></div>
-      <div class="item" style="border-left: 3px solid var(--accent-skills)"><div class="item-name" style="color:var(--accent-skills)">react-debugging</div><div class="item-desc">React 디버깅 기법.</div></div>
-    </div>
-  </div>
-
-  <!-- WORKFLOW DOCS -->
-  <div class="section" style="border-top: 2px solid var(--accent-workflow)">
-    <div class="section-header" onclick="toggleSection(this)">
-      <div class="section-icon" style="background:var(--glow-workflow); color:var(--accent-workflow)">📋</div>
-      <div class="section-title" style="color:var(--accent-workflow)">Workflow Docs (docs/workflow/)</div>
-      <div class="section-count">24 files</div>
-      <div class="section-toggle">▼</div>
-    </div>
-    <div class="section-body">
-      <div class="cmd-category">핵심 허브 문서</div>
-      <div class="item" onclick="toggleRefs(this)" style="border-left: 3px solid var(--accent-workflow)">
-        <div class="item-name" style="color:var(--accent-workflow)">AGENT-COLLABORATION-ON-REQUIREMENT.md</div>
-        <div class="item-desc">에이전트 협업 순서·역할·핸드오프 규칙의 단일 참조 문서. (참조 13건)</div>
-        <div class="item-refs">
-          <div class="ref-title">참조 문서</div>
-          <span class="ref-tag workflow">CURSOR-SUBAGENTS-DESIGN</span>
-          <span class="ref-tag workflow">HANDOFF-CHECKLIST</span>
-          <span class="ref-tag workflow">SUBAGENT-DELEGATION</span>
-          <span class="ref-tag workflow">SUBAGENT-MODEL-SELECTION</span>
-          <span class="ref-tag workflow">CONSISTENCY-STANDARDS</span>
-          <span class="ref-tag workflow">WORKFLOW_CHECKLIST</span>
-          <span class="ref-tag template">REQUIREMENT_TEMPLATE</span>
-          <span class="ref-tag rules">language-policy</span>
-          <span class="ref-tag skills">.cursor/skills/</span>
-          <span class="ref-tag commands">new-requirement</span>
-          <span class="ref-tag other">docs/contract.md</span>
-        </div>
-      </div>
-      <div class="item" onclick="toggleRefs(this)" style="border-left: 3px solid var(--accent-workflow)">
-        <div class="item-name" style="color:var(--accent-workflow)">SUBAGENT-DELEGATION.md</div>
-        <div class="item-desc">Step별 서브에이전트 위임 테이블 및 게이트 규정. (참조 10건)</div>
-        <div class="item-refs">
-          <div class="ref-title">참조 문서</div>
-          <span class="ref-tag workflow">CURSOR-SUBAGENTS-DESIGN</span>
-          <span class="ref-tag workflow">AGENT-COLLABORATION-ON-REQUIREMENT</span>
-          <span class="ref-tag workflow">HANDOFF-CHECKLIST</span>
-          <span class="ref-tag workflow">SUBAGENT-MODEL-SELECTION</span>
-          <span class="ref-tag template">REQUIREMENT_TEMPLATE</span>
-          <span class="ref-tag commands">commit-on-complete</span>
-          <span class="ref-tag commands">verify</span>
-          <span class="ref-tag rules">agent-collaboration</span>
-        </div>
-      </div>
-      <div class="item" onclick="toggleRefs(this)" style="border-left: 3px solid var(--accent-workflow)">
-        <div class="item-name" style="color:var(--accent-workflow)">CURSOR-SUBAGENTS-DESIGN.md</div>
-        <div class="item-desc">서브에이전트 역할·범위·등록 방법 정의. (참조 12건+)</div>
-        <div class="item-refs">
-          <div class="ref-title">참조 문서</div>
-          <span class="ref-tag workflow">SUBAGENT-MODEL-SELECTION</span>
-          <span class="ref-tag workflow">SUBAGENT-DELEGATION</span>
-          <span class="ref-tag workflow">AGENT-COLLABORATION-ON-REQUIREMENT</span>
-          <span class="ref-tag workflow">DEVELOPMENT_WORKFLOW</span>
-          <span class="ref-tag rules">agent-collaboration</span>
-          <span class="ref-tag rules">language-policy</span>
-          <span class="ref-tag commands">verify</span>
-          <span class="ref-tag other">docs/contract.md</span>
-        </div>
-      </div>
-      <div class="item" onclick="toggleRefs(this)" style="border-left: 3px solid var(--accent-workflow)">
-        <div class="item-name" style="color:var(--accent-workflow)">WORKFLOW_CHECKLIST.md</div>
-        <div class="item-desc">새 요건·버그 수정 시 순서와 게이트 체크리스트. (참조 5건)</div>
-        <div class="item-refs">
-          <div class="ref-title">참조 문서</div>
-          <span class="ref-tag workflow">DEVELOPMENT_WORKFLOW</span>
-          <span class="ref-tag template">REQUIREMENT_TEMPLATE</span>
-          <span class="ref-tag commands">commit-on-complete</span>
-        </div>
-      </div>
-      <div class="cmd-category">기타 워크플로우 문서</div>
-      <div class="item" style="border-left: 3px solid var(--accent-workflow)"><div class="item-name" style="color:var(--accent-workflow)">HANDOFF-CHECKLIST.md</div><div class="item-desc">Backend/Frontend/DB/Review/QA별 핸드오프 체크리스트.</div></div>
-      <div class="item" style="border-left: 3px solid var(--accent-workflow)"><div class="item-name" style="color:var(--accent-workflow)">ERROR-FIX-WORKFLOW-FLOWCHART.md</div><div class="item-desc">오류 수정 시 Skills/Sub-Agent/Commands 사용 시점 흐름도.</div></div>
-      <div class="item" style="border-left: 3px solid var(--accent-workflow)"><div class="item-name" style="color:var(--accent-workflow)">WORKFLOW_MODES.md</div><div class="item-desc">TDD vs DDD 개발 방식 선택 가이드.</div></div>
-      <div class="item" style="border-left: 3px solid var(--accent-workflow)"><div class="item-name" style="color:var(--accent-workflow)">SUBAGENT-MODEL-SELECTION.md</div><div class="item-desc">서브에이전트별 모델 티어 (Light / Default).</div></div>
-      <div class="item" style="border-left: 3px solid var(--accent-workflow)"><div class="item-name" style="color:var(--accent-workflow)">DEVELOPMENT_WORKFLOW.md</div><div class="item-desc">개발 워크플로우 상세 절차.</div></div>
-      <div class="item" style="border-left: 3px solid var(--accent-workflow)"><div class="item-name" style="color:var(--accent-workflow)">BROWSER-AUTOMATION-VERIFICATION-POLICY.md</div><div class="item-desc">브라우저 자동화 검증 정책.</div></div>
-    </div>
-  </div>
-
-  <!-- TEMPLATES -->
-  <div class="section" style="border-top: 2px solid var(--accent-template)">
-    <div class="section-header" onclick="toggleSection(this)">
-      <div class="section-icon" style="background:var(--glow-template); color:var(--accent-template)">📝</div>
-      <div class="section-title" style="color:var(--accent-template)">Templates (docs/template/)</div>
-      <div class="section-count">4 files</div>
-      <div class="section-toggle">▼</div>
-    </div>
-    <div class="section-body">
-      <div class="item" style="border-left: 3px solid var(--accent-template)"><div class="item-name" style="color:var(--accent-template)">REQUIREMENT_TEMPLATE.md</div><div class="item-desc">요건 문서 §1·§2·§3·§5·§6 템플릿.</div></div>
-      <div class="item" style="border-left: 3px solid var(--accent-template)"><div class="item-name" style="color:var(--accent-template)">BUGFIX_CHILD_TEMPLATE.md</div><div class="item-desc">테스트/검증 실패 시 버그픽스 자식 요건 템플릿.</div></div>
-      <div class="item" style="border-left: 3px solid var(--accent-template)"><div class="item-name" style="color:var(--accent-template)">ERROR_FIX_RESULT_TEMPLATE.md</div><div class="item-desc">에러 수정 결과 기록 (§6) 템플릿.</div></div>
-      <div class="item" style="border-left: 3px solid var(--accent-template)"><div class="item-name" style="color:var(--accent-template)">AGENT_PROMPT_TEMPLATE.md</div><div class="item-desc">서브에이전트 핸드오프 프롬프트 템플릿.</div></div>
-    </div>
-  </div>
-
-  <!-- COMMANDS -->
-  <div class="section" style="border-top: 2px solid var(--accent-commands)">
-    <div class="section-header" onclick="toggleSection(this)">
-      <div class="section-icon" style="background:var(--glow-commands); color:var(--accent-commands)">⌨</div>
-      <div class="section-title" style="color:var(--accent-commands)">Commands (.cursor/commands/)</div>
-      <div class="section-count">32 files</div>
-      <div class="section-toggle">▼</div>
-    </div>
-    <div class="section-body">
-      <div class="cmd-category">워크플로우 명령어</div>
-      <div class="cmd-grid">
-        <div class="cmd-item"><div class="cmd-name">new-requirement</div><div class="cmd-desc">Requirements 서브에이전트로 요건 문서 작성</div></div>
-        <div class="cmd-item"><div class="cmd-name">fix</div><div class="cmd-desc">에러 수정: 요건→§3→개발→테스트→검증</div></div>
-        <div class="cmd-item"><div class="cmd-name">plan</div><div class="cmd-desc">코드 전 요건 문서 + §3 계획</div></div>
-        <div class="cmd-item"><div class="cmd-name">review</div><div class="cmd-desc">셀프 리뷰 및 PR 전 체크리스트</div></div>
-        <div class="cmd-item"><div class="cmd-name">verify</div><div class="cmd-desc">재시작 + 헬스체크 + 브라우저 검증</div></div>
-        <div class="cmd-item"><div class="cmd-name">commit-on-complete</div><div class="cmd-desc">검증 통과 후 §5/§6 업데이트 후 커밋</div></div>
-        <div class="cmd-item"><div class="cmd-name">follow-workflow</div><div class="cmd-desc">TODO를 WORKFLOW_CHECKLIST 순서로 정렬</div></div>
-        <div class="cmd-item"><div class="cmd-name">dry-run-handoff</div><div class="cmd-desc">핸드오프 프롬프트 시뮬레이션</div></div>
-        <div class="cmd-item"><div class="cmd-name">run-tests</div><div class="cmd-desc">§3 정의 → 테스트 실행 → §5 기록</div></div>
-        <div class="cmd-item"><div class="cmd-name">record-error-fix</div><div class="cmd-desc">§6 에러 구제 결과 기록</div></div>
-      </div>
-      <div class="cmd-category">인프라 명령어</div>
-      <div class="cmd-grid">
-        <div class="cmd-item"><div class="cmd-name">start-all / stop-all / restart-all</div><div class="cmd-desc">전체 서비스 시작/중지/재시작</div></div>
-        <div class="cmd-item"><div class="cmd-name">start/stop/restart-backend</div><div class="cmd-desc">백엔드 (9200) 관리</div></div>
-        <div class="cmd-item"><div class="cmd-name">start/stop/restart-frontend</div><div class="cmd-desc">프론트엔드 (3001) 관리</div></div>
-        <div class="cmd-item"><div class="cmd-name">start/stop/restart-db</div><div class="cmd-desc">PostgreSQL 관리</div></div>
-        <div class="cmd-item"><div class="cmd-name">check-backend / frontend / db</div><div class="cmd-desc">헬스체크</div></div>
-      </div>
-      <div class="cmd-category">에이전트 호출 명령어</div>
-      <div class="cmd-grid">
-        <div class="cmd-item"><div class="cmd-name">agent-backend</div><div class="cmd-desc">이 채팅에서 Backend 에이전트로 동작</div></div>
-        <div class="cmd-item"><div class="cmd-name">agent-frontend</div><div class="cmd-desc">이 채팅에서 Frontend 에이전트로 동작</div></div>
-        <div class="cmd-item"><div class="cmd-name">agent-db</div><div class="cmd-desc">이 채팅에서 DB 에이전트로 동작</div></div>
-      </div>
-    </div>
-  </div>
-</div>
-
-<!-- ═══════ REFERENCE HUB MAP ═══════ -->
+<!-- Reference Hub Map (rendered by JS) -->
 <div class="ref-map">
   <div class="ref-map-title">▸ 핵심 허브 문서 (가장 많이 참조되는 문서)</div>
-  <div class="hub-grid">
-    <div class="hub-card"><div class="hub-name" style="color:var(--accent-workflow)">AGENT-COLLABORATION-ON-REQUIREMENT.md</div><div class="hub-role">에이전트 협업의 "헌법" — 순서·역할·핸드오프 규칙</div><div class="hub-refs-count">참조하는 문서 13건 / 참조받는 곳 5+</div><div class="hub-bar"><div class="hub-bar-fill" style="width:100%"></div></div></div>
-    <div class="hub-card"><div class="hub-name" style="color:var(--accent-workflow)">SUBAGENT-DELEGATION.md</div><div class="hub-role">Step별 서브에이전트 위임 테이블 + 게이트</div><div class="hub-refs-count">참조하는 문서 10건 / 참조받는 곳 6+</div><div class="hub-bar"><div class="hub-bar-fill" style="width:85%"></div></div></div>
-    <div class="hub-card"><div class="hub-name" style="color:var(--accent-workflow)">WORKFLOW_CHECKLIST.md</div><div class="hub-role">새 요건·버그 수정의 순서 체크리스트 (첫 게이트)</div><div class="hub-refs-count">참조하는 문서 5건 / 참조받는 곳 7+</div><div class="hub-bar"><div class="hub-bar-fill" style="width:75%"></div></div></div>
-    <div class="hub-card"><div class="hub-name" style="color:var(--accent-template)">REQUIREMENT_TEMPLATE.md</div><div class="hub-role">§1·§2·§3·§5·§6 요건 문서의 구조 정의</div><div class="hub-refs-count">참조받는 곳 8+</div><div class="hub-bar"><div class="hub-bar-fill" style="width:65%"></div></div></div>
-    <div class="hub-card"><div class="hub-name" style="color:var(--accent-commands)">commit-on-complete.md</div><div class="hub-role">검증 통과 → §5/§6 갱신 → 커밋의 최종 게이트</div><div class="hub-refs-count">참조받는 곳 7+</div><div class="hub-bar"><div class="hub-bar-fill" style="width:60%"></div></div></div>
-    <div class="hub-card"><div class="hub-name" style="color:var(--accent-other, var(--text-dim))">docs/contract.md</div><div class="hub-role">API·DB·포트 계약 — 10개 이상 에이전트가 참조</div><div class="hub-refs-count">참조받는 곳 10+</div><div class="hub-bar"><div class="hub-bar-fill" style="width:90%"></div></div></div>
-  </div>
+  <div class="hub-grid" id="hubGrid"></div>
 </div>
 
-<!-- ═══════ MERGE ORDER ═══════ -->
+<!-- Merge Order (static) -->
 <div class="ref-map" style="padding-bottom: 60px">
   <div class="ref-map-title">▸ 구현 머지 순서 & 충돌 해결</div>
   <div style="display:flex; gap:12px; flex-wrap:wrap; align-items:center; margin-top:8px">
@@ -1173,119 +773,2814 @@ body {
   </div>
 </div>
 
+<!-- TREEMAP_DATA injected by generate-treemap.js -->
 <script>
-const GITHUB_OWNER = 'MinGH-dev';
-const GITHUB_REPO = 'logmng';
-const GITHUB_BRANCH = 'feat/cursor-commit-on-complete';
+const TREEMAP_DATA = {
+  "github": {
+    "owner": "MinGH-dev",
+    "repo": "logmng",
+    "branch": "feat/cursor-commit-on-complete"
+  },
+  "docPaths": {
+    "agent-collaboration.mdc": ".cursor/rules/agent-collaboration.mdc",
+    "backend-agent.mdc": ".cursor/rules/backend-agent.mdc",
+    "build-restart-handoff.mdc": ".cursor/rules/build-restart-handoff.mdc",
+    "contract-first.mdc": ".cursor/rules/contract-first.mdc",
+    "core-principles.mdc": ".cursor/rules/core-principles.mdc",
+    "db-agent.mdc": ".cursor/rules/db-agent.mdc",
+    "error-first-workflow.mdc": ".cursor/rules/error-first-workflow.mdc",
+    "file-reading-optimization.mdc": ".cursor/rules/file-reading-optimization.mdc",
+    "frontend-agent.mdc": ".cursor/rules/frontend-agent.mdc",
+    "language-policy.mdc": ".cursor/rules/language-policy.mdc",
+    "post-change-test-verify.mdc": ".cursor/rules/post-change-test-verify.mdc",
+    "security-permissions.mdc": ".cursor/rules/security-permissions.mdc",
+    "subagent-invoke.mdc": ".cursor/rules/subagent-invoke.mdc",
+    "workflow-todos.mdc": ".cursor/rules/workflow-todos.mdc",
+    "activity-statistics-domain": ".cursor/skills/activity-statistics-domain/SKILL.md",
+    "api-permission-map": ".cursor/skills/api-permission-map/SKILL.md",
+    "auth-permission-domain": ".cursor/skills/auth-permission-domain/SKILL.md",
+    "db-domain": ".cursor/skills/db-domain/SKILL.md",
+    "department-approver-domain": ".cursor/skills/department-approver-domain/SKILL.md",
+    "dev-workflow": ".cursor/skills/dev-workflow/SKILL.md",
+    "error-codes-domain": ".cursor/skills/error-codes-domain/SKILL.md",
+    "log-search-domain": ".cursor/skills/log-search-domain/SKILL.md",
+    "react-debugging": ".cursor/skills/react-debugging/SKILL.md",
+    "requirement-doc": ".cursor/skills/requirement-doc/SKILL.md",
+    "search-history-decrypt-domain": ".cursor/skills/search-history-decrypt-domain/SKILL.md",
+    "test-workflow": ".cursor/skills/test-workflow/SKILL.md",
+    "ui-ux-domain": ".cursor/skills/ui-ux-domain/SKILL.md",
+    "agent-backend": ".cursor/commands/agent-backend.md",
+    "agent-db": ".cursor/commands/agent-db.md",
+    "agent-frontend": ".cursor/commands/agent-frontend.md",
+    "check-backend": ".cursor/commands/check-backend.md",
+    "check-db": ".cursor/commands/check-db.md",
+    "check-frontend-backend": ".cursor/commands/check-frontend-backend.md",
+    "check-frontend": ".cursor/commands/check-frontend.md",
+    "commit-on-complete": ".cursor/commands/commit-on-complete.md",
+    "dry-run-handoff": ".cursor/commands/dry-run-handoff.md",
+    "fix": ".cursor/commands/fix.md",
+    "follow-workflow": ".cursor/commands/follow-workflow.md",
+    "new-requirement": ".cursor/commands/new-requirement.md",
+    "plan": ".cursor/commands/plan.md",
+    "record-error-fix": ".cursor/commands/record-error-fix.md",
+    "restart-all": ".cursor/commands/restart-all.md",
+    "restart-backend": ".cursor/commands/restart-backend.md",
+    "restart-db": ".cursor/commands/restart-db.md",
+    "restart-frontend": ".cursor/commands/restart-frontend.md",
+    "review": ".cursor/commands/review.md",
+    "run-backend-agent": ".cursor/commands/run-backend-agent.md",
+    "run-db-agent": ".cursor/commands/run-db-agent.md",
+    "run-frontend-agent": ".cursor/commands/run-frontend-agent.md",
+    "run-tests": ".cursor/commands/run-tests.md",
+    "start-all": ".cursor/commands/start-all.md",
+    "start-backend": ".cursor/commands/start-backend.md",
+    "start-db": ".cursor/commands/start-db.md",
+    "start-frontend": ".cursor/commands/start-frontend.md",
+    "stop-all": ".cursor/commands/stop-all.md",
+    "stop-backend": ".cursor/commands/stop-backend.md",
+    "stop-db": ".cursor/commands/stop-db.md",
+    "stop-frontend": ".cursor/commands/stop-frontend.md",
+    "verify": ".cursor/commands/verify.md",
+    "agent:Architecture": ".cursor/agents/Architecture.mdc",
+    "agent:Backend-ActivityLog": ".cursor/agents/Backend-ActivityLog.mdc",
+    "agent:Backend-Auth": ".cursor/agents/Backend-Auth.mdc",
+    "agent:Backend-Log": ".cursor/agents/Backend-Log.mdc",
+    "agent:Backend": ".cursor/agents/Backend.mdc",
+    "agent:Consistency": ".cursor/agents/Consistency.mdc",
+    "agent:Contract": ".cursor/agents/Contract.mdc",
+    "agent:DB": ".cursor/agents/DB.mdc",
+    "agent:DBA": ".cursor/agents/DBA.mdc",
+    "agent:Documentation": ".cursor/agents/Documentation.mdc",
+    "agent:Frontend-ActivityLog": ".cursor/agents/Frontend-ActivityLog.mdc",
+    "agent:Frontend-Auth": ".cursor/agents/Frontend-Auth.mdc",
+    "agent:Frontend-Log": ".cursor/agents/Frontend-Log.mdc",
+    "agent:Frontend": ".cursor/agents/Frontend.mdc",
+    "agent:QA": ".cursor/agents/QA.mdc",
+    "agent:Release": ".cursor/agents/Release.mdc",
+    "agent:Requirements": ".cursor/agents/Requirements.mdc",
+    "agent:RequirementsPastSearch": ".cursor/agents/RequirementsPastSearch.mdc",
+    "agent:Review": ".cursor/agents/Review.mdc",
+    "agent:Security": ".cursor/agents/Security.mdc",
+    "agent:UX": ".cursor/agents/UX.mdc",
+    "AGENT-COLLABORATION-ON-REQUIREMENT.md": "docs/workflow/AGENT-COLLABORATION-ON-REQUIREMENT.md",
+    "AGENT-INSTRUCTION-AND-PERFORMANCE.md": "docs/workflow/AGENT-INSTRUCTION-AND-PERFORMANCE.md",
+    "ANALYSIS-requirement-authored-without-requirements-agent.md": "docs/workflow/ANALYSIS-requirement-authored-without-requirements-agent.md",
+    "BROWSER-AUTOMATION-VERIFICATION-POLICY.md": "docs/workflow/BROWSER-AUTOMATION-VERIFICATION-POLICY.md",
+    "CONSISTENCY-STANDARDS.md": "docs/workflow/CONSISTENCY-STANDARDS.md",
+    "CONTEXT-QUALITY-AND-ORCHESTRATION-MITIGATION.md": "docs/workflow/CONTEXT-QUALITY-AND-ORCHESTRATION-MITIGATION.md",
+    "CURSOR-AND-TOOLS-INTEGRATION.md": "docs/workflow/CURSOR-AND-TOOLS-INTEGRATION.md",
+    "CURSOR-SUBAGENTS-DESIGN.md": "docs/workflow/CURSOR-SUBAGENTS-DESIGN.md",
+    "DELEGATION-ANALYSIS-20250304.md": "docs/workflow/DELEGATION-ANALYSIS-20250304.md",
+    "DEVELOPMENT_WORKFLOW.md": "docs/workflow/DEVELOPMENT_WORKFLOW.md",
+    "DOCUMENT-LANGUAGE-POLICY.md": "docs/workflow/DOCUMENT-LANGUAGE-POLICY.md",
+    "ERROR-FIX-WORKFLOW-FLOWCHART.md": "docs/workflow/ERROR-FIX-WORKFLOW-FLOWCHART.md",
+    "HANDOFF-CHECKLIST.md": "docs/workflow/HANDOFF-CHECKLIST.md",
+    "HANDOFF-CONTEXT-QUALITY-SESSION.md": "docs/workflow/HANDOFF-CONTEXT-QUALITY-SESSION.md",
+    "IMPROVEMENT-STRUCTURAL-ENFORCEMENT.md": "docs/workflow/IMPROVEMENT-STRUCTURAL-ENFORCEMENT.md",
+    "PLAN-approval-only-group-tool-generalization.md": "docs/workflow/PLAN-approval-only-group-tool-generalization.md",
+    "RELEASE_CHECKLIST.md": "docs/workflow/RELEASE_CHECKLIST.md",
+    "REQUIREMENT-DATE-YEAR-ANALYSIS.md": "docs/workflow/REQUIREMENT-DATE-YEAR-ANALYSIS.md",
+    "SUBAGENT-DELEGATION.md": "docs/workflow/SUBAGENT-DELEGATION.md",
+    "SUBAGENT-MODEL-SELECTION.md": "docs/workflow/SUBAGENT-MODEL-SELECTION.md",
+    "WHY-TESTS-VERIFY-NOT-AUTO.md": "docs/workflow/WHY-TESTS-VERIFY-NOT-AUTO.md",
+    "WORKFLOW_CHECKLIST.md": "docs/workflow/WORKFLOW_CHECKLIST.md",
+    "WORKFLOW_MODES.md": "docs/workflow/WORKFLOW_MODES.md",
+    "오류-개선-프롬프팅-예시.md": "docs/workflow/오류-개선-프롬프팅-예시.md",
+    "AGENT_PROMPT_TEMPLATE.md": "docs/template/AGENT_PROMPT_TEMPLATE.md",
+    "BUGFIX_CHILD_TEMPLATE.md": "docs/template/BUGFIX_CHILD_TEMPLATE.md",
+    "ERROR_FIX_RESULT_TEMPLATE.md": "docs/template/ERROR_FIX_RESULT_TEMPLATE.md",
+    "REQUIREMENT_TEMPLATE.md": "docs/template/REQUIREMENT_TEMPLATE.md",
+    "docs/contract.md": "docs/contract.md",
+    "docs/security-guide.md": "docs/security-guide.md",
+    "docs/api-definition.md": "docs/api-definition.md",
+    "docs/QUICK_START.md": "docs/QUICK_START.md",
+    "README.md": "README.md",
+    "CHANGELOG.md": "CHANGELOG.md",
+    "docs/requirements/TOPIC-INDEX.md": "docs/requirements/TOPIC-INDEX.md"
+  },
+  "agents": {
+    "Architecture": {
+      "step": "Step 3",
+      "scope": "Architecture expert. Review system/feature design for performance, scalability, and trade-offs. No code changes; propose design notes and recommendations.",
+      "rules": [],
+      "skills": [
+        "search-history-decrypt-domain",
+        "activity-statistics-domain",
+        "department-approver-domain",
+        "db-domain"
+      ],
+      "commands": [],
+      "workflow": [
+        "AGENT-COLLABORATION-ON-REQUIREMENT",
+        "CURSOR-SUBAGENTS-DESIGN"
+      ],
+      "templates": [],
+      "other": [
+        "docs/requirements/20260224-decryption-approval-snapshot-guide.md",
+        "docs/contract.md"
+      ]
+    },
+    "Backend-ActivityLog": {
+      "step": "Step 4",
+      "scope": "Backend activity log and statistics only — ActivityStatistics*, UserActivityLog*, ActivityLogAspect. Use when task is activity/statistics-only.",
+      "rules": [],
+      "skills": [
+        "activity-statistics-domain"
+      ],
+      "commands": [],
+      "workflow": [
+        "DEVELOPMENT_WORKFLOW"
+      ],
+      "templates": [],
+      "other": [
+        "docs/contract.md",
+        "docs/cursor-subagents/backend-activity-log.md"
+      ]
+    },
+    "Backend-Auth": {
+      "step": "Step 4",
+      "scope": "Backend auth only — login, AuthController, AuthService, AuthInterceptor. Use when task is auth-only.",
+      "rules": [],
+      "skills": [
+        "auth-permission-domain",
+        "api-permission-map",
+        "error-codes-domain"
+      ],
+      "commands": [],
+      "workflow": [
+        "DEVELOPMENT_WORKFLOW"
+      ],
+      "templates": [],
+      "other": [
+        "docs/contract.md",
+        "docs/security-guide.md",
+        "docs/cursor-subagents/backend-auth.md"
+      ]
+    },
+    "Backend-Log": {
+      "step": "Step 4",
+      "scope": "Backend log DB, search, decrypt, log type only — LogDb*, SearchSuggest*, Decrypt*, LogType*. Use when task is log/search/decrypt-only. - \"backend/src/main/java/**/*LogDb*\" - \"backend/src/main/java/**/*Decrypt*\" - \"backend/src/main/java/**/*SearchSuggest*\" - \"backend/src/main/java/**/*LogType*\"",
+      "rules": [],
+      "skills": [
+        "log-search-domain",
+        "search-history-decrypt-domain",
+        "error-codes-domain"
+      ],
+      "commands": [],
+      "workflow": [
+        "AGENT-COLLABORATION-ON-REQUIREMENT",
+        "DEVELOPMENT_WORKFLOW"
+      ],
+      "templates": [],
+      "other": [
+        "docs/contract.md",
+        "docs/security-guide.md",
+        "docs/cursor-subagents/backend-log.md"
+      ]
+    },
+    "Backend": {
+      "step": "Step 4",
+      "scope": "Backend development, requirement docs, tests. Modify backend/ only. API and DB per contract and specs.",
+      "rules": [
+        "build-restart-handoff"
+      ],
+      "skills": [
+        "auth-permission-domain",
+        "error-codes-domain",
+        "dev-workflow"
+      ],
+      "commands": [],
+      "workflow": [
+        "DEVELOPMENT_WORKFLOW",
+        "AGENT-COLLABORATION-ON-REQUIREMENT",
+        "CURSOR-SUBAGENTS-DESIGN"
+      ],
+      "templates": [
+        "REQUIREMENT_TEMPLATE"
+      ],
+      "other": [
+        "docs/requirements/yyyyMMdd-name.md",
+        "backend/src/main/resources/db/schema.sql",
+        "docs/contract.md",
+        "specs/*.spec.yaml",
+        "docs/cursor-subagents/backend-auth.md",
+        "backend-activity-log.md",
+        "backend-log.md"
+      ]
+    },
+    "Consistency": {
+      "step": "Step 3",
+      "scope": "Defines and maintains project standards (naming, structure, error codes, conventions). No code changes; no review execution.",
+      "rules": [],
+      "skills": [
+        "error-codes-domain"
+      ],
+      "commands": [],
+      "workflow": [
+        "CONSISTENCY-STANDARDS",
+        "AGENT-COLLABORATION-ON-REQUIREMENT"
+      ],
+      "templates": [],
+      "other": [
+        "docs/contract.md",
+        "CONSISTENCY-STANDARDS.md",
+        "docs/api-definition.md"
+      ]
+    },
+    "Contract": {
+      "step": "Step 3",
+      "scope": "Define and update API contract (contract.md, specs). Single source of truth. No code changes.",
+      "rules": [],
+      "skills": [],
+      "commands": [],
+      "workflow": [
+        "AGENT-COLLABORATION-ON-REQUIREMENT",
+        "DEVELOPMENT_WORKFLOW"
+      ],
+      "templates": [],
+      "other": [
+        "docs/contract.md",
+        "specs/*.spec.yaml"
+      ]
+    },
+    "DB": {
+      "step": "Step 4",
+      "scope": "DB schema, migrations, config. Modify backend/.../db/ only. Contract compliant.",
+      "rules": [],
+      "skills": [
+        "db-domain"
+      ],
+      "commands": [],
+      "workflow": [
+        "DEVELOPMENT_WORKFLOW",
+        "AGENT-COLLABORATION-ON-REQUIREMENT",
+        "WORKFLOW_CHECKLIST"
+      ],
+      "templates": [
+        "REQUIREMENT_TEMPLATE"
+      ],
+      "other": [
+        "docs/contract.md",
+        "docs/requirements/yyyyMMdd-name.md",
+        "backend/src/main/resources/db/schema.sql",
+        "AGENT-COLLABORATION-ON-REQUIREMENT.md",
+        "backend/DB_SETUP_GUIDE.md"
+      ]
+    },
+    "DBA": {
+      "step": "Step 3",
+      "scope": "DBA perspective reviewer. Review schema and data design (indexing, JSON vs relational, performance, constraints). No code changes; propose design notes.",
+      "rules": [],
+      "skills": [
+        "search-history-decrypt-domain",
+        "activity-statistics-domain",
+        "department-approver-domain",
+        "db-domain"
+      ],
+      "commands": [],
+      "workflow": [
+        "AGENT-COLLABORATION-ON-REQUIREMENT"
+      ],
+      "templates": [],
+      "other": [
+        "backend/src/main/resources/db/schema.sql",
+        "docs/contract.md",
+        "docs/requirements/20260224-decryption-approval-snapshot-guide.md"
+      ]
+    },
+    "Documentation": {
+      "step": "Step 6",
+      "scope": "User-facing and operations docs only. README, QUICK_START, deployment, runbooks. No requirement docs, no API spec, no code.",
+      "rules": [],
+      "skills": [],
+      "commands": [],
+      "workflow": [
+        "AGENT-COLLABORATION-ON-REQUIREMENT"
+      ],
+      "templates": [],
+      "other": [
+        "docs/contract.md",
+        "README.md",
+        "docs/QUICK_START.md"
+      ]
+    },
+    "Frontend-ActivityLog": {
+      "step": "Step 4",
+      "scope": "Frontend activity log and statistics UI only — ActivityStatistics, UserActivityLog/*, Statistics*. Use when task is activity/statistics-only. - \"frontend/src/components/ActivityStatistics*\" - \"frontend/src/components/UserActivityLog/*\" - \"frontend/src/services/userActivityLogService*\"",
+      "rules": [],
+      "skills": [
+        "react-debugging",
+        "activity-statistics-domain"
+      ],
+      "commands": [],
+      "workflow": [
+        "DEVELOPMENT_WORKFLOW"
+      ],
+      "templates": [],
+      "other": [
+        "docs/contract.md",
+        "docs/cursor-subagents/frontend-activity-log.md"
+      ]
+    },
+    "Frontend-Auth": {
+      "step": "Step 4",
+      "scope": "Frontend auth UI only — LoginForm, login flow, auth state. Use when task is auth-only.",
+      "rules": [],
+      "skills": [
+        "react-debugging",
+        "auth-permission-domain",
+        "ui-ux-domain"
+      ],
+      "commands": [],
+      "workflow": [
+        "DEVELOPMENT_WORKFLOW"
+      ],
+      "templates": [],
+      "other": [
+        "docs/security-guide.md",
+        "docs/contract.md",
+        "docs/cursor-subagents/frontend-auth.md"
+      ]
+    },
+    "Frontend-Log": {
+      "step": "Step 4",
+      "scope": "Frontend log/search/log-type UI only — LogGrid, LogTable, ImageLog*, SearchForm, LogTypeSelector. Use when task is log-only. - \"frontend/src/components/LogGrid*\" - \"frontend/src/components/LogTable*\" - \"frontend/src/components/ImageLog*\" - \"frontend/src/components/SearchForm*\" - \"frontend/src/components/AdvancedSearchForm*\" - \"frontend/src/components/LogTypeSelector*\"",
+      "rules": [],
+      "skills": [
+        "react-debugging",
+        "log-search-domain",
+        "search-history-decrypt-domain"
+      ],
+      "commands": [],
+      "workflow": [
+        "DEVELOPMENT_WORKFLOW"
+      ],
+      "templates": [],
+      "other": [
+        "docs/security-guide.md",
+        "docs/contract.md",
+        "docs/cursor-subagents/frontend-log.md"
+      ]
+    },
+    "Frontend": {
+      "step": "Step 4",
+      "scope": "Frontend development, requirement docs, tests. frontend/ only. API per contract and specs. Scope boundaries, a11y, performance.",
+      "rules": [
+        "build-restart-handoff"
+      ],
+      "skills": [
+        "react-debugging",
+        "auth-permission-domain",
+        "ui-ux-domain",
+        "error-codes-domain",
+        "dev-workflow"
+      ],
+      "commands": [],
+      "workflow": [
+        "DEVELOPMENT_WORKFLOW",
+        "AGENT-COLLABORATION-ON-REQUIREMENT",
+        "CURSOR-SUBAGENTS-DESIGN",
+        "BROWSER-AUTOMATION-MCP"
+      ],
+      "templates": [
+        "REQUIREMENT_TEMPLATE"
+      ],
+      "other": [
+        "docs/contract.md",
+        "docs/security-guide.md",
+        "docs/cursor-subagents/frontend.md",
+        "docs/cursor-subagents/frontend-auth.md",
+        "frontend-activity-log.md",
+        "frontend-log.md",
+        ".cursor/mcp.json"
+      ]
+    },
+    "QA": {
+      "step": "Step 5",
+      "scope": "Test scenarios, verification checklists, test result documentation. Focus on test design and docs.",
+      "rules": [],
+      "skills": [
+        "test-workflow"
+      ],
+      "commands": [
+        "verify",
+        "commit-on-complete"
+      ],
+      "workflow": [
+        "DEVELOPMENT_WORKFLOW",
+        "SUBAGENT-DELEGATION",
+        "BROWSER-AUTOMATION-VERIFICATION-POLICY",
+        "QA-BROWSER-TEST-TROUBLESHOOTING",
+        "AGENT-COLLABORATION-ON-REQUIREMENT",
+        "WORKFLOW_CHECKLIST",
+        "BROWSER-AUTOMATION-MCP"
+      ],
+      "templates": [
+        "REQUIREMENT_TEMPLATE"
+      ],
+      "other": [
+        "docs/requirements/*.md",
+        "docs/requirements/{parentID}-bugfix-{N}.md",
+        "docs/contract.md",
+        "run-tests.md",
+        "verify.md",
+        "check-backend.md",
+        "check-db.md",
+        "check-frontend-backend.md"
+      ]
+    },
+    "Release": {
+      "step": "Step 6",
+      "scope": "Changelog, version, and release checklist only. No user guides, no code, no requirement docs.",
+      "rules": [],
+      "skills": [],
+      "commands": [
+        "commit-on-complete"
+      ],
+      "workflow": [
+        "DOCUMENT-LANGUAGE-POLICY",
+        "RELEASE_CHECKLIST",
+        "AGENT-COLLABORATION-ON-REQUIREMENT"
+      ],
+      "templates": [],
+      "other": [
+        "CHANGELOG.md",
+        "docs/RELEASE_NOTES-yyyyMMdd-*.md"
+      ]
+    },
+    "Requirements": {
+      "step": "Step 1",
+      "scope": "Requirement and spec document authoring only. No code changes. docs/requirements/, specs/",
+      "rules": [],
+      "skills": [
+        "requirement-doc",
+        "dev-workflow"
+      ],
+      "commands": [
+        "new-requirement"
+      ],
+      "workflow": [
+        "WORKFLOW_CHECKLIST",
+        "DEVELOPMENT_WORKFLOW",
+        "AGENT-COLLABORATION-ON-REQUIREMENT",
+        "BROWSER-AUTOMATION-VERIFICATION-POLICY"
+      ],
+      "templates": [
+        "REQUIREMENT_TEMPLATE"
+      ],
+      "other": [
+        "docs/requirements/yyyyMMdd-name.md",
+        "specs/name.spec.yaml",
+        "name.spec.yaml",
+        "yyyyMMdd-name.md",
+        "AGENT-COLLABORATION-ON-REQUIREMENT.md",
+        "docs/contract.md"
+      ]
+    },
+    "RequirementsPastSearch": {
+      "step": "Step 1",
+      "scope": "Search past requirement docs and summarize user-requested content so new requirements preserve it. Read-only; no code or doc edits.",
+      "rules": [],
+      "skills": [],
+      "commands": [],
+      "workflow": [
+        "AGENT-COLLABORATION-ON-REQUIREMENT",
+        "SUBAGENT-DELEGATION"
+      ],
+      "templates": [],
+      "other": [
+        "docs/requirements/*.md",
+        "docs/requirements/TOPIC-INDEX.md",
+        "yyyyMMdd-name.md",
+        "docs/cursor-subagents/past-requirements-search.md"
+      ]
+    },
+    "Review": {
+      "step": "Step 4.5",
+      "scope": "Code and change review only. Checks contract, workflow, and quality against checklist. No code changes; suggests fixes for implementing agents.",
+      "rules": [],
+      "skills": [
+        "auth-permission-domain",
+        "error-codes-domain",
+        "activity-statistics-domain"
+      ],
+      "commands": [
+        "review"
+      ],
+      "workflow": [
+        "CONSISTENCY-STANDARDS",
+        "AGENT-COLLABORATION-ON-REQUIREMENT"
+      ],
+      "templates": [],
+      "other": [
+        "docs/contract.md"
+      ]
+    },
+    "Security": {
+      "step": "Step 2",
+      "scope": "Security reviewer. Review requirements and design for PII, access control, decryption scope. No code changes; propose security sections and design.",
+      "rules": [],
+      "skills": [
+        "api-permission-map",
+        "search-history-decrypt-domain",
+        "auth-permission-domain",
+        "department-approver-domain",
+        "error-codes-domain"
+      ],
+      "commands": [],
+      "workflow": [
+        "AGENT-COLLABORATION-ON-REQUIREMENT",
+        "WORKFLOW_CHECKLIST",
+        "CURSOR-SUBAGENTS-DESIGN"
+      ],
+      "templates": [
+        "REQUIREMENT_TEMPLATE"
+      ],
+      "other": [
+        "docs/requirements/*.md",
+        "docs/security-guide.md"
+      ]
+    },
+    "UX": {
+      "step": "Step 3",
+      "scope": "Design and UX review only. Accessibility, UI consistency, design system, layout and navigation. No code; Frontend implements.",
+      "rules": [],
+      "skills": [],
+      "commands": [],
+      "workflow": [
+        "BROWSER-AUTOMATION-MCP",
+        "AGENT-COLLABORATION-ON-REQUIREMENT",
+        "CURSOR-SUBAGENTS-DESIGN"
+      ],
+      "templates": [],
+      "other": [
+        "docs/design/grid-and-table.md",
+        "docs/design/layout-and-navigation.md",
+        "docs/design/buttons.md",
+        "docs/design/text-input.md",
+        "docs/design/date-search.md",
+        "docs/design/forms-and-filters.md",
+        ".cursor/mcp.json",
+        "docs/design/README.md",
+        "docs/cursor-subagents/ux-design.md"
+      ]
+    }
+  },
+  "flowSteps": [
+    {
+      "step": "Step 1",
+      "name": "요건 정의",
+      "agents": [
+        {
+          "name": "Requirements",
+          "light": false
+        },
+        {
+          "name": "RequirementsPastSearch",
+          "light": true
+        }
+      ]
+    },
+    {
+      "step": "Step 2",
+      "name": "보안 검토",
+      "agents": [
+        {
+          "name": "Security",
+          "light": false
+        }
+      ]
+    },
+    {
+      "step": "Step 3",
+      "name": "설계 검토",
+      "agents": [
+        {
+          "name": "Architecture",
+          "light": false
+        },
+        {
+          "name": "Consistency",
+          "light": false
+        },
+        {
+          "name": "Contract",
+          "light": false
+        },
+        {
+          "name": "DBA",
+          "light": false
+        },
+        {
+          "name": "UX",
+          "light": false
+        }
+      ]
+    },
+    {
+      "step": "Step 4",
+      "name": "구현",
+      "agents": [
+        {
+          "name": "Backend",
+          "light": false
+        },
+        {
+          "name": "DB",
+          "light": false
+        },
+        {
+          "name": "Frontend",
+          "light": false
+        },
+        {
+          "name": "Backend-ActivityLog",
+          "light": true
+        },
+        {
+          "name": "Backend-Auth",
+          "light": true
+        },
+        {
+          "name": "Backend-Log",
+          "light": true
+        },
+        {
+          "name": "Frontend-ActivityLog",
+          "light": true
+        },
+        {
+          "name": "Frontend-Auth",
+          "light": true
+        },
+        {
+          "name": "Frontend-Log",
+          "light": true
+        }
+      ]
+    },
+    {
+      "step": "Step 4.5",
+      "name": "리뷰",
+      "agents": [
+        {
+          "name": "Review",
+          "light": false
+        }
+      ]
+    },
+    {
+      "step": "Step 5",
+      "name": "QA & 커밋",
+      "agents": [
+        {
+          "name": "QA",
+          "light": false
+        }
+      ]
+    },
+    {
+      "step": "Step 6",
+      "name": "문서 & 릴리스",
+      "agents": [
+        {
+          "name": "Documentation",
+          "light": true
+        },
+        {
+          "name": "Release",
+          "light": true
+        }
+      ]
+    }
+  ],
+  "sections": {
+    "rules": {
+      "items": [
+        {
+          "name": "agent-collaboration.mdc",
+          "desc": "에이전트 협업 순서 규정. Step 1~6 위임 게이트. 요건 문서 없이 개발 금지.",
+          "refs": [
+            {
+              "name": "SUBAGENT-DELEGATION.md",
+              "type": "workflow",
+              "path": "docs/workflow/SUBAGENT-DELEGATION.md"
+            },
+            {
+              "name": "SUBAGENT-DELEGATION.md",
+              "type": "other",
+              "path": "SUBAGENT-DELEGATION.md"
+            },
+            {
+              "name": "AGENT-COLLABORATION-ON-REQUIREMENT.md",
+              "type": "workflow",
+              "path": "docs/workflow/AGENT-COLLABORATION-ON-REQUIREMENT.md"
+            },
+            {
+              "name": "HANDOFF-CHECKLIST.md",
+              "type": "workflow",
+              "path": "docs/workflow/HANDOFF-CHECKLIST.md"
+            },
+            {
+              "name": "commit-on-complete",
+              "type": "commands",
+              "path": ".cursor/commands/commit-on-complete.md"
+            },
+            {
+              "name": "SUBAGENT-MODEL-SELECTION.md",
+              "type": "workflow",
+              "path": "docs/workflow/SUBAGENT-MODEL-SELECTION.md"
+            },
+            {
+              "name": "AGENT-COLLABORATION-ON-REQUIREMENT.md",
+              "type": "other",
+              "path": "AGENT-COLLABORATION-ON-REQUIREMENT.md"
+            },
+            {
+              "name": "CURSOR-SUBAGENTS-DESIGN.md",
+              "type": "workflow",
+              "path": "docs/workflow/CURSOR-SUBAGENTS-DESIGN.md"
+            },
+            {
+              "name": "dry-run-handoff",
+              "type": "commands",
+              "path": ".cursor/commands/dry-run-handoff.md"
+            }
+          ]
+        },
+        {
+          "name": "backend-agent.mdc",
+          "desc": "Backend-only agent — modify backend/ only; API and DB per contract and specs",
+          "refs": [
+            {
+              "name": "docs/contract.md",
+              "type": "other",
+              "path": "docs/contract.md"
+            },
+            {
+              "name": "*.spec.yaml",
+              "type": "other",
+              "path": "specs/*.spec.yaml"
+            },
+            {
+              "name": "application.yml",
+              "type": "other",
+              "path": "application.yml"
+            },
+            {
+              "name": "schema.sql",
+              "type": "other",
+              "path": "backend/src/main/resources/db/schema.sql"
+            }
+          ]
+        },
+        {
+          "name": "build-restart-handoff.mdc",
+          "desc": "코드 변경 후 빌드·재시작·§2 갱신·QA 핸드오프.",
+          "refs": [
+            {
+              "name": "AGENT-COLLABORATION-ON-REQUIREMENT.md",
+              "type": "workflow",
+              "path": "docs/workflow/AGENT-COLLABORATION-ON-REQUIREMENT.md"
+            },
+            {
+              "name": "SUBAGENT-DELEGATION.md",
+              "type": "workflow",
+              "path": "docs/workflow/SUBAGENT-DELEGATION.md"
+            }
+          ]
+        },
+        {
+          "name": "contract-first.mdc",
+          "desc": "API·DB 작업 시 계약/스펙 먼저 확인.",
+          "refs": [
+            {
+              "name": "docs/contract.md",
+              "type": "other",
+              "path": "docs/contract.md"
+            },
+            {
+              "name": "*.spec.yaml",
+              "type": "other",
+              "path": "specs/*.spec.yaml"
+            },
+            {
+              "name": "schema.sql",
+              "type": "other",
+              "path": "backend/src/main/resources/db/schema.sql"
+            }
+          ]
+        },
+        {
+          "name": "core-principles.mdc",
+          "desc": "응답 언어, 병렬 도구, 도구 우선순위, 품질 게이트, 보안 원칙. 모든 규칙의 허브.",
+          "refs": [
+            {
+              "name": "verify.md",
+              "type": "other",
+              "path": "verify.md"
+            },
+            {
+              "name": "commit-on-complete",
+              "type": "commands",
+              "path": ".cursor/commands/commit-on-complete.md"
+            },
+            {
+              "name": "WORKFLOW_CHECKLIST.md",
+              "type": "other",
+              "path": "WORKFLOW_CHECKLIST.md"
+            },
+            {
+              "name": "docs/contract.md",
+              "type": "other",
+              "path": "docs/contract.md"
+            },
+            {
+              "name": "WORKFLOW_CHECKLIST.md",
+              "type": "workflow",
+              "path": "docs/workflow/WORKFLOW_CHECKLIST.md"
+            },
+            {
+              "name": "docs/security-guide.md",
+              "type": "other",
+              "path": "docs/security-guide.md"
+            }
+          ]
+        },
+        {
+          "name": "db-agent.mdc",
+          "desc": "DB-only agent — schema, migrations, DB config only; per contract and specs",
+          "refs": [
+            {
+              "name": "DB_*.md",
+              "type": "other",
+              "path": "backend/DB_*.md"
+            },
+            {
+              "name": "docs/contract.md",
+              "type": "other",
+              "path": "docs/contract.md"
+            },
+            {
+              "name": "schema.sql",
+              "type": "other",
+              "path": "backend/src/main/resources/db/schema.sql"
+            },
+            {
+              "name": "DB_SETUP_GUIDE.md",
+              "type": "other",
+              "path": "backend/DB_SETUP_GUIDE.md"
+            }
+          ]
+        },
+        {
+          "name": "error-first-workflow.mdc",
+          "desc": "에러/버그 수정 시 요건 문서 + §3 테스트 계획 먼저 작성.",
+          "refs": [
+            {
+              "name": "WORKFLOW_CHECKLIST.md",
+              "type": "workflow",
+              "path": "docs/workflow/WORKFLOW_CHECKLIST.md"
+            },
+            {
+              "name": "ERROR-FIX-WORKFLOW-FLOWCHART.md",
+              "type": "workflow",
+              "path": "docs/workflow/ERROR-FIX-WORKFLOW-FLOWCHART.md"
+            },
+            {
+              "name": "REQUIREMENT_TEMPLATE.md",
+              "type": "templates",
+              "path": "docs/template/REQUIREMENT_TEMPLATE.md"
+            }
+          ]
+        },
+        {
+          "name": "file-reading-optimization.mdc",
+          "desc": "파일 크기별 계층적 로딩으로 토큰 절약.",
+          "refs": []
+        },
+        {
+          "name": "frontend-agent.mdc",
+          "desc": "Frontend-only agent — modify frontend/ only; API usage per contract and specs",
+          "refs": [
+            {
+              "name": "docs/contract.md",
+              "type": "other",
+              "path": "docs/contract.md"
+            },
+            {
+              "name": "*.spec.yaml",
+              "type": "other",
+              "path": "specs/*.spec.yaml"
+            },
+            {
+              "name": "docs/security-guide.md",
+              "type": "other",
+              "path": "docs/security-guide.md"
+            }
+          ]
+        },
+        {
+          "name": "language-policy.mdc",
+          "desc": "규칙/스킬/워크플로우는 영어, 사용자 응답은 요청 언어.",
+          "refs": [
+            {
+              "name": "REQUIREMENT_TEMPLATE.md",
+              "type": "templates",
+              "path": "docs/template/REQUIREMENT_TEMPLATE.md"
+            },
+            {
+              "name": "-ko.md",
+              "type": "other",
+              "path": "-ko.md"
+            },
+            {
+              "name": "DOCUMENT-LANGUAGE-POLICY.md",
+              "type": "workflow",
+              "path": "docs/workflow/DOCUMENT-LANGUAGE-POLICY.md"
+            }
+          ]
+        },
+        {
+          "name": "post-change-test-verify.mdc",
+          "desc": "코드 변경 후 테스트·검증 실행. 실패 시 bugfix 자식 요건 생성.",
+          "refs": [
+            {
+              "name": "run-tests.md",
+              "type": "other",
+              "path": "run-tests.md"
+            },
+            {
+              "name": "verify.md",
+              "type": "other",
+              "path": "verify.md"
+            },
+            {
+              "name": "test-workflow",
+              "type": "skills",
+              "path": ".cursor/skills/test-workflow/SKILL.md"
+            },
+            {
+              "name": "SUBAGENT-DELEGATION.md",
+              "type": "workflow",
+              "path": "docs/workflow/SUBAGENT-DELEGATION.md"
+            },
+            {
+              "name": "verify",
+              "type": "commands",
+              "path": ".cursor/commands/verify.md"
+            },
+            {
+              "name": "commit-on-complete",
+              "type": "commands",
+              "path": ".cursor/commands/commit-on-complete.md"
+            },
+            {
+              "name": "restart-all",
+              "type": "commands",
+              "path": ".cursor/commands/restart-all.md"
+            },
+            {
+              "name": "check-backend.md",
+              "type": "other",
+              "path": "check-backend.md"
+            },
+            {
+              "name": "check-frontend-backend.md",
+              "type": "other",
+              "path": "check-frontend-backend.md"
+            },
+            {
+              "name": "docs/requirements/{parentID}-bugfix-{N}.md",
+              "type": "other",
+              "path": "docs/requirements/{parentID}-bugfix-{N}.md"
+            },
+            {
+              "name": "BUGFIX_CHILD_TEMPLATE.md",
+              "type": "templates",
+              "path": "docs/template/BUGFIX_CHILD_TEMPLATE.md"
+            },
+            {
+              "name": "DEVELOPMENT_WORKFLOW.md",
+              "type": "workflow",
+              "path": "docs/workflow/DEVELOPMENT_WORKFLOW.md"
+            },
+            {
+              "name": "WORKFLOW_CHECKLIST.md",
+              "type": "other",
+              "path": "WORKFLOW_CHECKLIST.md"
+            },
+            {
+              "name": "WHY-TESTS-VERIFY-NOT-AUTO.md",
+              "type": "workflow",
+              "path": "docs/workflow/WHY-TESTS-VERIFY-NOT-AUTO.md"
+            }
+          ]
+        },
+        {
+          "name": "security-permissions.mdc",
+          "desc": "읽기/실행 금지 경로, 위험 명령 확인 필수.",
+          "refs": [
+            {
+              "name": "docs/security-guide.md",
+              "type": "other",
+              "path": "docs/security-guide.md"
+            }
+          ]
+        },
+        {
+          "name": "subagent-invoke.mdc",
+          "desc": "Cursor 내장 Subagents만 사용 (미사용).",
+          "refs": [
+            {
+              "name": "docs/cursor-subagents/*.md",
+              "type": "other",
+              "path": "docs/cursor-subagents/*.md"
+            },
+            {
+              "name": "CURSOR-SUBAGENTS-DESIGN.md",
+              "type": "workflow",
+              "path": "docs/workflow/CURSOR-SUBAGENTS-DESIGN.md"
+            },
+            {
+              "name": "frontend-prompt.md",
+              "type": "other",
+              "path": ".cursor/subagents/frontend-prompt.md"
+            },
+            {
+              "name": "backend-prompt.md",
+              "type": "other",
+              "path": "backend-prompt.md"
+            },
+            {
+              "name": "db-prompt.md",
+              "type": "other",
+              "path": "db-prompt.md"
+            },
+            {
+              "name": "README.md",
+              "type": "other",
+              "path": ".cursor/subagents/README.md"
+            }
+          ]
+        },
+        {
+          "name": "workflow-todos.mdc",
+          "desc": "TodoWrite 시 WORKFLOW_CHECKLIST 순서 필수 준수.",
+          "refs": [
+            {
+              "name": "WORKFLOW_CHECKLIST.md",
+              "type": "workflow",
+              "path": "docs/workflow/WORKFLOW_CHECKLIST.md"
+            },
+            {
+              "name": "commit-on-complete.md",
+              "type": "other",
+              "path": "commit-on-complete.md"
+            },
+            {
+              "name": "WORKFLOW_MODES.md",
+              "type": "workflow",
+              "path": "docs/workflow/WORKFLOW_MODES.md"
+            },
+            {
+              "name": "DEVELOPMENT_WORKFLOW.md",
+              "type": "workflow",
+              "path": "docs/workflow/DEVELOPMENT_WORKFLOW.md"
+            },
+            {
+              "name": "verify",
+              "type": "commands",
+              "path": ".cursor/commands/verify.md"
+            },
+            {
+              "name": "commit-on-complete",
+              "type": "commands",
+              "path": ".cursor/commands/commit-on-complete.md"
+            }
+          ]
+        }
+      ]
+    },
+    "skills": {
+      "categories": {
+        "워크플로우 스킬": [
+          {
+            "name": "api-permission-map",
+            "desc": "API 엔드포인트 → 컨트롤러 → 권한 체크 → 거부 에러코드 매핑.",
+            "category": "workflow",
+            "refs": []
+          },
+          {
+            "name": "dev-workflow",
+            "desc": "요건·테스트 계획 우선 개발 순서. TDD/DDD 선택 적용.",
+            "category": "workflow",
+            "refs": [
+              {
+                "name": "WORKFLOW_CHECKLIST.md",
+                "type": "workflow",
+                "path": "docs/workflow/WORKFLOW_CHECKLIST.md"
+              },
+              {
+                "name": "DEVELOPMENT_WORKFLOW.md",
+                "type": "workflow",
+                "path": "docs/workflow/DEVELOPMENT_WORKFLOW.md"
+              },
+              {
+                "name": "WORKFLOW_MODES.md",
+                "type": "workflow",
+                "path": "docs/workflow/WORKFLOW_MODES.md"
+              },
+              {
+                "name": "workflow-todos.mdc",
+                "type": "rules",
+                "path": "workflow-todos.mdc"
+              },
+              {
+                "name": "CURSOR-AND-TOOLS-INTEGRATION.md",
+                "type": "workflow",
+                "path": "docs/workflow/CURSOR-AND-TOOLS-INTEGRATION.md"
+              }
+            ]
+          },
+          {
+            "name": "react-debugging",
+            "desc": "React 디버깅 기법.",
+            "category": "workflow",
+            "refs": []
+          },
+          {
+            "name": "requirement-doc",
+            "desc": "요건 문서 작성·수정. 템플릿·명명 규칙 적용.",
+            "category": "workflow",
+            "refs": [
+              {
+                "name": "agent-collaboration.mdc",
+                "type": "rules",
+                "path": ".cursor/rules/agent-collaboration.mdc"
+              },
+              {
+                "name": "SUBAGENT-DELEGATION.md",
+                "type": "workflow",
+                "path": "docs/workflow/SUBAGENT-DELEGATION.md"
+              },
+              {
+                "name": "AGENT-COLLABORATION-ON-REQUIREMENT.md",
+                "type": "workflow",
+                "path": "docs/workflow/AGENT-COLLABORATION-ON-REQUIREMENT.md"
+              },
+              {
+                "name": "REQUIREMENT_TEMPLATE.md",
+                "type": "templates",
+                "path": "docs/template/REQUIREMENT_TEMPLATE.md"
+              },
+              {
+                "name": "yyyyMMdd-name-ko.md",
+                "type": "other",
+                "path": "yyyyMMdd-name-ko.md"
+              },
+              {
+                "name": "DOCUMENT-LANGUAGE-POLICY.md",
+                "type": "workflow",
+                "path": "docs/workflow/DOCUMENT-LANGUAGE-POLICY.md"
+              },
+              {
+                "name": "commit-on-complete",
+                "type": "commands",
+                "path": ".cursor/commands/commit-on-complete.md"
+              },
+              {
+                "name": "docs/requirements/yyyyMMdd-name.md",
+                "type": "other",
+                "path": "docs/requirements/yyyyMMdd-name.md"
+              },
+              {
+                "name": "20260220-image-log-search.md",
+                "type": "other",
+                "path": "20260220-image-log-search.md"
+              },
+              {
+                "name": "CURRENT-DATE-CONVENTION.md",
+                "type": "other",
+                "path": ".cursor/CURRENT-DATE-CONVENTION.md"
+              },
+              {
+                "name": "ERROR_FIX_RESULT_TEMPLATE.md",
+                "type": "templates",
+                "path": "docs/template/ERROR_FIX_RESULT_TEMPLATE.md"
+              },
+              {
+                "name": ".md",
+                "type": "other",
+                "path": ".md"
+              },
+              {
+                "name": "*.spec.yaml",
+                "type": "other",
+                "path": "specs/*.spec.yaml"
+              }
+            ]
+          },
+          {
+            "name": "test-workflow",
+            "desc": "§3 테스트 계획·실행·§5 기록·검증 워크플로우.",
+            "category": "workflow",
+            "refs": [
+              {
+                "name": "verify.md",
+                "type": "other",
+                "path": "verify.md"
+              },
+              {
+                "name": "commit-on-complete.md",
+                "type": "other",
+                "path": "commit-on-complete.md"
+              },
+              {
+                "name": "REQUIREMENT_TEMPLATE.md",
+                "type": "templates",
+                "path": "docs/template/REQUIREMENT_TEMPLATE.md"
+              },
+              {
+                "name": "WORKFLOW_CHECKLIST.md",
+                "type": "workflow",
+                "path": "docs/workflow/WORKFLOW_CHECKLIST.md"
+              },
+              {
+                "name": "DEVELOPMENT_WORKFLOW.md",
+                "type": "workflow",
+                "path": "docs/workflow/DEVELOPMENT_WORKFLOW.md"
+              },
+              {
+                "name": "post-change-test-verify.mdc",
+                "type": "rules",
+                "path": "post-change-test-verify.mdc"
+              },
+              {
+                "name": "run-tests.md",
+                "type": "other",
+                "path": "run-tests.md"
+              }
+            ]
+          }
+        ],
+        "도메인 스킬": [
+          {
+            "name": "activity-statistics-domain",
+            "desc": "활동 통계, scope, daily/monthly, CSV export.",
+            "category": "domain",
+            "refs": [
+              {
+                "name": "docs/api-definition.md",
+                "type": "other",
+                "path": "docs/api-definition.md"
+              },
+              {
+                "name": "permission-group-hierarchy.spec.yaml",
+                "type": "other",
+                "path": "specs/permission-group-hierarchy.spec.yaml"
+              },
+              {
+                "name": "docs/requirements/20250303-activity-statistics-self-only-scope.md",
+                "type": "other",
+                "path": "docs/requirements/20250303-activity-statistics-self-only-scope.md"
+              },
+              {
+                "name": "docs/requirements/TOPIC-INDEX.md",
+                "type": "other",
+                "path": "docs/requirements/TOPIC-INDEX.md"
+              }
+            ]
+          },
+          {
+            "name": "auth-permission-domain",
+            "desc": "is_system_admin, 권한 그룹, 화면별 접근, scope (self/team/all).",
+            "category": "domain",
+            "refs": [
+              {
+                "name": "permission-group-hierarchy.spec.yaml",
+                "type": "other",
+                "path": "specs/permission-group-hierarchy.spec.yaml"
+              },
+              {
+                "name": "docs/contract.md",
+                "type": "other",
+                "path": "docs/contract.md"
+              },
+              {
+                "name": "docs/requirements/20250303-remove-role-single-admin.md",
+                "type": "other",
+                "path": "docs/requirements/20250303-remove-role-single-admin.md"
+              },
+              {
+                "name": "docs/requirements/20250227-permission-group-screen-menu-access.md",
+                "type": "other",
+                "path": "docs/requirements/20250227-permission-group-screen-menu-access.md"
+              },
+              {
+                "name": "docs/requirements/TOPIC-INDEX.md",
+                "type": "other",
+                "path": "docs/requirements/TOPIC-INDEX.md"
+              }
+            ]
+          },
+          {
+            "name": "db-domain",
+            "desc": "PostgreSQL 스키마, 마이그레이션, setup 스크립트.",
+            "category": "domain",
+            "refs": [
+              {
+                "name": "docs/contract.md",
+                "type": "other",
+                "path": "docs/contract.md"
+              },
+              {
+                "name": "schema.sql",
+                "type": "other",
+                "path": "backend/src/main/resources/db/schema.sql"
+              },
+              {
+                "name": "WORKFLOW_CHECKLIST.md",
+                "type": "workflow",
+                "path": "docs/workflow/WORKFLOW_CHECKLIST.md"
+              },
+              {
+                "name": "DEVELOPMENT_WORKFLOW.md",
+                "type": "workflow",
+                "path": "docs/workflow/DEVELOPMENT_WORKFLOW.md"
+              },
+              {
+                "name": "DB_SETUP_GUIDE.md",
+                "type": "other",
+                "path": "backend/DB_SETUP_GUIDE.md"
+              }
+            ]
+          },
+          {
+            "name": "department-approver-domain",
+            "desc": "부서 계층, 결재자 지정, canApproveForRequester.",
+            "category": "domain",
+            "refs": [
+              {
+                "name": "docs/api-definition.md",
+                "type": "other",
+                "path": "docs/api-definition.md"
+              },
+              {
+                "name": "docs/requirements/20260224-decryption-approver-designation.md",
+                "type": "other",
+                "path": "docs/requirements/20260224-decryption-approver-designation.md"
+              },
+              {
+                "name": "docs/requirements/20260225-department-approver-hierarchy.md",
+                "type": "other",
+                "path": "docs/requirements/20260225-department-approver-hierarchy.md"
+              },
+              {
+                "name": "docs/requirements/TOPIC-INDEX.md",
+                "type": "other",
+                "path": "docs/requirements/TOPIC-INDEX.md"
+              },
+              {
+                "name": "schema.sql",
+                "type": "other",
+                "path": "backend/src/main/resources/db/schema.sql"
+              }
+            ]
+          },
+          {
+            "name": "error-codes-domain",
+            "desc": "에러 코드: FORBIDDEN, DECRYPTION_NOT_APPROVED 등.",
+            "category": "domain",
+            "refs": [
+              {
+                "name": "docs/api-definition.md",
+                "type": "other",
+                "path": "docs/api-definition.md"
+              },
+              {
+                "name": "CONSISTENCY-STANDARDS.md",
+                "type": "workflow",
+                "path": "docs/workflow/CONSISTENCY-STANDARDS.md"
+              }
+            ]
+          },
+          {
+            "name": "log-search-domain",
+            "desc": "로그 검색 API, logType (pb_feplog, java_fw_imglog).",
+            "category": "domain",
+            "refs": [
+              {
+                "name": "docs/api-definition.md",
+                "type": "other",
+                "path": "docs/api-definition.md"
+              },
+              {
+                "name": "docs/requirements/TOPIC-INDEX.md",
+                "type": "other",
+                "path": "docs/requirements/TOPIC-INDEX.md"
+              }
+            ]
+          },
+          {
+            "name": "search-history-decrypt-domain",
+            "desc": "검색 이력, 복호화 승인 흐름 (PENDING/APPROVED/REJECTED).",
+            "category": "domain",
+            "refs": [
+              {
+                "name": "docs/api-definition.md",
+                "type": "other",
+                "path": "docs/api-definition.md"
+              },
+              {
+                "name": "docs/requirements/20260224-decryption-snapshot-final-design-en.md",
+                "type": "other",
+                "path": "docs/requirements/20260224-decryption-snapshot-final-design-en.md"
+              },
+              {
+                "name": "docs/requirements/20260224-decryption-approval-snapshot-guide.md",
+                "type": "other",
+                "path": "docs/requirements/20260224-decryption-approval-snapshot-guide.md"
+              },
+              {
+                "name": "docs/requirements/20260224-decryption-require-approval.md",
+                "type": "other",
+                "path": "docs/requirements/20260224-decryption-require-approval.md"
+              }
+            ]
+          },
+          {
+            "name": "ui-ux-domain",
+            "desc": "메뉴 트리, view, screen ID, adminOnly, sidebar.",
+            "category": "domain",
+            "refs": [
+              {
+                "name": "permission-group-hierarchy.spec.yaml",
+                "type": "other",
+                "path": "specs/permission-group-hierarchy.spec.yaml"
+              },
+              {
+                "name": "docs/contract.md",
+                "type": "other",
+                "path": "docs/contract.md"
+              },
+              {
+                "name": "docs/requirements/TOPIC-INDEX.md",
+                "type": "other",
+                "path": "docs/requirements/TOPIC-INDEX.md"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    "commands": {
+      "categories": {
+        "워크플로우 명령어": [
+          {
+            "name": "commit-on-complete",
+            "desc": "검증 통과 후 §5/§6 업데이트 후 커밋",
+            "category": "workflow"
+          },
+          {
+            "name": "dry-run-handoff",
+            "desc": "핸드오프 프롬프트 시뮬레이션",
+            "category": "workflow"
+          },
+          {
+            "name": "fix",
+            "desc": "에러 수정: 요건→§3→개발→테스트→검증",
+            "category": "workflow"
+          },
+          {
+            "name": "follow-workflow",
+            "desc": "TODO를 WORKFLOW_CHECKLIST 순서로 정렬",
+            "category": "workflow"
+          },
+          {
+            "name": "new-requirement",
+            "desc": "Requirements 서브에이전트로 요건 문서 작성",
+            "category": "workflow"
+          },
+          {
+            "name": "plan",
+            "desc": "코드 전 요건 문서 + §3 계획",
+            "category": "workflow"
+          },
+          {
+            "name": "record-error-fix",
+            "desc": "§6 에러 수정 결과 기록",
+            "category": "workflow"
+          },
+          {
+            "name": "review",
+            "desc": "셀프 리뷰 및 PR 전 체크리스트",
+            "category": "workflow"
+          },
+          {
+            "name": "run-backend-agent",
+            "desc": "[Unused] Run backend sub-agent",
+            "category": "workflow"
+          },
+          {
+            "name": "run-db-agent",
+            "desc": "[Unused] Run DB sub-agent",
+            "category": "workflow"
+          },
+          {
+            "name": "run-frontend-agent",
+            "desc": "[Unused] Run frontend sub-agent",
+            "category": "workflow"
+          },
+          {
+            "name": "run-tests",
+            "desc": "§3 정의 → 테스트 실행 → §5 기록",
+            "category": "workflow"
+          },
+          {
+            "name": "verify",
+            "desc": "재시작 + 헬스체크 + 브라우저 검증",
+            "category": "workflow"
+          }
+        ],
+        "인프라 명령어": [
+          {
+            "name": "check-backend",
+            "desc": "백엔드 헬스체크",
+            "category": "infra"
+          },
+          {
+            "name": "check-db",
+            "desc": "DB 헬스체크",
+            "category": "infra"
+          },
+          {
+            "name": "check-frontend-backend",
+            "desc": "프론트엔드·백엔드 헬스체크",
+            "category": "infra"
+          },
+          {
+            "name": "check-frontend",
+            "desc": "Check frontend health",
+            "category": "infra"
+          },
+          {
+            "name": "start/stop/restart-all",
+            "desc": "전체 서비스 시작/중지/재시작",
+            "category": "infra"
+          },
+          {
+            "name": "start/stop/restart-backend",
+            "desc": "백엔드 (9200) 관리",
+            "category": "infra"
+          },
+          {
+            "name": "start/stop/restart-db",
+            "desc": "PostgreSQL 관리",
+            "category": "infra"
+          },
+          {
+            "name": "start/stop/restart-frontend",
+            "desc": "프론트엔드 (3001) 관리",
+            "category": "infra"
+          }
+        ],
+        "에이전트 호출 명령어": [
+          {
+            "name": "agent-backend",
+            "desc": "이 채팅에서 Backend 에이전트로 동작",
+            "category": "agent"
+          },
+          {
+            "name": "agent-db",
+            "desc": "이 채팅에서 DB 에이전트로 동작",
+            "category": "agent"
+          },
+          {
+            "name": "agent-frontend",
+            "desc": "이 채팅에서 Frontend 에이전트로 동작",
+            "category": "agent"
+          }
+        ]
+      }
+    },
+    "workflow": {
+      "categories": {
+        "핵심 허브 문서": [
+          {
+            "name": "AGENT-COLLABORATION-ON-REQUIREMENT.md",
+            "desc": "에이전트 협업 순서·역할·핸드오프 규칙의 단일 참조 문서.",
+            "refs": [
+              {
+                "name": "docs/contract.md",
+                "type": "other",
+                "path": "docs/contract.md"
+              },
+              {
+                "name": "*.spec.yaml",
+                "type": "other",
+                "path": "specs/*.spec.yaml"
+              },
+              {
+                "name": "CONSISTENCY-STANDARDS.md",
+                "type": "other",
+                "path": "CONSISTENCY-STANDARDS.md"
+              },
+              {
+                "name": "language-policy.mdc",
+                "type": "rules",
+                "path": ".cursor/rules/language-policy.mdc"
+              },
+              {
+                "name": "docs/requirements/TOPIC-INDEX.md",
+                "type": "other",
+                "path": "docs/requirements/TOPIC-INDEX.md"
+              },
+              {
+                "name": "HANDOFF-CHECKLIST.md",
+                "type": "other",
+                "path": "HANDOFF-CHECKLIST.md"
+              },
+              {
+                "name": "REQUIREMENT_TEMPLATE.md",
+                "type": "other",
+                "path": "REQUIREMENT_TEMPLATE.md"
+              },
+              {
+                "name": "CURSOR-SUBAGENTS-DESIGN.md",
+                "type": "other",
+                "path": "CURSOR-SUBAGENTS-DESIGN.md"
+              },
+              {
+                "name": "agent-collaboration.mdc",
+                "type": "rules",
+                "path": ".cursor/rules/agent-collaboration.mdc"
+              },
+              {
+                "name": "new-requirement",
+                "type": "commands",
+                "path": ".cursor/commands/new-requirement.md"
+              },
+              {
+                "name": "docs/cursor-subagents/*.md",
+                "type": "other",
+                "path": "docs/cursor-subagents/*.md"
+              },
+              {
+                "name": "REQUIREMENT_TEMPLATE.md",
+                "type": "templates",
+                "path": "docs/template/REQUIREMENT_TEMPLATE.md"
+              }
+            ]
+          },
+          {
+            "name": "DEVELOPMENT_WORKFLOW.md",
+            "desc": "개발 워크플로우 상세 절차.",
+            "refs": [
+              {
+                "name": "WORKFLOW_CHECKLIST.md",
+                "type": "other",
+                "path": "WORKFLOW_CHECKLIST.md"
+              },
+              {
+                "name": "docs-reference.mdc",
+                "type": "rules",
+                "path": "docs-reference.mdc"
+              },
+              {
+                "name": "docs/requirements/20260206-image-log-datastring-search.md",
+                "type": "other",
+                "path": "docs/requirements/20260206-image-log-datastring-search.md"
+              },
+              {
+                "name": "docs/requirements/20260206-user-authentication-improvement.md",
+                "type": "other",
+                "path": "docs/requirements/20260206-user-authentication-improvement.md"
+              },
+              {
+                "name": "user-management.spec.yaml",
+                "type": "other",
+                "path": "specs/user-management.spec.yaml"
+              },
+              {
+                "name": "advanced-search.spec.yaml",
+                "type": "other",
+                "path": "specs/advanced-search.spec.yaml"
+              },
+              {
+                "name": "docs/requirements/yyyyMMdd-요건명.md",
+                "type": "other",
+                "path": "docs/requirements/yyyyMMdd-요건명.md"
+              },
+              {
+                "name": "요건명.spec.yaml",
+                "type": "other",
+                "path": "specs/요건명.spec.yaml"
+              },
+              {
+                "name": "docs/requirements/{부모ID}-bugfix-{N}.md",
+                "type": "other",
+                "path": "docs/requirements/{부모ID}-bugfix-{N}.md"
+              },
+              {
+                "name": "commit-on-complete",
+                "type": "commands",
+                "path": ".cursor/commands/commit-on-complete.md"
+              },
+              {
+                "name": "ERROR-FIX-WORKFLOW-FLOWCHART.md",
+                "type": "other",
+                "path": "ERROR-FIX-WORKFLOW-FLOWCHART.md"
+              },
+              {
+                "name": "CURSOR-AND-TOOLS-INTEGRATION.md",
+                "type": "other",
+                "path": "CURSOR-AND-TOOLS-INTEGRATION.md"
+              }
+            ]
+          },
+          {
+            "name": "SUBAGENT-DELEGATION.md",
+            "desc": "Step별 서브에이전트 위임 테이블 및 게이트 규정.",
+            "refs": [
+              {
+                "name": "AGENT-COLLABORATION-ON-REQUIREMENT.md",
+                "type": "other",
+                "path": "AGENT-COLLABORATION-ON-REQUIREMENT.md"
+              },
+              {
+                "name": "docs/contract.md",
+                "type": "other",
+                "path": "docs/contract.md"
+              },
+              {
+                "name": "CONSISTENCY-STANDARDS.md",
+                "type": "other",
+                "path": "CONSISTENCY-STANDARDS.md"
+              },
+              {
+                "name": "commit-on-complete",
+                "type": "commands",
+                "path": ".cursor/commands/commit-on-complete.md"
+              },
+              {
+                "name": "SUBAGENT-MODEL-SELECTION.md",
+                "type": "other",
+                "path": "SUBAGENT-MODEL-SELECTION.md"
+              },
+              {
+                "name": "docs/cursor-subagents/db.md",
+                "type": "other",
+                "path": "docs/cursor-subagents/db.md"
+              },
+              {
+                "name": "REQUIREMENT_TEMPLATE.md",
+                "type": "templates",
+                "path": "docs/template/REQUIREMENT_TEMPLATE.md"
+              },
+              {
+                "name": "verify",
+                "type": "commands",
+                "path": ".cursor/commands/verify.md"
+              },
+              {
+                "name": "agent-collaboration.mdc",
+                "type": "rules",
+                "path": ".cursor/rules/agent-collaboration.mdc"
+              }
+            ]
+          }
+        ],
+        "기타 워크플로우 문서": [
+          {
+            "name": "AGENT-INSTRUCTION-AND-PERFORMANCE.md",
+            "desc": "에이전트 지시문·성능 영향 정리",
+            "refs": [
+              {
+                "name": "language-policy.mdc",
+                "type": "rules",
+                "path": ".cursor/rules/language-policy.mdc"
+              },
+              {
+                "name": "file-reading-optimization.mdc",
+                "type": "rules",
+                "path": "file-reading-optimization.mdc"
+              },
+              {
+                "name": "core-principles.mdc",
+                "type": "rules",
+                "path": "core-principles.mdc"
+              },
+              {
+                "name": "coding-standards.md",
+                "type": "other",
+                "path": "https://github.com/modu-ai/moai-adk/blob/main/.claude/rules/moai/development/coding-standards.md"
+              },
+              {
+                "name": "moai-constitution.md",
+                "type": "other",
+                "path": "https://github.com/modu-ai/moai-adk/blob/main/.claude/rules/moai/core/moai-constitution.md"
+              }
+            ]
+          },
+          {
+            "name": "ANALYSIS-requirement-authored-without-requirements-agent.md",
+            "desc": "Analysis: Requirement authored without Requirements agent — other agents’ review missing",
+            "refs": [
+              {
+                "name": "SUBAGENT-DELEGATION.md",
+                "type": "other",
+                "path": "SUBAGENT-DELEGATION.md"
+              },
+              {
+                "name": "AGENT-COLLABORATION-ON-REQUIREMENT.md",
+                "type": "other",
+                "path": "AGENT-COLLABORATION-ON-REQUIREMENT.md"
+              },
+              {
+                "name": "agent-collaboration.mdc",
+                "type": "rules",
+                "path": ".cursor/rules/agent-collaboration.mdc"
+              },
+              {
+                "name": "new-requirement",
+                "type": "commands",
+                "path": ".cursor/commands/new-requirement.md"
+              }
+            ]
+          },
+          {
+            "name": "BROWSER-AUTOMATION-VERIFICATION-POLICY.md",
+            "desc": "브라우저 자동화 검증 정책.",
+            "refs": [
+              {
+                "name": "verify",
+                "type": "commands",
+                "path": ".cursor/commands/verify.md"
+              },
+              {
+                "name": "SUBAGENT-DELEGATION.md",
+                "type": "other",
+                "path": "SUBAGENT-DELEGATION.md"
+              },
+              {
+                "name": "mcp.json",
+                "type": "other",
+                "path": ".cursor/mcp.json"
+              },
+              {
+                "name": "docs/requirements/{parentID}-bugfix-{N}.md",
+                "type": "other",
+                "path": "docs/requirements/{parentID}-bugfix-{N}.md"
+              },
+              {
+                "name": "commit-on-complete",
+                "type": "commands",
+                "path": ".cursor/commands/commit-on-complete.md"
+              },
+              {
+                "name": "BUGFIX_CHILD_TEMPLATE.md",
+                "type": "templates",
+                "path": "docs/template/BUGFIX_CHILD_TEMPLATE.md"
+              },
+              {
+                "name": "docs/requirements/20260225-ux-standards-compliance-audit.md",
+                "type": "other",
+                "path": "docs/requirements/20260225-ux-standards-compliance-audit.md"
+              }
+            ]
+          },
+          {
+            "name": "CONSISTENCY-STANDARDS.md",
+            "desc": "프로젝트 컨벤션·네이밍·에러코드 일관성 표준.",
+            "refs": [
+              {
+                "name": "docs/api-definition.md",
+                "type": "other",
+                "path": "docs/api-definition.md"
+              },
+              {
+                "name": "docs/contract.md",
+                "type": "other",
+                "path": "docs/contract.md"
+              },
+              {
+                "name": "docs/security-guide.md",
+                "type": "other",
+                "path": "docs/security-guide.md"
+              },
+              {
+                "name": "docs/requirements/yyyyMMdd-name.md",
+                "type": "other",
+                "path": "docs/requirements/yyyyMMdd-name.md"
+              },
+              {
+                "name": "docs/design/grid-and-table.md",
+                "type": "other",
+                "path": "docs/design/grid-and-table.md"
+              },
+              {
+                "name": "schema.sql",
+                "type": "other",
+                "path": "backend/src/main/resources/db/schema.sql"
+              }
+            ]
+          },
+          {
+            "name": "CONTEXT-QUALITY-AND-ORCHESTRATION-MITIGATION.md",
+            "desc": "Context quality and orchestration: Cursor vs team-agent, and mitigations",
+            "refs": [
+              {
+                "name": "ANALYSIS-requirement-authored-without-requirements-agent.md",
+                "type": "other",
+                "path": "ANALYSIS-requirement-authored-without-requirements-agent.md"
+              },
+              {
+                "name": "docs/requirements/yyyyMMdd-name.md",
+                "type": "other",
+                "path": "docs/requirements/yyyyMMdd-name.md"
+              },
+              {
+                "name": "SUBAGENT-DELEGATION.md",
+                "type": "other",
+                "path": "SUBAGENT-DELEGATION.md"
+              },
+              {
+                "name": "REQUIREMENT_TEMPLATE.md",
+                "type": "other",
+                "path": "REQUIREMENT_TEMPLATE.md"
+              },
+              {
+                "name": "*.spec.yaml",
+                "type": "other",
+                "path": "specs/*.spec.yaml"
+              },
+              {
+                "name": "foo.spec.yaml",
+                "type": "other",
+                "path": "specs/foo.spec.yaml"
+              }
+            ]
+          },
+          {
+            "name": "CURSOR-AND-TOOLS-INTEGRATION.md",
+            "desc": "Cursor and tools / docs integration map",
+            "refs": [
+              {
+                "name": "TERMINOLOGY.md",
+                "type": "other",
+                "path": ".cursor/TERMINOLOGY.md"
+              },
+              {
+                "name": "docs/contract.md",
+                "type": "other",
+                "path": "docs/contract.md"
+              },
+              {
+                "name": "run-tests.md",
+                "type": "other",
+                "path": "run-tests.md"
+              },
+              {
+                "name": "dev-services.sh",
+                "type": "other",
+                "path": "scripts/dev-services.sh"
+              }
+            ]
+          },
+          {
+            "name": "CURSOR-SUBAGENTS-DESIGN.md",
+            "desc": "서브에이전트 역할·범위·등록 방법 정의.",
+            "refs": [
+              {
+                "name": "frontend.md",
+                "type": "other",
+                "path": "frontend.md"
+              },
+              {
+                "name": "backend.md",
+                "type": "other",
+                "path": "backend.md"
+              },
+              {
+                "name": "db.md",
+                "type": "other",
+                "path": "db.md"
+              },
+              {
+                "name": "requirements.md",
+                "type": "other",
+                "path": "requirements.md"
+              },
+              {
+                "name": "qa-test.md",
+                "type": "other",
+                "path": "qa-test.md"
+              },
+              {
+                "name": "contract-api.md",
+                "type": "other",
+                "path": "contract-api.md"
+              },
+              {
+                "name": "security.md",
+                "type": "other",
+                "path": "security.md"
+              },
+              {
+                "name": "dba.md",
+                "type": "other",
+                "path": "dba.md"
+              },
+              {
+                "name": "architecture.md",
+                "type": "other",
+                "path": "architecture.md"
+              },
+              {
+                "name": "backend-auth.md",
+                "type": "other",
+                "path": "backend-auth.md"
+              },
+              {
+                "name": "backend-activity-log.md",
+                "type": "other",
+                "path": "backend-activity-log.md"
+              },
+              {
+                "name": "backend-log.md",
+                "type": "other",
+                "path": "backend-log.md"
+              },
+              {
+                "name": "frontend-auth.md",
+                "type": "other",
+                "path": "frontend-auth.md"
+              },
+              {
+                "name": "frontend-activity-log.md",
+                "type": "other",
+                "path": "frontend-activity-log.md"
+              },
+              {
+                "name": "frontend-log.md",
+                "type": "other",
+                "path": "frontend-log.md"
+              },
+              {
+                "name": "docs/cursor-subagents/FRONTEND-IMPROVEMENT-POINTS.md",
+                "type": "other",
+                "path": "docs/cursor-subagents/FRONTEND-IMPROVEMENT-POINTS.md"
+              },
+              {
+                "name": "review.md",
+                "type": "other",
+                "path": "review.md"
+              },
+              {
+                "name": "documentation.md",
+                "type": "other",
+                "path": "documentation.md"
+              },
+              {
+                "name": "release.md",
+                "type": "other",
+                "path": "release.md"
+              },
+              {
+                "name": "consistency.md",
+                "type": "other",
+                "path": "consistency.md"
+              },
+              {
+                "name": "ux-design.md",
+                "type": "other",
+                "path": "ux-design.md"
+              },
+              {
+                "name": "past-requirements-search.md",
+                "type": "other",
+                "path": "past-requirements-search.md"
+              },
+              {
+                "name": "docs/requirements/yyyyMMdd-name.md",
+                "type": "other",
+                "path": "docs/requirements/yyyyMMdd-name.md"
+              },
+              {
+                "name": "docs/contract.md",
+                "type": "other",
+                "path": "docs/contract.md"
+              },
+              {
+                "name": "*.spec.yaml",
+                "type": "other",
+                "path": "specs/*.spec.yaml"
+              },
+              {
+                "name": "verify",
+                "type": "commands",
+                "path": ".cursor/commands/verify.md"
+              },
+              {
+                "name": "docs/cursor-subagents/frontend.md",
+                "type": "other",
+                "path": "docs/cursor-subagents/frontend.md"
+              },
+              {
+                "name": "docs/cursor-subagents/backend.md",
+                "type": "other",
+                "path": "docs/cursor-subagents/backend.md"
+              },
+              {
+                "name": "docs/cursor-subagents/qa-test.md",
+                "type": "other",
+                "path": "docs/cursor-subagents/qa-test.md"
+              },
+              {
+                "name": "language-policy.mdc",
+                "type": "rules",
+                "path": ".cursor/rules/language-policy.mdc"
+              },
+              {
+                "name": "docs/security-guide.md",
+                "type": "other",
+                "path": "docs/security-guide.md"
+              },
+              {
+                "name": "agent-collaboration.mdc",
+                "type": "rules",
+                "path": ".cursor/rules/agent-collaboration.mdc"
+              },
+              {
+                "name": "CONSISTENCY-STANDARDS.md",
+                "type": "other",
+                "path": "CONSISTENCY-STANDARDS.md"
+              },
+              {
+                "name": "Frontend.mdc",
+                "type": "rules",
+                "path": "Frontend.mdc"
+              },
+              {
+                "name": "Backend.mdc",
+                "type": "rules",
+                "path": "Backend.mdc"
+              },
+              {
+                "name": "DB.mdc",
+                "type": "rules",
+                "path": "DB.mdc"
+              },
+              {
+                "name": "Requirements.mdc",
+                "type": "rules",
+                "path": "Requirements.mdc"
+              },
+              {
+                "name": "QA.mdc",
+                "type": "rules",
+                "path": "QA.mdc"
+              },
+              {
+                "name": "Contract.mdc",
+                "type": "rules",
+                "path": "Contract.mdc"
+              },
+              {
+                "name": "Security.mdc",
+                "type": "rules",
+                "path": "Security.mdc"
+              },
+              {
+                "name": "DBA.mdc",
+                "type": "rules",
+                "path": "DBA.mdc"
+              },
+              {
+                "name": "Architecture.mdc",
+                "type": "rules",
+                "path": "Architecture.mdc"
+              },
+              {
+                "name": "Review.mdc",
+                "type": "rules",
+                "path": "Review.mdc"
+              },
+              {
+                "name": "Documentation.mdc",
+                "type": "rules",
+                "path": "Documentation.mdc"
+              },
+              {
+                "name": "Release.mdc",
+                "type": "rules",
+                "path": "Release.mdc"
+              },
+              {
+                "name": "Consistency.mdc",
+                "type": "rules",
+                "path": "Consistency.mdc"
+              },
+              {
+                "name": "UX.mdc",
+                "type": "rules",
+                "path": "UX.mdc"
+              },
+              {
+                "name": "docs/cursor-subagents/*.md",
+                "type": "other",
+                "path": "docs/cursor-subagents/*.md"
+              },
+              {
+                "name": "dev-services.sh",
+                "type": "other",
+                "path": "scripts/dev-services.sh"
+              },
+              {
+                "name": "expert-frontend.md",
+                "type": "other",
+                "path": "https://github.com/modu-ai/moai-adk/blob/main/.claude/agents/moai/expert-frontend.md"
+              }
+            ]
+          },
+          {
+            "name": "DELEGATION-ANALYSIS-20250304.md",
+            "desc": "Delegation analysis: why main agent wrote test code (2025-03-04)",
+            "refs": [
+              {
+                "name": "agent-collaboration.mdc",
+                "type": "rules",
+                "path": "agent-collaboration.mdc"
+              },
+              {
+                "name": "SUBAGENT-DELEGATION.md",
+                "type": "other",
+                "path": "SUBAGENT-DELEGATION.md"
+              },
+              {
+                "name": "agent-collaboration.mdc",
+                "type": "rules",
+                "path": ".cursor/rules/agent-collaboration.mdc"
+              }
+            ]
+          },
+          {
+            "name": "DOCUMENT-LANGUAGE-POLICY.md",
+            "desc": "문서 작성 언어 정책.",
+            "refs": [
+              {
+                "name": "language-policy.mdc",
+                "type": "rules",
+                "path": ".cursor/rules/language-policy.mdc"
+              },
+              {
+                "name": "*.md",
+                "type": "templates",
+                "path": "docs/template/*.md"
+              },
+              {
+                "name": "docs/cursor-subagents/*.md",
+                "type": "other",
+                "path": "docs/cursor-subagents/*.md"
+              },
+              {
+                "name": "docs/design/*.md",
+                "type": "other",
+                "path": "docs/design/*.md"
+              },
+              {
+                "name": "docs/requirements/yyyyMMdd-short-name.md",
+                "type": "other",
+                "path": "docs/requirements/yyyyMMdd-short-name.md"
+              },
+              {
+                "name": "REQUIREMENT_TEMPLATE.md",
+                "type": "templates",
+                "path": "docs/template/REQUIREMENT_TEMPLATE.md"
+              },
+              {
+                "name": "docs/requirements/yyyyMMdd-short-name-ko.md",
+                "type": "other",
+                "path": "docs/requirements/yyyyMMdd-short-name-ko.md"
+              },
+              {
+                "name": "docs/RELEASE_NOTES-yyyyMMdd-*.md",
+                "type": "other",
+                "path": "docs/RELEASE_NOTES-yyyyMMdd-*.md"
+              },
+              {
+                "name": "docs/requirements/yyyyMMdd-name.md",
+                "type": "other",
+                "path": "docs/requirements/yyyyMMdd-name.md"
+              },
+              {
+                "name": "commit-on-complete",
+                "type": "commands",
+                "path": ".cursor/commands/commit-on-complete.md"
+              }
+            ]
+          },
+          {
+            "name": "ERROR-FIX-WORKFLOW-FLOWCHART.md",
+            "desc": "오류 수정 시 Skills/Sub-Agent/Commands 사용 시점 흐름도.",
+            "refs": [
+              {
+                "name": "docs/requirements/{부모요건ID}-bugfix-{N}.md",
+                "type": "other",
+                "path": "docs/requirements/{부모요건ID}-bugfix-{N}.md"
+              },
+              {
+                "name": "BUGFIX_CHILD_TEMPLATE.md",
+                "type": "templates",
+                "path": "docs/template/BUGFIX_CHILD_TEMPLATE.md"
+              }
+            ]
+          },
+          {
+            "name": "HANDOFF-CHECKLIST.md",
+            "desc": "Backend/Frontend/DB/Review/QA별 핸드오프 체크리스트.",
+            "refs": [
+              {
+                "name": "CONTEXT-QUALITY-AND-ORCHESTRATION-MITIGATION.md",
+                "type": "other",
+                "path": "CONTEXT-QUALITY-AND-ORCHESTRATION-MITIGATION.md"
+              },
+              {
+                "name": "*.spec.yaml",
+                "type": "other",
+                "path": "specs/*.spec.yaml"
+              },
+              {
+                "name": "BROWSER-AUTOMATION-VERIFICATION-POLICY.md",
+                "type": "other",
+                "path": "BROWSER-AUTOMATION-VERIFICATION-POLICY.md"
+              }
+            ]
+          },
+          {
+            "name": "HANDOFF-CONTEXT-QUALITY-SESSION.md",
+            "desc": "Handoff: Context quality and structural enforcement session",
+            "refs": [
+              {
+                "name": "agent-collaboration.mdc",
+                "type": "rules",
+                "path": ".cursor/rules/agent-collaboration.mdc"
+              },
+              {
+                "name": "error-first-workflow.mdc",
+                "type": "rules",
+                "path": ".cursor/rules/error-first-workflow.mdc"
+              },
+              {
+                "name": "language-policy.mdc",
+                "type": "rules",
+                "path": ".cursor/rules/language-policy.mdc"
+              },
+              {
+                "name": "new-requirement",
+                "type": "commands",
+                "path": ".cursor/commands/new-requirement.md"
+              },
+              {
+                "name": "REQUIREMENT_TEMPLATE.md",
+                "type": "other",
+                "path": "REQUIREMENT_TEMPLATE.md"
+              },
+              {
+                "name": "requirements.md",
+                "type": "other",
+                "path": "requirements.md"
+              },
+              {
+                "name": "REQUIREMENT_TEMPLATE.md",
+                "type": "templates",
+                "path": "docs/template/REQUIREMENT_TEMPLATE.md"
+              },
+              {
+                "name": "CONTEXT-QUALITY-AND-ORCHESTRATION-MITIGATION.md",
+                "type": "other",
+                "path": "CONTEXT-QUALITY-AND-ORCHESTRATION-MITIGATION.md"
+              }
+            ]
+          },
+          {
+            "name": "IMPROVEMENT-STRUCTURAL-ENFORCEMENT.md",
+            "desc": "Structural enforcement: reducing main-agent bypass",
+            "refs": [
+              {
+                "name": "agent-collaboration.mdc",
+                "type": "rules",
+                "path": "agent-collaboration.mdc"
+              },
+              {
+                "name": "AGENT-COLLABORATION-ON-REQUIREMENT.md",
+                "type": "other",
+                "path": "AGENT-COLLABORATION-ON-REQUIREMENT.md"
+              },
+              {
+                "name": "ANALYSIS-requirement-authored-without-requirements-agent.md",
+                "type": "other",
+                "path": "ANALYSIS-requirement-authored-without-requirements-agent.md"
+              },
+              {
+                "name": "new-requirement.md",
+                "type": "other",
+                "path": "new-requirement.md"
+              },
+              {
+                "name": "error-first-workflow.mdc",
+                "type": "rules",
+                "path": "error-first-workflow.mdc"
+              },
+              {
+                "name": "language-policy.mdc",
+                "type": "rules",
+                "path": "language-policy.mdc"
+              },
+              {
+                "name": "-ko.md",
+                "type": "other",
+                "path": "-ko.md"
+              },
+              {
+                "name": "DOCUMENT-LANGUAGE-POLICY.md",
+                "type": "other",
+                "path": "DOCUMENT-LANGUAGE-POLICY.md"
+              },
+              {
+                "name": "SUBAGENT-DELEGATION.md",
+                "type": "other",
+                "path": "SUBAGENT-DELEGATION.md"
+              },
+              {
+                "name": "HANDOFF-CHECKLIST.md",
+                "type": "other",
+                "path": "HANDOFF-CHECKLIST.md"
+              },
+              {
+                "name": "CONTEXT-QUALITY-AND-ORCHESTRATION-MITIGATION.md",
+                "type": "other",
+                "path": "CONTEXT-QUALITY-AND-ORCHESTRATION-MITIGATION.md"
+              }
+            ]
+          },
+          {
+            "name": "PLAN-approval-only-group-tool-generalization.md",
+            "desc": "Plan: Approval-only permission group — 도구 일반화 (이름 무관 규칙 적용)",
+            "refs": [
+              {
+                "name": "auth-permission-domain",
+                "type": "skills",
+                "path": ".cursor/skills/auth-permission-domain/SKILL.md"
+              },
+              {
+                "name": "search-history-decrypt-domain",
+                "type": "skills",
+                "path": ".cursor/skills/search-history-decrypt-domain/SKILL.md"
+              },
+              {
+                "name": "department-approver-domain",
+                "type": "skills",
+                "path": ".cursor/skills/department-approver-domain/SKILL.md"
+              },
+              {
+                "name": "permission-group-hierarchy.spec.yaml",
+                "type": "other",
+                "path": "specs/permission-group-hierarchy.spec.yaml"
+              },
+              {
+                "name": "docs/contract.md",
+                "type": "other",
+                "path": "docs/contract.md"
+              },
+              {
+                "name": "docs/requirements/20260304-approve-only-permission-group.md",
+                "type": "other",
+                "path": "docs/requirements/20260304-approve-only-permission-group.md"
+              },
+              {
+                "name": "docs/requirements/20260304-permission-group-modal-error-visibility.md",
+                "type": "other",
+                "path": "docs/requirements/20260304-permission-group-modal-error-visibility.md"
+              },
+              {
+                "name": "docs/requirements/TOPIC-INDEX.md",
+                "type": "other",
+                "path": "docs/requirements/TOPIC-INDEX.md"
+              }
+            ]
+          },
+          {
+            "name": "RELEASE_CHECKLIST.md",
+            "desc": "Release Checklist",
+            "refs": [
+              {
+                "name": "docs/RELEASE_NOTES-*.md",
+                "type": "other",
+                "path": "docs/RELEASE_NOTES-*.md"
+              },
+              {
+                "name": "commit-on-complete.md",
+                "type": "other",
+                "path": "commit-on-complete.md"
+              },
+              {
+                "name": "commit-on-complete",
+                "type": "commands",
+                "path": ".cursor/commands/commit-on-complete.md"
+              }
+            ]
+          },
+          {
+            "name": "REQUIREMENT-DATE-YEAR-ANALYSIS.md",
+            "desc": "Requirement document date — wrong year (2025 vs 2026) analysis",
+            "refs": [
+              {
+                "name": "20260206-*.md",
+                "type": "other",
+                "path": "20260206-*.md"
+              },
+              {
+                "name": "20260220-*.md",
+                "type": "other",
+                "path": "20260220-*.md"
+              },
+              {
+                "name": "20260226-*.md",
+                "type": "other",
+                "path": "20260226-*.md"
+              },
+              {
+                "name": "20250227-*.md",
+                "type": "other",
+                "path": "20250227-*.md"
+              },
+              {
+                "name": "20250303-*.md",
+                "type": "other",
+                "path": "20250303-*.md"
+              },
+              {
+                "name": "20250304-*.md",
+                "type": "other",
+                "path": "20250304-*.md"
+              },
+              {
+                "name": "CURRENT-DATE-CONVENTION.md",
+                "type": "other",
+                "path": ".cursor/CURRENT-DATE-CONVENTION.md"
+              },
+              {
+                "name": "requirement-doc",
+                "type": "skills",
+                "path": ".cursor/skills/requirement-doc/SKILL.md"
+              },
+              {
+                "name": "REQUIREMENT_TEMPLATE.md",
+                "type": "templates",
+                "path": "docs/template/REQUIREMENT_TEMPLATE.md"
+              }
+            ]
+          },
+          {
+            "name": "SUBAGENT-MODEL-SELECTION.md",
+            "desc": "서브에이전트별 모델 티어 (Light / Default).",
+            "refs": [
+              {
+                "name": "SUBAGENT-DELEGATION.md",
+                "type": "other",
+                "path": "SUBAGENT-DELEGATION.md"
+              },
+              {
+                "name": "agent-collaboration.mdc",
+                "type": "rules",
+                "path": ".cursor/rules/agent-collaboration.mdc"
+              }
+            ]
+          },
+          {
+            "name": "WHY-TESTS-VERIFY-NOT-AUTO.md",
+            "desc": "테스트·검증이 \"자동\"으로 안 된 이유",
+            "refs": [
+              {
+                "name": "verify",
+                "type": "commands",
+                "path": ".cursor/commands/verify.md"
+              },
+              {
+                "name": "run-tests.md",
+                "type": "other",
+                "path": "run-tests.md"
+              },
+              {
+                "name": "post-change-test-verify.mdc",
+                "type": "rules",
+                "path": ".cursor/rules/post-change-test-verify.mdc"
+              }
+            ]
+          },
+          {
+            "name": "WORKFLOW_CHECKLIST.md",
+            "desc": "새 요건·버그 수정 시 순서와 게이트 체크리스트.",
+            "refs": [
+              {
+                "name": "commit-on-complete",
+                "type": "commands",
+                "path": ".cursor/commands/commit-on-complete.md"
+              },
+              {
+                "name": "REQUIREMENT_TEMPLATE.md",
+                "type": "templates",
+                "path": "docs/template/REQUIREMENT_TEMPLATE.md"
+              },
+              {
+                "name": "DEVELOPMENT_WORKFLOW.md",
+                "type": "other",
+                "path": "DEVELOPMENT_WORKFLOW.md"
+              }
+            ]
+          },
+          {
+            "name": "WORKFLOW_MODES.md",
+            "desc": "TDD vs DDD 개발 방식 선택 가이드.",
+            "refs": [
+              {
+                "name": "README.md",
+                "type": "other",
+                "path": ".cursor/README.md"
+              },
+              {
+                "name": "dev-workflow",
+                "type": "skills",
+                "path": ".cursor/skills/dev-workflow/SKILL.md"
+              },
+              {
+                "name": "workflow-modes.md",
+                "type": "other",
+                "path": "https://github.com/modu-ai/moai-adk/blob/main/.claude/rules/moai/workflow/workflow-modes.md"
+              }
+            ]
+          },
+          {
+            "name": "오류-개선-프롬프팅-예시.md",
+            "desc": "오류 개선 요청 시 프롬프팅 예시",
+            "refs": [
+              {
+                "name": "error-first-workflow.mdc",
+                "type": "rules",
+                "path": ".cursor/rules/error-first-workflow.mdc"
+              },
+              {
+                "name": "fix",
+                "type": "commands",
+                "path": ".cursor/commands/fix.md"
+              },
+              {
+                "name": "workflow-todos.mdc",
+                "type": "rules",
+                "path": ".cursor/rules/workflow-todos.mdc"
+              },
+              {
+                "name": "REQUIREMENT_TEMPLATE.md",
+                "type": "templates",
+                "path": "docs/template/REQUIREMENT_TEMPLATE.md"
+              },
+              {
+                "name": "ERROR_FIX_RESULT_TEMPLATE.md",
+                "type": "templates",
+                "path": "docs/template/ERROR_FIX_RESULT_TEMPLATE.md"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    "templates": {
+      "items": [
+        {
+          "name": "AGENT_PROMPT_TEMPLATE.md",
+          "desc": "서브에이전트 핸드오프 프롬프트 템플릿."
+        },
+        {
+          "name": "BUGFIX_CHILD_TEMPLATE.md",
+          "desc": "테스트/검증 실패 시 버그픽스 자식 요건 템플릿."
+        },
+        {
+          "name": "ERROR_FIX_RESULT_TEMPLATE.md",
+          "desc": "에러 수정 결과 기록 (§6) 템플릿."
+        },
+        {
+          "name": "REQUIREMENT_TEMPLATE.md",
+          "desc": "요건 문서 §1·§2·§3·§5·§6 템플릿."
+        }
+      ]
+    }
+  },
+  "hubs": [
+    {
+      "name": "docs/contract.md",
+      "color": "other",
+      "role": "API·DB·포트 계약 — 10개 이상 에이전트가 참조",
+      "refsTo": 31,
+      "barWidth": 100
+    },
+    {
+      "name": "AGENT-COLLABORATION-ON-REQUIREMENT.md",
+      "color": "workflow",
+      "role": "에이전트 협업의 \"헌법\" — 순서·역할·핸드오프 규칙",
+      "refsTo": 25,
+      "barWidth": 81
+    },
+    {
+      "name": "REQUIREMENT_TEMPLATE.md",
+      "color": "template",
+      "role": "§1·§2·§3·§5·§6 요건 문서의 구조 정의",
+      "refsTo": 20,
+      "barWidth": 65
+    },
+    {
+      "name": "DEVELOPMENT_WORKFLOW.md",
+      "color": "workflow",
+      "role": "개발 워크플로우 상세 절차.",
+      "refsTo": 18,
+      "barWidth": 58
+    },
+    {
+      "name": "commit-on-complete",
+      "color": "commands",
+      "role": "검증 통과 → §5/§6 갱신 → 커밋의 최종 게이트",
+      "refsTo": 16,
+      "barWidth": 52
+    },
+    {
+      "name": "SUBAGENT-DELEGATION.md",
+      "color": "workflow",
+      "role": "Step별 서브에이전트 위임 테이블 + 게이트",
+      "refsTo": 13,
+      "barWidth": 42
+    }
+  ]
+};
+</script>
 
-const DOC_PATHS = {
-  // Rules
-  'agent-collaboration.mdc': '.cursor/rules/agent-collaboration.mdc',
-  'core-principles.mdc': '.cursor/rules/core-principles.mdc',
-  'error-first-workflow.mdc': '.cursor/rules/error-first-workflow.mdc',
-  'post-change-test-verify.mdc': '.cursor/rules/post-change-test-verify.mdc',
-  'contract-first.mdc': '.cursor/rules/contract-first.mdc',
-  'workflow-todos.mdc': '.cursor/rules/workflow-todos.mdc',
-  'language-policy.mdc': '.cursor/rules/language-policy.mdc',
-  'build-restart-handoff.mdc': '.cursor/rules/build-restart-handoff.mdc',
-  'security-permissions.mdc': '.cursor/rules/security-permissions.mdc',
-  'file-reading-optimization.mdc': '.cursor/rules/file-reading-optimization.mdc',
-  // Skills
-  'dev-workflow': '.cursor/skills/dev-workflow/SKILL.md',
-  'test-workflow': '.cursor/skills/test-workflow/SKILL.md',
-  'requirement-doc': '.cursor/skills/requirement-doc/SKILL.md',
-  'auth-permission-domain': '.cursor/skills/auth-permission-domain/SKILL.md',
-  'api-permission-map': '.cursor/skills/api-permission-map/SKILL.md',
-  'search-history-decrypt-domain': '.cursor/skills/search-history-decrypt-domain/SKILL.md',
-  'department-approver-domain': '.cursor/skills/department-approver-domain/SKILL.md',
-  'log-search-domain': '.cursor/skills/log-search-domain/SKILL.md',
-  'activity-statistics-domain': '.cursor/skills/activity-statistics-domain/SKILL.md',
-  'error-codes-domain': '.cursor/skills/error-codes-domain/SKILL.md',
-  'ui-ux-domain': '.cursor/skills/ui-ux-domain/SKILL.md',
-  'db-domain': '.cursor/skills/db-domain/SKILL.md',
-  'react-debugging': '.cursor/skills/react-debugging/SKILL.md',
-  // Workflow Docs
-  'AGENT-COLLABORATION-ON-REQUIREMENT.md': 'docs/workflow/AGENT-COLLABORATION-ON-REQUIREMENT.md',
-  'SUBAGENT-DELEGATION.md': 'docs/workflow/SUBAGENT-DELEGATION.md',
-  'CURSOR-SUBAGENTS-DESIGN.md': 'docs/workflow/CURSOR-SUBAGENTS-DESIGN.md',
-  'WORKFLOW_CHECKLIST.md': 'docs/workflow/WORKFLOW_CHECKLIST.md',
-  'HANDOFF-CHECKLIST.md': 'docs/workflow/HANDOFF-CHECKLIST.md',
-  'ERROR-FIX-WORKFLOW-FLOWCHART.md': 'docs/workflow/ERROR-FIX-WORKFLOW-FLOWCHART.md',
-  'WORKFLOW_MODES.md': 'docs/workflow/WORKFLOW_MODES.md',
-  'SUBAGENT-MODEL-SELECTION.md': 'docs/workflow/SUBAGENT-MODEL-SELECTION.md',
-  'DEVELOPMENT_WORKFLOW.md': 'docs/workflow/DEVELOPMENT_WORKFLOW.md',
-  'BROWSER-AUTOMATION-VERIFICATION-POLICY.md': 'docs/workflow/BROWSER-AUTOMATION-VERIFICATION-POLICY.md',
-  'DOCUMENT-LANGUAGE-POLICY': 'docs/workflow/DOCUMENT-LANGUAGE-POLICY.md',
-  'CONSISTENCY-STANDARDS': 'docs/workflow/CONSISTENCY-STANDARDS.md',
-  'RELEASE_CHECKLIST': 'docs/workflow/RELEASE_CHECKLIST.md',
-  // Templates
-  'REQUIREMENT_TEMPLATE.md': 'docs/template/REQUIREMENT_TEMPLATE.md',
-  'BUGFIX_CHILD_TEMPLATE.md': 'docs/template/BUGFIX_CHILD_TEMPLATE.md',
-  'ERROR_FIX_RESULT_TEMPLATE.md': 'docs/template/ERROR_FIX_RESULT_TEMPLATE.md',
-  'AGENT_PROMPT_TEMPLATE.md': 'docs/template/AGENT_PROMPT_TEMPLATE.md',
-  // Commands (workflow)
-  'new-requirement': '.cursor/commands/new-requirement.md',
-  'fix': '.cursor/commands/fix.md',
-  'plan': '.cursor/commands/plan.md',
-  'review': '.cursor/commands/review.md',
-  'verify': '.cursor/commands/verify.md',
-  'commit-on-complete': '.cursor/commands/commit-on-complete.md',
-  'follow-workflow': '.cursor/commands/follow-workflow.md',
-  'dry-run-handoff': '.cursor/commands/dry-run-handoff.md',
-  'run-tests': '.cursor/commands/run-tests.md',
-  'record-error-fix': '.cursor/commands/record-error-fix.md',
-  // Commands (agent)
-  'agent-backend': '.cursor/commands/agent-backend.md',
-  'agent-frontend': '.cursor/commands/agent-frontend.md',
-  'agent-db': '.cursor/commands/agent-db.md',
-  // Commands (infra)
-  'start-all': '.cursor/commands/start-all.md',
-  'stop-all': '.cursor/commands/stop-all.md',
-  'restart-all': '.cursor/commands/restart-all.md',
-  'start-backend': '.cursor/commands/start-backend.md',
-  'stop-backend': '.cursor/commands/stop-backend.md',
-  'restart-backend': '.cursor/commands/restart-backend.md',
-  'start-frontend': '.cursor/commands/start-frontend.md',
-  'stop-frontend': '.cursor/commands/stop-frontend.md',
-  'restart-frontend': '.cursor/commands/restart-frontend.md',
-  'start-db': '.cursor/commands/start-db.md',
-  'stop-db': '.cursor/commands/stop-db.md',
-  'restart-db': '.cursor/commands/restart-db.md',
-  'check-backend': '.cursor/commands/check-backend.md',
-  'check-frontend-backend': '.cursor/commands/check-frontend-backend.md',
-  'check-db': '.cursor/commands/check-db.md',
-  // Agents
-  'agent:Requirements': '.cursor/agents/Requirements.mdc',
-  'agent:RequirementsPastSearch': '.cursor/agents/RequirementsPastSearch.mdc',
-  'agent:Security': '.cursor/agents/Security.mdc',
-  'agent:Contract': '.cursor/agents/Contract.mdc',
-  'agent:DBA': '.cursor/agents/DBA.mdc',
-  'agent:Architecture': '.cursor/agents/Architecture.mdc',
-  'agent:Consistency': '.cursor/agents/Consistency.mdc',
-  'agent:UX': '.cursor/agents/UX.mdc',
-  'agent:Backend': '.cursor/agents/Backend.mdc',
-  'agent:Frontend': '.cursor/agents/Frontend.mdc',
-  'agent:DB': '.cursor/agents/DB.mdc',
-  'agent:Backend-Auth': '.cursor/agents/Backend-Auth.mdc',
-  'agent:Backend-Log': '.cursor/agents/Backend-Log.mdc',
-  'agent:Backend-ActivityLog': '.cursor/agents/Backend-ActivityLog.mdc',
-  'agent:Frontend-Auth': '.cursor/agents/Frontend-Auth.mdc',
-  'agent:Frontend-Log': '.cursor/agents/Frontend-Log.mdc',
-  'agent:Frontend-ActivityLog': '.cursor/agents/Frontend-ActivityLog.mdc',
-  'agent:Review': '.cursor/agents/Review.mdc',
-  'agent:QA': '.cursor/agents/QA.mdc',
-  'agent:Documentation': '.cursor/agents/Documentation.mdc',
-  'agent:Release': '.cursor/agents/Release.mdc',
-  // Other docs
-  'docs/contract.md': 'docs/contract.md',
-  'docs/security-guide.md': 'docs/security-guide.md',
-  'docs/api-definition.md': 'docs/api-definition.md',
-  'docs/QUICK_START.md': 'docs/QUICK_START.md',
-  'README.md': 'README.md',
-  'CHANGELOG.md': 'CHANGELOG.md',
-  'docs/requirements/TOPIC-INDEX.md': 'docs/requirements/TOPIC-INDEX.md',
+<script>
+/* ═══════ GLOBALS ═══════ */
+const { github, docPaths: DOC_PATHS, agents: AGENT_DATA, flowSteps, sections, hubs } = TREEMAP_DATA;
+const GITHUB_OWNER = github.owner;
+const GITHUB_REPO = github.repo;
+const GITHUB_BRANCH = github.branch;
+
+const CATEGORY_CONFIG = {
+  rules:     { label: 'Rules',         color: '#f97316', dotClass: 'rules' },
+  skills:    { label: 'Skills',        color: '#06b6d4', dotClass: 'skills' },
+  commands:  { label: 'Commands',      color: '#a855f7', dotClass: 'commands' },
+  workflow:  { label: 'Workflow Docs', color: '#10b981', dotClass: 'workflow' },
+  templates: { label: 'Templates',     color: '#f43f5e', dotClass: 'template' },
+  other:     { label: 'Other Docs',    color: '#64748b', dotClass: 'other' }
 };
 
+/* ═══════ DOC PREVIEW ═══════ */
 const docCache = {};
 let markedReady = false;
 
@@ -1300,17 +3595,16 @@ function loadMarked() {
   });
 }
 
-function getGithubApiUrl(filepath) {
-  return `https://api.github.com/repos/${GITHUB_OWNER}/${GITHUB_REPO}/contents/${filepath}?ref=${GITHUB_BRANCH}`;
+function getGithubApiUrl(fp) {
+  return `https://api.github.com/repos/${GITHUB_OWNER}/${GITHUB_REPO}/contents/${fp}?ref=${GITHUB_BRANCH}`;
+}
+function getGithubBlobUrl(fp) {
+  return `https://github.com/${GITHUB_OWNER}/${GITHUB_REPO}/blob/${GITHUB_BRANCH}/${fp}`;
 }
 
-function getGithubBlobUrl(filepath) {
-  return `https://github.com/${GITHUB_OWNER}/${GITHUB_REPO}/blob/${GITHUB_BRANCH}/${filepath}`;
-}
-
-async function fetchDocContent(filepath) {
-  if (docCache[filepath]) return docCache[filepath];
-  const resp = await fetch(getGithubApiUrl(filepath), {
+async function fetchDocContent(fp) {
+  if (docCache[fp]) return docCache[fp];
+  const resp = await fetch(getGithubApiUrl(fp), {
     headers: { 'Accept': 'application/vnd.github.v3+json' }
   });
   if (!resp.ok) {
@@ -1320,14 +3614,12 @@ async function fetchDocContent(filepath) {
   }
   const data = await resp.json();
   const content = decodeURIComponent(escape(atob(data.content)));
-  docCache[filepath] = content;
+  docCache[fp] = content;
   return content;
 }
 
 function renderMarkdown(raw) {
-  if (typeof marked !== 'undefined' && marked.parse) {
-    return marked.parse(raw);
-  }
+  if (typeof marked !== 'undefined' && marked.parse) return marked.parse(raw);
   return '<pre style="white-space:pre-wrap">' + raw.replace(/</g, '&lt;') + '</pre>';
 }
 
@@ -1343,18 +3635,13 @@ function resolveFilepath(name) {
 async function showDocPreview(name) {
   const filepath = resolveFilepath(name);
   if (!filepath) return;
-
   const overlay = document.getElementById('docOverlay');
   const body = document.getElementById('docBody');
-  const pathEl = document.getElementById('docPath');
-  const linkEl = document.getElementById('docGithubLink');
-
-  pathEl.textContent = filepath;
-  linkEl.href = getGithubBlobUrl(filepath);
+  document.getElementById('docPath').textContent = filepath;
+  document.getElementById('docGithubLink').href = getGithubBlobUrl(filepath);
   body.innerHTML = '<div class="doc-loading"><div class="spinner"></div>문서를 불러오는 중…</div>';
   overlay.classList.add('open');
   document.body.style.overflow = 'hidden';
-
   try {
     const [content] = await Promise.all([fetchDocContent(filepath), loadMarked()]);
     body.innerHTML = '<div class="md-content">' + renderMarkdown(content) + '</div>';
@@ -1368,229 +3655,21 @@ function closeDocPreview() {
   document.body.style.overflow = '';
 }
 
-const AGENT_DATA = {
-  Requirements: {
-    step: 'Step 1', scope: '요건 문서 작성 — docs/requirements/, specs/, docs/template/',
-    rules: [],
-    skills: ['requirement-doc'],
-    commands: ['new-requirement'],
-    workflow: ['WORKFLOW_CHECKLIST', 'DEVELOPMENT_WORKFLOW', 'AGENT-COLLABORATION-ON-REQUIREMENT', 'BROWSER-AUTOMATION-VERIFICATION-POLICY'],
-    templates: ['REQUIREMENT_TEMPLATE'],
-    other: ['docs/contract.md']
-  },
-  RequirementsPastSearch: {
-    step: 'Step 1 (지원)', scope: '과거 요건 문서 검색 (읽기 전용) — docs/requirements/, TOPIC-INDEX',
-    rules: [],
-    skills: [],
-    commands: [],
-    workflow: ['AGENT-COLLABORATION-ON-REQUIREMENT', 'SUBAGENT-DELEGATION'],
-    templates: [],
-    other: ['docs/requirements/TOPIC-INDEX.md']
-  },
-  Security: {
-    step: 'Step 2', scope: '보안 검토 (코드 수정 없음) — §2.1 보안 리뷰 작성',
-    rules: [],
-    skills: ['api-permission-map', 'auth-permission-domain', 'search-history-decrypt-domain', 'department-approver-domain', 'error-codes-domain'],
-    commands: [],
-    workflow: ['AGENT-COLLABORATION-ON-REQUIREMENT', 'WORKFLOW_CHECKLIST', 'CURSOR-SUBAGENTS-DESIGN'],
-    templates: ['REQUIREMENT_TEMPLATE'],
-    other: ['docs/security-guide.md']
-  },
-  Contract: {
-    step: 'Step 3a', scope: 'API 계약 확인·갱신 (코드 수정 없음) — docs/contract.md, specs/',
-    rules: [],
-    skills: [],
-    commands: [],
-    workflow: ['AGENT-COLLABORATION-ON-REQUIREMENT', 'DEVELOPMENT_WORKFLOW'],
-    templates: [],
-    other: ['docs/contract.md', 'specs/*.spec.yaml']
-  },
-  DBA: {
-    step: 'Step 3b', scope: '스키마·인덱스·성능 설계 검토 (코드 수정 없음)',
-    rules: [],
-    skills: ['db-domain', 'search-history-decrypt-domain', 'activity-statistics-domain', 'department-approver-domain'],
-    commands: [],
-    workflow: ['AGENT-COLLABORATION-ON-REQUIREMENT'],
-    templates: [],
-    other: ['docs/contract.md', 'schema.sql']
-  },
-  Architecture: {
-    step: 'Step 3c', scope: '성능·확장성·공통화 검토 (코드 수정 없음)',
-    rules: [],
-    skills: ['db-domain', 'search-history-decrypt-domain', 'activity-statistics-domain', 'department-approver-domain'],
-    commands: [],
-    workflow: ['AGENT-COLLABORATION-ON-REQUIREMENT', 'CURSOR-SUBAGENTS-DESIGN'],
-    templates: [],
-    other: ['docs/contract.md']
-  },
-  Consistency: {
-    step: 'Step 3d', scope: '컨벤션·네이밍·에러코드 일관성 (코드 수정 없음)',
-    rules: [],
-    skills: ['error-codes-domain'],
-    commands: [],
-    workflow: ['AGENT-COLLABORATION-ON-REQUIREMENT', 'CONSISTENCY-STANDARDS'],
-    templates: [],
-    other: ['docs/contract.md', 'docs/api-definition.md']
-  },
-  UX: {
-    step: 'Step 3d', scope: 'UI/UX·접근성·디자인 시스템 검토 (코드 수정 없음)',
-    rules: [],
-    skills: [],
-    commands: [],
-    workflow: ['AGENT-COLLABORATION-ON-REQUIREMENT', 'CURSOR-SUBAGENTS-DESIGN'],
-    templates: [],
-    other: ['docs/design/*', 'docs/cursor-subagents/ux-design.md', '.cursor/mcp.json']
-  },
-  Backend: {
-    step: 'Step 4', scope: '백엔드 구현 + 테스트 코드 — backend/',
-    rules: ['build-restart-handoff'],
-    skills: ['auth-permission-domain', 'error-codes-domain', 'dev-workflow'],
-    commands: [],
-    workflow: ['DEVELOPMENT_WORKFLOW', 'AGENT-COLLABORATION-ON-REQUIREMENT', 'CURSOR-SUBAGENTS-DESIGN'],
-    templates: ['REQUIREMENT_TEMPLATE'],
-    other: ['docs/contract.md', 'specs/*.spec.yaml']
-  },
-  Frontend: {
-    step: 'Step 4', scope: '프론트엔드 구현 + 테스트 코드 — frontend/',
-    rules: ['build-restart-handoff'],
-    skills: ['react-debugging', 'auth-permission-domain', 'ui-ux-domain', 'error-codes-domain', 'dev-workflow'],
-    commands: [],
-    workflow: ['DEVELOPMENT_WORKFLOW', 'AGENT-COLLABORATION-ON-REQUIREMENT', 'CURSOR-SUBAGENTS-DESIGN'],
-    templates: ['REQUIREMENT_TEMPLATE'],
-    other: ['docs/contract.md', 'docs/security-guide.md', '.cursor/mcp.json']
-  },
-  DB: {
-    step: 'Step 4', scope: '스키마·마이그레이션·설정 — backend/.../db/',
-    rules: [],
-    skills: ['db-domain'],
-    commands: [],
-    workflow: ['DEVELOPMENT_WORKFLOW', 'WORKFLOW_CHECKLIST', 'AGENT-COLLABORATION-ON-REQUIREMENT'],
-    templates: ['REQUIREMENT_TEMPLATE'],
-    other: ['docs/contract.md', 'schema.sql', 'setup.sh', 'init-data.sql']
-  },
-  'Backend-Auth': {
-    step: 'Step 4 (모듈)', scope: '백엔드 인증·권한 모듈 — backend/ (auth 범위)',
-    rules: [],
-    skills: ['auth-permission-domain', 'api-permission-map', 'error-codes-domain'],
-    commands: [],
-    workflow: ['DEVELOPMENT_WORKFLOW'],
-    templates: [],
-    other: ['docs/contract.md', 'docs/security-guide.md']
-  },
-  'Backend-Log': {
-    step: 'Step 4 (모듈)', scope: '백엔드 로그 검색·복호화 모듈 — backend/ (log 범위)',
-    rules: [],
-    skills: ['log-search-domain', 'search-history-decrypt-domain', 'error-codes-domain'],
-    commands: [],
-    workflow: ['DEVELOPMENT_WORKFLOW', 'AGENT-COLLABORATION-ON-REQUIREMENT'],
-    templates: [],
-    other: ['docs/contract.md', 'docs/security-guide.md']
-  },
-  'Backend-ActivityLog': {
-    step: 'Step 4 (모듈)', scope: '백엔드 활동 이력·통계 모듈 — backend/ (activity 범위)',
-    rules: [],
-    skills: ['activity-statistics-domain'],
-    commands: [],
-    workflow: ['DEVELOPMENT_WORKFLOW'],
-    templates: [],
-    other: ['docs/contract.md']
-  },
-  'Frontend-Auth': {
-    step: 'Step 4 (모듈)', scope: '프론트엔드 인증 UI — frontend/ (auth 범위)',
-    rules: [],
-    skills: ['react-debugging', 'auth-permission-domain', 'ui-ux-domain'],
-    commands: [],
-    workflow: ['DEVELOPMENT_WORKFLOW'],
-    templates: [],
-    other: ['docs/contract.md', 'docs/security-guide.md']
-  },
-  'Frontend-Log': {
-    step: 'Step 4 (모듈)', scope: '프론트엔드 로그 검색·이력 UI — frontend/ (log 범위)',
-    rules: [],
-    skills: ['react-debugging', 'log-search-domain', 'search-history-decrypt-domain'],
-    commands: [],
-    workflow: ['DEVELOPMENT_WORKFLOW'],
-    templates: [],
-    other: ['docs/contract.md', 'docs/security-guide.md']
-  },
-  'Frontend-ActivityLog': {
-    step: 'Step 4 (모듈)', scope: '프론트엔드 활동 이력·통계 UI — frontend/ (activity 범위)',
-    rules: [],
-    skills: ['react-debugging', 'activity-statistics-domain'],
-    commands: [],
-    workflow: ['DEVELOPMENT_WORKFLOW'],
-    templates: [],
-    other: ['docs/contract.md']
-  },
-  Review: {
-    step: 'Step 4.5', scope: '코드 리뷰 — 계약·품질·일관성 검증 (코드 수정 없음)',
-    rules: [],
-    skills: ['auth-permission-domain', 'error-codes-domain', 'log-search-domain', 'search-history-decrypt-domain', 'activity-statistics-domain'],
-    commands: ['review'],
-    workflow: ['AGENT-COLLABORATION-ON-REQUIREMENT', 'CONSISTENCY-STANDARDS'],
-    templates: [],
-    other: ['docs/contract.md', 'specs/*.spec.yaml']
-  },
-  QA: {
-    step: 'Step 5', scope: '검증·§5 결과 기록·커밋 — 전체 범위 읽기, 요건 문서 쓰기',
-    rules: [],
-    skills: ['test-workflow'],
-    commands: ['verify', 'commit-on-complete', 'run-tests', 'check-backend', 'check-frontend-backend'],
-    workflow: ['DEVELOPMENT_WORKFLOW', 'WORKFLOW_CHECKLIST', 'AGENT-COLLABORATION-ON-REQUIREMENT', 'SUBAGENT-DELEGATION', 'BROWSER-AUTOMATION-VERIFICATION-POLICY'],
-    templates: ['REQUIREMENT_TEMPLATE'],
-    other: ['docs/contract.md']
-  },
-  Documentation: {
-    step: 'Step 6', scope: 'README·가이드·배포 문서 — docs/, README.md',
-    rules: [],
-    skills: [],
-    commands: [],
-    workflow: ['AGENT-COLLABORATION-ON-REQUIREMENT'],
-    templates: [],
-    other: ['README.md', 'docs/QUICK_START.md', 'docs/contract.md']
-  },
-  Release: {
-    step: 'Step 6', scope: 'CHANGELOG·버전·릴리스 체크리스트',
-    rules: [],
-    skills: [],
-    commands: ['commit-on-complete'],
-    workflow: ['AGENT-COLLABORATION-ON-REQUIREMENT', 'RELEASE_CHECKLIST', 'DOCUMENT-LANGUAGE-POLICY'],
-    templates: [],
-    other: ['CHANGELOG.md']
-  }
-};
-
-const CATEGORY_CONFIG = {
-  rules:     { label: 'Rules',         color: '#f97316', dotClass: 'rules' },
-  skills:    { label: 'Skills',        color: '#06b6d4', dotClass: 'skills' },
-  commands:  { label: 'Commands',      color: '#a855f7', dotClass: 'commands' },
-  workflow:  { label: 'Workflow Docs', color: '#10b981', dotClass: 'workflow' },
-  templates: { label: 'Templates',     color: '#f43f5e', dotClass: 'template' },
-  other:     { label: 'Other Docs',    color: '#64748b', dotClass: 'other' }
-};
-
+/* ═══════ AGENT DETAIL ═══════ */
 let currentAgent = null;
 
 function showAgentDetail(agentName) {
   const data = AGENT_DATA[agentName];
   if (!data) return;
-
   document.querySelectorAll('.agent-chip.active').forEach(c => c.classList.remove('active'));
   document.querySelectorAll(`.agent-chip[data-agent="${agentName}"]`).forEach(c => c.classList.add('active'));
-
-  if (currentAgent === agentName) {
-    closeAgentDetail();
-    return;
-  }
+  if (currentAgent === agentName) { closeAgentDetail(); return; }
   currentAgent = agentName;
-
   document.getElementById('agentName').textContent = agentName;
   document.getElementById('agentStep').textContent = data.step;
   document.getElementById('agentScope').textContent = data.scope;
-
   const grid = document.getElementById('agentRefsGrid');
   grid.innerHTML = '';
-
   const categories = ['rules', 'skills', 'commands', 'workflow', 'templates', 'other'];
   let hasAny = false;
   for (const cat of categories) {
@@ -1600,33 +3679,26 @@ function showAgentDetail(agentName) {
     const cfg = CATEGORY_CONFIG[cat];
     const group = document.createElement('div');
     group.className = 'agent-ref-group';
-    group.innerHTML = `
-      <div class="agent-ref-group-title">
-        <div class="dot" style="background:${cfg.color}"></div>
-        <span style="color:${cfg.color}">${cfg.label}</span>
-        <span style="color:var(--text-dim); font-weight:400">(${items.length})</span>
-      </div>
-      <div class="agent-ref-list">
-        ${items.map(i => {
-          const fp = resolveFilepath(i);
-          const docBtn = fp ? '<button class="doc-btn" title="문서 보기" data-docbtn="' + i + '">📄</button>' : '';
-          return `<span class="agent-ref-item ${cfg.dotClass}" data-docname="${i}">${i}${docBtn}</span>`;
-        }).join('')}
-      </div>
-    `;
+    group.innerHTML =
+      '<div class="agent-ref-group-title">' +
+        '<div class="dot" style="background:' + cfg.color + '"></div>' +
+        '<span style="color:' + cfg.color + '">' + cfg.label + '</span>' +
+        '<span style="color:var(--text-dim); font-weight:400">(' + items.length + ')</span>' +
+      '</div>' +
+      '<div class="agent-ref-list">' +
+        items.map(function(i) {
+          var fp = resolveFilepath(i);
+          var docBtn = fp ? '<button class="doc-btn" title="문서 보기" data-docbtn="' + i + '">📄</button>' : '';
+          return '<span class="agent-ref-item ' + cfg.dotClass + '" data-docname="' + i + '">' + i + docBtn + '</span>';
+        }).join('') +
+      '</div>';
     grid.appendChild(group);
-    group.querySelectorAll('.doc-btn[data-docbtn]').forEach(btn => {
-      btn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        showDocPreview(btn.dataset.docbtn);
-      });
+    group.querySelectorAll('.doc-btn[data-docbtn]').forEach(function(btn) {
+      btn.addEventListener('click', function(e) { e.stopPropagation(); showDocPreview(btn.dataset.docbtn); });
     });
   }
-  if (!hasAny) {
-    grid.innerHTML = '<div class="no-refs">참조하는 도구가 없습니다 (독립 실행)</div>';
-  }
-
-  const panel = document.getElementById('agentDetailPanel');
+  if (!hasAny) grid.innerHTML = '<div class="no-refs">참조하는 도구가 없습니다 (독립 실행)</div>';
+  var panel = document.getElementById('agentDetailPanel');
   panel.classList.add('open');
   panel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 }
@@ -1637,93 +3709,192 @@ function closeAgentDetail() {
   document.querySelectorAll('.agent-chip.active').forEach(c => c.classList.remove('active'));
 }
 
+/* ═══════ SECTION INTERACTION ═══════ */
 function toggleSection(header) {
-  const body = header.nextElementSibling;
-  const toggle = header.querySelector('.section-toggle');
+  var body = header.nextElementSibling;
+  var toggle = header.querySelector('.section-toggle');
   body.classList.toggle('open');
   toggle.classList.toggle('open');
 }
 
 function toggleRefs(item) {
-  const refs = item.querySelector('.item-refs');
+  var refs = item.querySelector('.item-refs');
   if (refs) refs.classList.toggle('open');
 }
 
-document.addEventListener('DOMContentLoaded', () => {
-  document.querySelectorAll('.section-body').forEach(b => b.classList.add('open'));
-  document.querySelectorAll('.section-toggle').forEach(t => t.classList.add('open'));
+/* ═══════ RENDERING ═══════ */
+function addDocBtn(el, name) {
+  if (!resolveFilepath(name)) return;
+  var btn = document.createElement('button');
+  btn.className = 'doc-btn';
+  btn.textContent = '📄';
+  btn.title = '문서 보기';
+  btn.addEventListener('click', function(e) { e.stopPropagation(); showDocPreview(name); });
+  el.appendChild(btn);
+}
 
-  document.querySelectorAll('.item-name').forEach(el => {
-    const name = el.textContent.trim();
-    if (resolveFilepath(name)) {
-      const btn = document.createElement('button');
-      btn.className = 'doc-btn';
-      btn.textContent = '📄';
-      btn.title = '문서 보기';
-      btn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        showDocPreview(name);
+function makeClickableRef(el) {
+  var name = el.textContent.trim();
+  if (resolveFilepath(name)) {
+    el.style.cursor = 'pointer';
+    el.title = '클릭하여 문서 보기';
+    el.addEventListener('click', function(e) { e.stopPropagation(); showDocPreview(name); });
+  }
+}
+
+function renderFlowSteps() {
+  var container = document.getElementById('flowSteps');
+  flowSteps.forEach(function(step, i) {
+    if (i > 0) {
+      var arrow = document.createElement('div');
+      arrow.className = 'step-arrow';
+      arrow.textContent = '→';
+      container.appendChild(arrow);
+    }
+    var card = document.createElement('div');
+    card.className = 'step-card';
+    var agentsHtml = step.agents.map(function(a) {
+      return '<div class="agent-chip' + (a.light ? ' light' : '') +
+        '" data-agent="' + a.name + '" onclick="showAgentDetail(\'' + a.name + '\')">' +
+        a.name + '</div>';
+    }).join('');
+    card.innerHTML =
+      '<div class="step-num">' + step.step + '</div>' +
+      '<div class="step-name">' + step.name + '</div>' +
+      '<div class="step-agents">' + agentsHtml + '</div>';
+    container.appendChild(card);
+  });
+  container.querySelectorAll('.agent-chip[data-agent]').forEach(function(el) {
+    addDocBtn(el, 'agent:' + el.dataset.agent);
+  });
+}
+
+function renderItemHtml(item, color) {
+  var hasRefs = item.refs && item.refs.length > 0;
+  var html = '<div class="item"' +
+    ' style="border-left: 3px solid var(--accent-' + color + ')"' +
+    (hasRefs ? ' onclick="toggleRefs(this)"' : '') + '>' +
+    '<div class="item-name" style="color:var(--accent-' + color + ')">' + item.name + '</div>' +
+    '<div class="item-desc">' + item.desc + '</div>';
+  if (hasRefs) {
+    html += '<div class="item-refs"><div class="ref-title">참조 문서</div>';
+    item.refs.forEach(function(r) {
+      html += '<span class="ref-tag ' + r.type + '">' + r.name + '</span>';
+    });
+    html += '</div>';
+  }
+  html += '</div>';
+  return html;
+}
+
+function renderSection(cfg) {
+  var section = document.createElement('div');
+  section.className = 'section';
+  section.style.borderTop = '2px solid var(--accent-' + cfg.color + ')';
+
+  var totalCount = 0;
+  if (cfg.items) totalCount = cfg.items.length;
+  if (cfg.categories) Object.values(cfg.categories).forEach(function(arr) { totalCount += arr.length; });
+
+  section.innerHTML =
+    '<div class="section-header" onclick="toggleSection(this)">' +
+      '<div class="section-icon" style="background:var(--glow-' + cfg.color + '); color:var(--accent-' + cfg.color + ')">' + cfg.icon + '</div>' +
+      '<div class="section-title" style="color:var(--accent-' + cfg.color + ')">' + cfg.title + '</div>' +
+      '<div class="section-count">' + totalCount + ' ' + cfg.unit + '</div>' +
+      '<div class="section-toggle open">▼</div>' +
+    '</div>' +
+    '<div class="section-body open" id="sectionBody_' + cfg.id + '"></div>';
+
+  return section;
+}
+
+function renderSections() {
+  var container = document.getElementById('sectionsContainer');
+
+  var sectionConfigs = [
+    { id: 'rules', icon: '⚡', title: 'Rules (.cursor/rules/)', color: 'rules', unit: 'files',
+      items: sections.rules.items },
+    { id: 'skills', icon: '🧠', title: 'Skills (.cursor/skills/)', color: 'skills', unit: 'skills',
+      categories: sections.skills.categories },
+    { id: 'workflow', icon: '📋', title: 'Workflow Docs (docs/workflow/)', color: 'workflow', unit: 'files',
+      categories: sections.workflow.categories },
+    { id: 'templates', icon: '📝', title: 'Templates (docs/template/)', color: 'template', unit: 'files',
+      items: sections.templates.items },
+    { id: 'commands', icon: '⌨', title: 'Commands (.cursor/commands/)', color: 'commands', unit: 'files',
+      categories: sections.commands.categories, isCmdGrid: true }
+  ];
+
+  sectionConfigs.forEach(function(cfg) {
+    var sectionEl = renderSection(cfg);
+    container.appendChild(sectionEl);
+    var body = sectionEl.querySelector('.section-body');
+
+    if (cfg.categories) {
+      Object.keys(cfg.categories).forEach(function(catName) {
+        var catItems = cfg.categories[catName];
+        if (catItems.length === 0) return;
+        var catEl = document.createElement('div');
+        catEl.className = 'cmd-category';
+        catEl.textContent = catName;
+        body.appendChild(catEl);
+
+        if (cfg.isCmdGrid) {
+          var grid = document.createElement('div');
+          grid.className = 'cmd-grid';
+          catItems.forEach(function(item) {
+            var cmdItem = document.createElement('div');
+            cmdItem.className = 'cmd-item';
+            cmdItem.innerHTML =
+              '<div class="cmd-name">' + item.name + '</div>' +
+              '<div class="cmd-desc">' + item.desc + '</div>';
+            grid.appendChild(cmdItem);
+          });
+          body.appendChild(grid);
+        } else {
+          catItems.forEach(function(item) {
+            body.insertAdjacentHTML('beforeend', renderItemHtml(item, cfg.color));
+          });
+        }
       });
-      el.appendChild(btn);
+    } else if (cfg.items) {
+      cfg.items.forEach(function(item) {
+        body.insertAdjacentHTML('beforeend', renderItemHtml(item, cfg.color));
+      });
     }
   });
 
-  document.querySelectorAll('.cmd-name').forEach(el => {
-    const name = el.textContent.trim();
-    if (resolveFilepath(name)) {
-      const btn = document.createElement('button');
-      btn.className = 'doc-btn';
-      btn.textContent = '📄';
-      btn.title = '문서 보기';
-      btn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        showDocPreview(name);
-      });
-      el.appendChild(btn);
-    }
-  });
+  container.querySelectorAll('.item-name').forEach(function(el) { addDocBtn(el, el.textContent.trim()); });
+  container.querySelectorAll('.cmd-name').forEach(function(el) { addDocBtn(el, el.textContent.trim()); });
+  container.querySelectorAll('.ref-tag').forEach(makeClickableRef);
+}
 
-  document.querySelectorAll('.ref-tag, .agent-ref-item').forEach(el => {
-    const name = el.textContent.trim();
-    if (resolveFilepath(name)) {
-      el.style.cursor = 'pointer';
-      el.title = '클릭하여 문서 보기';
-      el.addEventListener('click', (e) => {
-        e.stopPropagation();
-        showDocPreview(name);
-      });
-    }
-  });
+function renderHubs() {
+  var grid = document.getElementById('hubGrid');
+  hubs.forEach(function(hub) {
+    var colorVar = hub.color === 'other' ? 'var(--text-dim)' : 'var(--accent-' + hub.color + ')';
+    var card = document.createElement('div');
+    card.className = 'hub-card';
+    card.innerHTML =
+      '<div class="hub-name" style="color:' + colorVar + '">' + hub.name + '</div>' +
+      '<div class="hub-role">' + hub.role + '</div>' +
+      '<div class="hub-refs-count">참조받는 곳 ' + hub.refsTo + '건</div>' +
+      '<div class="hub-bar"><div class="hub-bar-fill" style="width:' + hub.barWidth + '%"></div></div>';
+    grid.appendChild(card);
 
-  document.querySelectorAll('.agent-chip[data-agent]').forEach(el => {
-    const agentName = el.dataset.agent;
-    const docKey = 'agent:' + agentName;
-    if (resolveFilepath(docKey)) {
-      const btn = document.createElement('button');
-      btn.className = 'doc-btn';
-      btn.textContent = '📄';
-      btn.title = '에이전트 정의 문서 보기';
-      btn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        showDocPreview(docKey);
-      });
-      el.appendChild(btn);
-    }
+    card.querySelector('.hub-name').style.cursor = 'pointer';
+    card.querySelector('.hub-name').addEventListener('click', function(e) {
+      e.stopPropagation();
+      showDocPreview(hub.name);
+    });
   });
+}
 
-  document.querySelectorAll('.hub-name').forEach(el => {
-    const name = el.textContent.trim();
-    if (resolveFilepath(name)) {
-      el.style.cursor = 'pointer';
-      el.title = '클릭하여 문서 보기';
-      el.addEventListener('click', (e) => {
-        e.stopPropagation();
-        showDocPreview(name);
-      });
-    }
-  });
-
-  document.addEventListener('keydown', (e) => {
+/* ═══════ INIT ═══════ */
+document.addEventListener('DOMContentLoaded', function() {
+  renderFlowSteps();
+  renderSections();
+  renderHubs();
+  document.addEventListener('keydown', function(e) {
     if (e.key === 'Escape') closeDocPreview();
   });
 });

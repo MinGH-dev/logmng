@@ -49,32 +49,41 @@ screenFunctions: Record<screenId, { read: boolean, write?: boolean, approve?: bo
 
 For detailed API-to-permission-check mapping, see skill: `api-permission-map`.
 
-## APPROVE_USER pattern (approval-only permission group)
+## Approval-only permission group
 
-**Business rule**: Team leaders (팀장) must NOT view logs (no `main` screen access). They act as decrypt approvers only.
+**Definition (condition-based, group name irrelevant)**: A permission group is **approval-only** when it satisfies ALL of these conditions:
+- `allowedScreenIds` does **NOT** include `main` (no log search access)
+- `allowedScreenIds` **includes** `pending-approvals` (approval screen access)
+- (Optional) `approve=true` for the pending-approvals screen (can perform approve/reject)
 
-**Implementation**: Create a permission group (e.g. `APPROVE_USER`) with ONLY `pending-approvals` screen. The team leader is also registered in `decrypt_approver` table. This gives:
+This definition applies to **any** group matching the condition — e.g. APPROVE_USER, TEAM_APPROVER, REGIONAL_APPROVER. The group name/code is irrelevant.
+
+**Business rule**: Team leaders (팀장) must NOT view logs. They act as decrypt approvers only. Create a permission group (e.g. `APPROVE_USER`) matching the approval-only condition, and register the team leader in `decrypt_approver` table. This gives:
 - ✅ Can see pending approval requests (pending-approvals screen)
 - ✅ Can approve/reject decrypt requests (decrypt_approver + approve function)
 - ❌ Cannot search/view logs (no `main` screen)
-- ❌ Cannot view search history (no `search-history` screen)
+- ❌ Cannot view search history (no `search-history` screen, unless explicitly granted)
 
-**Constraint**: Frontend must support users whose `allowedScreenIds` does NOT include `main`. The initial view and fallback must redirect to the first allowed screen, not hardcode `main`. See req `20260304-approve-only-permission-group`.
-
-**Approver function scope rule**: Approvers (APPROVE_USER pattern) should ONLY have approval-related actions. Non-approval actions on screens they access must be hidden or disabled:
-- `search-history` screen → **재조회** (re-search): hidden for users without `main` screen (navigates to log search, which approvers must not access)
-- `search-history` screen → **재요청** (re-request): hidden for users without `main` screen (for original requesters to re-request expired approvals, not for approvers)
-- `search-history` screen → **자세히 보기** (view detail): allowed (provides approval context)
-- `pending-approvals` screen → **승인/반려**: allowed (core approver function, gated by `canApprove`)
+**Applicable rules (for all approval-only groups, regardless of name)**:
+- **Redirect**: After login, if `main` is not in `allowedScreenIds`, redirect to the first allowed screen (e.g. pending-approvals).
+- **Menu**: Sidebar shows only screens in `allowedScreenIds`. No `main` → no "로그 검색", "통계", etc.
+- **API**: `main` not in `allowedScreenIds` → log search API returns 403. `pending-approvals` + `decrypt_approver` → approve/reject API allowed.
+- **Action hiding**: Approvers should ONLY have approval-related actions. Non-approval actions on screens they access must be hidden or disabled:
+  - `search-history` screen → **재조회** (re-search): hidden for users without `main` screen
+  - `search-history` screen → **재요청** (re-request): hidden for users without `main` screen
+  - `search-history` screen → **자세히 보기** (view detail): allowed (provides approval context)
+  - `pending-approvals` screen → **승인/반려**: allowed (core approver function, gated by `canApprove`)
 
 **General rule**: If a screen action button navigates to or depends on another screen the user doesn't have access to, that button must be hidden. Use `allowedScreenIds.includes('main')` as the condition for search-related actions.
+
+**Constraint**: Frontend must support users whose `allowedScreenIds` does NOT include `main`. The initial view and fallback must redirect to the first allowed screen, not hardcode `main`. See req `20260304-approve-only-permission-group`.
 
 ## Quick reference
 
 - **All screen APIs** (user-management, permission-groups, hierarchy, main, search-history, etc.): `is_system_admin` OR user has screen in `allowedScreenIds` (from user's single permission group).
 - **Scope** (activity-log, statistics, search-history only): `self` = own data; `team` = same department (default when omitted); `all` = full. `is_system_admin` → always full.
 - **is_system_admin**: DB column `app_user.is_system_admin`. Not settable via API; init-data or DB direct edit only.
-- **APPROVE_USER pattern**: Team leaders use a permission group with only `pending-approvals` (no `main`). They must be in `decrypt_approver` to approve. Frontend must not assume `main` is always available.
+- **Approval-only permission group**: Any group where `allowedScreenIds` has no `main` + has `pending-approvals` (e.g. APPROVE_USER, TEAM_APPROVER). Same redirect/menu/API rules apply regardless of group name. Must be in `decrypt_approver` to approve. Frontend must not assume `main` is always available.
 
 ## When to use
 

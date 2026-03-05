@@ -133,3 +133,53 @@
   outline: 2px solid #07c;
   outline-offset: 2px;
 }
+
+/* Radio group for approve-supporting screens ("조회만" | "승인") */
+.screen-selection-approve-radio {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.screen-selection-radio-option {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.2rem 0.5rem;
+  font-size: 0.85rem;
+  color: #555;
+  background: #f0f0f0;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  cursor: pointer;
+  white-space: nowrap;
+  box-sizing: border-box;
+}
+
+.screen-selection-radio-option:hover {
+  background: #e5e5e5;
+  border-color: #999;
+}
+
+.screen-selection-radio-option.is-selected {
+  background: #d4e8d4;
+  border-color: #6a9f6a;
+  color: #2d5a2d;
+}
+
+.screen-selection-radio-option.is-selected:hover {
+  background: #c4e0c4;
+  border-color: #5a8f5a;
+}
+
+.screen-selection-radio-option input[type="radio"] {
+  cursor: pointer;
+  margin: 0;
+  width: 0.9rem;
+  height: 0.9rem;
+}
+
+.screen-selection-radio-option input[type="radio"]:focus {
+  outline: 2px solid #07c;
+  outline-offset: 1px;
+}
