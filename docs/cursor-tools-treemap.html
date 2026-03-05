@@ -496,7 +496,190 @@ body {
 ::-webkit-scrollbar-track { background: var(--bg); }
 ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
 ::-webkit-scrollbar-thumb:hover { background: var(--text-dim); }
+
+/* Doc Preview Drawer */
+.doc-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+}
+.doc-overlay.open { display: flex; }
+.doc-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(0,0,0,0.5);
+  cursor: pointer;
+}
+.doc-drawer {
+  position: absolute;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  width: min(680px, 90vw);
+  background: var(--bg);
+  border-left: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  transform: translateX(100%);
+  transition: transform 0.3s ease;
+  box-shadow: -8px 0 32px rgba(0,0,0,0.4);
+}
+.doc-overlay.open .doc-drawer { transform: translateX(0); }
+.doc-drawer-header {
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+  background: var(--surface);
+}
+.doc-drawer-path {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12px;
+  color: var(--text-muted);
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.doc-drawer-github {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  color: var(--accent-subagent);
+  text-decoration: none;
+  padding: 3px 8px;
+  border-radius: 4px;
+  border: 1px solid rgba(59,130,246,0.3);
+  background: var(--glow-subagent);
+  flex-shrink: 0;
+}
+.doc-drawer-github:hover { border-color: var(--accent-subagent); }
+.doc-drawer-close {
+  font-size: 18px;
+  color: var(--text-dim);
+  cursor: pointer;
+  background: none;
+  border: none;
+  padding: 4px 8px;
+  border-radius: 4px;
+  flex-shrink: 0;
+}
+.doc-drawer-close:hover { color: var(--accent-template); background: var(--surface2); }
+.doc-drawer-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 20px 24px;
+}
+.doc-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 120px;
+  color: var(--text-dim);
+  font-size: 13px;
+}
+.doc-loading .spinner {
+  width: 20px;
+  height: 20px;
+  border: 2px solid var(--border);
+  border-top-color: var(--accent-subagent);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+  margin-right: 10px;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+.doc-error {
+  padding: 16px;
+  background: var(--surface);
+  border: 1px solid rgba(244,63,94,0.3);
+  border-radius: 8px;
+  color: var(--accent-template);
+  font-size: 13px;
+}
+.doc-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  color: var(--text-dim);
+  cursor: pointer;
+  padding: 1px 5px;
+  border-radius: 3px;
+  border: 1px solid transparent;
+  background: transparent;
+  margin-left: 6px;
+  vertical-align: middle;
+  transition: all 0.15s;
+}
+.doc-btn:hover {
+  color: var(--accent-subagent);
+  border-color: rgba(59,130,246,0.3);
+  background: var(--glow-subagent);
+}
+
+/* Markdown dark theme */
+.md-content { font-size: 13px; line-height: 1.7; color: var(--text); }
+.md-content h1 { font-size: 20px; font-weight: 700; margin: 24px 0 12px; padding-bottom: 6px; border-bottom: 1px solid var(--border); color: var(--text); }
+.md-content h2 { font-size: 17px; font-weight: 700; margin: 20px 0 10px; color: var(--text); }
+.md-content h3 { font-size: 14px; font-weight: 700; margin: 16px 0 8px; color: var(--text); }
+.md-content h4, .md-content h5, .md-content h6 { font-size: 13px; font-weight: 700; margin: 12px 0 6px; color: var(--text-muted); }
+.md-content p { margin: 8px 0; }
+.md-content a { color: var(--accent-subagent); text-decoration: none; }
+.md-content a:hover { text-decoration: underline; }
+.md-content code {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12px;
+  background: var(--surface2);
+  padding: 1px 5px;
+  border-radius: 3px;
+  border: 1px solid var(--border);
+  color: var(--accent-skills);
+}
+.md-content pre {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 12px 16px;
+  overflow-x: auto;
+  margin: 10px 0;
+}
+.md-content pre code {
+  background: none;
+  border: none;
+  padding: 0;
+  color: var(--text);
+  font-size: 11px;
+}
+.md-content table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 10px 0;
+  font-size: 12px;
+}
+.md-content th, .md-content td {
+  padding: 6px 10px;
+  border: 1px solid var(--border);
+  text-align: left;
+}
+.md-content th { background: var(--surface2); font-weight: 600; color: var(--text); }
+.md-content td { color: var(--text-muted); }
+.md-content blockquote {
+  border-left: 3px solid var(--accent-workflow);
+  padding: 4px 12px;
+  margin: 8px 0;
+  color: var(--text-muted);
+  background: var(--surface);
+  border-radius: 0 6px 6px 0;
+}
+.md-content ul, .md-content ol { padding-left: 20px; margin: 6px 0; }
+.md-content li { margin: 3px 0; }
+.md-content hr { border: none; border-top: 1px solid var(--border); margin: 16px 0; }
+.md-content strong { color: var(--text); }
 </style>
+<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 </head>
 <body>
 
@@ -603,6 +786,21 @@ body {
     </div>
     <div class="agent-detail-scope" id="agentScope"></div>
     <div class="agent-refs-grid" id="agentRefsGrid"></div>
+  </div>
+</div>
+
+<!-- ═══════ DOC PREVIEW DRAWER ═══════ -->
+<div class="doc-overlay" id="docOverlay">
+  <div class="doc-backdrop" onclick="closeDocPreview()"></div>
+  <div class="doc-drawer">
+    <div class="doc-drawer-header">
+      <div class="doc-drawer-path" id="docPath"></div>
+      <a class="doc-drawer-github" id="docGithubLink" href="#" target="_blank" rel="noopener">GitHub ↗</a>
+      <button class="doc-drawer-close" onclick="closeDocPreview()">✕</button>
+    </div>
+    <div class="doc-drawer-body" id="docBody">
+      <div class="doc-loading"><div class="spinner"></div>문서를 불러오는 중…</div>
+    </div>
   </div>
 </div>
 
@@ -969,6 +1167,166 @@ body {
 </div>
 
 <script>
+const GITHUB_OWNER = 'MinGH-dev';
+const GITHUB_REPO = 'logmng';
+const GITHUB_BRANCH = 'feat/cursor-commit-on-complete';
+
+const DOC_PATHS = {
+  // Rules
+  'agent-collaboration.mdc': '.cursor/rules/agent-collaboration.mdc',
+  'core-principles.mdc': '.cursor/rules/core-principles.mdc',
+  'error-first-workflow.mdc': '.cursor/rules/error-first-workflow.mdc',
+  'post-change-test-verify.mdc': '.cursor/rules/post-change-test-verify.mdc',
+  'contract-first.mdc': '.cursor/rules/contract-first.mdc',
+  'workflow-todos.mdc': '.cursor/rules/workflow-todos.mdc',
+  'language-policy.mdc': '.cursor/rules/language-policy.mdc',
+  'build-restart-handoff.mdc': '.cursor/rules/build-restart-handoff.mdc',
+  'security-permissions.mdc': '.cursor/rules/security-permissions.mdc',
+  'file-reading-optimization.mdc': '.cursor/rules/file-reading-optimization.mdc',
+  // Skills
+  'dev-workflow': '.cursor/skills/dev-workflow/SKILL.md',
+  'test-workflow': '.cursor/skills/test-workflow/SKILL.md',
+  'requirement-doc': '.cursor/skills/requirement-doc/SKILL.md',
+  'auth-permission-domain': '.cursor/skills/auth-permission-domain/SKILL.md',
+  'api-permission-map': '.cursor/skills/api-permission-map/SKILL.md',
+  'search-history-decrypt-domain': '.cursor/skills/search-history-decrypt-domain/SKILL.md',
+  'department-approver-domain': '.cursor/skills/department-approver-domain/SKILL.md',
+  'log-search-domain': '.cursor/skills/log-search-domain/SKILL.md',
+  'activity-statistics-domain': '.cursor/skills/activity-statistics-domain/SKILL.md',
+  'error-codes-domain': '.cursor/skills/error-codes-domain/SKILL.md',
+  'ui-ux-domain': '.cursor/skills/ui-ux-domain/SKILL.md',
+  'db-domain': '.cursor/skills/db-domain/SKILL.md',
+  'react-debugging': '.cursor/skills/react-debugging/SKILL.md',
+  // Workflow Docs
+  'AGENT-COLLABORATION-ON-REQUIREMENT.md': 'docs/workflow/AGENT-COLLABORATION-ON-REQUIREMENT.md',
+  'SUBAGENT-DELEGATION.md': 'docs/workflow/SUBAGENT-DELEGATION.md',
+  'CURSOR-SUBAGENTS-DESIGN.md': 'docs/workflow/CURSOR-SUBAGENTS-DESIGN.md',
+  'WORKFLOW_CHECKLIST.md': 'docs/workflow/WORKFLOW_CHECKLIST.md',
+  'HANDOFF-CHECKLIST.md': 'docs/workflow/HANDOFF-CHECKLIST.md',
+  'ERROR-FIX-WORKFLOW-FLOWCHART.md': 'docs/workflow/ERROR-FIX-WORKFLOW-FLOWCHART.md',
+  'WORKFLOW_MODES.md': 'docs/workflow/WORKFLOW_MODES.md',
+  'SUBAGENT-MODEL-SELECTION.md': 'docs/workflow/SUBAGENT-MODEL-SELECTION.md',
+  'DEVELOPMENT_WORKFLOW.md': 'docs/workflow/DEVELOPMENT_WORKFLOW.md',
+  'BROWSER-AUTOMATION-VERIFICATION-POLICY.md': 'docs/workflow/BROWSER-AUTOMATION-VERIFICATION-POLICY.md',
+  'DOCUMENT-LANGUAGE-POLICY': 'docs/workflow/DOCUMENT-LANGUAGE-POLICY.md',
+  'CONSISTENCY-STANDARDS': 'docs/workflow/CONSISTENCY-STANDARDS.md',
+  'RELEASE_CHECKLIST': 'docs/workflow/RELEASE_CHECKLIST.md',
+  // Templates
+  'REQUIREMENT_TEMPLATE.md': 'docs/template/REQUIREMENT_TEMPLATE.md',
+  'BUGFIX_CHILD_TEMPLATE.md': 'docs/template/BUGFIX_CHILD_TEMPLATE.md',
+  'ERROR_FIX_RESULT_TEMPLATE.md': 'docs/template/ERROR_FIX_RESULT_TEMPLATE.md',
+  'AGENT_PROMPT_TEMPLATE.md': 'docs/template/AGENT_PROMPT_TEMPLATE.md',
+  // Commands (workflow)
+  'new-requirement': '.cursor/commands/new-requirement.md',
+  'fix': '.cursor/commands/fix.md',
+  'plan': '.cursor/commands/plan.md',
+  'review': '.cursor/commands/review.md',
+  'verify': '.cursor/commands/verify.md',
+  'commit-on-complete': '.cursor/commands/commit-on-complete.md',
+  'follow-workflow': '.cursor/commands/follow-workflow.md',
+  'dry-run-handoff': '.cursor/commands/dry-run-handoff.md',
+  'run-tests': '.cursor/commands/run-tests.md',
+  'record-error-fix': '.cursor/commands/record-error-fix.md',
+  // Commands (agent)
+  'agent-backend': '.cursor/commands/agent-backend.md',
+  'agent-frontend': '.cursor/commands/agent-frontend.md',
+  'agent-db': '.cursor/commands/agent-db.md',
+  // Commands (infra)
+  'start-all': '.cursor/commands/start-all.md',
+  'stop-all': '.cursor/commands/stop-all.md',
+  'restart-all': '.cursor/commands/restart-all.md',
+  'start-backend': '.cursor/commands/start-backend.md',
+  'stop-backend': '.cursor/commands/stop-backend.md',
+  'restart-backend': '.cursor/commands/restart-backend.md',
+  'start-frontend': '.cursor/commands/start-frontend.md',
+  'stop-frontend': '.cursor/commands/stop-frontend.md',
+  'restart-frontend': '.cursor/commands/restart-frontend.md',
+  'start-db': '.cursor/commands/start-db.md',
+  'stop-db': '.cursor/commands/stop-db.md',
+  'restart-db': '.cursor/commands/restart-db.md',
+  'check-backend': '.cursor/commands/check-backend.md',
+  'check-frontend-backend': '.cursor/commands/check-frontend-backend.md',
+  'check-db': '.cursor/commands/check-db.md',
+  // Other docs
+  'docs/contract.md': 'docs/contract.md',
+  'docs/security-guide.md': 'docs/security-guide.md',
+  'docs/api-definition.md': 'docs/api-definition.md',
+  'docs/QUICK_START.md': 'docs/QUICK_START.md',
+  'README.md': 'README.md',
+  'CHANGELOG.md': 'CHANGELOG.md',
+  'docs/requirements/TOPIC-INDEX.md': 'docs/requirements/TOPIC-INDEX.md',
+};
+
+const docCache = {};
+
+function getGithubApiUrl(filepath) {
+  return `https://api.github.com/repos/${GITHUB_OWNER}/${GITHUB_REPO}/contents/${filepath}?ref=${GITHUB_BRANCH}`;
+}
+
+function getGithubBlobUrl(filepath) {
+  return `https://github.com/${GITHUB_OWNER}/${GITHUB_REPO}/blob/${GITHUB_BRANCH}/${filepath}`;
+}
+
+async function fetchDocContent(filepath) {
+  if (docCache[filepath]) return docCache[filepath];
+  const resp = await fetch(getGithubApiUrl(filepath), {
+    headers: { 'Accept': 'application/vnd.github.v3+json' }
+  });
+  if (!resp.ok) {
+    if (resp.status === 403) throw new Error('GitHub API rate limit (60/hour). 잠시 후 다시 시도해 주세요.');
+    if (resp.status === 404) throw new Error('파일을 찾을 수 없습니다 (404). 경로 또는 브랜치를 확인해 주세요.');
+    throw new Error(`GitHub API error: ${resp.status}`);
+  }
+  const data = await resp.json();
+  const content = decodeURIComponent(escape(atob(data.content)));
+  docCache[filepath] = content;
+  return content;
+}
+
+function renderMarkdown(raw) {
+  if (typeof marked !== 'undefined' && marked.parse) {
+    return marked.parse(raw);
+  }
+  return '<pre style="white-space:pre-wrap">' + raw.replace(/</g, '&lt;') + '</pre>';
+}
+
+function resolveFilepath(name) {
+  if (DOC_PATHS[name]) return DOC_PATHS[name];
+  const trimmed = name.replace(/\.md$/, '').replace(/\.mdc$/, '');
+  if (DOC_PATHS[trimmed]) return DOC_PATHS[trimmed];
+  if (DOC_PATHS[trimmed + '.md']) return DOC_PATHS[trimmed + '.md'];
+  if (DOC_PATHS[trimmed + '.mdc']) return DOC_PATHS[trimmed + '.mdc'];
+  return null;
+}
+
+async function showDocPreview(name) {
+  const filepath = resolveFilepath(name);
+  if (!filepath) return;
+
+  const overlay = document.getElementById('docOverlay');
+  const body = document.getElementById('docBody');
+  const pathEl = document.getElementById('docPath');
+  const linkEl = document.getElementById('docGithubLink');
+
+  pathEl.textContent = filepath;
+  linkEl.href = getGithubBlobUrl(filepath);
+  body.innerHTML = '<div class="doc-loading"><div class="spinner"></div>문서를 불러오는 중…</div>';
+  overlay.classList.add('open');
+  document.body.style.overflow = 'hidden';
+
+  try {
+    const content = await fetchDocContent(filepath);
+    body.innerHTML = '<div class="md-content">' + renderMarkdown(content) + '</div>';
+  } catch (err) {
+    body.innerHTML = '<div class="doc-error">' + err.message + '</div>';
+  }
+}
+
+function closeDocPreview() {
+  document.getElementById('docOverlay').classList.remove('open');
+  document.body.style.overflow = '';
+}
+
 const AGENT_DATA = {
   Requirements: {
     step: 'Step 1', scope: '요건 문서 작성 — docs/requirements/, specs/, docs/template/',
@@ -1208,10 +1566,22 @@ function showAgentDetail(agentName) {
         <span style="color:var(--text-dim); font-weight:400">(${items.length})</span>
       </div>
       <div class="agent-ref-list">
-        ${items.map(i => `<span class="agent-ref-item ${cfg.dotClass}">${i}</span>`).join('')}
+        ${items.map(i => {
+          const fp = resolveFilepath(i);
+          const clickable = fp ? ' style="cursor:pointer" title="클릭하여 문서 보기"' : '';
+          return `<span class="agent-ref-item ${cfg.dotClass}"${clickable} data-docname="${i}">${i}</span>`;
+        }).join('')}
       </div>
     `;
     grid.appendChild(group);
+    group.querySelectorAll('.agent-ref-item[data-docname]').forEach(el => {
+      if (resolveFilepath(el.dataset.docname)) {
+        el.addEventListener('click', (e) => {
+          e.stopPropagation();
+          showDocPreview(el.dataset.docname);
+        });
+      }
+    });
   }
   if (!hasAny) {
     grid.innerHTML = '<div class="no-refs">참조하는 도구가 없습니다 (독립 실행)</div>';
@@ -1243,6 +1613,64 @@ function toggleRefs(item) {
 document.addEventListener('DOMContentLoaded', () => {
   document.querySelectorAll('.section-body').forEach(b => b.classList.add('open'));
   document.querySelectorAll('.section-toggle').forEach(t => t.classList.add('open'));
+
+  document.querySelectorAll('.item-name').forEach(el => {
+    const name = el.textContent.trim();
+    if (resolveFilepath(name)) {
+      const btn = document.createElement('button');
+      btn.className = 'doc-btn';
+      btn.textContent = '📄';
+      btn.title = '문서 보기';
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        showDocPreview(name);
+      });
+      el.appendChild(btn);
+    }
+  });
+
+  document.querySelectorAll('.cmd-name').forEach(el => {
+    const name = el.textContent.trim();
+    if (resolveFilepath(name)) {
+      const btn = document.createElement('button');
+      btn.className = 'doc-btn';
+      btn.textContent = '📄';
+      btn.title = '문서 보기';
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        showDocPreview(name);
+      });
+      el.appendChild(btn);
+    }
+  });
+
+  document.querySelectorAll('.ref-tag, .agent-ref-item').forEach(el => {
+    const name = el.textContent.trim();
+    if (resolveFilepath(name)) {
+      el.style.cursor = 'pointer';
+      el.title = '클릭하여 문서 보기';
+      el.addEventListener('click', (e) => {
+        e.stopPropagation();
+        showDocPreview(name);
+      });
+    }
+  });
+
+  document.querySelectorAll('.hub-name').forEach(el => {
+    const name = el.textContent.trim();
+    if (resolveFilepath(name)) {
+      el.style.cursor = 'pointer';
+      el.title = '클릭하여 문서 보기';
+      el.addEventListener('click', (e) => {
+        e.stopPropagation();
+        showDocPreview(name);
+      });
+    }
+  });
+
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') closeDocPreview();
+  });
 });
 </script>
 </body>
