@@ -135,6 +135,7 @@ body {
   display: flex;
   flex-direction: column;
   gap: 4px;
+  align-items: flex-start;
 }
 .agent-chip {
   font-family: 'JetBrains Mono', monospace;
@@ -147,6 +148,10 @@ body {
   cursor: pointer;
   transition: all 0.2s;
   position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  width: fit-content;
 }
 .agent-chip:hover {
   background: var(--glow-subagent);
@@ -1246,6 +1251,28 @@ const DOC_PATHS = {
   'check-backend': '.cursor/commands/check-backend.md',
   'check-frontend-backend': '.cursor/commands/check-frontend-backend.md',
   'check-db': '.cursor/commands/check-db.md',
+  // Agents
+  'agent:Requirements': '.cursor/agents/Requirements.mdc',
+  'agent:RequirementsPastSearch': '.cursor/agents/RequirementsPastSearch.mdc',
+  'agent:Security': '.cursor/agents/Security.mdc',
+  'agent:Contract': '.cursor/agents/Contract.mdc',
+  'agent:DBA': '.cursor/agents/DBA.mdc',
+  'agent:Architecture': '.cursor/agents/Architecture.mdc',
+  'agent:Consistency': '.cursor/agents/Consistency.mdc',
+  'agent:UX': '.cursor/agents/UX.mdc',
+  'agent:Backend': '.cursor/agents/Backend.mdc',
+  'agent:Frontend': '.cursor/agents/Frontend.mdc',
+  'agent:DB': '.cursor/agents/DB.mdc',
+  'agent:Backend-Auth': '.cursor/agents/Backend-Auth.mdc',
+  'agent:Backend-Log': '.cursor/agents/Backend-Log.mdc',
+  'agent:Backend-ActivityLog': '.cursor/agents/Backend-ActivityLog.mdc',
+  'agent:Frontend-Auth': '.cursor/agents/Frontend-Auth.mdc',
+  'agent:Frontend-Log': '.cursor/agents/Frontend-Log.mdc',
+  'agent:Frontend-ActivityLog': '.cursor/agents/Frontend-ActivityLog.mdc',
+  'agent:Review': '.cursor/agents/Review.mdc',
+  'agent:QA': '.cursor/agents/QA.mdc',
+  'agent:Documentation': '.cursor/agents/Documentation.mdc',
+  'agent:Release': '.cursor/agents/Release.mdc',
   // Other docs
   'docs/contract.md': 'docs/contract.md',
   'docs/security-guide.md': 'docs/security-guide.md',
@@ -1662,6 +1689,22 @@ document.addEventListener('DOMContentLoaded', () => {
         e.stopPropagation();
         showDocPreview(name);
       });
+    }
+  });
+
+  document.querySelectorAll('.agent-chip[data-agent]').forEach(el => {
+    const agentName = el.dataset.agent;
+    const docKey = 'agent:' + agentName;
+    if (resolveFilepath(docKey)) {
+      const btn = document.createElement('button');
+      btn.className = 'doc-btn';
+      btn.textContent = '📄';
+      btn.title = '에이전트 정의 문서 보기';
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        showDocPreview(docKey);
+      });
+      el.appendChild(btn);
     }
   });
 
