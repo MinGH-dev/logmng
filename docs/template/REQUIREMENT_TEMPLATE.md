@@ -52,6 +52,8 @@ When **Security** subagent has reviewed: summarize risks, acceptance criteria, a
 
 #### Solution approach
 
+Structure by scope so each implementing agent receives only its relevant section during handoff. Use scope headers (`Frontend:`, `Backend:`, `DB:`) consistently.
+
 **Frontend:**
 - [Change 1]
 - [Change 2]
@@ -60,9 +62,14 @@ When **Security** subagent has reviewed: summarize risks, acceptance criteria, a
 - [Change 1]
 - [Change 2]
 
+**DB:**
+- [None or change description]
+
 ### Change file list
 
 **(Tentative. Implementing agent (Step 4) confirms or updates with actual files changed.)**
+
+Structure by scope to enable scope-specific excerpt extraction for handoff (see `HANDOFF-CHECKLIST.md`).
 
 #### Frontend
 - `path/filename.js`
@@ -72,8 +79,8 @@ When **Security** subagent has reviewed: summarize risks, acceptance criteria, a
 - `path/filename.java`
   - [Change description]
 
-### Database changes
-[None or change description]
+#### DB
+- [None or change description]
 
 ## 3. Test approach
 
@@ -85,11 +92,14 @@ Define test cases before unit/integration test execution. Update when the requir
 
 **Mandatory automated tests (Definition of Done)**: For every requirement, **all modified or added code** must be covered by automated tests. For each TC whose verification method is **Unit** or **Integration**, the implementing agent (Step 4 — Backend, Frontend, or DB) **must add or extend** test code (JUnit, Jest, or documented integration/curl) so that the TC is executed as part of `mvn test` / `npm test` or a documented integration procedure. TCs marked **Manual** or **Manual / browser** only are exempt. This ensures QA has runnable tests for every automated TC and avoids "no test code was written" gaps. See `docs/workflow/SUBAGENT-DELEGATION.md` §3 (Step 4).
 
-| ID | Type | Scenario (input / condition) | Expected result | Verification (unit / integration / manual) |
-|----|------|------------------------------|-----------------|--------------------------------------------|
-| TC-01 | Normal | [Description] | [Expected] | Unit (mvn test / npm test) or integration (curl) |
-| TC-02 | Exception | [Description] | [Expected] | [Method] |
-| TC-03 | Edge | [Description] | [Expected] | [Method] |
+**Scope tag**: Tag each TC with a **Scope** (`Backend`, `Frontend`, `DB`, `Integration`) so the main agent can extract scope-specific TCs for handoff. Include `Integration` TCs that imply backend behavior in Backend handoffs as well. See `HANDOFF-CHECKLIST.md`.
+
+| ID | Scope | Type | Scenario (input / condition) | Expected result | Verification (unit / integration / manual) |
+|----|-------|------|------------------------------|-----------------|--------------------------------------------|
+| TC-01 | Backend | Normal | [Description] | [Expected] | Unit (mvn test) |
+| TC-02 | Frontend | Normal | [Description] | [Expected] | Unit (npm test) |
+| TC-03 | Integration | Exception | [Description] | [Expected] | Integration (curl / browser) |
+| TC-04 | Backend | Edge | [Description] | [Expected] | [Method] |
 
 ### Test scenarios
 
