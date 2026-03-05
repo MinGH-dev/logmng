@@ -41,3 +41,7 @@ When a change **spans multiple agent scopes** (e.g. Backend + DB, Frontend + Con
 5. **Merge order**: DB schema first → Backend API → Frontend UI. Later agents adapt to earlier agents' output.
 
 Reference: `docs/workflow/SUBAGENT-DELEGATION.md`, `docs/workflow/AGENT-COLLABORATION-ON-REQUIREMENT.md`, `docs/workflow/CURSOR-SUBAGENTS-DESIGN.md` §3.
+
+## Post-commit: workflow change verification
+
+When the agent **commits changes** to workflow files (`.cursor/rules/`, `.cursor/commands/`, `docs/workflow/`, `docs/template/`), **automatically run** the dry-run handoff verification per `.cursor/commands/dry-run-handoff.md` — generate handoff prompts for a virtual requirement (Requirements → Backend → QA) and check each rule in the verification table. No code changes; prompts only.
