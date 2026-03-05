@@ -142,7 +142,7 @@ Agent가 작업을 완료한 후:
 
 프로젝트는 **6개 레이어**의 도구가 협력합니다. 전체 흐름도는 [README.md (루트)](../README.md)의 "전체 도구 워크플로우" 참조.
 
-> **인터랙티브 트리맵**: 규칙·스킬·명령어·워크플로우·서브에이전트의 동작 흐름과 문서 참조 관계를 시각적으로 확인 → [**라이브 페이지**](https://mingh-dev.github.io/logmng/) | [소스](cursor-tools-treemap.html)
+> **인터랙티브 트리맵**: 규칙·스킬·명령어·워크플로우·서브에이전트의 동작 흐름과 문서 참조 관계를 시각적으로 확인 → [**라이브 페이지**](https://htmlpreview.github.io/?https://github.com/MinGH-dev/logmng/blob/feat/cursor-commit-on-complete/docs/cursor-tools-treemap.html) | [소스](cursor-tools-treemap.html)
 
 | 레이어 | 위치 | 수량 | 역할 |
 |--------|------|------|------|
