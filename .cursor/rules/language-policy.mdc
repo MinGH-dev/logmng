@@ -16,7 +16,7 @@ Respond in the **user's requested language** (e.g. Korean). Code, file paths, id
 ## Requirement documents
 
 - **Author** in English first (§1, §2, §3). Template: `docs/template/REQUIREMENT_TEMPLATE.md`.
-- **After verification**: add Korean final version (§ Final version or `-ko.md`).
+- **Responsibility**: The **Requirements** subagent authors §1·§2·§3 in English. After verification, Requirements adds Korean final version (§ Final version or `-ko.md`). The main agent does not author requirement content.
 - **Commit message**: reference the requirement doc (e.g. `req yyyyMMdd-name`).
 
 Detail: `docs/workflow/DOCUMENT-LANGUAGE-POLICY.md`.

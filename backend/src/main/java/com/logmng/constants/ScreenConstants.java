@@ -16,7 +16,7 @@ public final class ScreenConstants {
     public static final String ACTIVITY_LOG = "activity-log";
     public static final String STATISTICS = "statistics";
 
-    /** Screens that support scope ('self'|'all'). Per req 20250303-activity-statistics-self-only-scope. */
+    /** Screens that support scope ('self'|'team'|'all'). Per req 20250303, 20250304-team-scope-default-and-approval. */
     private static final Set<String> SCREENS_WITH_SCOPE = Collections.unmodifiableSet(
             Arrays.asList(SEARCH_HISTORY, ACTIVITY_LOG, STATISTICS).stream().collect(Collectors.toSet())
     );

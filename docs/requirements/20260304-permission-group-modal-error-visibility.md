@@ -76,13 +76,16 @@ Not required for this requirement (no new PII/decryption/access scope). If the u
   - Reused `.user-management-error` and `role="alert"` for in-dialog error blocks.
 - `frontend/src/components/PermissionGroupManagement/PermissionGroupManagement.css` — **not changed** (existing `.user-management-error` from UserManagement.css is sufficient).
 
-#### Backend
+#### Backend (Part 2 — confirmed by Backend agent)
 
-- **None until root cause is confirmed.** If the root cause is backend (e.g. PermissionGroupService, PermissionGroupController, or DTO/deserializer), the implementing agent will add the relevant files (e.g. `PermissionGroupService.java`, `PermissionGroupController.java`) to §2 when implementation is done.
+- `backend/src/main/java/com/logmng/dto/response/AllowedScreenItem.java` — Comment: scope doc from 'self'|'all' to 'self'|'team'|'all'; null default described as 'team'.
+- `backend/src/main/java/com/logmng/constants/ScreenConstants.java` — Comment: scope-supporting screens doc from 'self'|'all' to 'self'|'team'|'all'.
+- `backend/src/main/java/com/logmng/dto/response/LoginResponse.java` — Comment: screenScopes value doc from 'self'|'all' to 'self'|'team'|'all'.
+- `backend/src/test/java/com/logmng/service/PermissionGroupServiceTest.java` — Added `create_withSearchHistoryScopeTeamAndApprove_storesSuccessfully` for TC-02 (search-history + scope=team + approve). No code path in PermissionGroupService emitted "scope는 'self' 또는 'all'이어야 합니다"; the only scope validation is in `validateAllowedScreens()` and already accepts 'self', 'team', 'all'.
 
 ### Database changes
 
-None expected for Part 1. Part 2 may require DB or schema change only if the underlying error is due to a constraint or migration; to be confirmed after reproduction.
+Part 1: none. Part 2: **If the project's DB was never run with the team-scope migration**, apply `backend/src/main/resources/db/migrate-permission-group-screen-scope-team.sql` so that `permission_group_screen.scope` CHECK allows `'team'`. Schema and migration already define `CHECK (scope IS NULL OR scope IN ('self', 'all', 'team'))`.
 
 ---
 
@@ -216,10 +219,10 @@ None expected for Part 1. Part 2 may require DB or schema change only if the und
 Record root cause and actions under this requirement. Template: `docs/template/ERROR_FIX_RESULT_TEMPLATE.md`.
 
 - **Requirement ID**: 20260304-permission-group-modal-error-visibility
-- **Root cause**: [To be filled after Part 2 investigation — e.g. backend validation, DB constraint, or frontend payload.]
-- **Actions taken**: [Summary of Part 1 (in-modal error) and Part 2 (underlying fix).]
-- **Result**: [Verification method and result.]
-- **Completed**: yyyy-MM-dd HH:mm
+- **Root cause**: User-reported error when saving APPROVE_USER + search-history scope **team**: backend returns message "scope는 'self' 또는 'all'이어야 합니다: team". In the current codebase no path emits that exact message; the only scope validation is in PermissionGroupService.validateAllowedScreens() and already accepts 'self', 'team', 'all'. Likely causes: (1) deployed build was older, or (2) DB had not applied migrate-permission-group-screen-scope-team.sql (CHECK only allowed 'self'/'all').
+- **Actions taken**: Part 1 (Frontend): show create/edit/delete errors inside modals. Part 2 (Backend): confirmed single scope validation in PermissionGroupService (accepts self/team/all); updated comments in AllowedScreenItem, ScreenConstants, LoginResponse to 'self'|'team'|'all'; added unit test for search-history + scope=team + approve; documented that migrate-permission-group-screen-scope-team.sql must be applied if DB lacks 'team' in scope CHECK.
+- **Result**: Backend unit tests (PermissionGroupServiceTest) pass, including create_withSearchHistoryScopeTeamAndApprove_storesSuccessfully. Pending QA TC-02 (manual/browser) for end-to-end verification.
+- **Completed**: 2026-03-04 (Backend implementation; QA verification pending)
 
 ---
 

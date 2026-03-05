@@ -72,9 +72,18 @@ These APIs check **screen access** (Layer 1 interceptor or controller `requireUs
 
 | Method | Path | Controller | Screen | Scope enforcement |
 |--------|------|------------|--------|-------------------|
-| GET | `/api/search-history` | SearchHistoryController | search-history | self/all via ScopeHelper |
+| GET | `/api/search-history` | SearchHistoryController | search-history | self/team/all via ScopeHelper; list only |
 | GET | `/api/activity-log/*` | UserActivityLogController | activity-log | self/all via ScopeHelper |
 | GET | `/api/statistics/*` | ActivityStatisticsController | statistics | self/all via ScopeHelper |
+
+## Requester-only APIs (no admin/scope bypass)
+
+These APIs allow access **only when** the record's `user_id` equals the current user. **is_system_admin** and scope (all/team) do **not** bypass; only the requester can call them. Denial: 403, FUNCTION_NOT_ALLOWED. Ref: req 20260304-search-history-action-requester-only, search-history-decrypt-domain SKILL.
+
+| Method | Path | Controller | Notes |
+|--------|------|------------|--------|
+| GET | `/api/search-history/{id}` | SearchHistoryController | Detail for re-search; requester only |
+| POST | `/api/search-history/{id}/re-request` | SearchHistoryController | Re-request expired; requester only |
 
 ## Deprecated endpoints
 

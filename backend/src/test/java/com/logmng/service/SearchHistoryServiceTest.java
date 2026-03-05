@@ -1,12 +1,13 @@
 package com.logmng.service;
 
-import com.logmng.dto.request.LogDbSearchRequest;
-import com.logmng.dto.response.LogDbSearchResponse;
+import com.logmng.dto.response.SearchHistoryListResponse;
+import com.logmng.exception.CustomException;
 import com.logmng.util.CryptoUtil;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.http.HttpStatus;
 import org.springframework.test.util.ReflectionTestUtils;
 
 import javax.sql.DataSource;
@@ -14,11 +15,14 @@ import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.Statement;
+import java.sql.Timestamp;
+import java.time.Instant;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /**
  * Unit tests for SearchHistoryService (decryption approval snapshot).
@@ -53,6 +57,10 @@ class SearchHistoryServiceTest {
             stmt.execute("CREATE TABLE IF NOT EXISTS search_history_approved_row (" +
                     "search_history_id BIGINT NOT NULL, log_type VARCHAR(50) NOT NULL, row_id VARCHAR(512) NOT NULL, " +
                     "PRIMARY KEY (search_history_id, log_type, row_id))");
+            stmt.execute("CREATE TABLE IF NOT EXISTS search_history (" +
+                    "id BIGINT PRIMARY KEY, user_id VARCHAR(100), log_type VARCHAR(50), search_params CLOB, " +
+                    "requested_at TIMESTAMP, expires_at TIMESTAMP, approval_status VARCHAR(20), approved_by VARCHAR(100), approved_at TIMESTAMP, " +
+                    "rejected_by VARCHAR(100), rejected_at TIMESTAMP, rejection_reason VARCHAR(500), created_at TIMESTAMP, updated_at TIMESTAMP)");
         }
         org.h2.jdbcx.JdbcDataSource ds = new org.h2.jdbcx.JdbcDataSource();
         ds.setURL(H2_URL);
@@ -168,19 +176,99 @@ class SearchHistoryServiceTest {
     }
 
     private static void createSearchHistoryTableAndInsertPending(DataSource ds, long id, String logType, String searchParams) throws Exception {
-        try (Connection conn = ds.getConnection(); Statement stmt = conn.createStatement()) {
-            stmt.execute("CREATE TABLE IF NOT EXISTS search_history (" +
-                    "id BIGINT PRIMARY KEY, user_id VARCHAR(100), log_type VARCHAR(50), search_params CLOB, approval_status VARCHAR(20), " +
-                    "approved_by VARCHAR(100), approved_at TIMESTAMP, updated_at TIMESTAMP)");
-        }
+        Timestamp requestedAt = Timestamp.from(Instant.now());
+        Timestamp expiresAt = Timestamp.from(Instant.now().plusSeconds(86400));
         try (Connection conn = ds.getConnection();
-             PreparedStatement ps = conn.prepareStatement("INSERT INTO search_history (id, user_id, log_type, search_params, approval_status, updated_at) VALUES (?, ?, ?, ?, 'PENDING', CURRENT_TIMESTAMP)")) {
+             PreparedStatement ps = conn.prepareStatement("INSERT INTO search_history (id, user_id, log_type, search_params, approval_status, requested_at, expires_at, updated_at) VALUES (?, ?, ?, ?, 'PENDING', ?, ?, CURRENT_TIMESTAMP)")) {
             ps.setLong(1, id);
             ps.setString(2, "requester1");
             ps.setString(3, logType);
             ps.setString(4, searchParams);
+            ps.setTimestamp(5, requestedAt);
+            ps.setTimestamp(6, expiresAt);
             ps.executeUpdate();
         }
+    }
+
+    /** Insert a search_history row for list/getDetail/reRequest tests. expired=true sets expires_at in the past and status EXPIRED for reRequest. */
+    private static long insertSearchHistoryRow(DataSource ds, long id, String ownerUserId, boolean expired) throws Exception {
+        Timestamp requestedAt = Timestamp.from(Instant.now().minusSeconds(3600));
+        Timestamp expiresAt = expired ? Timestamp.from(Instant.now().minusSeconds(3600)) : Timestamp.from(Instant.now().plusSeconds(86400));
+        String status = expired ? "EXPIRED" : "PENDING";
+        try (Connection conn = ds.getConnection();
+             PreparedStatement ps = conn.prepareStatement("INSERT INTO search_history (id, user_id, log_type, search_params, requested_at, expires_at, approval_status, updated_at) VALUES (?, ?, ?, '{}', ?, ?, ?, CURRENT_TIMESTAMP)")) {
+            ps.setLong(1, id);
+            ps.setString(2, ownerUserId);
+            ps.setString(3, "java_fw_imglog");
+            ps.setTimestamp(4, requestedAt);
+            ps.setTimestamp(5, expiresAt);
+            ps.setString(6, status);
+            ps.executeUpdate();
+        }
+        return id;
+    }
+
+    // ---- Requester-only: list always has userId; getDetail/reRequest only for owner (TC-01–TC-05) ----
+
+    @Test
+    void list_alwaysReturnsUserIdInEveryRow() throws Exception {
+        insertSearchHistoryRow(dataSource, 100L, "user1", false);
+
+        SearchHistoryListResponse resp = searchHistoryService.list("user1", 1, 20, "requested_at", "desc", false, null);
+
+        assertThat(resp.getData()).isNotEmpty();
+        for (Map<String, Object> row : resp.getData()) {
+            assertThat(row).containsKey("userId");
+            assertThat(row.get("userId")).isEqualTo("user1");
+        }
+    }
+
+    @Test
+    void getDetail_allowsRequesterOwnRow() throws Exception {
+        long id = insertSearchHistoryRow(dataSource, 101L, "user1", false);
+
+        Map<String, Object> detail = searchHistoryService.getDetail("user1", id, false, null);
+
+        assertThat(detail).isNotNull();
+        assertThat(detail.get("id")).isEqualTo(id);
+        assertThat(detail.get("logType")).isEqualTo("java_fw_imglog");
+    }
+
+    @Test
+    void reRequest_allowsRequesterOwnExpiredRow() throws Exception {
+        long id = insertSearchHistoryRow(dataSource, 102L, "user1", true);
+
+        Map<String, Object> result = searchHistoryService.reRequest("user1", id, false, null);
+
+        assertThat(result).isNotNull();
+        assertThat(result.get("id")).isEqualTo(id);
+        assertThat(result.get("approvalStatus")).isEqualTo("PENDING");
+    }
+
+    @Test
+    void getDetail_returns403WhenNotRequester() throws Exception {
+        long id = insertSearchHistoryRow(dataSource, 103L, "ownerUser", false);
+
+        assertThatThrownBy(() -> searchHistoryService.getDetail("otherUser", id, true, List.of("ownerUser")))
+                .isInstanceOf(CustomException.class)
+                .satisfies(e -> {
+                    CustomException ex = (CustomException) e;
+                    assertThat(ex.getHttpStatus()).isEqualTo(HttpStatus.FORBIDDEN);
+                    assertThat(ex.getErrorCode()).isEqualTo("FUNCTION_NOT_ALLOWED");
+                });
+    }
+
+    @Test
+    void reRequest_returns403WhenNotRequester() throws Exception {
+        long id = insertSearchHistoryRow(dataSource, 104L, "ownerUser", true);
+
+        assertThatThrownBy(() -> searchHistoryService.reRequest("otherUser", id, true, List.of("ownerUser")))
+                .isInstanceOf(CustomException.class)
+                .satisfies(e -> {
+                    CustomException ex = (CustomException) e;
+                    assertThat(ex.getHttpStatus()).isEqualTo(HttpStatus.FORBIDDEN);
+                    assertThat(ex.getErrorCode()).isEqualTo("FUNCTION_NOT_ALLOWED");
+                });
     }
 
 }

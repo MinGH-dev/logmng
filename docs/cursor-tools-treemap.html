@@ -1,0 +1,983 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cursor Tools & Workflow Tree Map</title>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Noto+Sans+KR:wght@300;400;600;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #0a0e17;
+  --surface: #111827;
+  --surface2: #1a2332;
+  --border: #2a3a50;
+  --accent-rules: #f97316;
+  --accent-skills: #06b6d4;
+  --accent-commands: #a855f7;
+  --accent-workflow: #10b981;
+  --accent-template: #f43f5e;
+  --accent-subagent: #3b82f6;
+  --text: #e2e8f0;
+  --text-muted: #94a3b8;
+  --text-dim: #64748b;
+  --glow-rules: rgba(249,115,22,0.15);
+  --glow-skills: rgba(6,182,212,0.15);
+  --glow-commands: rgba(168,85,247,0.15);
+  --glow-workflow: rgba(16,185,129,0.15);
+  --glow-template: rgba(244,63,94,0.15);
+  --glow-subagent: rgba(59,130,246,0.15);
+}
+* { margin:0; padding:0; box-sizing:border-box; }
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'Noto Sans KR', sans-serif;
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+.header {
+  text-align: center;
+  padding: 40px 20px 20px;
+  position: relative;
+}
+.header h1 {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 28px;
+  font-weight: 700;
+  background: linear-gradient(135deg, #f97316, #06b6d4, #a855f7);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  letter-spacing: -0.5px;
+}
+.header p {
+  color: var(--text-muted);
+  font-size: 14px;
+  margin-top: 8px;
+}
+.legend {
+  display: flex;
+  justify-content: center;
+  gap: 20px;
+  padding: 16px 20px;
+  flex-wrap: wrap;
+}
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--text-muted);
+  font-family: 'JetBrains Mono', monospace;
+}
+.legend-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 3px;
+}
+
+/* Main Flow */
+.flow-container {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 20px;
+}
+.flow-title {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--text);
+  margin-bottom: 16px;
+  padding-left: 8px;
+  border-left: 3px solid var(--accent-subagent);
+}
+.flow-steps {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding-bottom: 16px;
+  align-items: stretch;
+}
+.step-card {
+  flex: 1;
+  min-width: 180px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 16px;
+  position: relative;
+  transition: all 0.3s ease;
+}
+.step-card:hover {
+  border-color: var(--accent-subagent);
+  box-shadow: 0 0 20px var(--glow-subagent);
+  transform: translateY(-2px);
+}
+.step-num {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--accent-subagent);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  margin-bottom: 6px;
+}
+.step-name {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text);
+  margin-bottom: 8px;
+}
+.step-agents {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.agent-chip {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  padding: 3px 8px;
+  border-radius: 4px;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.agent-chip:hover {
+  background: var(--glow-subagent);
+  border-color: var(--accent-subagent);
+  color: var(--text);
+}
+.agent-chip.light { opacity: 0.7; font-style: italic; }
+.step-arrow {
+  display: flex;
+  align-items: center;
+  color: var(--text-dim);
+  font-size: 20px;
+  flex-shrink: 0;
+}
+
+/* Sections */
+.sections {
+  max-width: 1400px;
+  margin: 30px auto;
+  padding: 0 20px;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(420px, 1fr));
+  gap: 20px;
+}
+.section {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  overflow: hidden;
+  transition: all 0.3s;
+}
+.section:hover {
+  border-color: var(--border);
+}
+.section-header {
+  padding: 16px 20px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+  user-select: none;
+}
+.section-header:hover {
+  background: var(--surface2);
+}
+.section-icon {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  flex-shrink: 0;
+}
+.section-title {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 14px;
+  font-weight: 700;
+  flex: 1;
+}
+.section-count {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  color: var(--text-dim);
+  padding: 2px 8px;
+  border-radius: 10px;
+  background: var(--surface2);
+}
+.section-toggle {
+  color: var(--text-dim);
+  font-size: 14px;
+  transition: transform 0.3s;
+}
+.section-toggle.open { transform: rotate(180deg); }
+.section-body {
+  padding: 0 20px 16px;
+  display: none;
+}
+.section-body.open { display: block; }
+
+/* Item rows */
+.item {
+  padding: 10px 12px;
+  margin: 4px 0;
+  border-radius: 8px;
+  background: var(--surface2);
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.item:hover {
+  border-color: var(--border);
+}
+.item-name {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12px;
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+.item-desc {
+  font-size: 12px;
+  color: var(--text-muted);
+  line-height: 1.5;
+}
+.item-refs {
+  display: none;
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid var(--border);
+}
+.item-refs.open { display: block; }
+.ref-title {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  margin-bottom: 6px;
+}
+.ref-tag {
+  display: inline-block;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  padding: 2px 6px;
+  margin: 2px;
+  border-radius: 3px;
+  border: 1px solid;
+  cursor: default;
+}
+.ref-tag.rules { color: var(--accent-rules); border-color: rgba(249,115,22,0.3); background: var(--glow-rules); }
+.ref-tag.skills { color: var(--accent-skills); border-color: rgba(6,182,212,0.3); background: var(--glow-skills); }
+.ref-tag.commands { color: var(--accent-commands); border-color: rgba(168,85,247,0.3); background: var(--glow-commands); }
+.ref-tag.workflow { color: var(--accent-workflow); border-color: rgba(16,185,129,0.3); background: var(--glow-workflow); }
+.ref-tag.template { color: var(--accent-template); border-color: rgba(244,63,94,0.3); background: var(--glow-template); }
+.ref-tag.other { color: var(--text-dim); border-color: var(--border); background: var(--surface); }
+
+/* Ref map section */
+.ref-map {
+  max-width: 1400px;
+  margin: 30px auto;
+  padding: 0 20px 40px;
+}
+.ref-map-title {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--text);
+  margin-bottom: 16px;
+  padding-left: 8px;
+  border-left: 3px solid var(--accent-workflow);
+}
+.hub-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 16px;
+}
+.hub-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 16px;
+  transition: all 0.3s;
+}
+.hub-card:hover {
+  border-color: var(--accent-workflow);
+  box-shadow: 0 0 16px var(--glow-workflow);
+}
+.hub-name {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 13px;
+  font-weight: 700;
+  margin-bottom: 4px;
+}
+.hub-role {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-bottom: 10px;
+}
+.hub-refs-count {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  color: var(--accent-workflow);
+}
+.hub-bar {
+  height: 4px;
+  border-radius: 2px;
+  background: var(--surface2);
+  margin-top: 8px;
+  overflow: hidden;
+}
+.hub-bar-fill {
+  height: 100%;
+  border-radius: 2px;
+  background: linear-gradient(90deg, var(--accent-workflow), var(--accent-skills));
+  transition: width 0.6s ease;
+}
+
+/* Commands grid */
+.cmd-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 8px;
+}
+.cmd-item {
+  padding: 8px 12px;
+  border-radius: 6px;
+  background: var(--surface2);
+  border: 1px solid transparent;
+  transition: all 0.2s;
+}
+.cmd-item:hover { border-color: var(--accent-commands); }
+.cmd-name {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--accent-commands);
+}
+.cmd-desc {
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+.cmd-category {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  margin: 12px 0 8px;
+}
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: var(--bg); }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--text-dim); }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>⚙ Cursor Tools & Workflow Map</h1>
+  <p>규칙 · 스킬 · 명령어 · 워크플로우 · 서브에이전트 — 전체 동작 흐름과 문서 참조 관계</p>
+</div>
+
+<div class="legend">
+  <div class="legend-item"><div class="legend-dot" style="background:var(--accent-rules)"></div>Rules</div>
+  <div class="legend-item"><div class="legend-dot" style="background:var(--accent-skills)"></div>Skills</div>
+  <div class="legend-item"><div class="legend-dot" style="background:var(--accent-commands)"></div>Commands</div>
+  <div class="legend-item"><div class="legend-dot" style="background:var(--accent-workflow)"></div>Workflow Docs</div>
+  <div class="legend-item"><div class="legend-dot" style="background:var(--accent-template)"></div>Templates</div>
+  <div class="legend-item"><div class="legend-dot" style="background:var(--accent-subagent)"></div>Subagents</div>
+</div>
+
+<!-- ═══════ COLLABORATION FLOW ═══════ -->
+<div class="flow-container">
+  <div class="flow-title">▸ 협업 순서 (Collaboration Sequence)</div>
+  <div class="flow-steps">
+    <div class="step-card">
+      <div class="step-num">Step 1</div>
+      <div class="step-name">요건 정의</div>
+      <div class="step-agents">
+        <div class="agent-chip">Requirements</div>
+        <div class="agent-chip light">RequirementsPastSearch</div>
+      </div>
+    </div>
+    <div class="step-arrow">→</div>
+    <div class="step-card">
+      <div class="step-num">Step 2</div>
+      <div class="step-name">보안 검토</div>
+      <div class="step-agents">
+        <div class="agent-chip">Security</div>
+      </div>
+    </div>
+    <div class="step-arrow">→</div>
+    <div class="step-card">
+      <div class="step-num">Step 3</div>
+      <div class="step-name">설계 검토</div>
+      <div class="step-agents">
+        <div class="agent-chip">Contract</div>
+        <div class="agent-chip">DBA</div>
+        <div class="agent-chip">Architecture</div>
+        <div class="agent-chip">Consistency</div>
+        <div class="agent-chip">UX</div>
+      </div>
+    </div>
+    <div class="step-arrow">→</div>
+    <div class="step-card">
+      <div class="step-num">Step 4</div>
+      <div class="step-name">구현</div>
+      <div class="step-agents">
+        <div class="agent-chip">Backend</div>
+        <div class="agent-chip">Frontend</div>
+        <div class="agent-chip">DB</div>
+        <div class="agent-chip light">Backend-Auth / Log / ActivityLog</div>
+        <div class="agent-chip light">Frontend-Auth / Log / ActivityLog</div>
+      </div>
+    </div>
+    <div class="step-arrow">→</div>
+    <div class="step-card">
+      <div class="step-num">Step 4.5</div>
+      <div class="step-name">리뷰</div>
+      <div class="step-agents">
+        <div class="agent-chip">Review</div>
+      </div>
+    </div>
+    <div class="step-arrow">→</div>
+    <div class="step-card">
+      <div class="step-num">Step 5</div>
+      <div class="step-name">QA & 커밋</div>
+      <div class="step-agents">
+        <div class="agent-chip">QA</div>
+      </div>
+    </div>
+    <div class="step-arrow">→</div>
+    <div class="step-card">
+      <div class="step-num">Step 6</div>
+      <div class="step-name">문서 & 릴리스</div>
+      <div class="step-agents">
+        <div class="agent-chip light">Documentation</div>
+        <div class="agent-chip light">Release</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════ SECTIONS ═══════ -->
+<div class="sections">
+
+  <!-- RULES -->
+  <div class="section" style="border-top: 2px solid var(--accent-rules)">
+    <div class="section-header" onclick="toggleSection(this)">
+      <div class="section-icon" style="background:var(--glow-rules); color:var(--accent-rules)">⚡</div>
+      <div class="section-title" style="color:var(--accent-rules)">Rules (.cursor/rules/)</div>
+      <div class="section-count">14 files</div>
+      <div class="section-toggle">▼</div>
+    </div>
+    <div class="section-body">
+
+      <div class="item" onclick="toggleRefs(this)" style="border-left: 3px solid var(--accent-rules)">
+        <div class="item-name" style="color:var(--accent-rules)">agent-collaboration.mdc</div>
+        <div class="item-desc">에이전트 협업 순서 규정. Step 1~6 위임 게이트. 요건 문서 없이 개발 금지.</div>
+        <div class="item-refs">
+          <div class="ref-title">참조 문서</div>
+          <span class="ref-tag workflow">SUBAGENT-DELEGATION</span>
+          <span class="ref-tag workflow">AGENT-COLLABORATION-ON-REQUIREMENT</span>
+          <span class="ref-tag workflow">HANDOFF-CHECKLIST</span>
+          <span class="ref-tag workflow">CURSOR-SUBAGENTS-DESIGN</span>
+          <span class="ref-tag workflow">SUBAGENT-MODEL-SELECTION</span>
+          <span class="ref-tag rules">error-first-workflow</span>
+          <span class="ref-tag commands">commit-on-complete</span>
+          <span class="ref-tag commands">dry-run-handoff</span>
+          <span class="ref-tag skills">.cursor/skills/</span>
+        </div>
+      </div>
+
+      <div class="item" onclick="toggleRefs(this)" style="border-left: 3px solid var(--accent-rules)">
+        <div class="item-name" style="color:var(--accent-rules)">core-principles.mdc</div>
+        <div class="item-desc">응답 언어, 병렬 도구, 도구 우선순위, 품질 게이트, 보안 원칙. 모든 규칙의 허브.</div>
+        <div class="item-refs">
+          <div class="ref-title">참조 문서</div>
+          <span class="ref-tag rules">post-change-test-verify</span>
+          <span class="ref-tag rules">error-first-workflow</span>
+          <span class="ref-tag rules">contract-first</span>
+          <span class="ref-tag rules">workflow-todos</span>
+          <span class="ref-tag rules">security-permissions</span>
+          <span class="ref-tag commands">verify</span>
+          <span class="ref-tag commands">commit-on-complete</span>
+          <span class="ref-tag workflow">WORKFLOW_CHECKLIST</span>
+          <span class="ref-tag other">docs/contract.md</span>
+          <span class="ref-tag other">docs/security-guide.md</span>
+        </div>
+      </div>
+
+      <div class="item" onclick="toggleRefs(this)" style="border-left: 3px solid var(--accent-rules)">
+        <div class="item-name" style="color:var(--accent-rules)">error-first-workflow.mdc</div>
+        <div class="item-desc">에러/버그 수정 시 요건 문서 + §3 테스트 계획 먼저 작성.</div>
+        <div class="item-refs">
+          <div class="ref-title">참조 문서</div>
+          <span class="ref-tag workflow">WORKFLOW_CHECKLIST</span>
+          <span class="ref-tag workflow">ERROR-FIX-WORKFLOW-FLOWCHART</span>
+          <span class="ref-tag template">REQUIREMENT_TEMPLATE</span>
+        </div>
+      </div>
+
+      <div class="item" onclick="toggleRefs(this)" style="border-left: 3px solid var(--accent-rules)">
+        <div class="item-name" style="color:var(--accent-rules)">post-change-test-verify.mdc</div>
+        <div class="item-desc">코드 변경 후 테스트·검증 실행. 실패 시 bugfix 자식 요건 생성.</div>
+        <div class="item-refs">
+          <div class="ref-title">참조 문서</div>
+          <span class="ref-tag commands">run-tests</span>
+          <span class="ref-tag commands">verify</span>
+          <span class="ref-tag commands">restart-all</span>
+          <span class="ref-tag commands">commit-on-complete</span>
+          <span class="ref-tag skills">test-workflow</span>
+          <span class="ref-tag template">BUGFIX_CHILD_TEMPLATE</span>
+          <span class="ref-tag workflow">DEVELOPMENT_WORKFLOW</span>
+          <span class="ref-tag workflow">WORKFLOW_CHECKLIST</span>
+          <span class="ref-tag workflow">SUBAGENT-DELEGATION</span>
+          <span class="ref-tag workflow">WHY-TESTS-VERIFY-NOT-AUTO</span>
+        </div>
+      </div>
+
+      <div class="item" onclick="toggleRefs(this)" style="border-left: 3px solid var(--accent-rules)">
+        <div class="item-name" style="color:var(--accent-rules)">contract-first.mdc</div>
+        <div class="item-desc">API·DB 작업 시 계약/스펙 먼저 확인.</div>
+        <div class="item-refs">
+          <div class="ref-title">참조 문서</div>
+          <span class="ref-tag other">docs/contract.md</span>
+          <span class="ref-tag other">specs/*.spec.yaml</span>
+          <span class="ref-tag other">schema.sql</span>
+        </div>
+      </div>
+
+      <div class="item" onclick="toggleRefs(this)" style="border-left: 3px solid var(--accent-rules)">
+        <div class="item-name" style="color:var(--accent-rules)">workflow-todos.mdc</div>
+        <div class="item-desc">TodoWrite 시 WORKFLOW_CHECKLIST 순서 필수 준수.</div>
+        <div class="item-refs">
+          <div class="ref-title">참조 문서</div>
+          <span class="ref-tag workflow">WORKFLOW_CHECKLIST</span>
+          <span class="ref-tag workflow">WORKFLOW_MODES</span>
+          <span class="ref-tag workflow">DEVELOPMENT_WORKFLOW</span>
+          <span class="ref-tag commands">verify</span>
+          <span class="ref-tag commands">commit-on-complete</span>
+        </div>
+      </div>
+
+      <div class="item" onclick="toggleRefs(this)" style="border-left: 3px solid var(--accent-rules)">
+        <div class="item-name" style="color:var(--accent-rules)">language-policy.mdc</div>
+        <div class="item-desc">규칙/스킬/워크플로우는 영어, 사용자 응답은 요청 언어.</div>
+        <div class="item-refs">
+          <div class="ref-title">참조 문서</div>
+          <span class="ref-tag template">REQUIREMENT_TEMPLATE</span>
+          <span class="ref-tag workflow">DOCUMENT-LANGUAGE-POLICY</span>
+        </div>
+      </div>
+
+      <div class="item" onclick="toggleRefs(this)" style="border-left: 3px solid var(--accent-rules)">
+        <div class="item-name" style="color:var(--accent-rules)">build-restart-handoff.mdc</div>
+        <div class="item-desc">코드 변경 후 빌드·재시작·§2 갱신·QA 핸드오프.</div>
+        <div class="item-refs">
+          <div class="ref-title">참조 문서</div>
+          <span class="ref-tag workflow">AGENT-COLLABORATION-ON-REQUIREMENT</span>
+          <span class="ref-tag workflow">SUBAGENT-DELEGATION</span>
+        </div>
+      </div>
+
+      <div class="item" style="border-left: 3px solid var(--accent-rules)">
+        <div class="item-name" style="color:var(--accent-rules)">security-permissions.mdc</div>
+        <div class="item-desc">읽기/실행 금지 경로, 위험 명령 확인 필수.</div>
+      </div>
+
+      <div class="item" style="border-left: 3px solid var(--accent-rules)">
+        <div class="item-name" style="color:var(--accent-rules)">file-reading-optimization.mdc</div>
+        <div class="item-desc">파일 크기별 계층적 로딩으로 토큰 절약.</div>
+      </div>
+
+      <div class="item" style="border-left: 3px solid var(--accent-rules)">
+        <div class="item-name" style="color:var(--accent-rules)">frontend-agent.mdc / backend-agent.mdc / db-agent.mdc</div>
+        <div class="item-desc">각 구현 서브에이전트 전용 규칙. 스코프 제한.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SKILLS -->
+  <div class="section" style="border-top: 2px solid var(--accent-skills)">
+    <div class="section-header" onclick="toggleSection(this)">
+      <div class="section-icon" style="background:var(--glow-skills); color:var(--accent-skills)">🧠</div>
+      <div class="section-title" style="color:var(--accent-skills)">Skills (.cursor/skills/)</div>
+      <div class="section-count">13 skills</div>
+      <div class="section-toggle">▼</div>
+    </div>
+    <div class="section-body">
+
+      <div class="cmd-category">워크플로우 스킬</div>
+      <div class="item" onclick="toggleRefs(this)" style="border-left: 3px solid var(--accent-skills)">
+        <div class="item-name" style="color:var(--accent-skills)">dev-workflow</div>
+        <div class="item-desc">요건·테스트 계획 우선 개발 순서. TDD/DDD 선택 적용.</div>
+        <div class="item-refs">
+          <div class="ref-title">참조 문서</div>
+          <span class="ref-tag workflow">WORKFLOW_CHECKLIST</span>
+          <span class="ref-tag workflow">DEVELOPMENT_WORKFLOW</span>
+          <span class="ref-tag workflow">WORKFLOW_MODES</span>
+          <span class="ref-tag rules">workflow-todos</span>
+        </div>
+      </div>
+
+      <div class="item" onclick="toggleRefs(this)" style="border-left: 3px solid var(--accent-skills)">
+        <div class="item-name" style="color:var(--accent-skills)">test-workflow</div>
+        <div class="item-desc">§3 테스트 계획·실행·§5 기록·검증 워크플로우.</div>
+        <div class="item-refs">
+          <div class="ref-title">참조 문서</div>
+          <span class="ref-tag template">REQUIREMENT_TEMPLATE</span>
+          <span class="ref-tag workflow">WORKFLOW_CHECKLIST</span>
+          <span class="ref-tag rules">post-change-test-verify</span>
+          <span class="ref-tag commands">run-tests</span>
+          <span class="ref-tag commands">verify</span>
+          <span class="ref-tag commands">commit-on-complete</span>
+        </div>
+      </div>
+
+      <div class="item" onclick="toggleRefs(this)" style="border-left: 3px solid var(--accent-skills)">
+        <div class="item-name" style="color:var(--accent-skills)">requirement-doc</div>
+        <div class="item-desc">요건 문서 작성·수정. 템플릿·명명 규칙 적용.</div>
+        <div class="item-refs">
+          <div class="ref-title">참조 문서</div>
+          <span class="ref-tag rules">agent-collaboration</span>
+          <span class="ref-tag workflow">SUBAGENT-DELEGATION</span>
+          <span class="ref-tag workflow">AGENT-COLLABORATION-ON-REQUIREMENT</span>
+          <span class="ref-tag template">REQUIREMENT_TEMPLATE</span>
+          <span class="ref-tag template">ERROR_FIX_RESULT_TEMPLATE</span>
+          <span class="ref-tag workflow">DOCUMENT-LANGUAGE-POLICY</span>
+          <span class="ref-tag commands">commit-on-complete</span>
+        </div>
+      </div>
+
+      <div class="cmd-category">도메인 스킬</div>
+      <div class="item" style="border-left: 3px solid var(--accent-skills)">
+        <div class="item-name" style="color:var(--accent-skills)">auth-permission-domain</div>
+        <div class="item-desc">is_system_admin, 권한 그룹, 화면별 접근, scope (self/team/all).</div>
+      </div>
+      <div class="item" style="border-left: 3px solid var(--accent-skills)">
+        <div class="item-name" style="color:var(--accent-skills)">api-permission-map</div>
+        <div class="item-desc">API 엔드포인트 → 컨트롤러 → 권한 체크 → 거부 에러코드 매핑.</div>
+      </div>
+      <div class="item" style="border-left: 3px solid var(--accent-skills)">
+        <div class="item-name" style="color:var(--accent-skills)">search-history-decrypt-domain</div>
+        <div class="item-desc">검색 이력, 복호화 승인 흐름 (PENDING/APPROVED/REJECTED).</div>
+      </div>
+      <div class="item" style="border-left: 3px solid var(--accent-skills)">
+        <div class="item-name" style="color:var(--accent-skills)">department-approver-domain</div>
+        <div class="item-desc">부서 계층, 결재자 지정, canApproveForRequester.</div>
+      </div>
+      <div class="item" style="border-left: 3px solid var(--accent-skills)">
+        <div class="item-name" style="color:var(--accent-skills)">log-search-domain</div>
+        <div class="item-desc">로그 검색 API, logType (pb_feplog, java_fw_imglog).</div>
+      </div>
+      <div class="item" style="border-left: 3px solid var(--accent-skills)">
+        <div class="item-name" style="color:var(--accent-skills)">activity-statistics-domain</div>
+        <div class="item-desc">활동 통계, scope, daily/monthly, CSV export.</div>
+      </div>
+      <div class="item" style="border-left: 3px solid var(--accent-skills)">
+        <div class="item-name" style="color:var(--accent-skills)">error-codes-domain</div>
+        <div class="item-desc">에러 코드: FORBIDDEN, DECRYPTION_NOT_APPROVED 등.</div>
+      </div>
+      <div class="item" style="border-left: 3px solid var(--accent-skills)">
+        <div class="item-name" style="color:var(--accent-skills)">ui-ux-domain</div>
+        <div class="item-desc">메뉴 트리, view, screen ID, adminOnly, sidebar.</div>
+      </div>
+      <div class="item" style="border-left: 3px solid var(--accent-skills)">
+        <div class="item-name" style="color:var(--accent-skills)">db-domain</div>
+        <div class="item-desc">PostgreSQL 스키마, 마이그레이션, setup 스크립트.</div>
+      </div>
+      <div class="item" style="border-left: 3px solid var(--accent-skills)">
+        <div class="item-name" style="color:var(--accent-skills)">react-debugging</div>
+        <div class="item-desc">React 디버깅 기법.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- WORKFLOW DOCS -->
+  <div class="section" style="border-top: 2px solid var(--accent-workflow)">
+    <div class="section-header" onclick="toggleSection(this)">
+      <div class="section-icon" style="background:var(--glow-workflow); color:var(--accent-workflow)">📋</div>
+      <div class="section-title" style="color:var(--accent-workflow)">Workflow Docs (docs/workflow/)</div>
+      <div class="section-count">24 files</div>
+      <div class="section-toggle">▼</div>
+    </div>
+    <div class="section-body">
+
+      <div class="cmd-category">핵심 허브 문서</div>
+      <div class="item" onclick="toggleRefs(this)" style="border-left: 3px solid var(--accent-workflow)">
+        <div class="item-name" style="color:var(--accent-workflow)">AGENT-COLLABORATION-ON-REQUIREMENT.md</div>
+        <div class="item-desc">에이전트 협업 순서·역할·핸드오프 규칙의 단일 참조 문서. (참조 13건)</div>
+        <div class="item-refs">
+          <div class="ref-title">참조 문서</div>
+          <span class="ref-tag workflow">CURSOR-SUBAGENTS-DESIGN</span>
+          <span class="ref-tag workflow">HANDOFF-CHECKLIST</span>
+          <span class="ref-tag workflow">SUBAGENT-DELEGATION</span>
+          <span class="ref-tag workflow">SUBAGENT-MODEL-SELECTION</span>
+          <span class="ref-tag workflow">CONSISTENCY-STANDARDS</span>
+          <span class="ref-tag workflow">WORKFLOW_CHECKLIST</span>
+          <span class="ref-tag workflow">CURSOR-AND-TOOLS-INTEGRATION</span>
+          <span class="ref-tag template">REQUIREMENT_TEMPLATE</span>
+          <span class="ref-tag rules">language-policy</span>
+          <span class="ref-tag skills">.cursor/skills/</span>
+          <span class="ref-tag commands">new-requirement</span>
+          <span class="ref-tag other">docs/contract.md</span>
+          <span class="ref-tag other">TOPIC-INDEX</span>
+        </div>
+      </div>
+
+      <div class="item" onclick="toggleRefs(this)" style="border-left: 3px solid var(--accent-workflow)">
+        <div class="item-name" style="color:var(--accent-workflow)">SUBAGENT-DELEGATION.md</div>
+        <div class="item-desc">Step별 서브에이전트 위임 테이블 및 게이트 규정. (참조 10건)</div>
+        <div class="item-refs">
+          <div class="ref-title">참조 문서</div>
+          <span class="ref-tag workflow">CURSOR-SUBAGENTS-DESIGN</span>
+          <span class="ref-tag workflow">AGENT-COLLABORATION-ON-REQUIREMENT</span>
+          <span class="ref-tag workflow">HANDOFF-CHECKLIST</span>
+          <span class="ref-tag workflow">BROWSER-AUTOMATION-VERIFICATION-POLICY</span>
+          <span class="ref-tag workflow">SUBAGENT-MODEL-SELECTION</span>
+          <span class="ref-tag template">REQUIREMENT_TEMPLATE</span>
+          <span class="ref-tag commands">commit-on-complete</span>
+          <span class="ref-tag commands">verify</span>
+          <span class="ref-tag rules">agent-collaboration</span>
+        </div>
+      </div>
+
+      <div class="item" onclick="toggleRefs(this)" style="border-left: 3px solid var(--accent-workflow)">
+        <div class="item-name" style="color:var(--accent-workflow)">CURSOR-SUBAGENTS-DESIGN.md</div>
+        <div class="item-desc">서브에이전트 역할·범위·등록 방법 정의. (참조 12건+)</div>
+        <div class="item-refs">
+          <div class="ref-title">참조 문서</div>
+          <span class="ref-tag workflow">SUBAGENT-MODEL-SELECTION</span>
+          <span class="ref-tag workflow">SUBAGENT-DELEGATION</span>
+          <span class="ref-tag workflow">AGENT-COLLABORATION-ON-REQUIREMENT</span>
+          <span class="ref-tag workflow">CONSISTENCY-STANDARDS</span>
+          <span class="ref-tag workflow">DEVELOPMENT_WORKFLOW</span>
+          <span class="ref-tag workflow">CURSOR-AND-TOOLS-INTEGRATION</span>
+          <span class="ref-tag rules">agent-collaboration</span>
+          <span class="ref-tag rules">language-policy</span>
+          <span class="ref-tag commands">verify</span>
+          <span class="ref-tag other">docs/contract.md</span>
+        </div>
+      </div>
+
+      <div class="item" onclick="toggleRefs(this)" style="border-left: 3px solid var(--accent-workflow)">
+        <div class="item-name" style="color:var(--accent-workflow)">WORKFLOW_CHECKLIST.md</div>
+        <div class="item-desc">새 요건·버그 수정 시 순서와 게이트 체크리스트. (참조 5건)</div>
+        <div class="item-refs">
+          <div class="ref-title">참조 문서</div>
+          <span class="ref-tag workflow">DEVELOPMENT_WORKFLOW</span>
+          <span class="ref-tag workflow">CURSOR-SUBAGENTS-DESIGN</span>
+          <span class="ref-tag workflow">CURSOR-AND-TOOLS-INTEGRATION</span>
+          <span class="ref-tag template">REQUIREMENT_TEMPLATE</span>
+          <span class="ref-tag commands">commit-on-complete</span>
+        </div>
+      </div>
+
+      <div class="cmd-category">기타 워크플로우 문서</div>
+      <div class="item" style="border-left: 3px solid var(--accent-workflow)">
+        <div class="item-name" style="color:var(--accent-workflow)">HANDOFF-CHECKLIST.md</div>
+        <div class="item-desc">Backend/Frontend/DB/Review/QA별 핸드오프 체크리스트.</div>
+      </div>
+      <div class="item" style="border-left: 3px solid var(--accent-workflow)">
+        <div class="item-name" style="color:var(--accent-workflow)">ERROR-FIX-WORKFLOW-FLOWCHART.md</div>
+        <div class="item-desc">오류 수정 시 Skills/Sub-Agent/Commands 사용 시점 흐름도.</div>
+      </div>
+      <div class="item" style="border-left: 3px solid var(--accent-workflow)">
+        <div class="item-name" style="color:var(--accent-workflow)">WORKFLOW_MODES.md</div>
+        <div class="item-desc">TDD vs DDD 개발 방식 선택 가이드.</div>
+      </div>
+      <div class="item" style="border-left: 3px solid var(--accent-workflow)">
+        <div class="item-name" style="color:var(--accent-workflow)">SUBAGENT-MODEL-SELECTION.md</div>
+        <div class="item-desc">서브에이전트별 모델 티어 (Light / Default).</div>
+      </div>
+      <div class="item" style="border-left: 3px solid var(--accent-workflow)">
+        <div class="item-name" style="color:var(--accent-workflow)">DEVELOPMENT_WORKFLOW.md</div>
+        <div class="item-desc">개발 워크플로우 상세 절차.</div>
+      </div>
+      <div class="item" style="border-left: 3px solid var(--accent-workflow)">
+        <div class="item-name" style="color:var(--accent-workflow)">DOCUMENT-LANGUAGE-POLICY.md</div>
+        <div class="item-desc">문서 언어 정책 상세.</div>
+      </div>
+      <div class="item" style="border-left: 3px solid var(--accent-workflow)">
+        <div class="item-name" style="color:var(--accent-workflow)">CONSISTENCY-STANDARDS.md</div>
+        <div class="item-desc">네이밍·구조·에러코드 일관성 표준.</div>
+      </div>
+      <div class="item" style="border-left: 3px solid var(--accent-workflow)">
+        <div class="item-name" style="color:var(--accent-workflow)">BROWSER-AUTOMATION-VERIFICATION-POLICY.md</div>
+        <div class="item-desc">브라우저 자동화 검증 정책.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- TEMPLATES -->
+  <div class="section" style="border-top: 2px solid var(--accent-template)">
+    <div class="section-header" onclick="toggleSection(this)">
+      <div class="section-icon" style="background:var(--glow-template); color:var(--accent-template)">📝</div>
+      <div class="section-title" style="color:var(--accent-template)">Templates (docs/template/)</div>
+      <div class="section-count">4 files</div>
+      <div class="section-toggle">▼</div>
+    </div>
+    <div class="section-body">
+      <div class="item" style="border-left: 3px solid var(--accent-template)">
+        <div class="item-name" style="color:var(--accent-template)">REQUIREMENT_TEMPLATE.md</div>
+        <div class="item-desc">요건 문서 §1 사용자 요건 · §2 설계 · §3 테스트 계획 · §5 결과 · §6 에러 구제 템플릿.</div>
+      </div>
+      <div class="item" style="border-left: 3px solid var(--accent-template)">
+        <div class="item-name" style="color:var(--accent-template)">BUGFIX_CHILD_TEMPLATE.md</div>
+        <div class="item-desc">테스트/검증 실패 시 생성하는 버그픽스 자식 요건 템플릿.</div>
+      </div>
+      <div class="item" style="border-left: 3px solid var(--accent-template)">
+        <div class="item-name" style="color:var(--accent-template)">ERROR_FIX_RESULT_TEMPLATE.md</div>
+        <div class="item-desc">에러 수정 결과 기록 (§6) 템플릿.</div>
+      </div>
+      <div class="item" style="border-left: 3px solid var(--accent-template)">
+        <div class="item-name" style="color:var(--accent-template)">AGENT_PROMPT_TEMPLATE.md</div>
+        <div class="item-desc">서브에이전트 핸드오프 프롬프트 템플릿.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- COMMANDS -->
+  <div class="section" style="border-top: 2px solid var(--accent-commands)">
+    <div class="section-header" onclick="toggleSection(this)">
+      <div class="section-icon" style="background:var(--glow-commands); color:var(--accent-commands)">⌨</div>
+      <div class="section-title" style="color:var(--accent-commands)">Commands (.cursor/commands/)</div>
+      <div class="section-count">32 files</div>
+      <div class="section-toggle">▼</div>
+    </div>
+    <div class="section-body">
+
+      <div class="cmd-category">워크플로우 명령어</div>
+      <div class="cmd-grid">
+        <div class="cmd-item"><div class="cmd-name">new-requirement</div><div class="cmd-desc">Requirements 서브에이전트로 요건 문서 작성</div></div>
+        <div class="cmd-item"><div class="cmd-name">fix</div><div class="cmd-desc">에러 수정: 요건→§3→개발→테스트→검증</div></div>
+        <div class="cmd-item"><div class="cmd-name">plan</div><div class="cmd-desc">코드 전 요건 문서 + §3 계획</div></div>
+        <div class="cmd-item"><div class="cmd-name">review</div><div class="cmd-desc">셀프 리뷰 및 PR 전 체크리스트</div></div>
+        <div class="cmd-item"><div class="cmd-name">verify</div><div class="cmd-desc">재시작 + 헬스체크 + 브라우저 검증</div></div>
+        <div class="cmd-item"><div class="cmd-name">commit-on-complete</div><div class="cmd-desc">검증 통과 후 §5/§6 업데이트 후 커밋</div></div>
+        <div class="cmd-item"><div class="cmd-name">follow-workflow</div><div class="cmd-desc">TODO를 WORKFLOW_CHECKLIST 순서로 정렬</div></div>
+        <div class="cmd-item"><div class="cmd-name">dry-run-handoff</div><div class="cmd-desc">핸드오프 프롬프트 시뮬레이션 (코드 변경 없음)</div></div>
+        <div class="cmd-item"><div class="cmd-name">run-tests</div><div class="cmd-desc">§3 정의 → 테스트 실행 → §5 기록</div></div>
+        <div class="cmd-item"><div class="cmd-name">record-error-fix</div><div class="cmd-desc">§6 에러 구제 결과 기록</div></div>
+      </div>
+
+      <div class="cmd-category">인프라 명령어</div>
+      <div class="cmd-grid">
+        <div class="cmd-item"><div class="cmd-name">start-all / stop-all / restart-all</div><div class="cmd-desc">전체 서비스 시작/중지/재시작</div></div>
+        <div class="cmd-item"><div class="cmd-name">start-backend / stop / restart</div><div class="cmd-desc">백엔드 (9200) 관리</div></div>
+        <div class="cmd-item"><div class="cmd-name">start-frontend / stop / restart</div><div class="cmd-desc">프론트엔드 (3001) 관리</div></div>
+        <div class="cmd-item"><div class="cmd-name">start-db / stop / restart</div><div class="cmd-desc">PostgreSQL 관리</div></div>
+        <div class="cmd-item"><div class="cmd-name">check-backend / frontend / db</div><div class="cmd-desc">헬스체크</div></div>
+      </div>
+
+      <div class="cmd-category">에이전트 호출 명령어</div>
+      <div class="cmd-grid">
+        <div class="cmd-item"><div class="cmd-name">agent-backend</div><div class="cmd-desc">이 채팅에서 Backend 에이전트로 동작</div></div>
+        <div class="cmd-item"><div class="cmd-name">agent-frontend</div><div class="cmd-desc">이 채팅에서 Frontend 에이전트로 동작</div></div>
+        <div class="cmd-item"><div class="cmd-name">agent-db</div><div class="cmd-desc">이 채팅에서 DB 에이전트로 동작</div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════ REFERENCE HUB MAP ═══════ -->
+<div class="ref-map">
+  <div class="ref-map-title">▸ 핵심 허브 문서 (가장 많이 참조되는 문서)</div>
+  <div class="hub-grid">
+    <div class="hub-card">
+      <div class="hub-name" style="color:var(--accent-workflow)">AGENT-COLLABORATION-ON-REQUIREMENT.md</div>
+      <div class="hub-role">에이전트 협업의 "헌법" — 순서·역할·핸드오프 규칙</div>
+      <div class="hub-refs-count">참조하는 문서 13건 / 참조받는 곳 5+</div>
+      <div class="hub-bar"><div class="hub-bar-fill" style="width:100%"></div></div>
+    </div>
+    <div class="hub-card">
+      <div class="hub-name" style="color:var(--accent-workflow)">SUBAGENT-DELEGATION.md</div>
+      <div class="hub-role">Step별 서브에이전트 위임 테이블 + 게이트</div>
+      <div class="hub-refs-count">참조하는 문서 10건 / 참조받는 곳 6+</div>
+      <div class="hub-bar"><div class="hub-bar-fill" style="width:85%"></div></div>
+    </div>
+    <div class="hub-card">
+      <div class="hub-name" style="color:var(--accent-workflow)">WORKFLOW_CHECKLIST.md</div>
+      <div class="hub-role">새 요건·버그 수정의 순서 체크리스트 (첫 게이트)</div>
+      <div class="hub-refs-count">참조하는 문서 5건 / 참조받는 곳 7+</div>
+      <div class="hub-bar"><div class="hub-bar-fill" style="width:75%"></div></div>
+    </div>
+    <div class="hub-card">
+      <div class="hub-name" style="color:var(--accent-workflow)">CURSOR-SUBAGENTS-DESIGN.md</div>
+      <div class="hub-role">서브에이전트 역할·범위·등록 방법 설계서</div>
+      <div class="hub-refs-count">참조하는 문서 12건+ / 참조받는 곳 4+</div>
+      <div class="hub-bar"><div class="hub-bar-fill" style="width:70%"></div></div>
+    </div>
+    <div class="hub-card">
+      <div class="hub-name" style="color:var(--accent-template)">REQUIREMENT_TEMPLATE.md</div>
+      <div class="hub-role">§1·§2·§3·§5·§6 요건 문서의 구조 정의</div>
+      <div class="hub-refs-count">참조받는 곳 8+</div>
+      <div class="hub-bar"><div class="hub-bar-fill" style="width:65%"></div></div>
+    </div>
+    <div class="hub-card">
+      <div class="hub-name" style="color:var(--accent-commands)">commit-on-complete.md</div>
+      <div class="hub-role">검증 통과 → §5/§6 갱신 → 커밋의 최종 게이트</div>
+      <div class="hub-refs-count">참조받는 곳 7+</div>
+      <div class="hub-bar"><div class="hub-bar-fill" style="width:60%"></div></div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════ MERGE ORDER ═══════ -->
+<div class="ref-map" style="padding-bottom: 60px">
+  <div class="ref-map-title">▸ 구현 머지 순서 & 충돌 해결</div>
+  <div style="display:flex; gap:12px; flex-wrap:wrap; align-items:center; margin-top:8px">
+    <div style="background:var(--surface); border:1px solid var(--accent-subagent); border-radius:10px; padding:14px 24px; text-align:center;">
+      <div style="font-family:'JetBrains Mono',monospace; font-size:13px; font-weight:700; color:var(--accent-subagent)">DB Schema</div>
+      <div style="font-size:11px; color:var(--text-muted); margin-top:4px">schema.sql, migrations</div>
+    </div>
+    <div style="color:var(--accent-subagent); font-size:24px; font-weight:700">→</div>
+    <div style="background:var(--surface); border:1px solid var(--accent-subagent); border-radius:10px; padding:14px 24px; text-align:center;">
+      <div style="font-family:'JetBrains Mono',monospace; font-size:13px; font-weight:700; color:var(--accent-subagent)">Backend API</div>
+      <div style="font-size:11px; color:var(--text-muted); margin-top:4px">controllers, services</div>
+    </div>
+    <div style="color:var(--accent-subagent); font-size:24px; font-weight:700">→</div>
+    <div style="background:var(--surface); border:1px solid var(--accent-subagent); border-radius:10px; padding:14px 24px; text-align:center;">
+      <div style="font-family:'JetBrains Mono',monospace; font-size:13px; font-weight:700; color:var(--accent-subagent)">Frontend UI</div>
+      <div style="font-size:11px; color:var(--text-muted); margin-top:4px">components, API calls</div>
+    </div>
+  </div>
+  <div style="margin-top:16px; padding:14px; background:var(--surface); border-radius:8px; border:1px solid var(--border); font-size:12px; color:var(--text-muted); line-height:1.8">
+    <strong style="color:var(--text)">충돌 해결 원칙:</strong><br>
+    • 파일당 하나의 소유 에이전트 — 다른 스코프 파일 수정 금지<br>
+    • 교차 스코프 필요 시 → 요건 문서에 기록 → 소유 에이전트에게 핸드오프<br>
+    • Review 에이전트 (Step 4.5)가 교차 스코프 일관성 최종 검증
+  </div>
+</div>
+
+<script>
+function toggleSection(header) {
+  const body = header.nextElementSibling;
+  const toggle = header.querySelector('.section-toggle');
+  body.classList.toggle('open');
+  toggle.classList.toggle('open');
+}
+
+function toggleRefs(item) {
+  const refs = item.querySelector('.item-refs');
+  if (refs) refs.classList.toggle('open');
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  document.querySelectorAll('.section-body').forEach(b => b.classList.add('open'));
+  document.querySelectorAll('.section-toggle').forEach(t => t.classList.add('open'));
+});
+</script>
+</body>
+</html>

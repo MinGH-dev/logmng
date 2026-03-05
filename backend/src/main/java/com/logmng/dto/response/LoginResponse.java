@@ -30,7 +30,7 @@ public class LoginResponse {
     /** Union of allowed screens from user's permission groups. System admin gets all. */
     private List<String> allowedScreenIds;
 
-    /** Per-screen scope for activity-log, statistics, search-history. Key=screenId, value='self'|'all'. is_system_admin=true → omit or all 'all'. */
+    /** Per-screen scope for activity-log, statistics, search-history. Key=screenId, value='self'|'team'|'all'. is_system_admin=true → omit or all 'all'. */
     private Map<String, String> screenScopes;
 
     /** Per-screen function availability. Key=screenId, value={read, write?, approve?}. Per req 20250303-screen-function-availability. */

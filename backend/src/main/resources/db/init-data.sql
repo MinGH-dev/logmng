@@ -74,6 +74,18 @@ SELECT id, unnest(ARRAY['user-management','user-permission-hierarchy'])
 FROM permission_group WHERE code = 'ADMIN_EXT'
 ON CONFLICT (permission_group_id, screen_id) DO NOTHING;
 
+-- 승인 전용 권한 그룹 (팀장용): 로그 검색 불가, 복호화 결재 승인만 가능
+-- Business rule: 팀장은 로그 조회를 할 수 없으므로, pending-approvals만 부여
+-- (요건: 20260304-approve-only-permission-group)
+INSERT INTO permission_group (code, name, description, sort_order)
+VALUES ('APPROVE_USER', '승인 전용 (팀장)', '팀장 전용 — 로그 검색 불가, 복호화 승인만 가능', 10)
+ON CONFLICT (code) DO NOTHING;
+
+INSERT INTO permission_group_screen (permission_group_id, screen_id, approve)
+SELECT id, 'pending-approvals', true
+FROM permission_group WHERE code = 'APPROVE_USER'
+ON CONFLICT (permission_group_id, screen_id) DO NOTHING;
+
 -- 사용자–권한 그룹 연결: user1 → AUDIT, REPORT, GENERAL_USER; user2 → AUDIT, GENERAL_USER; user3 → GENERAL_USER, ADMIN_EXT (사용자 관리 권한).
 INSERT INTO app_user_permission_group (user_id, permission_group_id)
 SELECT 'user1', id FROM permission_group WHERE code = 'AUDIT'

@@ -27,35 +27,68 @@ When a **new requirement** or **error-fix request** occurs, agents collaborate i
 - **Response language**: Agents respond to the user in the **user's requested language** (e.g. Korean when the user writes in Korean). See `.cursor/rules/language-policy.mdc`.
 - **Cursor infrastructure update**: When a requirement changes the domain model (e.g. permission model, data schema), the relevant `.cursor/skills/` files must be updated to reflect the new model. See §1.4.
 
-### 1.1 Requirements authoring: parallel consensus and orchestration
+### 1.1 Requirements authoring: hybrid consultation and orchestration
 
-When the **Requirements** subagent writes the requirement doc, it **must not write §1 (user scenario, expected outcome) and §2 (codebase summary, problem analysis, solution) from its own judgment alone**. Instead it **obtains input in parallel from experts and from development/DB/QA**, then **orchestrates** (merges) that input into §1·§2.
+When the **Requirements** subagent writes the requirement doc, it **must not write §1 (user scenario, expected outcome) and §2 (codebase summary, problem analysis, solution) from its own judgment alone**. Instead it gathers domain knowledge and expert input through a **hybrid approach** (skills + tools + selective expert invocation), then **orchestrates** (merges) that input into §1·§2.
+
+#### Consultation strategy: skills-first, experts-selective
+
+| Source | Cost | When to use |
+|--------|------|-------------|
+| **Skills files** (`.cursor/skills/`) | Free (Read tool) | **Always** — baseline domain knowledge |
+| **Codebase investigation** (SemanticSearch, Grep, Read) | Low (tool calls) | **Always** — gather actual code structure, current implementation |
+| **Expert subagent** (Task, `readonly=true`, `model="fast"`) | Medium (subagent invocation) | **Selective** — only when the requirement touches that expert's domain |
+
+#### Steps
 
 1. **Past user requests (when user has not explicitly requested a change)**  
    When the user has **not** explicitly requested a change to prior behavior or scope, **invoke RequirementsPastSearch** (via the Task tool with `subagent_type="RequirementsPastSearch"` when available, or instruct the user to switch and pass the topic/feature). Pass: "Topic: [topic]. What did the user recently request in past requirements? Summarize so we preserve it (max 300 words, bullets)." RequirementsPastSearch uses `docs/requirements/TOPIC-INDEX.md` and reads only §1 of relevant docs for token efficiency. Use the summary when drafting §1·§2 so continuity is maintained. If the user **has** explicitly requested a change (e.g. "이거 바꿔줘", "검색 필드를 A, B로만"), do not override that with past content.
-2. **Parallel invocation (consensus input)**  
-   Invoke **in parallel** (e.g. multiple Task tool calls in one turn) the following, as applicable to the user request or error:
-   - **Experts** (when the requirement touches their domain):
-     - **Security**: PII, decryption scope, or access control → request §2.1 or security appendix.
-     - **Contract**: API or DB contract/spec change → request contract/spec constraints for §2.
-     - **DBA**: schema, indexing, or data design → request design review or constraints for §2.
-     - **Architecture**: performance, scalability, or load → request design review or constraints for §2; **and whenever the requirement involves frontend and/or backend implementation** → request **commonization review** (identify shared or common functionality that could be reflected in §2) so the requirement can reflect commonization.
-     - **Consistency**: new conventions or error codes → request standards or constraints for §2.
-     - **UX**: UI, layout, or a11y → request UX review or design recommendations for §2.
-   - **Development / DB / QA** (for scenario, codebase, problem, solution):
-     - **Backend** (or Backend-Log, Backend-Auth, etc. when scope is clear): codebase summary for backend area, problem analysis, solution ideas for backend.
-     - **Frontend** (or Frontend-Log, etc. when scope is clear): codebase summary for frontend area, problem analysis, solution ideas for frontend.
-     - **DB**: when schema/DB is involved — codebase summary for DB area, problem analysis, solution ideas for DB.
-     - **QA**: user scenario testability, alignment with §3 test cases, edge/regression suggestions.
-   - Pass to each: user request or error message, and ask for: (a) user scenario / expected outcome input for §1, (b) codebase summary for their area, (c) problem analysis, (d) solution approach. **State clearly that this is for requirement authoring only: do not implement; return only structured input for §1·§2.** Experts may return only (b)–(d) in their domain; QA focuses on (a) and testability.
-3. **Orchestrate**  
-   Merge the collected responses into:
-   - **§1**: user requirement (description), **user scenario**, expected outcome (consensus from experts + Backend/Frontend/DB + QA where provided).
-   - **§2**: **codebase summary** (per area), **problem analysis**, **solution approach**, and **변경 파일 목록 (예상)** — tentative change file list; see §1.2.
-4. **Finalize**  
-   Complete **§3** (test plan) and the requirement doc. When the doc is complete, the flow continues: Step 2 (Security if needed), Step 3 (Contract/DBA/… if needed), then **Step 4** — the responsible subagent implements; after implementation, **Step 5** (QA) and so on.
 
-If the requirement is trivial or purely textual (no codebase/solution), Requirements may skip parallel invocation and write §1·§2 directly, then §3. **When the requirement involves frontend and/or backend implementation**, Requirements **should always** invoke **Architecture** (in addition to any performance/scale need) for **commonization review** so that shared or common functionality can be reflected in §2.
+2. **Domain baseline (skills files)**  
+   Read the `.cursor/skills/` files relevant to the requirement's domain. These provide curated knowledge (permission model, error codes, DB schema, UI structure, search/decrypt flow, etc.) at zero subagent cost.
+   - Identify which skills are relevant from the user request (e.g. auth-related → `auth-permission-domain`, log search → `log-search-domain`).
+   - Use the domain knowledge to inform §1 (user scenario context) and §2 (problem analysis, existing behavior).
+
+3. **Codebase investigation (tools)**  
+   Use **SemanticSearch**, **Grep**, **Read**, and **Glob** to gather current implementation details for each affected area (backend, frontend, DB). This replaces the previous approach of invoking Backend/Frontend/DB subagents solely for codebase context.
+   - Backend: search for relevant services, controllers, entities, and existing tests.
+   - Frontend: search for relevant components, API calls, and state management.
+   - DB: read schema files, migrations, and init-data when schema is involved.
+   - Use findings to build the **codebase summary**, **problem analysis**, and **tentative change file list** for §2.
+
+4. **Selective expert consultation (Task tool)**  
+   Invoke expert subagents **only** when the requirement touches their domain. Use `readonly=true` (experts advise only; no file changes) and `model="fast"` (advisory, not implementation — sufficient quality at lower cost). Invoke applicable experts **in parallel** (multiple Task calls in one turn).
+
+   | Expert | Trigger (when to invoke) | What to request |
+   |--------|--------------------------|-----------------|
+   | **Security** | PII, decryption scope, or access control | §2.1 security review or security constraints for §2 |
+   | **Contract** | API or DB contract/spec change | Contract/spec constraints for §2 |
+   | **DBA** | Schema, indexing, or data design change | Design review or constraints for §2 |
+   | **Architecture** | Performance/scalability concern; **or** Frontend+Backend simultaneous change (commonization review) | Design review for §2; commonization of shared functionality |
+   | **Consistency** | New conventions or error codes | Standards or naming constraints for §2 |
+   | **UX** | UI, layout, or a11y change | UX review or design recommendations for §2 |
+
+   Pass to each expert: user request summary, relevant §2 draft excerpt, and the specific question. **State clearly**: "This is for requirement authoring only: do not implement; return only structured input for §2." Keep the prompt **focused** — include only the expert's domain context, not the entire draft.
+
+   **Not invoked as experts** (replaced by steps 2–3 above):
+   - ~~Backend / Frontend / DB for codebase summary~~ → use skills files + codebase investigation tools.
+   - ~~QA for testability~~ → Requirements authors §3 using skills knowledge + codebase investigation; QA verifies during Step 5.
+
+5. **Orchestrate**  
+   Merge the collected inputs (skills knowledge, codebase investigation, expert feedback) into:
+   - **§1**: user requirement (description), **user scenario**, expected outcome.
+   - **§2**: **codebase summary** (per area, from step 3), **problem analysis**, **solution approach** (informed by expert feedback from step 4), and **변경 파일 목록 (예상)** — tentative change file list; see §1.2. Structure §2 by scope (`Frontend:`, `Backend:`, `DB:`) for handoff extraction (see `HANDOFF-CHECKLIST.md`).
+
+6. **Finalize**  
+   Complete **§3** (test plan, with **Scope tag** per TC — see `REQUIREMENT_TEMPLATE.md`) and the requirement doc. When the doc is complete, the flow continues: Step 2 (Security if needed and not yet consulted in step 4), Step 3 (Contract/DBA/… if needed and not yet consulted), then **Step 4** — the responsible subagent implements; after implementation, **Step 5** (QA) and so on.
+
+   Note: If Security, Contract, DBA, or Architecture was already consulted in step 4 above and their input is reflected in §2, Step 2/3 may still be invoked for **formal review** of the complete doc if the scope warrants it (e.g. Security writes §2.1 formally; Contract updates `specs/*.spec.yaml`). The step-4 consultation provides **early input**; Steps 2/3 provide **formal output**.
+
+#### When to skip or simplify
+
+- **Trivial or purely textual** requirement (no codebase/solution): Requirements may skip steps 3–4 and write §1·§2 directly from skills knowledge, then §3.
+- **Single-scope** requirement (e.g. backend-only bug fix): Skip experts not relevant; use skills + codebase investigation only. Invoke Security only if access control or PII is involved.
+- **Multi-scope** requirement (frontend + backend): **Always** invoke **Architecture** for commonization review (step 4) so shared functionality is reflected in §2.
 
 ### 1.2 Change file list: tentative in §2, confirmed in Step 4
 

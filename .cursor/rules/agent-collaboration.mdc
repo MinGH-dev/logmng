@@ -9,6 +9,12 @@ alwaysApply: true
 
 **Before** performing any step (requirement doc, implementation, build/restart, verification, §5/§6, commit): if a **dedicated subagent** exists for that step (see `docs/workflow/SUBAGENT-DELEGATION.md` §1) and the user did **not** say "code only here", "skip subagent", or "do it in this chat" — **invoke that subagent via the Task tool** (with `subagent_type` matching the step; see `SUBAGENT-DELEGATION.md` §2.2 for mapping) instead. Do not perform in this chat.
 
+**Step 1 (requirement doc)**:
+
+1. The main agent **does not author** §1·§2·§3. Only the **Requirements** subagent authors them.
+2. **Invoke** Requirements via Task with: (a) user request or error message, (b) *"Author per AGENT-COLLABORATION-ON-REQUIREMENT.md §1.1: parallel input from experts + Backend/Frontend/DB/QA, orchestrate into §1·§2, finalize §3."*
+3. After the requirement doc exists, proceed to Step 2/3/4.
+
 **Implementation (Step 4)** includes **writing or modifying unit/integration test code** in `backend/` or `frontend/`. Such work belongs to the **Backend** or **Frontend** subagent; do not implement test code in the main chat — invoke the corresponding subagent (e.g. "add missing unit tests for requirement X" → Backend).
 
 ## Collaboration sequence
@@ -17,7 +23,8 @@ Follow `docs/workflow/AGENT-COLLABORATION-ON-REQUIREMENT.md`: Step 1 Requirement
 
 ## Key rules
 
-- **Gate**: No development (Step 4) before requirement doc + §3 is complete. See `error-first-workflow.mdc`.
+- **Gate**: No development (Step 4) before requirement doc + §3 is complete. **Before invoking** any Step 4 subagent (Backend, Frontend, DB), confirm the requirement doc has §1 (user requirement), §2 (design, including §2.1 if security-applicable), and §3 (test case list). If §3 is missing or empty, do not invoke Step 4; first invoke or re-invoke the Requirements subagent to complete §3. See `error-first-workflow.mdc`.
+- **Handoff (Step 4)**: When invoking Backend/Frontend/DB, follow `docs/workflow/HANDOFF-CHECKLIST.md` for that scope so the handoff includes §1 summary, relevant §2, §2.1 if present, contract/spec ref if applicable, and all §3 test cases that apply to that scope. Do not omit cross-cutting constraints (security, contract) when building the prompt.
 - **Commit**: QA subagent commits per `.cursor/commands/commit-on-complete.md`. Main agent does not commit when delegation is active.
 - **Model reporting**: State the subagent and model tier from `docs/workflow/SUBAGENT-MODEL-SELECTION.md` §1 when invoking (e.g. "Delegating to Backend (default model)…"). Use natural language, not internal alias names.
 - **Cursor infrastructure**: When the requirement changes a domain model, update `.cursor/skills/` files per `AGENT-COLLABORATION-ON-REQUIREMENT.md` §1.4.
@@ -34,3 +41,7 @@ When a change **spans multiple agent scopes** (e.g. Backend + DB, Frontend + Con
 5. **Merge order**: DB schema first → Backend API → Frontend UI. Later agents adapt to earlier agents' output.
 
 Reference: `docs/workflow/SUBAGENT-DELEGATION.md`, `docs/workflow/AGENT-COLLABORATION-ON-REQUIREMENT.md`, `docs/workflow/CURSOR-SUBAGENTS-DESIGN.md` §3.
+
+## Post-commit: workflow change verification
+
+When the agent **commits changes** to workflow files (`.cursor/rules/`, `.cursor/commands/`, `docs/workflow/`, `docs/template/`), **automatically run** the dry-run handoff verification per `.cursor/commands/dry-run-handoff.md` — generate handoff prompts for a virtual requirement (Requirements → Backend → QA) and check each rule in the verification table. No code changes; prompts only.

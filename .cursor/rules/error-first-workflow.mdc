@@ -8,7 +8,8 @@ alwaysApply: true
 When the user message is **mainly** an error message, stack trace, or "fix this error" (and not "code only here" / "do it in this chat"):
 
 1. **Requirement doc + §3 test plan first** — delegate to Requirements subagent (or write directly if user said "do it in this chat"). No code before doc is done.
-2. **Then** development (code change, API, frontend).
-3. **Do not** propose implementation todos from an error alone without a requirement doc.
+2. **Before** delegating to Backend/Frontend/DB (Step 4), ensure the requirement doc has §1, §2, and §3 complete; if not, delegate to Requirements to complete it.
+3. **Then** development (code change, API, frontend).
+4. **Do not** propose implementation todos from an error alone without a requirement doc.
 
 Detail: `docs/workflow/WORKFLOW_CHECKLIST.md`, `docs/workflow/ERROR-FIX-WORKFLOW-FLOWCHART.md`, `docs/template/REQUIREMENT_TEMPLATE.md`.

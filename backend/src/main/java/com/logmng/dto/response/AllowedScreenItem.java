@@ -6,7 +6,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 /**
  * Screen item with optional scope and read/write/approve for permission group allowedScreens.
  * Per specs/permission-group-hierarchy.spec.yaml §1.1: allowedScreens: [{ screenId, scope?, read?, write?, approve? }].
- * Scope applies only to activity-log, statistics, search-history; null/omitted = 'self'.
+ * Scope applies only to activity-log, statistics, search-history; null/omitted = 'team' (default).
  * read/write/approve: explicit per-screen functions; null = use derived default (backward compat).
  */
 @JsonInclude(JsonInclude.Include.NON_NULL)
@@ -15,7 +15,7 @@ public class AllowedScreenItem {
     @JsonProperty("screenId")
     private String screenId;
 
-    /** 'self' | 'all'. Only for activity-log, statistics, search-history. Null = 'self'. */
+    /** 'self' | 'team' | 'all'. Only for activity-log, statistics, search-history. Null = 'team'. */
     private String scope;
 
     /** Explicit read flag. Null = use derived (true when screen present). */
