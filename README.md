@@ -91,7 +91,7 @@ Cursor에서 **브라우저 자동화 검증**(`/verify` 시 프론트 변경 TC
 
 이 프로젝트는 **Rules · Commands · Skills · Agents · Scripts · MCP** 6가지 도구 레이어가 협력하여 동작합니다. 사용자가 "코드만 여기서" 등 예외를 말하지 않으면 아래 흐름이 자동 적용됩니다.
 
-> **인터랙티브 트리맵**: 전체 도구·문서 참조 관계를 한눈에 보려면 → [docs/cursor-tools-treemap.html](docs/cursor-tools-treemap.html) (브라우저에서 열기)
+> **인터랙티브 트리맵**: 전체 도구·문서 참조 관계를 한눈에 보려면 → [**라이브 페이지**](https://mingh-dev.github.io/logmng/) | [소스](docs/cursor-tools-treemap.html)
 
 #### 도구 레이어 개요
 
