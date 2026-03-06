@@ -65,6 +65,13 @@
   outline-offset: 1px;
 }
 
+/* Read-only when approval is selected (scope fixed to department). req 20260306 */
+.screen-selection-scope-readonly {
+  cursor: default;
+  background: #f0f0f0;
+  color: #555;
+}
+
 /* Screen reader only - for aria-describedby tooltip text; pointer-events: none to avoid blocking checkbox clicks */
 .screen-selection-sr-only {
   position: absolute;

@@ -77,7 +77,9 @@ Apply the **same scope rules** (self / team / all from the permission group) to 
 - **Configuration UI (required)**: Scope for pending-approvals must be **configurable** in the permission group edit dialog, same as activity-log, statistics, search-history. Today the frontend defines scope-supporting screens in two places; both must include pending-approvals:
   - **ScreenSelectionTree.js**: `SCOPE_SUPPORTING_SCREENS` = `['activity-log', 'statistics', 'search-history']` only. Add `'pending-approvals'` so that when "승인 대기" is selected, a scope dropdown (본인만 | 팀 | 전체) is shown and the value is sent on save. Without this, admins cannot set scope for pending-approvals and the backend has no scope from DB.
   - **PermissionGroupPanel.js**: `scopeScreens` (used in `normalizeAllowedScreens`) = `['activity-log', 'statistics', 'search-history']` only. Add `'pending-approvals'` so that when loading/displaying a permission group that has pending-approvals with scope, the scope is normalized and included in the payload on save.
-- **View screen (optional but recommended)**: In **PendingApprovals.js**, show a scope hint from `user.screenScopes['pending-approvals']` (e.g. "표시: 본인 요청만" / "팀 요청" / "전체") so the user knows which scope is applied, consistent with how other scope-supporting screens can reflect scope. Backend applies the filter regardless; the hint is for clarity.
+- **View screen (optional but recommended)**: In **PendingApprovals.js**, show a scope hint from `user.screenScopes['pending-approvals']` (e.g. "표시: 본인" / "표시: 부서" / "전체") so the user knows which scope is applied, consistent with how other scope-supporting screens can reflect scope. Backend applies the filter regardless; the hint is for clarity.
+
+**Terminology alignment**: Current UI and contract use scope labels **본인 | 부서 | 전체** and function labels **조회 | 승인** (not 조회만, not 팀) per specs/permission-group-hierarchy.spec.yaml §1.1 and docs/workflow/CONSISTENCY-STANDARDS.md §7.
 
 ### Change file list
 

@@ -50,3 +50,12 @@
 - **페이지당 표시 건수(공통 UX 규칙)**: 모든 그리드는 기본 **20건**/페이지. 페이지 크기 컨트롤은 숫자 입력란 옆에 증감(+/−) 버튼 제공; 증감 버튼으로 1건씩 변경 시 **즉시 반영**, 직접 입력 후 **엔터키** 입력 시 반영. 상세는 `docs/design/grid-and-table.md` § "Page size (rows per page)" 준수.
 - **검색 필드 지정**: 사용자가 별도로 검색 대상을 지정·수정 요청한 경우가 아니면, DB 스키마(`backend/src/main/resources/db/schema.sql` 등)를 참고해 **속성(컬럼 타입·의미)에 따라 검색 필드를 자동 부여**. 상세는 `docs/design/grid-and-table.md` § "Search field assignment" 준수.
 - **파일 위치**: 공유 그리드 컴포넌트는 `frontend/src/components/` 직하위 또는 `frontend/src/components/shared/`(프로젝트에서 공통 컴포넌트를 모을 경우).
+
+---
+
+## 7. 권한관리 UI 문구 및 scope (Permission config)
+
+- **문구**: "조회만" 사용 금지 → **"조회"** 사용. scope 옵션 라벨: **"본인"** | **"부서"** | **"전체"** (API 값은 그대로 `self` | `team` | `all`). "팀" 사용 금지 → **"부서"** 사용.
+- **조회(목록) 범위**: 권한 그룹 설정에서 **본인 / 부서 / 전체** 선택 가능. 이 scope는 목록·조회에만 적용됨.
+- **승인 범위**: search-history, pending-approvals 등 승인 기능이 있는 화면에서 **승인 가능 범위는 부서로 고정**되며 변경 불가. 권한 설정의 scope 드롭다운은 조회 범위만 변경함.
+- **참고**: `specs/permission-group-hierarchy.spec.yaml` §Scope values, `docs/workflow/REQUIREMENTS-CHANGE-TARGET-CHECKLIST.md` §2.1.

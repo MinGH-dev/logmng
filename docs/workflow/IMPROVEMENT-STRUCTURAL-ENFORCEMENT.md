@@ -11,7 +11,7 @@ The following judgments are **correct and should be implemented**:
 | Judgment | Evidence in current docs |
 |----------|---------------------------|
 | Main agent has too much authority and can bypass delegation | `agent-collaboration.mdc` says "invoke that subagent" but does **not** say "main must not author §1·§2·§3". So the main agent can still write the requirement doc and skip Requirements + parallel review. |
-| Parallel review is lost when main authors the doc | `AGENT-COLLABORATION-ON-REQUIREMENT.md` §1.1 assigns **parallel invocation** to the **Requirements** subagent. If Step 1 is done in the main chat, that logic never runs. See `ANALYSIS-requirement-authored-without-requirements-agent.md`. |
+| Parallel review is lost when main authors the doc | `docs/workflow/REQUIREMENTS-AUTHORING-WORKFLOW.md` assigns **parallel invocation** to the **Requirements** subagent. If Step 1 is done in the main chat, that logic never runs. See `ANALYSIS-requirement-authored-without-requirements-agent.md`. |
 | Structural improvement is necessary, not optional | Context bloat + wrong compression + bypass lead to lower quality; rule-based enforcement (delegation + checklist) is the only lever without changing Cursor product. |
 
 ---
@@ -25,7 +25,7 @@ The following judgments are **correct and should be implemented**:
 **Concrete change** — in `agent-collaboration.mdc`:
 
 - Add after "Delegation gate" a **role boundary**:
-  - "**Step 1 (requirement doc)**: The main agent **does not author** the requirement document (§1·§2·§3). It **only** invokes the **Requirements** subagent via the Task tool with the user request (or error message). Authoring is the exclusive responsibility of the Requirements subagent, which performs parallel input and orchestration per `AGENT-COLLABORATION-ON-REQUIREMENT.md` §1.1."
+  - "**Step 1 (requirement doc)**: The main agent **does not author** the requirement document (§1·§2·§3). It **only** invokes the **Requirements** subagent via the Task tool with the user request (or error message). Authoring is the exclusive responsibility of the Requirements subagent, which performs parallel input and orchestration per `docs/workflow/REQUIREMENTS-AUTHORING-WORKFLOW.md`."
 - Keep the existing **Exception**: "code only here" / "skip subagent" / "do it in this chat" → main may perform steps directly (so the user can still force single-chat flow when they want).
 
 **Effect**: Reduces bypass by making "no authoring in main" explicit; exception remains user-driven.
@@ -39,11 +39,11 @@ The following judgments are **correct and should be implemented**:
 **Concrete change**:
 
 1. **In `agent-collaboration.mdc`** (or in a "Delegation" subsection):  
-   "When invoking the **Requirements** subagent (Step 1), the main agent **must** include in the prompt: (a) the user request or error message, (b) the instruction: **'Author the requirement doc per `docs/workflow/AGENT-COLLABORATION-ON-REQUIREMENT.md` §1.1: obtain parallel input from applicable experts and Backend/Frontend/DB/QA, then orchestrate into §1·§2 and finalize §3. Do not write §1·§2 from your own judgment alone.'**"
+   "When invoking the **Requirements** subagent (Step 1), the main agent **must** include in the prompt: (a) the user request or error message, (b) the instruction: **'Author the requirement doc per `docs/workflow/REQUIREMENTS-AUTHORING-WORKFLOW.md`: obtain parallel input from applicable experts, then orchestrate into §1·§2 and finalize §3. Do not write §1·§2 from your own judgment alone.'**"
 
 2. **In `new-requirement.md`**:  
    Replace or supplement the current text with:  
-   "**Do not write** the requirement doc in this chat. **Invoke the Requirements subagent** via the Task tool (`subagent_type=\"Requirements\"`). Pass the user request (or paste it) and instruct Requirements to author the doc per `AGENT-COLLABORATION-ON-REQUIREMENT.md` §1.1 (parallel input + orchestration). After the requirement doc exists, proceed to Step 2/3/4 as needed."
+   "**Do not write** the requirement doc in this chat. **Invoke the Requirements subagent** via the Task tool (`subagent_type=\"Requirements\"`). Pass the user request (or paste it) and instruct Requirements to author the doc per `docs/workflow/REQUIREMENTS-AUTHORING-WORKFLOW.md` (parallel input + orchestration). After the requirement doc exists, proceed to Step 2/3/4 as needed."
 
 **Effect**: Ensures that whenever Step 1 is delegated, the "authoring-time collaboration" process is explicitly requested and not left to chance.
 
@@ -141,4 +141,4 @@ This is already in `HANDOFF-CHECKLIST.md`; making it explicit in the delegation 
 - `ANALYSIS-requirement-authored-without-requirements-agent.md`
 - `CONTEXT-QUALITY-AND-ORCHESTRATION-MITIGATION.md` §2.5, §4.7–4.9
 - `HANDOFF-CHECKLIST.md`
-- `AGENT-COLLABORATION-ON-REQUIREMENT.md` §1.1
+- `docs/workflow/REQUIREMENTS-AUTHORING-WORKFLOW.md`

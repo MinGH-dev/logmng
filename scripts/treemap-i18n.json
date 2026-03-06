@@ -1,0 +1,84 @@
+{
+  "rules": {
+    "agent-collaboration.mdc": "에이전트 협업 순서 규정. Step 1~6 위임 게이트. 요건 문서 없이 개발 금지.",
+    "core-principles.mdc": "응답 언어, 병렬 도구, 도구 우선순위, 품질 게이트, 보안 원칙. 모든 규칙의 허브.",
+    "error-first-workflow.mdc": "에러/버그 수정 시 요건 문서 + §3 테스트 계획 먼저 작성.",
+    "post-change-test-verify.mdc": "코드 변경 후 테스트·검증 실행. 실패 시 bugfix 자식 요건 생성.",
+    "contract-first.mdc": "API·DB 작업 시 계약/스펙 먼저 확인.",
+    "workflow-todos.mdc": "TodoWrite 시 WORKFLOW_CHECKLIST 순서 필수 준수.",
+    "language-policy.mdc": "규칙/스킬/워크플로우는 영어, 사용자 응답은 요청 언어.",
+    "build-restart-handoff.mdc": "코드 변경 후 빌드·재시작·§2 갱신·QA 핸드오프.",
+    "security-permissions.mdc": "읽기/실행 금지 경로, 위험 명령 확인 필수.",
+    "file-reading-optimization.mdc": "파일 크기별 계층적 로딩으로 토큰 절약.",
+    "subagent-invoke.mdc": "Cursor 내장 Subagents만 사용 (미사용)."
+  },
+  "skills": {
+    "dev-workflow": "요건·테스트 계획 우선 개발 순서. TDD/DDD 선택 적용.",
+    "test-workflow": "§3 테스트 계획·실행·§5 기록·검증 워크플로우.",
+    "requirement-doc": "요건 문서 작성·수정. 템플릿·명명 규칙 적용.",
+    "auth-permission-domain": "is_system_admin, 권한 그룹, 화면별 접근, scope (self/team/all).",
+    "api-permission-map": "API 엔드포인트 → 컨트롤러 → 권한 체크 → 거부 에러코드 매핑.",
+    "search-history-decrypt-domain": "검색 이력, 복호화 승인 흐름 (PENDING/APPROVED/REJECTED).",
+    "department-approver-domain": "부서 계층, 결재자 지정, canApproveForRequester.",
+    "log-search-domain": "로그 검색 API, logType (pb_feplog, java_fw_imglog).",
+    "activity-statistics-domain": "활동 통계, scope, daily/monthly, CSV export.",
+    "error-codes-domain": "에러 코드: FORBIDDEN, DECRYPTION_NOT_APPROVED 등.",
+    "ui-ux-domain": "메뉴 트리, view, screen ID, adminOnly, sidebar.",
+    "db-domain": "PostgreSQL 스키마, 마이그레이션, setup 스크립트.",
+    "react-debugging": "React 디버깅 기법."
+  },
+  "commands": {
+    "new-requirement": "Requirements 서브에이전트로 요건 문서 작성",
+    "fix": "에러 수정: 요건→§3→개발→테스트→검증",
+    "plan": "코드 전 요건 문서 + §3 계획",
+    "review": "셀프 리뷰 및 PR 전 체크리스트",
+    "verify": "재시작 + 헬스체크 + 브라우저 검증",
+    "commit-on-complete": "검증 통과 후 §5/§6 업데이트 후 커밋",
+    "follow-workflow": "TODO를 WORKFLOW_CHECKLIST 순서로 정렬",
+    "dry-run-handoff": "핸드오프 프롬프트 시뮬레이션",
+    "run-tests": "§3 정의 → 테스트 실행 → §5 기록",
+    "record-error-fix": "§6 에러 수정 결과 기록",
+    "agent-backend": "이 채팅에서 Backend 에이전트로 동작",
+    "agent-frontend": "이 채팅에서 Frontend 에이전트로 동작",
+    "agent-db": "이 채팅에서 DB 에이전트로 동작"
+  },
+  "commands_grouped": {
+    "start/stop/restart-all": "전체 서비스 시작/중지/재시작",
+    "start/stop/restart-backend": "백엔드 (9200) 관리",
+    "start/stop/restart-frontend": "프론트엔드 (3001) 관리",
+    "start/stop/restart-db": "PostgreSQL 관리",
+    "check-backend": "백엔드 헬스체크",
+    "check-frontend-backend": "프론트엔드·백엔드 헬스체크",
+    "check-db": "DB 헬스체크"
+  },
+  "workflow": {
+    "AGENT-COLLABORATION-ON-REQUIREMENT.md": "협업 순서·핸드오프 규칙 인덱스. 상세: REQUIREMENTS-AUTHORING-WORKFLOW.md, DEVELOPMENT-QUERY-EXPERTS.md.",
+    "REQUIREMENTS-AUTHORING-WORKFLOW.md": "요구사항 작성 절차 (§1.1 병렬 입력·오케스트레이션, §1.2 변경 파일 목록, §1.4 Cursor 인프라 갱신).",
+    "DEVELOPMENT-QUERY-EXPERTS.md": "Step 4 구현 시 전문가(UX·Contract·DBA 등) 질의 방법.",
+    "SUBAGENT-DELEGATION.md": "Step별 서브에이전트 위임 테이블 및 게이트 규정.",
+    "CURSOR-SUBAGENTS-DESIGN.md": "서브에이전트 역할·범위·등록 방법 정의.",
+    "WORKFLOW_CHECKLIST.md": "새 요건·버그 수정 시 순서와 게이트 체크리스트.",
+    "HANDOFF-CHECKLIST.md": "Backend/Frontend/DB/Review/QA별 핸드오프 체크리스트.",
+    "ERROR-FIX-WORKFLOW-FLOWCHART.md": "오류 수정 시 Skills/Sub-Agent/Commands 사용 시점 흐름도.",
+    "WORKFLOW_MODES.md": "TDD vs DDD 개발 방식 선택 가이드.",
+    "SUBAGENT-MODEL-SELECTION.md": "서브에이전트별 모델 티어 (Light / Default).",
+    "DEVELOPMENT_WORKFLOW.md": "개발 워크플로우 상세 절차.",
+    "BROWSER-AUTOMATION-VERIFICATION-POLICY.md": "브라우저 자동화 검증 정책.",
+    "DOCUMENT-LANGUAGE-POLICY.md": "문서 작성 언어 정책.",
+    "CONSISTENCY-STANDARDS.md": "프로젝트 컨벤션·네이밍·에러코드 일관성 표준."
+  },
+  "templates": {
+    "REQUIREMENT_TEMPLATE.md": "요건 문서 §1·§2·§3·§5·§6 템플릿.",
+    "BUGFIX_CHILD_TEMPLATE.md": "테스트/검증 실패 시 버그픽스 자식 요건 템플릿.",
+    "ERROR_FIX_RESULT_TEMPLATE.md": "에러 수정 결과 기록 (§6) 템플릿.",
+    "AGENT_PROMPT_TEMPLATE.md": "서브에이전트 핸드오프 프롬프트 템플릿."
+  },
+  "hubs": {
+    "AGENT-COLLABORATION-ON-REQUIREMENT.md": "에이전트 협업 인덱스 — 순서·핸드오프 규칙. 상세: REQUIREMENTS-AUTHORING-WORKFLOW, DEVELOPMENT-QUERY-EXPERTS.",
+    "SUBAGENT-DELEGATION.md": "Step별 서브에이전트 위임 테이블 + 게이트",
+    "WORKFLOW_CHECKLIST.md": "새 요건·버그 수정의 순서 체크리스트 (첫 게이트)",
+    "REQUIREMENT_TEMPLATE.md": "§1·§2·§3·§5·§6 요건 문서의 구조 정의",
+    "commit-on-complete": "검증 통과 → §5/§6 갱신 → 커밋의 최종 게이트",
+    "docs/contract.md": "API·DB·포트 계약 — 10개 이상 에이전트가 참조"
+  }
+}

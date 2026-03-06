@@ -277,7 +277,7 @@ Use for baseline and post-skill comparison.
 |---|----------|---------------------|
 | 1 | user3에 관리자 권한 그룹을 줬는데 사용자 관리 접근이 안 돼요 | is_system_admin 필요, DB에서 설정 |
 | 2 | 권한 그룹으로 admin-only API 접근이 되나요? | 안 됨, is_system_admin만 |
-| 3 | scope=self와 scope=all 차이는? | self=본인만, all=전체 |
+| 3 | scope=self와 scope=all 차이는? | self=본인, all=전체 |
 | 4 | 화면 ID 목록이 어디에 정의되어 있나요? | specs §4.1, contract |
 | 5 | 사용자 관리 API는 어디서 권한 체크하나요? | UserController, ScreenAccessInterceptor |
 

@@ -8,8 +8,10 @@ import org.junit.jupiter.api.Test;
 
 import javax.sql.DataSource;
 import java.sql.Connection;
+import java.sql.PreparedStatement;
 import java.sql.Statement;
 import java.util.List;
+import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -40,8 +42,11 @@ class PermissionGroupServiceTest {
                     "name VARCHAR(200) NOT NULL, description VARCHAR(500), sort_order INT DEFAULT 0)");
             stmt.execute("CREATE TABLE IF NOT EXISTS permission_group_screen (" +
                     "permission_group_id BIGINT NOT NULL, screen_id VARCHAR(50) NOT NULL, " +
-                    "scope VARCHAR(10), read BOOLEAN, write BOOLEAN, approve BOOLEAN, " +
+                    "scope VARCHAR(10), read BOOLEAN, write BOOLEAN, approve BOOLEAN, decrypt BOOLEAN, " +
                     "PRIMARY KEY (permission_group_id, screen_id))");
+            stmt.execute("CREATE TABLE IF NOT EXISTS app_user_permission_group (" +
+                    "user_id VARCHAR(100) NOT NULL, permission_group_id BIGINT NOT NULL, " +
+                    "PRIMARY KEY (user_id, permission_group_id))");
         }
         org.h2.jdbcx.JdbcDataSource ds = new org.h2.jdbcx.JdbcDataSource();
         ds.setURL(H2_URL);
@@ -118,5 +123,92 @@ class PermissionGroupServiceTest {
         assertThat(item.getScreenId()).isEqualTo("search-history");
         assertThat(item.getScope()).isEqualTo("team");
         assertThat(item.getApprove()).isTrue();
+    }
+
+    /**
+     * TC-05: Create permission group with search-history, approve=true, scope=self → stored row has scope='team'.
+     * Req: 20260306-approval-scope-fixed-department.
+     */
+    @Test
+    void create_searchHistoryApproveTrueScopeSelf_storedScopeIsTeam() throws Exception {
+        PermissionGroupCreateRequest req = new PermissionGroupCreateRequest();
+        req.setCode("pg_approve_self");
+        req.setName("Approve Self Coerced");
+        AllowedScreenItem searchHistory = new AllowedScreenItem();
+        searchHistory.setScreenId("search-history");
+        searchHistory.setScope("self");
+        searchHistory.setApprove(true);
+        req.setAllowedScreens(List.of(searchHistory));
+
+        var response = service.create(req);
+        assertThat(response).isNotNull();
+        assertThat(response.getAllowedScreens()).hasSize(1);
+        assertThat(response.getAllowedScreens().get(0).getScreenId()).isEqualTo("search-history");
+        assertThat(response.getAllowedScreens().get(0).getScope()).isEqualTo("team");
+        assertThat(response.getAllowedScreens().get(0).getApprove()).isTrue();
+
+        try (Connection conn = dataSource.getConnection();
+             PreparedStatement ps = conn.prepareStatement("SELECT scope FROM permission_group_screen WHERE permission_group_id = ? AND screen_id = 'search-history'")) {
+            ps.setLong(1, response.getId());
+            try (var rs = ps.executeQuery()) {
+                assertThat(rs.next()).isTrue();
+                assertThat(rs.getString("scope")).isEqualTo("team");
+            }
+        }
+    }
+
+    /**
+     * TC-06: Create permission group with pending-approvals, approve=true, scope=all → stored row has scope='team'.
+     * Req: 20260306-approval-scope-fixed-department.
+     */
+    @Test
+    void create_pendingApprovalsApproveTrueScopeAll_storedScopeIsTeam() throws Exception {
+        PermissionGroupCreateRequest req = new PermissionGroupCreateRequest();
+        req.setCode("pg_approve_all");
+        req.setName("Approve All Coerced");
+        AllowedScreenItem pendingApprovals = new AllowedScreenItem();
+        pendingApprovals.setScreenId("pending-approvals");
+        pendingApprovals.setScope("all");
+        pendingApprovals.setApprove(true);
+        req.setAllowedScreens(List.of(pendingApprovals));
+
+        var response = service.create(req);
+        assertThat(response).isNotNull();
+        assertThat(response.getAllowedScreens()).hasSize(1);
+        assertThat(response.getAllowedScreens().get(0).getScreenId()).isEqualTo("pending-approvals");
+        assertThat(response.getAllowedScreens().get(0).getScope()).isEqualTo("team");
+        assertThat(response.getAllowedScreens().get(0).getApprove()).isTrue();
+
+        try (Connection conn = dataSource.getConnection();
+             PreparedStatement ps = conn.prepareStatement("SELECT scope FROM permission_group_screen WHERE permission_group_id = ? AND screen_id = 'pending-approvals'")) {
+            ps.setLong(1, response.getId());
+            try (var rs = ps.executeQuery()) {
+                assertThat(rs.next()).isTrue();
+                assertThat(rs.getString("scope")).isEqualTo("team");
+            }
+        }
+    }
+
+    /**
+     * TC-04: getScreenScopesForUser returns pending-approvals scope when user has that screen with scope in permission group.
+     * Req: 20260305-pending-approvals-scope-same-as-search-history.
+     */
+    @Test
+    void getScreenScopesForUser_includesPendingApprovalsScopeWhenConfigured() throws Exception {
+        try (Connection conn = dataSource.getConnection();
+             Statement stmt = conn.createStatement()) {
+            stmt.executeUpdate("INSERT INTO permission_group (id, code, name, description, sort_order) VALUES (100, 'pg_pending', 'Pending Scope', NULL, 0)");
+            stmt.executeUpdate("INSERT INTO permission_group_screen (permission_group_id, screen_id, scope, read, write, approve, decrypt) VALUES (100, 'pending-approvals', 'team', true, false, true, NULL)");
+        }
+        try (Connection conn = dataSource.getConnection();
+             PreparedStatement ps = conn.prepareStatement("INSERT INTO app_user_permission_group (user_id, permission_group_id) VALUES (?, ?)")) {
+            ps.setString(1, "testuser");
+            ps.setLong(2, 100L);
+            ps.executeUpdate();
+        }
+
+        Map<String, String> scopes = service.getScreenScopesForUser("testuser");
+
+        assertThat(scopes).containsEntry("pending-approvals", "team");
     }
 }

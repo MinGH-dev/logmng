@@ -31,7 +31,7 @@ Apply when working on **log DB, search, decrypt, or log type** (LogDb*, SearchSu
 - Implement or change log search/suggest, decrypt, log-type API only. Follow `docs/contract.md` and specs. Update spec first for these API changes.
 - Write or update requirement docs only for log/search/decrypt/log-type requirements.
 - Unit/integration tests (JUnit, Mockito). Decrypt/sensitive data per `docs/security-guide.md`.
-- When implementing from a requirement doc: after implementation, **confirm or update** that doc's §2 **"변경 파일 목록"** with the actual files changed; build, restart, then hand off to QA. See `docs/workflow/AGENT-COLLABORATION-ON-REQUIREMENT.md` §1.2.
+- When implementing from a requirement doc: after implementation, **confirm or update** that doc's §2 **"변경 파일 목록"** with the actual files changed; build, restart, then hand off to QA. See `docs/workflow/REQUIREMENTS-AUTHORING-WORKFLOW.md` §1.2.
 
 ## References
 

@@ -57,6 +57,7 @@ Structure by scope so each implementing agent receives only its relevant section
 **Frontend:**
 - [Change 1]
 - [Change 2]
+- When the feature is **configurable and also displayed**, list both **(a) configuration/setup UI** (e.g. permission group edit, settings) and **(b) user-facing screen(s)**. See `docs/workflow/REQUIREMENTS-CHANGE-TARGET-CHECKLIST.md`.
 
 **Backend:**
 - [Change 1]
@@ -64,6 +65,20 @@ Structure by scope so each implementing agent receives only its relevant section
 
 **DB:**
 - [None or change description]
+
+### Affected scopes and change targets (verification)
+
+**Before finalizing §2**, the Requirements author must verify that every affected scope is covered and that no touchpoint is missed. Use `docs/workflow/REQUIREMENTS-CHANGE-TARGET-CHECKLIST.md`.
+
+| Scope | Affected? | §2 subsection and change file list complete? |
+|-------|------------|-----------------------------------------------|
+| Backend | [ ] Yes / [ ] No | [ ] |
+| Frontend (config UI + view screen) | [ ] Yes / [ ] No | [ ] |
+| DB | [ ] Yes / [ ] No | [ ] |
+| Contract / Spec | [ ] Yes / [ ] No | [ ] |
+| Cursor tools (skills, specs) | [ ] Yes / [ ] No | [ ] |
+
+If the requirement matches a **domain pattern** (e.g. scope-supporting screen, permission group, API change), run the pattern checklist in REQUIREMENTS-CHANGE-TARGET-CHECKLIST.md §2 and confirm all touchpoints are in §2 and in the change file list below.
 
 ### Change file list
 

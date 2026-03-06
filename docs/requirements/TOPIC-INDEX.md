@@ -8,6 +8,8 @@ For **RequirementsPastSearch** token optimization. Read this file first to find 
 
 ## permission | access-control | 화면 접근 | 권한 그룹 | is_system_admin
 
+- 20260306-search-screen-decrypt-permission | 검색하기(main) 화면 복호화 권한 부여/해제; 권한관리에서 복호화 체크; 복호화 API는 권한 있는 사용자만 요청 가능
+- 20260306-approval-scope-fixed-department | Approval scope fixed to department (부서); scope selection read-only when approve selected in permission config
 - 20260304-permission-group-modal-error-visibility | Show permission-group create/edit/delete errors inside modals; fix APPROVE_USER + search-history + team error
 - 20250304-permission-group-function-verification | 권한 그룹 수정/승인: 보유자 정상 이용·미보유자 행사 불가 검증 (verification only; single source)
 - 20250303-screen-function-availability | 화면별 기능 사용 가능 여부 (read/write/approve); main read-only; common format
@@ -74,6 +76,8 @@ For **RequirementsPastSearch** token optimization. Read this file first to find 
 
 ## decryption | 복호화 | search-history | 검색 이력 | approval
 
+- 20260306-search-screen-decrypt-permission | 검색하기 화면 복호화 권한 부여/해제; 복호화 API는 main.decrypt 권한 있는 사용자만 요청 가능
+- 20260306-approval-scope-fixed-department | Approval scope fixed to department; config UI shows 부서 read-only when approve selected
 - 20260224-decryption-approver-designation | 복호화 결재자 지정 및 결재자 전용 승인
 - 20260224-decryption-require-approval | 복호화 승인 없이 복호화 차단
 - 20260224-search-history-decryption-approval | 검색 이력 및 복호화 승인 재요청

@@ -1,0 +1,1115 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cursor Tools & Workflow Tree Map</title>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Noto+Sans+KR:wght@300;400;600;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #0a0e17;
+  --surface: #111827;
+  --surface2: #1a2332;
+  --border: #2a3a50;
+  --accent-rules: #f97316;
+  --accent-skills: #06b6d4;
+  --accent-commands: #a855f7;
+  --accent-workflow: #10b981;
+  --accent-template: #f43f5e;
+  --accent-subagent: #3b82f6;
+  --text: #e2e8f0;
+  --text-muted: #94a3b8;
+  --text-dim: #64748b;
+  --glow-rules: rgba(249,115,22,0.15);
+  --glow-skills: rgba(6,182,212,0.15);
+  --glow-commands: rgba(168,85,247,0.15);
+  --glow-workflow: rgba(16,185,129,0.15);
+  --glow-template: rgba(244,63,94,0.15);
+  --glow-subagent: rgba(59,130,246,0.15);
+}
+* { margin:0; padding:0; box-sizing:border-box; }
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'Noto Sans KR', sans-serif;
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+.header {
+  text-align: center;
+  padding: 40px 20px 20px;
+}
+.header h1 {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 28px;
+  font-weight: 700;
+  background: linear-gradient(135deg, #f97316, #06b6d4, #a855f7);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  letter-spacing: -0.5px;
+}
+.header p {
+  color: var(--text-muted);
+  font-size: 14px;
+  margin-top: 8px;
+}
+.legend {
+  display: flex;
+  justify-content: center;
+  gap: 20px;
+  padding: 16px 20px;
+  flex-wrap: wrap;
+}
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--text-muted);
+  font-family: 'JetBrains Mono', monospace;
+}
+.legend-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 3px;
+}
+
+.flow-container {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 20px;
+}
+.flow-title {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--text);
+  margin-bottom: 16px;
+  padding-left: 8px;
+  border-left: 3px solid var(--accent-subagent);
+}
+.flow-hint {
+  font-size: 12px;
+  color: var(--text-dim);
+  margin-bottom: 12px;
+  padding-left: 12px;
+  font-style: italic;
+}
+.flow-steps {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding-bottom: 16px;
+  align-items: stretch;
+  flex-wrap: nowrap;
+}
+.step-card {
+  flex: 0 0 auto;
+  min-width: 200px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 16px;
+  transition: all 0.3s ease;
+}
+.step-card:hover {
+  border-color: var(--accent-subagent);
+  box-shadow: 0 0 20px var(--glow-subagent);
+  transform: translateY(-2px);
+}
+.step-num {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--accent-subagent);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  margin-bottom: 6px;
+}
+.step-name {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text);
+  margin-bottom: 8px;
+}
+.step-agents {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  align-items: flex-start;
+}
+.agent-chip {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  padding: 3px 8px;
+  border-radius: 4px;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all 0.2s;
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 3px;
+  min-width: 175px;
+  width: fit-content;
+}
+.agent-chip:hover {
+  background: var(--glow-subagent);
+  border-color: var(--accent-subagent);
+  color: var(--text);
+}
+.agent-chip.active {
+  background: var(--glow-subagent);
+  border-color: var(--accent-subagent);
+  color: var(--text);
+  box-shadow: 0 0 8px var(--glow-subagent);
+}
+.agent-chip.light { opacity: 0.7; font-style: italic; }
+.agent-chip.light.active { opacity: 1; }
+.step-arrow {
+  display: flex;
+  align-items: center;
+  color: var(--text-dim);
+  font-size: 20px;
+  flex-shrink: 0;
+}
+
+.agent-detail-panel {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 0 20px;
+  overflow: hidden;
+  max-height: 0;
+  opacity: 0;
+  transition: max-height 0.4s ease, opacity 0.3s ease, margin 0.3s ease;
+}
+.agent-detail-panel.open {
+  max-height: 600px;
+  opacity: 1;
+  margin-bottom: 20px;
+}
+.agent-detail-inner {
+  background: var(--surface);
+  border: 1px solid var(--accent-subagent);
+  border-radius: 12px;
+  padding: 20px 24px;
+  box-shadow: 0 4px 24px rgba(59,130,246,0.1);
+}
+.agent-detail-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+.agent-detail-name {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--accent-subagent);
+}
+.agent-detail-step {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  color: var(--text-dim);
+  padding: 2px 10px;
+  border-radius: 10px;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+}
+.agent-detail-close {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12px;
+  color: var(--text-dim);
+  cursor: pointer;
+  padding: 4px 10px;
+  border-radius: 4px;
+  border: 1px solid var(--border);
+  background: transparent;
+  transition: all 0.2s;
+}
+.agent-detail-close:hover {
+  border-color: var(--accent-template);
+  color: var(--accent-template);
+}
+.agent-detail-scope {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-bottom: 16px;
+  padding: 8px 12px;
+  background: var(--surface2);
+  border-radius: 6px;
+  border-left: 3px solid var(--accent-subagent);
+}
+.agent-refs-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 12px;
+}
+.agent-ref-group {
+  padding: 10px 12px;
+  background: var(--surface2);
+  border-radius: 8px;
+  border: 1px solid var(--border);
+}
+.agent-ref-group-title {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  margin-bottom: 8px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.agent-ref-group-title .dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 2px;
+  flex-shrink: 0;
+}
+.agent-ref-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.agent-ref-item {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  padding: 2px 6px;
+  border-radius: 3px;
+  border: 1px solid;
+}
+.agent-ref-item.rules { color: var(--accent-rules); border-color: rgba(249,115,22,0.3); background: var(--glow-rules); }
+.agent-ref-item.skills { color: var(--accent-skills); border-color: rgba(6,182,212,0.3); background: var(--glow-skills); }
+.agent-ref-item.commands { color: var(--accent-commands); border-color: rgba(168,85,247,0.3); background: var(--glow-commands); }
+.agent-ref-item.workflow { color: var(--accent-workflow); border-color: rgba(16,185,129,0.3); background: var(--glow-workflow); }
+.agent-ref-item.template { color: var(--accent-template); border-color: rgba(244,63,94,0.3); background: var(--glow-template); }
+.agent-ref-item.other { color: var(--text-dim); border-color: var(--border); background: var(--surface); }
+.no-refs { font-size: 11px; color: var(--text-dim); font-style: italic; }
+
+.sections {
+  max-width: 1400px;
+  margin: 30px auto;
+  padding: 0 20px;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(420px, 1fr));
+  gap: 20px;
+}
+.section {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  overflow: hidden;
+  transition: all 0.3s;
+}
+.section-header {
+  padding: 16px 20px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+  user-select: none;
+}
+.section-header:hover { background: var(--surface2); }
+.section-icon {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  flex-shrink: 0;
+}
+.section-title {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 14px;
+  font-weight: 700;
+  flex: 1;
+}
+.section-count {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  color: var(--text-dim);
+  padding: 2px 8px;
+  border-radius: 10px;
+  background: var(--surface2);
+}
+.section-toggle {
+  color: var(--text-dim);
+  font-size: 14px;
+  transition: transform 0.3s;
+}
+.section-toggle.open { transform: rotate(180deg); }
+.section-body {
+  padding: 0 20px 16px;
+  display: none;
+}
+.section-body.open { display: block; }
+
+.item {
+  padding: 10px 12px;
+  margin: 4px 0;
+  border-radius: 8px;
+  background: var(--surface2);
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.item:hover { border-color: var(--border); }
+.item-name {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12px;
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+.item-desc {
+  font-size: 12px;
+  color: var(--text-muted);
+  line-height: 1.5;
+}
+.item-refs {
+  display: none;
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid var(--border);
+}
+.item-refs.open { display: block; }
+.ref-title {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  margin-bottom: 6px;
+}
+.ref-tag {
+  display: inline-block;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  padding: 2px 6px;
+  margin: 2px;
+  border-radius: 3px;
+  border: 1px solid;
+  cursor: default;
+}
+.ref-tag.rules { color: var(--accent-rules); border-color: rgba(249,115,22,0.3); background: var(--glow-rules); }
+.ref-tag.skills { color: var(--accent-skills); border-color: rgba(6,182,212,0.3); background: var(--glow-skills); }
+.ref-tag.commands { color: var(--accent-commands); border-color: rgba(168,85,247,0.3); background: var(--glow-commands); }
+.ref-tag.workflow { color: var(--accent-workflow); border-color: rgba(16,185,129,0.3); background: var(--glow-workflow); }
+.ref-tag.template { color: var(--accent-template); border-color: rgba(244,63,94,0.3); background: var(--glow-template); }
+.ref-tag.other { color: var(--text-dim); border-color: var(--border); background: var(--surface); }
+
+.ref-map {
+  max-width: 1400px;
+  margin: 30px auto;
+  padding: 0 20px 40px;
+}
+.ref-map-title {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--text);
+  margin-bottom: 16px;
+  padding-left: 8px;
+  border-left: 3px solid var(--accent-workflow);
+}
+.hub-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 16px;
+}
+.hub-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 16px;
+  transition: all 0.3s;
+}
+.hub-card:hover {
+  border-color: var(--accent-workflow);
+  box-shadow: 0 0 16px var(--glow-workflow);
+}
+.hub-name {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 13px;
+  font-weight: 700;
+  margin-bottom: 4px;
+}
+.hub-role {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-bottom: 10px;
+}
+.hub-refs-count {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  color: var(--accent-workflow);
+}
+.hub-bar {
+  height: 4px;
+  border-radius: 2px;
+  background: var(--surface2);
+  margin-top: 8px;
+  overflow: hidden;
+}
+.hub-bar-fill {
+  height: 100%;
+  border-radius: 2px;
+  background: linear-gradient(90deg, var(--accent-workflow), var(--accent-skills));
+  transition: width 0.6s ease;
+}
+
+.cmd-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 8px;
+}
+.cmd-item {
+  padding: 8px 12px;
+  border-radius: 6px;
+  background: var(--surface2);
+  border: 1px solid transparent;
+  transition: all 0.2s;
+}
+.cmd-item:hover { border-color: var(--accent-commands); }
+.cmd-name {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--accent-commands);
+}
+.cmd-desc {
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+.cmd-category {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  margin: 12px 0 8px;
+}
+
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: var(--bg); }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--text-dim); }
+
+.doc-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+}
+.doc-overlay.open { display: flex; }
+.doc-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(0,0,0,0.5);
+  cursor: pointer;
+}
+.doc-drawer {
+  position: absolute;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  width: min(680px, 90vw);
+  background: var(--bg);
+  border-left: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  transform: translateX(100%);
+  transition: transform 0.3s ease;
+  box-shadow: -8px 0 32px rgba(0,0,0,0.4);
+}
+.doc-overlay.open .doc-drawer { transform: translateX(0); }
+.doc-drawer-header {
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+  background: var(--surface);
+}
+.doc-drawer-path {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12px;
+  color: var(--text-muted);
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.doc-drawer-github {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  color: var(--accent-subagent);
+  text-decoration: none;
+  padding: 3px 8px;
+  border-radius: 4px;
+  border: 1px solid rgba(59,130,246,0.3);
+  background: var(--glow-subagent);
+  flex-shrink: 0;
+}
+.doc-drawer-github:hover { border-color: var(--accent-subagent); }
+.doc-drawer-close {
+  font-size: 18px;
+  color: var(--text-dim);
+  cursor: pointer;
+  background: none;
+  border: none;
+  padding: 4px 8px;
+  border-radius: 4px;
+  flex-shrink: 0;
+}
+.doc-drawer-close:hover { color: var(--accent-template); background: var(--surface2); }
+.doc-drawer-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 20px 24px;
+}
+.doc-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 120px;
+  color: var(--text-dim);
+  font-size: 13px;
+}
+.doc-loading .spinner {
+  width: 20px;
+  height: 20px;
+  border: 2px solid var(--border);
+  border-top-color: var(--accent-subagent);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+  margin-right: 10px;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+.doc-error {
+  padding: 16px;
+  background: var(--surface);
+  border: 1px solid rgba(244,63,94,0.3);
+  border-radius: 8px;
+  color: var(--accent-template);
+  font-size: 13px;
+}
+.doc-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  color: var(--text-dim);
+  cursor: pointer;
+  padding: 1px 5px;
+  border-radius: 3px;
+  border: 1px solid transparent;
+  background: transparent;
+  margin-left: 6px;
+  vertical-align: middle;
+  transition: all 0.15s;
+}
+.doc-btn:hover {
+  color: var(--accent-subagent);
+  border-color: rgba(59,130,246,0.3);
+  background: var(--glow-subagent);
+}
+
+.md-content { font-size: 13px; line-height: 1.7; color: var(--text); }
+.md-content h1 { font-size: 20px; font-weight: 700; margin: 24px 0 12px; padding-bottom: 6px; border-bottom: 1px solid var(--border); color: var(--text); }
+.md-content h2 { font-size: 17px; font-weight: 700; margin: 20px 0 10px; color: var(--text); }
+.md-content h3 { font-size: 14px; font-weight: 700; margin: 16px 0 8px; color: var(--text); }
+.md-content h4, .md-content h5, .md-content h6 { font-size: 13px; font-weight: 700; margin: 12px 0 6px; color: var(--text-muted); }
+.md-content p { margin: 8px 0; }
+.md-content a { color: var(--accent-subagent); text-decoration: none; }
+.md-content a:hover { text-decoration: underline; }
+.md-content code {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12px;
+  background: var(--surface2);
+  padding: 1px 5px;
+  border-radius: 3px;
+  border: 1px solid var(--border);
+  color: var(--accent-skills);
+}
+.md-content pre {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 12px 16px;
+  overflow-x: auto;
+  margin: 10px 0;
+}
+.md-content pre code {
+  background: none;
+  border: none;
+  padding: 0;
+  color: var(--text);
+  font-size: 11px;
+}
+.md-content table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 10px 0;
+  font-size: 12px;
+}
+.md-content th, .md-content td {
+  padding: 6px 10px;
+  border: 1px solid var(--border);
+  text-align: left;
+}
+.md-content th { background: var(--surface2); font-weight: 600; color: var(--text); }
+.md-content td { color: var(--text-muted); }
+.md-content blockquote {
+  border-left: 3px solid var(--accent-workflow);
+  padding: 4px 12px;
+  margin: 8px 0;
+  color: var(--text-muted);
+  background: var(--surface);
+  border-radius: 0 6px 6px 0;
+}
+.md-content ul, .md-content ol { padding-left: 20px; margin: 6px 0; }
+.md-content li { margin: 3px 0; }
+.md-content hr { border: none; border-top: 1px solid var(--border); margin: 16px 0; }
+.md-content strong { color: var(--text); }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>⚙ Cursor Tools & Workflow Map</h1>
+  <p>규칙 · 스킬 · 명령어 · 워크플로우 · 서브에이전트 — 전체 동작 흐름과 문서 참조 관계</p>
+</div>
+
+<div class="legend">
+  <div class="legend-item"><div class="legend-dot" style="background:var(--accent-rules)"></div>Rules</div>
+  <div class="legend-item"><div class="legend-dot" style="background:var(--accent-skills)"></div>Skills</div>
+  <div class="legend-item"><div class="legend-dot" style="background:var(--accent-commands)"></div>Commands</div>
+  <div class="legend-item"><div class="legend-dot" style="background:var(--accent-workflow)"></div>Workflow Docs</div>
+  <div class="legend-item"><div class="legend-dot" style="background:var(--accent-template)"></div>Templates</div>
+  <div class="legend-item"><div class="legend-dot" style="background:var(--accent-subagent)"></div>Subagents</div>
+</div>
+
+<!-- Flow Steps (rendered by JS) -->
+<div class="flow-container">
+  <div class="flow-title">▸ 협업 순서 (Collaboration Sequence)</div>
+  <div class="flow-hint">서브에이전트를 클릭하면 실행 시 참조하는 도구 목록이 표시됩니다</div>
+  <div class="flow-steps" id="flowSteps"></div>
+</div>
+
+<!-- Agent Detail Panel -->
+<div class="agent-detail-panel" id="agentDetailPanel">
+  <div class="agent-detail-inner">
+    <div class="agent-detail-header">
+      <div style="display:flex; align-items:center; gap:12px">
+        <div class="agent-detail-name" id="agentName"></div>
+        <div class="agent-detail-step" id="agentStep"></div>
+      </div>
+      <button class="agent-detail-close" onclick="closeAgentDetail()">✕ 닫기</button>
+    </div>
+    <div class="agent-detail-scope" id="agentScope"></div>
+    <div class="agent-refs-grid" id="agentRefsGrid"></div>
+  </div>
+</div>
+
+<!-- Doc Preview Drawer -->
+<div class="doc-overlay" id="docOverlay">
+  <div class="doc-backdrop" onclick="closeDocPreview()"></div>
+  <div class="doc-drawer">
+    <div class="doc-drawer-header">
+      <div class="doc-drawer-path" id="docPath"></div>
+      <a class="doc-drawer-github" id="docGithubLink" href="#" target="_blank" rel="noopener">GitHub ↗</a>
+      <button class="doc-drawer-close" onclick="closeDocPreview()">✕</button>
+    </div>
+    <div class="doc-drawer-body" id="docBody">
+      <div class="doc-loading"><div class="spinner"></div>문서를 불러오는 중…</div>
+    </div>
+  </div>
+</div>
+
+<!-- Sections (rendered by JS) -->
+<div class="sections" id="sectionsContainer"></div>
+
+<!-- Reference Hub Map (rendered by JS) -->
+<div class="ref-map">
+  <div class="ref-map-title">▸ 핵심 허브 문서 (가장 많이 참조되는 문서)</div>
+  <div class="hub-grid" id="hubGrid"></div>
+</div>
+
+<!-- Merge Order (static) -->
+<div class="ref-map" style="padding-bottom: 60px">
+  <div class="ref-map-title">▸ 구현 머지 순서 & 충돌 해결</div>
+  <div style="display:flex; gap:12px; flex-wrap:wrap; align-items:center; margin-top:8px">
+    <div style="background:var(--surface); border:1px solid var(--accent-subagent); border-radius:10px; padding:14px 24px; text-align:center;">
+      <div style="font-family:'JetBrains Mono',monospace; font-size:13px; font-weight:700; color:var(--accent-subagent)">DB Schema</div>
+      <div style="font-size:11px; color:var(--text-muted); margin-top:4px">schema.sql, migrations</div>
+    </div>
+    <div style="color:var(--accent-subagent); font-size:24px; font-weight:700">→</div>
+    <div style="background:var(--surface); border:1px solid var(--accent-subagent); border-radius:10px; padding:14px 24px; text-align:center;">
+      <div style="font-family:'JetBrains Mono',monospace; font-size:13px; font-weight:700; color:var(--accent-subagent)">Backend API</div>
+      <div style="font-size:11px; color:var(--text-muted); margin-top:4px">controllers, services</div>
+    </div>
+    <div style="color:var(--accent-subagent); font-size:24px; font-weight:700">→</div>
+    <div style="background:var(--surface); border:1px solid var(--accent-subagent); border-radius:10px; padding:14px 24px; text-align:center;">
+      <div style="font-family:'JetBrains Mono',monospace; font-size:13px; font-weight:700; color:var(--accent-subagent)">Frontend UI</div>
+      <div style="font-size:11px; color:var(--text-muted); margin-top:4px">components, API calls</div>
+    </div>
+  </div>
+  <div style="margin-top:16px; padding:14px; background:var(--surface); border-radius:8px; border:1px solid var(--border); font-size:12px; color:var(--text-muted); line-height:1.8">
+    <strong style="color:var(--text)">충돌 해결 원칙:</strong><br>
+    • 파일당 하나의 소유 에이전트 — 다른 스코프 파일 수정 금지<br>
+    • 교차 스코프 필요 시 → 요건 문서에 기록 → 소유 에이전트에게 핸드오프<br>
+    • Review 에이전트 (Step 4.5)가 교차 스코프 일관성 최종 검증
+  </div>
+</div>
+
+<!-- TREEMAP_DATA injected by generate-treemap.js -->
+<!-- TREEMAP_DATA -->
+
+<script>
+/* ═══════ GLOBALS ═══════ */
+const { github, docPaths: DOC_PATHS, agents: AGENT_DATA, flowSteps, sections, hubs } = TREEMAP_DATA;
+const GITHUB_OWNER = github.owner;
+const GITHUB_REPO = github.repo;
+const GITHUB_BRANCH = github.branch;
+
+const CATEGORY_CONFIG = {
+  rules:     { label: 'Rules',         color: '#f97316', dotClass: 'rules' },
+  skills:    { label: 'Skills',        color: '#06b6d4', dotClass: 'skills' },
+  commands:  { label: 'Commands',      color: '#a855f7', dotClass: 'commands' },
+  workflow:  { label: 'Workflow Docs', color: '#10b981', dotClass: 'workflow' },
+  templates: { label: 'Templates',     color: '#f43f5e', dotClass: 'template' },
+  other:     { label: 'Other Docs',    color: '#64748b', dotClass: 'other' }
+};
+
+/* ═══════ DOC PREVIEW ═══════ */
+const docCache = {};
+let markedReady = false;
+
+function loadMarked() {
+  if (markedReady) return Promise.resolve();
+  return new Promise((resolve, reject) => {
+    const s = document.createElement('script');
+    s.src = 'https://cdn.jsdelivr.net/npm/marked/marked.min.js';
+    s.onload = () => { markedReady = true; resolve(); };
+    s.onerror = () => reject(new Error('marked.js 로드 실패'));
+    document.body.appendChild(s);
+  });
+}
+
+function getGithubApiUrl(fp) {
+  return `https://api.github.com/repos/${GITHUB_OWNER}/${GITHUB_REPO}/contents/${fp}?ref=${GITHUB_BRANCH}`;
+}
+function getGithubBlobUrl(fp) {
+  return `https://github.com/${GITHUB_OWNER}/${GITHUB_REPO}/blob/${GITHUB_BRANCH}/${fp}`;
+}
+
+async function fetchDocContent(fp) {
+  if (docCache[fp]) return docCache[fp];
+  const resp = await fetch(getGithubApiUrl(fp), {
+    headers: { 'Accept': 'application/vnd.github.v3+json' }
+  });
+  if (!resp.ok) {
+    if (resp.status === 403) throw new Error('GitHub API rate limit (60/hour). 잠시 후 다시 시도해 주세요.');
+    if (resp.status === 404) throw new Error('파일을 찾을 수 없습니다 (404). 경로 또는 브랜치를 확인해 주세요.');
+    throw new Error(`GitHub API error: ${resp.status}`);
+  }
+  const data = await resp.json();
+  const content = decodeURIComponent(escape(atob(data.content)));
+  docCache[fp] = content;
+  return content;
+}
+
+function renderMarkdown(raw) {
+  if (typeof marked !== 'undefined' && marked.parse) return marked.parse(raw);
+  return '<pre style="white-space:pre-wrap">' + raw.replace(/</g, '&lt;') + '</pre>';
+}
+
+function resolveFilepath(name) {
+  if (DOC_PATHS[name]) return DOC_PATHS[name];
+  const trimmed = name.replace(/\.md$/, '').replace(/\.mdc$/, '');
+  if (DOC_PATHS[trimmed]) return DOC_PATHS[trimmed];
+  if (DOC_PATHS[trimmed + '.md']) return DOC_PATHS[trimmed + '.md'];
+  if (DOC_PATHS[trimmed + '.mdc']) return DOC_PATHS[trimmed + '.mdc'];
+  return null;
+}
+
+async function showDocPreview(name) {
+  const filepath = resolveFilepath(name);
+  if (!filepath) return;
+  const overlay = document.getElementById('docOverlay');
+  const body = document.getElementById('docBody');
+  document.getElementById('docPath').textContent = filepath;
+  document.getElementById('docGithubLink').href = getGithubBlobUrl(filepath);
+  body.innerHTML = '<div class="doc-loading"><div class="spinner"></div>문서를 불러오는 중…</div>';
+  overlay.classList.add('open');
+  document.body.style.overflow = 'hidden';
+  try {
+    const [content] = await Promise.all([fetchDocContent(filepath), loadMarked()]);
+    body.innerHTML = '<div class="md-content">' + renderMarkdown(content) + '</div>';
+  } catch (err) {
+    body.innerHTML = '<div class="doc-error">' + err.message + '</div>';
+  }
+}
+
+function closeDocPreview() {
+  document.getElementById('docOverlay').classList.remove('open');
+  document.body.style.overflow = '';
+}
+
+/* ═══════ AGENT DETAIL ═══════ */
+let currentAgent = null;
+
+function showAgentDetail(agentName) {
+  const data = AGENT_DATA[agentName];
+  if (!data) return;
+  document.querySelectorAll('.agent-chip.active').forEach(c => c.classList.remove('active'));
+  document.querySelectorAll(`.agent-chip[data-agent="${agentName}"]`).forEach(c => c.classList.add('active'));
+  if (currentAgent === agentName) { closeAgentDetail(); return; }
+  currentAgent = agentName;
+  document.getElementById('agentName').textContent = agentName;
+  document.getElementById('agentStep').textContent = data.step;
+  document.getElementById('agentScope').textContent = data.scope;
+  const grid = document.getElementById('agentRefsGrid');
+  grid.innerHTML = '';
+  const categories = ['rules', 'skills', 'commands', 'workflow', 'templates', 'other'];
+  let hasAny = false;
+  for (const cat of categories) {
+    const items = data[cat];
+    if (!items || items.length === 0) continue;
+    hasAny = true;
+    const cfg = CATEGORY_CONFIG[cat];
+    const group = document.createElement('div');
+    group.className = 'agent-ref-group';
+    group.innerHTML =
+      '<div class="agent-ref-group-title">' +
+        '<div class="dot" style="background:' + cfg.color + '"></div>' +
+        '<span style="color:' + cfg.color + '">' + cfg.label + '</span>' +
+        '<span style="color:var(--text-dim); font-weight:400">(' + items.length + ')</span>' +
+      '</div>' +
+      '<div class="agent-ref-list">' +
+        items.map(function(i) {
+          var fp = resolveFilepath(i);
+          var docBtn = fp ? '<button class="doc-btn" title="문서 보기" data-docbtn="' + i + '">📄</button>' : '';
+          return '<span class="agent-ref-item ' + cfg.dotClass + '" data-docname="' + i + '">' + i + docBtn + '</span>';
+        }).join('') +
+      '</div>';
+    grid.appendChild(group);
+    group.querySelectorAll('.doc-btn[data-docbtn]').forEach(function(btn) {
+      btn.addEventListener('click', function(e) { e.stopPropagation(); showDocPreview(btn.dataset.docbtn); });
+    });
+  }
+  if (!hasAny) grid.innerHTML = '<div class="no-refs">참조하는 도구가 없습니다 (독립 실행)</div>';
+  var panel = document.getElementById('agentDetailPanel');
+  panel.classList.add('open');
+  panel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+
+function closeAgentDetail() {
+  currentAgent = null;
+  document.getElementById('agentDetailPanel').classList.remove('open');
+  document.querySelectorAll('.agent-chip.active').forEach(c => c.classList.remove('active'));
+}
+
+/* ═══════ SECTION INTERACTION ═══════ */
+function toggleSection(header) {
+  var body = header.nextElementSibling;
+  var toggle = header.querySelector('.section-toggle');
+  body.classList.toggle('open');
+  toggle.classList.toggle('open');
+}
+
+function toggleRefs(item) {
+  var refs = item.querySelector('.item-refs');
+  if (refs) refs.classList.toggle('open');
+}
+
+/* ═══════ RENDERING ═══════ */
+function addDocBtn(el, name) {
+  if (!resolveFilepath(name)) return;
+  var btn = document.createElement('button');
+  btn.className = 'doc-btn';
+  btn.textContent = '📄';
+  btn.title = '문서 보기';
+  btn.addEventListener('click', function(e) { e.stopPropagation(); showDocPreview(name); });
+  el.appendChild(btn);
+}
+
+function makeClickableRef(el) {
+  var name = el.textContent.trim();
+  if (resolveFilepath(name)) {
+    el.style.cursor = 'pointer';
+    el.title = '클릭하여 문서 보기';
+    el.addEventListener('click', function(e) { e.stopPropagation(); showDocPreview(name); });
+  }
+}
+
+function renderFlowSteps() {
+  var container = document.getElementById('flowSteps');
+  flowSteps.forEach(function(step, i) {
+    if (i > 0) {
+      var arrow = document.createElement('div');
+      arrow.className = 'step-arrow';
+      arrow.textContent = '→';
+      container.appendChild(arrow);
+    }
+    var card = document.createElement('div');
+    card.className = 'step-card';
+    var agentsHtml = step.agents.map(function(a) {
+      return '<div class="agent-chip' + (a.light ? ' light' : '') +
+        '" data-agent="' + a.name + '" onclick="showAgentDetail(\'' + a.name + '\')">' +
+        a.name + '</div>';
+    }).join('');
+    card.innerHTML =
+      '<div class="step-num">' + step.step + '</div>' +
+      '<div class="step-name">' + step.name + '</div>' +
+      '<div class="step-agents">' + agentsHtml + '</div>';
+    container.appendChild(card);
+  });
+  container.querySelectorAll('.agent-chip[data-agent]').forEach(function(el) {
+    addDocBtn(el, 'agent:' + el.dataset.agent);
+  });
+}
+
+function renderItemHtml(item, color) {
+  var hasRefs = item.refs && item.refs.length > 0;
+  var html = '<div class="item"' +
+    ' style="border-left: 3px solid var(--accent-' + color + ')"' +
+    (hasRefs ? ' onclick="toggleRefs(this)"' : '') + '>' +
+    '<div class="item-name" style="color:var(--accent-' + color + ')">' + item.name + '</div>' +
+    '<div class="item-desc">' + item.desc + '</div>';
+  if (hasRefs) {
+    html += '<div class="item-refs"><div class="ref-title">참조 문서</div>';
+    item.refs.forEach(function(r) {
+      html += '<span class="ref-tag ' + r.type + '">' + r.name + '</span>';
+    });
+    html += '</div>';
+  }
+  html += '</div>';
+  return html;
+}
+
+function renderSection(cfg) {
+  var section = document.createElement('div');
+  section.className = 'section';
+  section.style.borderTop = '2px solid var(--accent-' + cfg.color + ')';
+
+  var totalCount = 0;
+  if (cfg.items) totalCount = cfg.items.length;
+  if (cfg.categories) Object.values(cfg.categories).forEach(function(arr) { totalCount += arr.length; });
+
+  section.innerHTML =
+    '<div class="section-header" onclick="toggleSection(this)">' +
+      '<div class="section-icon" style="background:var(--glow-' + cfg.color + '); color:var(--accent-' + cfg.color + ')">' + cfg.icon + '</div>' +
+      '<div class="section-title" style="color:var(--accent-' + cfg.color + ')">' + cfg.title + '</div>' +
+      '<div class="section-count">' + totalCount + ' ' + cfg.unit + '</div>' +
+      '<div class="section-toggle open">▼</div>' +
+    '</div>' +
+    '<div class="section-body open" id="sectionBody_' + cfg.id + '"></div>';
+
+  return section;
+}
+
+function renderSections() {
+  var container = document.getElementById('sectionsContainer');
+
+  var sectionConfigs = [
+    { id: 'rules', icon: '⚡', title: 'Rules (.cursor/rules/)', color: 'rules', unit: 'files',
+      items: sections.rules.items },
+    { id: 'skills', icon: '🧠', title: 'Skills (.cursor/skills/)', color: 'skills', unit: 'skills',
+      categories: sections.skills.categories },
+    { id: 'workflow', icon: '📋', title: 'Workflow Docs (docs/workflow/)', color: 'workflow', unit: 'files',
+      categories: sections.workflow.categories },
+    { id: 'templates', icon: '📝', title: 'Templates (docs/template/)', color: 'template', unit: 'files',
+      items: sections.templates.items },
+    { id: 'commands', icon: '⌨', title: 'Commands (.cursor/commands/)', color: 'commands', unit: 'files',
+      categories: sections.commands.categories, isCmdGrid: true }
+  ];
+
+  sectionConfigs.forEach(function(cfg) {
+    var sectionEl = renderSection(cfg);
+    container.appendChild(sectionEl);
+    var body = sectionEl.querySelector('.section-body');
+
+    if (cfg.categories) {
+      Object.keys(cfg.categories).forEach(function(catName) {
+        var catItems = cfg.categories[catName];
+        if (catItems.length === 0) return;
+        var catEl = document.createElement('div');
+        catEl.className = 'cmd-category';
+        catEl.textContent = catName;
+        body.appendChild(catEl);
+
+        if (cfg.isCmdGrid) {
+          var grid = document.createElement('div');
+          grid.className = 'cmd-grid';
+          catItems.forEach(function(item) {
+            var cmdItem = document.createElement('div');
+            cmdItem.className = 'cmd-item';
+            cmdItem.innerHTML =
+              '<div class="cmd-name">' + item.name + '</div>' +
+              '<div class="cmd-desc">' + item.desc + '</div>';
+            grid.appendChild(cmdItem);
+          });
+          body.appendChild(grid);
+        } else {
+          catItems.forEach(function(item) {
+            body.insertAdjacentHTML('beforeend', renderItemHtml(item, cfg.color));
+          });
+        }
+      });
+    } else if (cfg.items) {
+      cfg.items.forEach(function(item) {
+        body.insertAdjacentHTML('beforeend', renderItemHtml(item, cfg.color));
+      });
+    }
+  });
+
+  container.querySelectorAll('.item-name').forEach(function(el) { addDocBtn(el, el.textContent.trim()); });
+  container.querySelectorAll('.cmd-name').forEach(function(el) { addDocBtn(el, el.textContent.trim()); });
+  container.querySelectorAll('.ref-tag').forEach(makeClickableRef);
+}
+
+function renderHubs() {
+  var grid = document.getElementById('hubGrid');
+  hubs.forEach(function(hub) {
+    var colorVar = hub.color === 'other' ? 'var(--text-dim)' : 'var(--accent-' + hub.color + ')';
+    var card = document.createElement('div');
+    card.className = 'hub-card';
+    card.innerHTML =
+      '<div class="hub-name" style="color:' + colorVar + '">' + hub.name + '</div>' +
+      '<div class="hub-role">' + hub.role + '</div>' +
+      '<div class="hub-refs-count">참조받는 곳 ' + hub.refsTo + '건</div>' +
+      '<div class="hub-bar"><div class="hub-bar-fill" style="width:' + hub.barWidth + '%"></div></div>';
+    grid.appendChild(card);
+
+    card.querySelector('.hub-name').style.cursor = 'pointer';
+    card.querySelector('.hub-name').addEventListener('click', function(e) {
+      e.stopPropagation();
+      showDocPreview(hub.name);
+    });
+  });
+}
+
+/* ═══════ INIT ═══════ */
+document.addEventListener('DOMContentLoaded', function() {
+  renderFlowSteps();
+  renderSections();
+  renderHubs();
+  document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') closeDocPreview();
+  });
+});
+</script>
+</body>
+</html>

@@ -11,7 +11,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Deserializes allowedScreens from either string[] or [{ screenId, scope?, read?, write?, approve? }].
+ * Deserializes allowedScreens from either string[] or [{ screenId, scope?, read?, write?, approve?, decrypt? }].
  * Backward compatible with frontend sending ["activity-log", "statistics"].
  * Per spec §1.1: read/write/approve must be parsed and persisted; null in JSON = use derived default.
  */
@@ -48,6 +48,7 @@ public class AllowedScreenListDeserializer extends JsonDeserializer<List<Allowed
                     if (elem.has("read")) item.setRead(readBooleanOrNull(elem, "read"));
                     if (elem.has("write")) item.setWrite(readBooleanOrNull(elem, "write"));
                     if (elem.has("approve")) item.setApprove(readBooleanOrNull(elem, "approve"));
+                    if (elem.has("decrypt")) item.setDecrypt(readBooleanOrNull(elem, "decrypt"));
                     result.add(item);
                 }
             }

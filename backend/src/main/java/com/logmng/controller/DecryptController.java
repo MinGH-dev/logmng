@@ -2,6 +2,7 @@ package com.logmng.controller;
 
 import com.logmng.annotation.ActivityLog;
 import com.logmng.dto.response.ApiResponse;
+import com.logmng.service.AuthService;
 import com.logmng.service.LogDbService;
 import com.logmng.service.SearchHistoryService;
 import org.slf4j.Logger;
@@ -23,10 +24,12 @@ public class DecryptController {
     private static final Logger log = LoggerFactory.getLogger(DecryptController.class);
     private final LogDbService logDbService;
     private final SearchHistoryService searchHistoryService;
+    private final AuthService authService;
 
-    public DecryptController(LogDbService logDbService, SearchHistoryService searchHistoryService) {
+    public DecryptController(LogDbService logDbService, SearchHistoryService searchHistoryService, AuthService authService) {
         this.logDbService = logDbService;
         this.searchHistoryService = searchHistoryService;
+        this.authService = authService;
     }
 
     /**
@@ -46,6 +49,11 @@ public class DecryptController {
         if (userId == null || userId.isBlank()) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                     .body(ApiResponse.failure("로그인이 필요합니다.", "UNAUTHORIZED"));
+        }
+        // 복호화 요청 권한: main 화면 + screenFunctions.main.decrypt 필요 (req 20260306)
+        if (!authService.hasDecryptForMain(httpRequest)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body(ApiResponse.failure("복호화 기능 권한이 없습니다. 권한 그룹에서 검색하기 화면의 복호화 권한이 부여되어 있어야 합니다.", "FUNCTION_NOT_ALLOWED"));
         }
         // 복호화는 "현재 검색에 대한 승인"만 허용. searchHistoryId가 해당 사용자·승인·미만료인지 검사.
         Long searchHistoryId = null;

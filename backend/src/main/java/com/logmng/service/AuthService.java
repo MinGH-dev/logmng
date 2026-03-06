@@ -207,6 +207,7 @@ public class AuthService {
             boolean read = true; // user has this screen (allowedScreenIds already filtered read=false)
             Boolean write = null;
             Boolean approve = null;
+            Boolean decrypt = null;
             PermissionGroupService.ScreenFunctionFromDb pgs = pgsMap.get(screenId);
             if (ScreenConstants.supportsWrite(screenId)) {
                 if (pgs != null && pgs.write != null) {
@@ -223,7 +224,11 @@ public class AuthService {
                     approve = approverOrAdmin; // pgs.approve true or null -> gate by decrypt_approver
                 }
             }
-            result.put(screenId, new ScreenFunctionCapability(read, write, approve));
+            if (ScreenConstants.supportsDecrypt(screenId)) {
+                // main only: decrypt from pgs; default false when null (req 20260306)
+                decrypt = (pgs != null && pgs.decrypt != null) ? pgs.decrypt : false;
+            }
+            result.put(screenId, new ScreenFunctionCapability(read, write, approve, decrypt));
         }
         return result;
     }
@@ -285,6 +290,22 @@ public class AuthService {
         ScreenFunctionCapability pa = sf.get(ScreenConstants.PENDING_APPROVALS);
         return (sh != null && Boolean.TRUE.equals(sh.getApprove()))
                 || (pa != null && Boolean.TRUE.equals(pa.getApprove()));
+    }
+
+    /**
+     * Returns true if the current user may request decryption (decrypt API).
+     * Per spec §4.4, req 20260306: is_system_admin OR (main in allowedScreenIds AND screenFunctions.main.decrypt === true).
+     */
+    public boolean hasDecryptForMain(HttpServletRequest request) {
+        LoginResponse user = getCurrentUserInfo(request);
+        if (user == null) return false;
+        if (Boolean.TRUE.equals(user.getIsSystemAdmin())) return true;
+        List<String> allowed = user.getAllowedScreenIds();
+        if (allowed == null || !allowed.contains(ScreenConstants.MAIN)) return false;
+        Map<String, ScreenFunctionCapability> sf = user.getScreenFunctions();
+        if (sf == null) return false;
+        ScreenFunctionCapability mainCap = sf.get(ScreenConstants.MAIN);
+        return mainCap != null && Boolean.TRUE.equals(mainCap.getDecrypt());
     }
 
     /**

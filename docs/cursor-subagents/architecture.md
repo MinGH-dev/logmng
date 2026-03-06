@@ -24,4 +24,4 @@
 - 스냅샷 가이드: `docs/requirements/20260224-decryption-approval-snapshot-guide.md`
 - 계약: `docs/contract.md`
 - 워크플로우: `docs/workflow/CURSOR-SUBAGENTS-DESIGN.md`
-- 협업 순서(요구사항 반영 시 Architecture 호출): `docs/workflow/AGENT-COLLABORATION-ON-REQUIREMENT.md` §1.1 — frontend/backend 구현이 포함된 요구사항에서는 **공통화 검토**를 위해 Architecture가 병렬로 호출됨.
+- 협업 순서(요구사항 반영 시 Architecture 호출): `docs/workflow/REQUIREMENTS-AUTHORING-WORKFLOW.md` — frontend/backend 구현이 포함된 요구사항에서는 **공통화 검토**를 위해 Architecture가 병렬로 호출됨.

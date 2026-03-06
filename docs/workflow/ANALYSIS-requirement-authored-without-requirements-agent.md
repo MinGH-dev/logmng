@@ -10,7 +10,7 @@
   `SUBAGENT-DELEGATION.md` §1:  
   *"Step 1 → **Requirements** … **During authoring**, Requirements **obtains parallel input** from experts (Security, Contract, UX, DBA, Architecture, Consistency) and from **Backend/Frontend/DB/QA** (scenario, codebase summary, problem analysis, solution) … **orchestrates** (merges) into §1·§2."*
 
-- **AGENT-COLLABORATION-ON-REQUIREMENT.md** §1.1:
+- **REQUIREMENTS-AUTHORING-WORKFLOW.md** (authoring procedure, formerly AGENT-COLLABORATION §1.1):
   - Requirements 서브에이전트는 §1·§2를 **자기 판단만으로 쓰지 않고**,
   - **작성 단계에서** Security, Contract, Backend, Frontend, DB, QA, Architecture 등을 **병렬로 호출**해
   - (a) 사용자 시나리오/기대 결과, (b) 코드베이스 요약, (c) 문제 분석, (d) 해결 방안 입력을 받은 뒤
@@ -54,7 +54,7 @@
 | 구분 | 내용 |
 |------|------|
 | **직접 원인** | Step 1(요구사항 문서 작성)을 **Requirements 서브에이전트에 위임하지 않고**, **메인 에이전트가 직접** §1·§2·§3을 작성함. |
-| **설계상 책임** | “작성 중 병렬 검토”는 **Requirements 서브에이전트의 역할**로 정의되어 있음 (AGENT-COLLABORATION §1.1, SUBAGENT-DELEGATION Step 1). |
+| **설계상 책임** | “작성 중 병렬 검토”는 **Requirements 서브에이전트의 역할**로 정의되어 있음 (REQUIREMENTS-AUTHORING-WORKFLOW.md, SUBAGENT-DELEGATION Step 1). |
 | **결과** | Requirements 에이전트가 호출되지 않았기 때문에, **작성 단계에서** Security/Backend/Frontend/Architecture/QA를 호출하는 로직이 실행되지 않음 → **다른 에이전트의 검토(입력)** 가 §1·§2에 반영되지 않음. |
 | **그래도 수행된 것** | 문서가 존재한 **이후** Step 2(Security), Step 4(Backend/Frontend), Step 5(QA)는 수행됨. 즉 “문서 완성 후 검토/구현/검증”은 이루어졌고, **작성 단계의 병렬 검토**만 빠진 상태. |
 
@@ -96,4 +96,4 @@
 ---
 
 **작성일**: 2026-03-04  
-**관련**: `AGENT-COLLABORATION-ON-REQUIREMENT.md` §1.1, `SUBAGENT-DELEGATION.md` §1 Step 1, `.cursor/rules/agent-collaboration.mdc`, `.cursor/commands/new-requirement.md`
+**관련**: `docs/workflow/REQUIREMENTS-AUTHORING-WORKFLOW.md`, `SUBAGENT-DELEGATION.md` §1 Step 1, `.cursor/rules/agent-collaboration.mdc`, `.cursor/commands/new-requirement.md`

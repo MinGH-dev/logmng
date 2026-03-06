@@ -2,6 +2,7 @@ package com.logmng.webtest;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.logmng.controller.DecryptController;
+import com.logmng.service.AuthService;
 import com.logmng.service.DecryptApproverService;
 import com.logmng.service.StubLogDbService;
 import com.logmng.service.StubSearchHistoryService;
@@ -14,6 +15,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
 import javax.sql.DataSource;
+import jakarta.servlet.http.HttpServletRequest;
 import java.util.Map;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -40,7 +42,8 @@ class DecryptControllerTest {
         logDbService = new StubLogDbService(dataSource, cryptoUtil);
         DecryptApproverService decryptApproverService = new com.logmng.service.StubDecryptApproverService();
         searchHistoryService = new StubSearchHistoryService(dataSource, logDbService, decryptApproverService);
-        DecryptController controller = new DecryptController(logDbService, searchHistoryService);
+        AuthService authService = new StubAuthServiceDecryptAllowed();
+        DecryptController controller = new DecryptController(logDbService, searchHistoryService, authService);
         mockMvc = MockMvcBuilders.standaloneSetup(controller).build();
     }
 
@@ -88,5 +91,17 @@ class DecryptControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success").value(true))
                 .andExpect(jsonPath("$.data.decrypted").value("data"));
+    }
+
+    /** Stub AuthService that allows decrypt (hasDecryptForMain returns true). Avoids Mockito on concrete AuthService. */
+    private static class StubAuthServiceDecryptAllowed extends AuthService {
+        StubAuthServiceDecryptAllowed() {
+            super(null, null, null, null);
+        }
+
+        @Override
+        public boolean hasDecryptForMain(HttpServletRequest request) {
+            return true;
+        }
     }
 }

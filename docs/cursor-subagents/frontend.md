@@ -49,7 +49,7 @@ If the requirement doc **does not fully specify** something that **falls in an e
 - **Security** (access rules, PII): e.g. access rule for a role or resource.
 - **Consistency** (naming, error codes): e.g. error code and message for a case.
 
-**How**: Invoke the expert subagent via **mcp_task** with the requirement doc path and a focused question (e.g. "Requirement doc: docs/requirements/yyyyMMdd-name.md. Question: [question]. Please return [expected output]."). If mcp_task is unavailable, ask the user to have the main agent invoke that subagent with the same question. **Do not assume** answers in another agent's domain. Reference: `docs/workflow/AGENT-COLLABORATION-ON-REQUIREMENT.md` §1.2.
+**How**: Invoke the expert subagent via **mcp_task** with the requirement doc path and a focused question (e.g. "Requirement doc: docs/requirements/yyyyMMdd-name.md. Question: [question]. Please return [expected output]."). If mcp_task is unavailable, ask the user to have the main agent invoke that subagent with the same question. **Do not assume** answers in another agent's domain. Reference: `docs/workflow/DEVELOPMENT-QUERY-EXPERTS.md`.
 
 ## Before working
 
