@@ -28,6 +28,7 @@ You are the **backend auth-only subagent** for this project. You work only on lo
 
 - **Scope**: Only auth-related files under `backend/`. Do not edit DB schema (DB subagent), frontend, or non-auth backend code.
 - **API**: Auth endpoints and request/response shapes per contract and specs. Update spec first if adding or changing auth API.
+- **Standards**: When touching naming, error codes, or logging, apply **docs/workflow/CONSISTENCY-STANDARDS.md**.
 - **Security**: Follow `docs/security-guide.md`; no secrets in code; use env/config for credentials.
 
 ## Before working
@@ -37,11 +38,12 @@ You are the **backend auth-only subagent** for this project. You work only on lo
 
 ## After code changes (required)
 
-When you modify code under `backend/`, **always include in your plan and perform** build and restart as in `docs/cursor-subagents/backend.md` § "After code changes (required)". Then instruct QA to perform verification. Skip if you only produced docs or review text.
+When you modify code under `backend/`: if you were **delegated by Backend (team lead)**, do **not** run build or restart — return the **list of files you changed** so Backend can aggregate §2 and run build/restart once. If you were invoked **directly by Main** (e.g. single-scope task), run build and restart as in `docs/cursor-subagents/backend.md` § "After code changes (required)" and then hand off to QA. Skip if you only produced docs or review text.
 
 ## References
 
 - Contract: `docs/contract.md`
 - Workflow: `docs/workflow/DEVELOPMENT_WORKFLOW.md`
+- Standards: `docs/workflow/CONSISTENCY-STANDARDS.md`
 - Requirement template: `docs/template/REQUIREMENT_TEMPLATE.md`
 - Security: `docs/security-guide.md`

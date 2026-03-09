@@ -878,6 +878,7 @@ const TREEMAP_DATA = {
     "DEVELOPMENT_WORKFLOW.md": "docs/workflow/DEVELOPMENT_WORKFLOW.md",
     "DOC-CODE-SYNC.md": "docs/workflow/DOC-CODE-SYNC.md",
     "DOCUMENT-LANGUAGE-POLICY.md": "docs/workflow/DOCUMENT-LANGUAGE-POLICY.md",
+    "DRYRUN-backend-team-lead-handoff.md": "docs/workflow/DRYRUN-backend-team-lead-handoff.md",
     "DRYRUN-handoff-verification-report.md": "docs/workflow/DRYRUN-handoff-verification-report.md",
     "DRYRUN-search-consistency-changes.md": "docs/workflow/DRYRUN-search-consistency-changes.md",
     "DRYRUN-user-search-fields-improvement.md": "docs/workflow/DRYRUN-user-search-fields-improvement.md",
@@ -991,7 +992,7 @@ const TREEMAP_DATA = {
     },
     "Backend": {
       "step": "Step 4",
-      "scope": "Backend development, requirement docs, tests. Modify backend/ only. API and DB per contract and specs.",
+      "scope": "Backend team lead. Main invokes Backend only; may delegate to Backend-Auth/ActivityLog/Log. Single build/restart, §2 aggregation. Modify backend/ only; API and DB per contract and specs.",
       "rules": [
         "build-restart-handoff"
       ],
@@ -1006,6 +1007,9 @@ const TREEMAP_DATA = {
         "AGENT-COLLABORATION-ON-REQUIREMENT",
         "DEVELOPMENT-QUERY-EXPERTS",
         "REQUIREMENTS-AUTHORING-WORKFLOW",
+        "SUBAGENT-DELEGATION",
+        "HANDOFF-CHECKLIST",
+        "CONSISTENCY-STANDARDS",
         "CURSOR-SUBAGENTS-DESIGN"
       ],
       "templates": [
@@ -2574,7 +2578,7 @@ const TREEMAP_DATA = {
           },
           {
             "name": "SUBAGENT-DELEGATION.md",
-            "desc": "Step별 서브에이전트 위임 테이블 및 게이트 규정.",
+            "desc": "Step별 서브에이전트 위임. 백엔드: Main→Backend(팀장)만 호출; Backend가 Backend-Auth/ActivityLog/Log 위임·§2 집계·빌드 1회.",
             "refs": [
               {
                 "name": "REQUIREMENTS-CHANGE-TARGET-CHECKLIST.md",
@@ -2590,6 +2594,11 @@ const TREEMAP_DATA = {
                 "name": "CONSISTENCY-STANDARDS.md",
                 "type": "other",
                 "path": "CONSISTENCY-STANDARDS.md"
+              },
+              {
+                "name": "HANDOFF-CHECKLIST.md",
+                "type": "other",
+                "path": "HANDOFF-CHECKLIST.md"
               },
               {
                 "name": "commit-on-complete",
@@ -3458,6 +3467,22 @@ const TREEMAP_DATA = {
             ]
           },
           {
+            "name": "DRYRUN-backend-team-lead-handoff.md",
+            "desc": "Backend 팀장 모델 dry-run. Main→Backend만 호출, 위임·§2 집계·빌드 1회·CONSISTENCY 체크 검증.",
+            "refs": [
+              {
+                "name": "REQUIREMENTS-CHANGE-TARGET-CHECKLIST.md",
+                "type": "other",
+                "path": "REQUIREMENTS-CHANGE-TARGET-CHECKLIST.md"
+              },
+              {
+                "name": "docs/requirements/yyyyMMdd-activity-log-department-filter.md",
+                "type": "other",
+                "path": "docs/requirements/yyyyMMdd-activity-log-department-filter.md"
+              }
+            ]
+          },
+          {
             "name": "DRYRUN-handoff-verification-report.md",
             "desc": "핸드오프 dry-run 결과. Requirements→Backend→QA 프롬프트 검증.",
             "refs": [
@@ -3532,7 +3557,7 @@ const TREEMAP_DATA = {
           },
           {
             "name": "HANDOFF-CHECKLIST.md",
-            "desc": "Backend/Frontend/DB/Review/QA별 핸드오프 체크리스트 (Doc–code sync 포함).",
+            "desc": "Backend/Frontend/DB/Review/QA별 핸드오프 체크리스트. CONSISTENCY-STANDARDS·Doc–code sync 포함.",
             "refs": [
               {
                 "name": "CONTEXT-QUALITY-AND-ORCHESTRATION-MITIGATION.md",
@@ -4007,9 +4032,9 @@ const TREEMAP_DATA = {
     {
       "name": "SUBAGENT-DELEGATION.md",
       "color": "workflow",
-      "role": "Step별 서브에이전트 위임 테이블 + 게이트",
-      "refsTo": 14,
-      "barWidth": 42
+      "role": "Step별 위임 + Backend 팀장(Main→Backend만; 위임·§2 집계·빌드 1회)",
+      "refsTo": 15,
+      "barWidth": 45
     }
   ]
 };
