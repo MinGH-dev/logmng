@@ -968,11 +968,10 @@ const TREEMAP_DATA = {
         "DEVELOPMENT_WORKFLOW"
       ],
       "templates": [],
-      "agents": [
-        "backend-activity-log"
-      ],
+      "agents": [],
       "other": [
-        "docs/contract.md"
+        "docs/contract.md",
+        "docs/cursor-subagents/backend-activity-log.md"
       ]
     },
     "Backend-Auth": {
@@ -989,12 +988,11 @@ const TREEMAP_DATA = {
         "DEVELOPMENT_WORKFLOW"
       ],
       "templates": [],
-      "agents": [
-        "backend-auth"
-      ],
+      "agents": [],
       "other": [
         "docs/contract.md",
-        "docs/security-guide.md"
+        "docs/security-guide.md",
+        "docs/cursor-subagents/backend-auth.md"
       ]
     },
     "Backend-Log": {
@@ -1012,12 +1010,11 @@ const TREEMAP_DATA = {
         "DEVELOPMENT_WORKFLOW"
       ],
       "templates": [],
-      "agents": [
-        "backend-log"
-      ],
+      "agents": [],
       "other": [
         "docs/contract.md",
-        "docs/security-guide.md"
+        "docs/security-guide.md",
+        "docs/cursor-subagents/backend-log.md"
       ]
     },
     "Backend": {
@@ -1045,16 +1042,15 @@ const TREEMAP_DATA = {
       "templates": [
         "REQUIREMENT_TEMPLATE"
       ],
-      "agents": [
-        "backend-auth",
-        "backend-activity-log",
-        "backend-log"
-      ],
+      "agents": [],
       "other": [
         "docs/requirements/yyyyMMdd-name.md",
         "backend/src/main/resources/db/schema.sql",
         "docs/contract.md",
-        "specs/*.spec.yaml"
+        "specs/*.spec.yaml",
+        "docs/cursor-subagents/backend-auth.md",
+        "backend-activity-log.md",
+        "backend-log.md"
       ]
     },
     "Consistency": {
@@ -1152,11 +1148,10 @@ const TREEMAP_DATA = {
         "AGENT-COLLABORATION-ON-REQUIREMENT"
       ],
       "templates": [],
-      "agents": [
-        "README"
-      ],
+      "agents": [],
       "other": [
         "docs/contract.md",
+        "README.md",
         "docs/QUICK_START.md"
       ]
     },
@@ -1173,11 +1168,10 @@ const TREEMAP_DATA = {
         "DEVELOPMENT_WORKFLOW"
       ],
       "templates": [],
-      "agents": [
-        "frontend-activity-log"
-      ],
+      "agents": [],
       "other": [
-        "docs/contract.md"
+        "docs/contract.md",
+        "docs/cursor-subagents/frontend-activity-log.md"
       ]
     },
     "Frontend-Auth": {
@@ -1194,12 +1188,11 @@ const TREEMAP_DATA = {
         "DEVELOPMENT_WORKFLOW"
       ],
       "templates": [],
-      "agents": [
-        "frontend-auth"
-      ],
+      "agents": [],
       "other": [
         "docs/security-guide.md",
-        "docs/contract.md"
+        "docs/contract.md",
+        "docs/cursor-subagents/frontend-auth.md"
       ]
     },
     "Frontend-Log": {
@@ -1216,12 +1209,11 @@ const TREEMAP_DATA = {
         "DEVELOPMENT_WORKFLOW"
       ],
       "templates": [],
-      "agents": [
-        "frontend-log"
-      ],
+      "agents": [],
       "other": [
         "docs/security-guide.md",
-        "docs/contract.md"
+        "docs/contract.md",
+        "docs/cursor-subagents/frontend-log.md"
       ]
     },
     "Frontend": {
@@ -1249,15 +1241,14 @@ const TREEMAP_DATA = {
       "templates": [
         "REQUIREMENT_TEMPLATE"
       ],
-      "agents": [
-        "frontend",
-        "frontend-auth",
-        "frontend-activity-log",
-        "frontend-log"
-      ],
+      "agents": [],
       "other": [
         "docs/contract.md",
         "docs/security-guide.md",
+        "docs/cursor-subagents/frontend.md",
+        "docs/cursor-subagents/frontend-auth.md",
+        "frontend-activity-log.md",
+        "frontend-log.md",
         ".cursor/mcp.json"
       ]
     },
@@ -1357,13 +1348,12 @@ const TREEMAP_DATA = {
         "SUBAGENT-DELEGATION"
       ],
       "templates": [],
-      "agents": [
-        "past-requirements-search"
-      ],
+      "agents": [],
       "other": [
         "docs/requirements/*.md",
         "docs/requirements/TOPIC-INDEX.md",
-        "yyyyMMdd-name.md"
+        "yyyyMMdd-name.md",
+        "docs/cursor-subagents/past-requirements-search.md"
       ]
     },
     "Review": {
@@ -1426,9 +1416,7 @@ const TREEMAP_DATA = {
         "CURSOR-SUBAGENTS-DESIGN"
       ],
       "templates": [],
-      "agents": [
-        "ux-design"
-      ],
+      "agents": [],
       "other": [
         "docs/design/grid-and-table.md",
         "docs/design/layout-and-navigation.md",
@@ -1437,7 +1425,8 @@ const TREEMAP_DATA = {
         "docs/design/date-search.md",
         "docs/design/forms-and-filters.md",
         ".cursor/mcp.json",
-        "docs/design/README.md"
+        "docs/design/README.md",
+        "docs/cursor-subagents/ux-design.md"
       ]
     }
   },
@@ -1938,6 +1927,11 @@ const TREEMAP_DATA = {
           "name": "subagent-invoke.mdc",
           "desc": "Cursor 내장 Subagents만 사용 (미사용).",
           "refs": [
+            {
+              "name": "docs/cursor-subagents/*.md",
+              "type": "other",
+              "path": "docs/cursor-subagents/*.md"
+            },
             {
               "name": "CURSOR-SUBAGENTS-DESIGN.md",
               "type": "workflow",
@@ -2570,6 +2564,11 @@ const TREEMAP_DATA = {
                 "path": ".cursor/commands/new-requirement.md"
               },
               {
+                "name": "docs/cursor-subagents/*.md",
+                "type": "other",
+                "path": "docs/cursor-subagents/*.md"
+              },
+              {
                 "name": "REQUIREMENT_TEMPLATE.md",
                 "type": "templates",
                 "path": "docs/template/REQUIREMENT_TEMPLATE.md"
@@ -2675,6 +2674,11 @@ const TREEMAP_DATA = {
                 "name": "SUBAGENT-MODEL-SELECTION.md",
                 "type": "other",
                 "path": "SUBAGENT-MODEL-SELECTION.md"
+              },
+              {
+                "name": "docs/cursor-subagents/db.md",
+                "type": "other",
+                "path": "docs/cursor-subagents/db.md"
               },
               {
                 "name": "REQUIREMENT_TEMPLATE.md",
@@ -2937,6 +2941,116 @@ const TREEMAP_DATA = {
             "desc": "서브에이전트 역할·범위·등록 방법 정의.",
             "refs": [
               {
+                "name": "frontend.md",
+                "type": "other",
+                "path": "frontend.md"
+              },
+              {
+                "name": "backend.md",
+                "type": "other",
+                "path": "backend.md"
+              },
+              {
+                "name": "db.md",
+                "type": "other",
+                "path": "db.md"
+              },
+              {
+                "name": "requirements.md",
+                "type": "other",
+                "path": "requirements.md"
+              },
+              {
+                "name": "qa-test.md",
+                "type": "other",
+                "path": "qa-test.md"
+              },
+              {
+                "name": "contract-api.md",
+                "type": "other",
+                "path": "contract-api.md"
+              },
+              {
+                "name": "security.md",
+                "type": "other",
+                "path": "security.md"
+              },
+              {
+                "name": "dba.md",
+                "type": "other",
+                "path": "dba.md"
+              },
+              {
+                "name": "architecture.md",
+                "type": "other",
+                "path": "architecture.md"
+              },
+              {
+                "name": "backend-auth.md",
+                "type": "other",
+                "path": "backend-auth.md"
+              },
+              {
+                "name": "backend-activity-log.md",
+                "type": "other",
+                "path": "backend-activity-log.md"
+              },
+              {
+                "name": "backend-log.md",
+                "type": "other",
+                "path": "backend-log.md"
+              },
+              {
+                "name": "frontend-auth.md",
+                "type": "other",
+                "path": "frontend-auth.md"
+              },
+              {
+                "name": "frontend-activity-log.md",
+                "type": "other",
+                "path": "frontend-activity-log.md"
+              },
+              {
+                "name": "frontend-log.md",
+                "type": "other",
+                "path": "frontend-log.md"
+              },
+              {
+                "name": "docs/cursor-subagents/FRONTEND-IMPROVEMENT-POINTS.md",
+                "type": "other",
+                "path": "docs/cursor-subagents/FRONTEND-IMPROVEMENT-POINTS.md"
+              },
+              {
+                "name": "review.md",
+                "type": "other",
+                "path": "review.md"
+              },
+              {
+                "name": "documentation.md",
+                "type": "other",
+                "path": "documentation.md"
+              },
+              {
+                "name": "release.md",
+                "type": "other",
+                "path": "release.md"
+              },
+              {
+                "name": "consistency.md",
+                "type": "other",
+                "path": "consistency.md"
+              },
+              {
+                "name": "ux-design.md",
+                "type": "other",
+                "path": "ux-design.md"
+              },
+              {
+                "name": "past-requirements-search.md",
+                "type": "other",
+                "path": "past-requirements-search.md"
+              },
+              {
                 "name": "docs/requirements/yyyyMMdd-name.md",
                 "type": "other",
                 "path": "docs/requirements/yyyyMMdd-name.md"
@@ -2955,6 +3069,21 @@ const TREEMAP_DATA = {
                 "name": "verify",
                 "type": "commands",
                 "path": ".cursor/commands/verify.md"
+              },
+              {
+                "name": "docs/cursor-subagents/frontend.md",
+                "type": "other",
+                "path": "docs/cursor-subagents/frontend.md"
+              },
+              {
+                "name": "docs/cursor-subagents/backend.md",
+                "type": "other",
+                "path": "docs/cursor-subagents/backend.md"
+              },
+              {
+                "name": "docs/cursor-subagents/qa-test.md",
+                "type": "other",
+                "path": "docs/cursor-subagents/qa-test.md"
               },
               {
                 "name": "language-policy.mdc",
@@ -3045,6 +3174,11 @@ const TREEMAP_DATA = {
                 "name": "UX.mdc",
                 "type": "rules",
                 "path": "UX.mdc"
+              },
+              {
+                "name": "docs/cursor-subagents/*.md",
+                "type": "other",
+                "path": "docs/cursor-subagents/*.md"
               },
               {
                 "name": "dev-services.sh",
@@ -3144,6 +3278,61 @@ const TREEMAP_DATA = {
                 "path": "Architecture.mdc"
               },
               {
+                "name": "docs/cursor-subagents/requirements.md",
+                "type": "other",
+                "path": "docs/cursor-subagents/requirements.md"
+              },
+              {
+                "name": "frontend.md",
+                "type": "other",
+                "path": "frontend.md"
+              },
+              {
+                "name": "db.md",
+                "type": "other",
+                "path": "db.md"
+              },
+              {
+                "name": "backend.md",
+                "type": "other",
+                "path": "backend.md"
+              },
+              {
+                "name": "qa-test.md",
+                "type": "other",
+                "path": "qa-test.md"
+              },
+              {
+                "name": "past-requirements-search.md",
+                "type": "other",
+                "path": "past-requirements-search.md"
+              },
+              {
+                "name": "ux-design.md",
+                "type": "other",
+                "path": "ux-design.md"
+              },
+              {
+                "name": "release.md",
+                "type": "other",
+                "path": "release.md"
+              },
+              {
+                "name": "documentation.md",
+                "type": "other",
+                "path": "documentation.md"
+              },
+              {
+                "name": "consistency.md",
+                "type": "other",
+                "path": "consistency.md"
+              },
+              {
+                "name": "architecture.md",
+                "type": "other",
+                "path": "architecture.md"
+              },
+              {
                 "name": "CURSOR-SUBAGENTS-DESIGN.md",
                 "type": "other",
                 "path": "CURSOR-SUBAGENTS-DESIGN.md"
@@ -3229,6 +3418,11 @@ const TREEMAP_DATA = {
                 "path": "Requirements.mdc"
               },
               {
+                "name": "requirements.md",
+                "type": "other",
+                "path": "requirements.md"
+              },
+              {
                 "name": "DEVELOPMENT-QUERY-EXPERTS.md",
                 "type": "other",
                 "path": "DEVELOPMENT-QUERY-EXPERTS.md"
@@ -3294,6 +3488,11 @@ const TREEMAP_DATA = {
                 "name": "*.md",
                 "type": "templates",
                 "path": "docs/template/*.md"
+              },
+              {
+                "name": "docs/cursor-subagents/*.md",
+                "type": "other",
+                "path": "docs/cursor-subagents/*.md"
               },
               {
                 "name": "docs/design/*.md",
@@ -3480,6 +3679,11 @@ const TREEMAP_DATA = {
                 "name": "REQUIREMENT_TEMPLATE.md",
                 "type": "other",
                 "path": "REQUIREMENT_TEMPLATE.md"
+              },
+              {
+                "name": "requirements.md",
+                "type": "other",
+                "path": "requirements.md"
               },
               {
                 "name": "REQUIREMENT_TEMPLATE.md",

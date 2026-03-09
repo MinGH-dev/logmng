@@ -6,6 +6,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### 2026-03-09 (트리맵 cursor-subagents → Other Docs 복원)
+
+- **chore (treemap)**: `docs/cursor-subagents/*.md` 분류 복원 — Agents/Subagents가 아닌 **Other Docs**에 표시. `scripts/generate-treemap.js`에서 cursor-subagents 경로·파일명을 agents 분류에서 제거하고 'other'로 복귀; refDisplayName용 cursor-subagents 분기 제거.
+- **chore (treemap)**: `docs/cursor-tools-treemap.html` 재생성 — Subagents 카테고리는 `.cursor/agents/*.mdc` 참조만 표시, docs/cursor-subagents 참조는 Other Docs에 표시.
+
 ### 2026-03-09 (트리맵 Agents 카테고리·팀장 라벨)
 
 - **chore (treemap)**: 에이전트 상세 패널에서 `.cursor/agents/*.mdc`, `docs/cursor-subagents/*.md` 참조를 "Other Docs" 대신 "Agents / Subagents" 카테고리로 표시 (generate-treemap.js: classifyRef, refDisplayName, scanAgents, buildAgentData, buildDocPaths, computeHubs; treemap-template.html: CATEGORY_CONFIG.agents, resolveFilepath, .agent-ref-item.agents).

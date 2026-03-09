@@ -129,8 +129,6 @@ function classifyRef(ref) {
   if (ref.includes('.cursor/skills/')) return 'skills';
   if (ref.includes('.cursor/commands/')) return 'commands';
   if (ref.includes('.cursor/agents/')) return 'agents';
-  if (ref.includes('docs/cursor-subagents/')) return 'agents';
-  if (/^[\w-]+\.md$/.test(ref) && fs.existsSync(path.join(ROOT, 'docs/cursor-subagents', ref))) return 'agents';
   if (ref.includes('docs/workflow/')) return 'workflow';
   if (ref.includes('docs/template/')) return 'templates';
   if (ref.endsWith('.mdc') && !ref.includes('/')) return 'rules';
@@ -147,7 +145,6 @@ function refDisplayName(ref) {
   if (ref.includes('.cursor/rules/')) return base;
   if (ref.includes('docs/workflow/')) return base;
   if (ref.includes('docs/template/')) return base;
-  if (ref.includes('docs/cursor-subagents/')) return base.replace(/\.md$/, '');
   if (ref.includes('docs/') && !ref.includes('docs/workflow/') && !ref.includes('docs/template/')) return ref;
   return base;
 }
