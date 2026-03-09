@@ -270,19 +270,19 @@ If local agents are not used, register manually:
 
 ### 5.1 Option: Frontend-Common / Backend-Common agents (when to split)
 
-**Current model**: **Architecture** reviews for commonization (design only); **Frontend** / **Backend** (or module-specific) implement everything, including shared code (e.g. `frontend/src/common/`, backend shared modules). One agent per stack does both feature and common code.
+**Current model (recommended)**: **Backend** and **Frontend** act as **team leads** for their stack. Main invokes **Backend** or **Frontend** only for Step 4. The team lead **owns common + feature**: shared code (e.g. `frontend/src/common/`, backend shared modules) and feature code. Backend may **delegate** to Backend-Auth, Backend-ActivityLog, Backend-Log via Task with scope-specific handoffs; the team lead aggregates §2, runs build/restart once, and applies CONSISTENCY-STANDARDS. Architecture reviews commonization (design only). See `docs/workflow/SUBAGENT-DELEGATION.md` §1 (Step 4), §3, §2.1.
 
 **Alternative**: Dedicated **Frontend-Common** and **Backend-Common** subagents that **own and implement** shared code only; **Frontend** / **Backend** (feature) implement screen/module-specific code and **use** common layer. Roles are split: Common = shared utilities, base components, API client layer; Feature = screens, feature logic.
 
 | Approach | Pros | Cons |
 |----------|------|------|
-| **Current** (Architecture review + Frontend/Backend implement) | Fewer handoffs; one requirement → one or two implementers. Simple. | Shared code can drift if each feature agent implements ad hoc; relies on §2 commonization and Review to catch duplication. |
+| **Current** (team lead owns common + feature; may delegate to module agents) | Fewer handoffs; one requirement → Backend or Frontend; team lead ensures consistency and single build/restart. | If common layer becomes very large, a dedicated Common agent can reduce drift; until then, team lead is sufficient. |
 | **Separate Common agents** (Frontend-Common, Backend-Common + Frontend, Backend) | Clear ownership of shared code; consistent common layer; feature agents only consume. | More handoffs: e.g. Requirements → Architecture → **Common** (implements shared) → **Frontend/Backend** (implements feature). Dependency order and contract (e.g. “common component X”) must be clear. |
 
 **When to add Common agents**
 
 - **Add** when: (1) Common layer is large or growing (design system, shared API client, many shared components/utils). (2) You want a single owner for “frontend common” and “backend common” to avoid drift. (3) You are willing to define handoff order (e.g. Architecture → Common implements shared → Frontend/Backend implement feature using it) and possibly split one requirement into “common” and “feature” tasks.
-- **Keep current** when: Codebase is small/medium and §2 commonization + Review (and CONSISTENCY-STANDARDS for “where common code lives”) is enough; or you want to minimize coordination.
+- **Keep current** when: Codebase is small/medium and §2 commonization + Review + CONSISTENCY-STANDARDS (team lead owns common; “where common code lives”) is enough; or you want to minimize coordination. See SUBAGENT-DELEGATION §3 for Backend/Frontend team lead.
 
 **If you add Frontend-Common / Backend-Common**
 

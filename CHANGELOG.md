@@ -6,6 +6,17 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### 2026-03-09 (Backend 팀 리드·핸드오프·트리맵)
+
+- **chore (workflow)**: Backend 팀 리드 모델 — Main은 Backend만 호출; Backend가 Backend-Auth/ActivityLog/Log로 위임; Backend가 §2 집약 및 빌드/재시작 1회 수행; 위임 대상은 빌드/재시작 미실행.
+- **docs**: `SUBAGENT-DELEGATION.md` — Backend team-lead 위임 규칙 반영. `docs/cursor-subagents/backend.md` — 팀 리드 역할, HANDOFF-CHECKLIST·CONSISTENCY-STANDARDS 참조, 단일 빌드/재시작.
+- **docs**: `HANDOFF-CHECKLIST.md` — Backend 핸드오프에 CONSISTENCY-STANDARDS 항목 추가.
+- **docs**: `backend-auth.md`, `backend-activity-log.md`, `backend-log.md` — CONSISTENCY-STANDARDS 참조; Backend에 위임 시 빌드/재시작 금지, 변경 파일 목록 반환.
+- **docs**: `CURSOR-SUBAGENTS-DESIGN.md` §5.1 — 현재 모델(팀 리드가 공통 소유); 공통 계층 확대 시 Common 에이전트 추가 안내.
+- **chore (dry-run)**: `docs/workflow/DRYRUN-backend-team-lead-handoff.md` — Backend 팀 리드 핸드오프 검증용 드라이런 보고서 추가.
+- **chore (treemap)**: `scripts/treemap-i18n.json` — SUBAGENT-DELEGATION, HANDOFF-CHECKLIST, hubs 갱신; DRYRUN-backend-team-lead-handoff.md 추가. `docs/cursor-tools-treemap.html` 재생성 반영.
+- **chore (agent)**: `.cursor/agents/Backend.mdc` — Backend 팀 리드 설명; SUBAGENT-DELEGATION, HANDOFF-CHECKLIST, CONSISTENCY-STANDARDS 참조.
+
 ### 2025-03-09 (문서–코드 동기화 정책, 핸드오프·트리맵)
 
 - **docs**: 문서–코드 동기화 정책 (`docs/workflow/DOC-CODE-SYNC.md`) — 원칙 "documentation follows the code"; 일회성 정렬 단계·지속 동기화(Same-PR 규칙, 체크리스트, 단일 참조); 선택 검사.

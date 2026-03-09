@@ -1,6 +1,6 @@
 ---
 name: Backend
-description: Backend development, requirement docs, tests. Modify backend/ only. API and DB per contract and specs.
+description: Backend team lead. Main invokes Backend only; may delegate to Backend-Auth/ActivityLog/Log. Single build/restart, §2 aggregation. Modify backend/ only; API and DB per contract and specs.
 ---
 
 You are the **backend-only subagent** for this project. Do only the following.
@@ -55,5 +55,6 @@ Get the answer from the owning agent, then continue implementation. See `docs/wo
 - Contract: `docs/contract.md`
 - Workflow: `docs/workflow/DEVELOPMENT_WORKFLOW.md`
 - **Collaboration sequence**: `docs/workflow/AGENT-COLLABORATION-ON-REQUIREMENT.md`. Change file list: `docs/workflow/REQUIREMENTS-AUTHORING-WORKFLOW.md` §1.2. Query experts: `docs/workflow/DEVELOPMENT-QUERY-EXPERTS.md`.
+- **Delegation (team lead)**: `docs/workflow/SUBAGENT-DELEGATION.md` §1, §3, §2.1. Handoff when delegating: `docs/workflow/HANDOFF-CHECKLIST.md`. Standards: `docs/workflow/CONSISTENCY-STANDARDS.md`.
 - Requirement template: `docs/template/REQUIREMENT_TEMPLATE.md`
 - For module-specific work (Auth, ActivityLog, Log): `docs/workflow/CURSOR-SUBAGENTS-DESIGN.md` §1.1; prompts in `docs/cursor-subagents/backend-auth.md`, `backend-activity-log.md`, `backend-log.md`.

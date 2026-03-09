@@ -55,10 +55,10 @@
     "AGENT-COLLABORATION-ON-REQUIREMENT.md": "협업 순서·핸드오프 규칙 인덱스. 상세: REQUIREMENTS-AUTHORING-WORKFLOW.md, DEVELOPMENT-QUERY-EXPERTS.md.",
     "REQUIREMENTS-AUTHORING-WORKFLOW.md": "요구사항 작성 절차 (§1.1 병렬 입력·오케스트레이션, §1.2 변경 파일 목록, §1.4 Cursor 인프라 갱신).",
     "DEVELOPMENT-QUERY-EXPERTS.md": "Step 4 구현 시 전문가(UX·Contract·DBA 등) 질의 방법.",
-    "SUBAGENT-DELEGATION.md": "Step별 서브에이전트 위임 테이블 및 게이트 규정.",
+    "SUBAGENT-DELEGATION.md": "Step별 서브에이전트 위임. 백엔드: Main→Backend(팀장)만 호출; Backend가 Backend-Auth/ActivityLog/Log 위임·§2 집계·빌드 1회.",
     "CURSOR-SUBAGENTS-DESIGN.md": "서브에이전트 역할·범위·등록 방법 정의.",
     "WORKFLOW_CHECKLIST.md": "새 요건·버그 수정 시 순서와 게이트 체크리스트.",
-    "HANDOFF-CHECKLIST.md": "Backend/Frontend/DB/Review/QA별 핸드오프 체크리스트 (Doc–code sync 포함).",
+    "HANDOFF-CHECKLIST.md": "Backend/Frontend/DB/Review/QA별 핸드오프 체크리스트. CONSISTENCY-STANDARDS·Doc–code sync 포함.",
     "DOC-CODE-SYNC.md": "문서는 코드 기준. 문서–코드–Cursor 동기화 원칙·1회 정비·Same-PR 유지 방법.",
     "CURSOR-AND-TOOLS-INTEGRATION.md": "규칙·커맨드·스킬·문서·스크립트 연결 맵. DOC-CODE-SYNC 참조.",
     "ERROR-FIX-WORKFLOW-FLOWCHART.md": "오류 수정 시 Skills/Sub-Agent/Commands 사용 시점 흐름도.",
@@ -68,7 +68,8 @@
     "BROWSER-AUTOMATION-VERIFICATION-POLICY.md": "브라우저 자동화 검증 정책.",
     "DOCUMENT-LANGUAGE-POLICY.md": "문서 작성 언어 정책.",
     "CONSISTENCY-STANDARDS.md": "프로젝트 컨벤션·네이밍·에러코드 일관성 표준.",
-    "DRYRUN-handoff-verification-report.md": "핸드오프 dry-run 결과. Requirements→Backend→QA 프롬프트 검증."
+    "DRYRUN-handoff-verification-report.md": "핸드오프 dry-run 결과. Requirements→Backend→QA 프롬프트 검증.",
+    "DRYRUN-backend-team-lead-handoff.md": "Backend 팀장 모델 dry-run. Main→Backend만 호출, 위임·§2 집계·빌드 1회·CONSISTENCY 체크 검증."
   },
   "templates": {
     "REQUIREMENT_TEMPLATE.md": "요건 문서 §1·§2·§3·§5·§6 템플릿.",
@@ -78,7 +79,7 @@
   },
   "hubs": {
     "AGENT-COLLABORATION-ON-REQUIREMENT.md": "에이전트 협업 인덱스 — 순서·핸드오프 규칙. 상세: REQUIREMENTS-AUTHORING-WORKFLOW, DEVELOPMENT-QUERY-EXPERTS.",
-    "SUBAGENT-DELEGATION.md": "Step별 서브에이전트 위임 테이블 + 게이트",
+    "SUBAGENT-DELEGATION.md": "Step별 위임 + Backend 팀장(Main→Backend만; 위임·§2 집계·빌드 1회)",
     "WORKFLOW_CHECKLIST.md": "새 요건·버그 수정의 순서 체크리스트 (첫 게이트)",
     "REQUIREMENT_TEMPLATE.md": "§1·§2·§3·§5·§6 요건 문서의 구조 정의",
     "commit-on-complete": "검증 통과 → §5/§6 갱신 → 커밋의 최종 게이트",

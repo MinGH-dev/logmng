@@ -12,6 +12,7 @@ When building a **scope-specific handoff** for Backend, Frontend, DB, Review, or
 - [ ] **Contract/spec**: Reference or excerpt of API/DB contract and `specs/*.spec.yaml` if the change touches API or schema.
 - [ ] **§3**: **All** test cases that involve Backend (unit, integration, and any Integration TCs that imply Backend behavior).
 - [ ] **Cross-scope** (if any): e.g. "Frontend will call POST /api/… with body X; implement to contract."
+- [ ] **CONSISTENCY-STANDARDS**: When the change touches naming, error codes, logging, or file structure — reference **docs/workflow/CONSISTENCY-STANDARDS.md** so the implementer (Backend or delegated Backend-Auth/ActivityLog/Log) applies it.
 - [ ] **Doc–code sync**: If the change adds or changes API paths, error codes, or shared constants, update `docs/api-definition.md` and/or `docs/contract.md` (and specs) in the same work. See **docs/workflow/DOC-CODE-SYNC.md**.
 
 ---
