@@ -288,6 +288,7 @@ body {
 .agent-ref-item.commands { color: var(--accent-commands); border-color: rgba(168,85,247,0.3); background: var(--glow-commands); }
 .agent-ref-item.workflow { color: var(--accent-workflow); border-color: rgba(16,185,129,0.3); background: var(--glow-workflow); }
 .agent-ref-item.template { color: var(--accent-template); border-color: rgba(244,63,94,0.3); background: var(--glow-template); }
+.agent-ref-item.agents { color: var(--accent-subagent); border-color: rgba(59,130,246,0.3); background: var(--glow-subagent); }
 .agent-ref-item.other { color: var(--text-dim); border-color: var(--border); background: var(--surface); }
 .no-refs { font-size: 11px; color: var(--text-dim); font-style: italic; }
 
@@ -789,6 +790,7 @@ const CATEGORY_CONFIG = {
   commands:  { label: 'Commands',      color: '#a855f7', dotClass: 'commands' },
   workflow:  { label: 'Workflow Docs', color: '#10b981', dotClass: 'workflow' },
   templates: { label: 'Templates',     color: '#f43f5e', dotClass: 'template' },
+  agents:    { label: 'Agents / Subagents', color: '#3b82f6', dotClass: 'agents' },
   other:     { label: 'Other Docs',    color: '#64748b', dotClass: 'other' }
 };
 
@@ -841,6 +843,7 @@ function resolveFilepath(name) {
   if (DOC_PATHS[trimmed]) return DOC_PATHS[trimmed];
   if (DOC_PATHS[trimmed + '.md']) return DOC_PATHS[trimmed + '.md'];
   if (DOC_PATHS[trimmed + '.mdc']) return DOC_PATHS[trimmed + '.mdc'];
+  if (DOC_PATHS['agent:' + trimmed]) return DOC_PATHS['agent:' + trimmed];
   return null;
 }
 
@@ -882,7 +885,7 @@ function showAgentDetail(agentName) {
   document.getElementById('agentScope').textContent = data.scope;
   const grid = document.getElementById('agentRefsGrid');
   grid.innerHTML = '';
-  const categories = ['rules', 'skills', 'commands', 'workflow', 'templates', 'other'];
+  const categories = ['rules', 'skills', 'commands', 'workflow', 'templates', 'agents', 'other'];
   let hasAny = false;
   for (const cat of categories) {
     const items = data[cat];
@@ -899,7 +902,7 @@ function showAgentDetail(agentName) {
       '</div>' +
       '<div class="agent-ref-list">' +
         items.map(function(i) {
-          var fp = resolveFilepath(i);
+          var fp = (cat === 'agents') ? (resolveFilepath('agent:' + i) || resolveFilepath(i)) : resolveFilepath(i);
           var docBtn = fp ? '<button class="doc-btn" title="문서 보기" data-docbtn="' + i + '">📄</button>' : '';
           return '<span class="agent-ref-item ' + cfg.dotClass + '" data-docname="' + i + '">' + i + docBtn + '</span>';
         }).join('') +
@@ -966,9 +969,10 @@ function renderFlowSteps() {
     var card = document.createElement('div');
     card.className = 'step-card';
     var agentsHtml = step.agents.map(function(a) {
+      var label = (a.displayName || a.name);
       return '<div class="agent-chip' + (a.light ? ' light' : '') +
-        '" data-agent="' + a.name + '" onclick="showAgentDetail(\'' + a.name + '\')">' +
-        a.name + '</div>';
+        '" data-agent="' + a.name + '" onclick="showAgentDetail(\'' + a.name + '\')" title="' + (a.displayName ? a.name + ' (team lead)' : '') + '">' +
+        label + '</div>';
     }).join('');
     card.innerHTML =
       '<div class="step-num">' + step.step + '</div>' +

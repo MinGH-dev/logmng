@@ -6,6 +6,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### 2026-03-09 (트리맵 Agents 카테고리·팀장 라벨)
+
+- **chore (treemap)**: 에이전트 상세 패널에서 `.cursor/agents/*.mdc`, `docs/cursor-subagents/*.md` 참조를 "Other Docs" 대신 "Agents / Subagents" 카테고리로 표시 (generate-treemap.js: classifyRef, refDisplayName, scanAgents, buildAgentData, buildDocPaths, computeHubs; treemap-template.html: CATEGORY_CONFIG.agents, resolveFilepath, .agent-ref-item.agents).
+- **chore (treemap)**: Step 4 플로우 칩에 팀장 라벨 표시 — "Backend (팀장)", "Frontend (팀장)" (generate-treemap.js: TEAM_LEAD_LABEL, buildFlowSteps displayName; treemap-template.html: agent chip displayName).
+- **chore (treemap)**: `docs/cursor-tools-treemap.html` 재생성 반영.
+
 ### 2026-03-09 (Backend 팀 리드·핸드오프·트리맵)
 
 - **chore (workflow)**: Backend 팀 리드 모델 — Main은 Backend만 호출; Backend가 Backend-Auth/ActivityLog/Log로 위임; Backend가 §2 집약 및 빌드/재시작 1회 수행; 위임 대상은 빌드/재시작 미실행.

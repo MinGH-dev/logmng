@@ -129,6 +129,8 @@ function classifyRef(ref) {
   if (ref.includes('.cursor/skills/')) return 'skills';
   if (ref.includes('.cursor/commands/')) return 'commands';
   if (ref.includes('.cursor/agents/')) return 'agents';
+  if (ref.includes('docs/cursor-subagents/')) return 'agents';
+  if (/^[\w-]+\.md$/.test(ref) && fs.existsSync(path.join(ROOT, 'docs/cursor-subagents', ref))) return 'agents';
   if (ref.includes('docs/workflow/')) return 'workflow';
   if (ref.includes('docs/template/')) return 'templates';
   if (ref.endsWith('.mdc') && !ref.includes('/')) return 'rules';
@@ -145,6 +147,7 @@ function refDisplayName(ref) {
   if (ref.includes('.cursor/rules/')) return base;
   if (ref.includes('docs/workflow/')) return base;
   if (ref.includes('docs/template/')) return base;
+  if (ref.includes('docs/cursor-subagents/')) return base.replace(/\.md$/, '');
   if (ref.includes('docs/') && !ref.includes('docs/workflow/') && !ref.includes('docs/template/')) return ref;
   return base;
 }
@@ -227,11 +230,10 @@ function scanAgents() {
     const light = LIGHT_AGENTS.has(name);
     const skills = extractSkillNames(content);
     const rawRefs = extractRefs(content);
-    const categorized = { rules: [], skills: [...skills], commands: [], workflow: [], templates: [], other: [] };
+    const categorized = { rules: [], skills: [...skills], commands: [], workflow: [], templates: [], agents: [], other: [] };
 
     for (const ref of rawRefs) {
       const { name: rName, type } = classifyAndNameRef(ref);
-      if (type === 'agents') continue;
       if (type === 'skills') {
         if (!categorized.skills.includes(rName)) categorized.skills.push(rName);
         continue;
@@ -304,6 +306,8 @@ function buildDocPaths(rules, skills, commands, agents, workflow, templates) {
   agents.forEach(a => { paths[`agent:${a.name}`] = `.cursor/agents/${a.name}.mdc`; });
   workflow.forEach(w => { paths[w.name] = `docs/workflow/${w.name}`; });
   templates.forEach(t => { paths[t.name] = `docs/template/${t.name}`; });
+  const cursorSubagents = listDir('docs/cursor-subagents', '.md');
+  cursorSubagents.forEach(f => { paths[f.replace(/\.md$/, '')] = `docs/cursor-subagents/${f}`; });
   ['docs/contract.md', 'docs/security-guide.md', 'docs/api-definition.md',
    'docs/QUICK_START.md', 'README.md', 'CHANGELOG.md',
    'docs/requirements/TOPIC-INDEX.md'
@@ -313,13 +317,16 @@ function buildDocPaths(rules, skills, commands, agents, workflow, templates) {
   return paths;
 }
 
+const TEAM_LEAD_LABEL = { Backend: 'Backend (팀장)', Frontend: 'Frontend (팀장)' };
+
 function buildFlowSteps(agents) {
   const groups = {};
   for (const a of agents) {
     const num = a.stepNum;
     if (num === '?') continue;
     if (!groups[num]) groups[num] = [];
-    groups[num].push({ name: a.name, light: a.light });
+    const displayName = TEAM_LEAD_LABEL[a.name] || null;
+    groups[num].push({ name: a.name, light: a.light, displayName });
   }
   for (const num of Object.keys(groups)) {
     groups[num].sort((a, b) => (a.light ? 1 : 0) - (b.light ? 1 : 0));
@@ -344,6 +351,7 @@ function buildAgentData(agents) {
       commands: a.commands,
       workflow: a.workflow,
       templates: a.templates,
+      agents: a.agents || [],
       other: a.other
     };
   }
@@ -385,7 +393,7 @@ function computeHubs(rules, skills, commands, workflow, templates, agents) {
     }
   }
   for (const agent of agents) {
-    for (const cat of ['rules', 'skills', 'commands', 'workflow', 'templates', 'other']) {
+    for (const cat of ['rules', 'skills', 'commands', 'workflow', 'templates', 'agents', 'other']) {
       for (const ref of (agent[cat] || [])) {
         refCounts[norm(ref)] = (refCounts[norm(ref)] || 0) + 1;
       }

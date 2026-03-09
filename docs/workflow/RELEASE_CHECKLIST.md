@@ -41,6 +41,7 @@
 - **2026-02-27**: Release 작업 — 현재 변경(agent-collaboration, SUBAGENT-MODEL-SELECTION)에 대해 CHANGELOG·릴리스 체크리스트 갱신, 커밋 후 `git push` 수행. (1–2, 5 수행)
 - **2026-02-27**: mcp_task model constraint 반영 — model 파라미터 omit, §2.1은 사용자 보고용. CHANGELOG·릴리스 체크리스트 갱신, 커밋 후 `git push` 수행. (1–2, 5 수행)
 - **2026-02-25**: design standards·UX agent 커밋 후 `feat/cursor-commit-on-complete` 푸시 완료. CHANGELOG 2026-02-25 항목 반영. (1–2, 5 수행)
+- **2026-03-09**: 트리맵 Agents 카테고리·팀장 라벨 (에이전트 참조를 Agents/Subagents 카테고리로 표시, Step 4 팀장 라벨, cursor-tools-treemap.html 재생성). CHANGELOG·RELEASE_CHECKLIST 갱신, 커밋 후 `git push` 수행. (1–2, 5 수행)
 - **2026-03-09**: Backend 팀 리드·핸드오프·트리맵 (SUBAGENT-DELEGATION, HANDOFF-CHECKLIST, backend 서브에이전트 문서, DRYRUN-backend-team-lead-handoff, treemap). CHANGELOG 2026-03-09 항목 추가, 커밋 후 `git push` 수행. (1–2, 5 수행)
 
 ## 참고
