@@ -51,6 +51,7 @@ start_frontend() {
   fi
   cd "$DEV_ROOT/frontend"
   export BROWSER=none
+  export PORT="$FRONTEND_PORT"
   nohup npm start >> "$LOGS_DIR/frontend-stdout.log" 2>&1 &
   echo "[OK] Frontend starting (port $FRONTEND_PORT). Logs: $LOGS_DIR/frontend-stdout.log"
 }

@@ -27,12 +27,25 @@ Request → Layer 1: ScreenAccessInterceptor (screen access)
 - **Layer 3** denies with business-specific codes (e.g. `DECRYPTION_NOT_APPROVED`).
 - **is_system_admin** bypasses all layers.
 
+## Decrypt-gated APIs (req 20260306)
+
+Controller: `DecryptController`
+Check method: `authService.hasDecryptForMain(request)` (after session check)
+Logic: is_system_admin OR (main in allowedScreenIds AND screenFunctions.main.decrypt === true)
+Denial code: `FUNCTION_NOT_ALLOWED`
+
+| Method | Path | Notes |
+|--------|------|-------|
+| POST | `/api/logs/decrypt/{logType}` | Single row decrypt; requires decrypt permission on main. Then DECRYPTION_NOT_APPROVED / ROW_NOT_IN_APPROVED_SNAPSHOT apply in service. |
+
 ## Approve-gated APIs
 
 Controller: `SearchHistoryController`
 Check method: `requireApproverOrAdmin(request)`
 Logic: (decrypt_approver OR is_system_admin) AND screenFunctions.approve
 Denial code: `FUNCTION_NOT_ALLOWED`
+
+**Approval scope**: 승인 가능 범위(누가 승인 대상인지)는 부서(canApproveForRequester)로 고정되며, 권한 그룹 scope는 목록(조회) 범위만 적용됨. (spec §Scope values.)
 
 | Method | Path | Notes |
 |--------|------|-------|
@@ -123,7 +136,7 @@ Source: `backend/src/main/java/com/logmng/config/ScreenAccessInterceptor.java`
 | `/api/statistics*` | statistics |
 | `/api/users*` | user-management |
 | `/api/logs/db-refactored*` | main |
-| `/api/logs/decrypt*` | main |
+| `/api/logs/decrypt*` | main (and screenFunctions.main.decrypt required in controller; see Decrypt-gated APIs) |
 | `/api/search*` | main |
 
 ## Gaps (no write enforcement where expected)

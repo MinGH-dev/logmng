@@ -50,7 +50,7 @@ Do **not** use for: implementing code (Backend/Frontend/DB agents); running test
 - **Bugfix child from QA**: When **QA** hands off a **bugfix child** doc after verification failure, QA provides **failure scope** (frontend | backend | db | security | contract | ux | …). **Formalize** the doc: ensure §1 (failure description / user impact), §2 (scope, cause, fix design, tentative change list), and §3 (test plan) are complete. Do **not** implement. Then **delegate to the responsible expert by scope**:
   - **frontend** → **Frontend** | **backend** → **Backend** | **db** → **DB** | **security** → **Security** (then implementer if needed) | **contract** → **Contract** (then implementer) | **ux** → **UX** (review) then **Frontend**. Instruct the expert: when **issue closed** (fix + build/restart), hand off to **QA** for re-verification; QA re-runs verification and commits when all pass. See `docs/workflow/BROWSER-AUTOMATION-VERIFICATION-POLICY.md` §2.4.
 
-### During authoring (§1.1) — parallel consensus and orchestration
+### During authoring — parallel consensus and orchestration
 
 Do **not** write §1 (user scenario, expected outcome) and §2 (codebase summary, problem analysis, solution) from your own judgment alone. **Obtain input in parallel** from experts and from Backend/Frontend/DB/QA, then **orchestrate** (merge) that input into §1·§2.
 
@@ -63,7 +63,7 @@ Do **not** write §1 (user scenario, expected outcome) and §2 (codebase summary
    - **QA**: user scenario testability, §3 alignment, edge/regression suggestions.
    - Pass to each: user request or error message; ask for (a) user scenario/expected outcome for §1, (b) codebase summary for their area, (c) problem analysis, (d) solution approach.
 2. **Orchestrate**  
-   Merge responses into **§1** (description, user scenario, expected outcome) and **§2** (codebase summary, problem analysis, solution, **변경 파일 목록 (예상)**). The change file list in §2 is **tentative**; the implementing agent (Step 4) **confirms or updates** it when implementation is done (see `AGENT-COLLABORATION-ON-REQUIREMENT.md` §1.2).
+   Merge responses into **§1** (description, user scenario, expected outcome) and **§2** (codebase summary, problem analysis, solution, **변경 파일 목록 (예상)**). The change file list in §2 is **tentative**; the implementing agent (Step 4) **confirms or updates** it when implementation is done (see `docs/workflow/REQUIREMENTS-AUTHORING-WORKFLOW.md` §1.2).
 3. **Finalize**  
    Complete **§3** (test plan) and the requirement doc.
 
@@ -72,7 +72,7 @@ If the requirement is trivial or purely textual, you may skip parallel invocatio
 ## References
 
 - Workflow: `docs/workflow/WORKFLOW_CHECKLIST.md`, `docs/workflow/DEVELOPMENT_WORKFLOW.md`
-- **Collaboration sequence**: `docs/workflow/AGENT-COLLABORATION-ON-REQUIREMENT.md` (incl. §1.1 expert feedback during authoring)
+- **Collaboration sequence**: `docs/workflow/AGENT-COLLABORATION-ON-REQUIREMENT.md`. Authoring procedure: `docs/workflow/REQUIREMENTS-AUTHORING-WORKFLOW.md`.
 - Requirement template: `docs/template/REQUIREMENT_TEMPLATE.md`
 - Contract: `docs/contract.md`
 - Skill: `.cursor/skills/requirement-doc/SKILL.md`

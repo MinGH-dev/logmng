@@ -71,6 +71,8 @@
 **Approval pending:**
 - No change. `SearchHistoryService.listPending(approverUserId, isSystemAdmin, ...)` already uses `decryptApproverService.canApproveForRequester(approverUserId, requester)` so department-scoped approvers (팀장) see only their team's requests. Document in requirement and in Cursor skills.
 
+**Terminology alignment**: Current UI and contract use scope labels **본인 | 부서 | 전체** and function labels **조회 | 승인** (not 조회만, not 팀) per specs/permission-group-hierarchy.spec.yaml §1.1 and docs/workflow/CONSISTENCY-STANDARDS.md §7.
+
 ### Cursor 도구 업데이트 대상 (Cursor tool update targets)
 - `specs/permission-group-hierarchy.spec.yaml` — add `'team'` to scope type and default; §4.2 screenScopes; §2.1 permission_group_screen scope constraint.
 - `.cursor/skills/auth-permission-domain/SKILL.md` — scope self | all | **team**; default **team** for scope-supporting screens.

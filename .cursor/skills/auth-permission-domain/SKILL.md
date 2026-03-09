@@ -32,13 +32,14 @@ API request
 ## screenFunctions (per-screen function availability)
 
 ```
-screenFunctions: Record<screenId, { read: boolean, write?: boolean, approve?: boolean }>
+screenFunctions: Record<screenId, { read: boolean, write?: boolean, approve?: boolean, decrypt?: boolean }>
 ```
 
 **Derivation rules** (AuthService.resolveScreenFunctions):
 - **read**: always true if screen is in allowedScreenIds.
 - **write**: only for management screens (user-management, department-approvers, user-permission-hierarchy, permission-group-management). When `permission_group_screen.write` is null → **derived as true** (read implies write). Explicit `write=false` in DB overrides.
 - **approve**: only for search-history, pending-approvals. Requires (`decrypt_approver` OR `is_system_admin`). Explicit `approve=false` in DB overrides.
+- **decrypt**: only for **main** (검색하기). When `permission_group_screen.decrypt` is true for main, user may request decryption (call decrypt API); when false or null (default), decrypt API returns 403 FUNCTION_NOT_ALLOWED. **Configurable** in permission management UI (grant/revoke 복호화 for main). req 20260306.
 
 ## Error code distinction (FORBIDDEN vs FUNCTION_NOT_ALLOWED)
 
@@ -49,32 +50,42 @@ screenFunctions: Record<screenId, { read: boolean, write?: boolean, approve?: bo
 
 For detailed API-to-permission-check mapping, see skill: `api-permission-map`.
 
-## APPROVE_USER pattern (approval-only permission group)
+## Approval-only permission group
 
-**Business rule**: Team leaders (팀장) must NOT view logs (no `main` screen access). They act as decrypt approvers only.
+**Definition (condition-based, group name irrelevant)**: A permission group is **approval-only** when it satisfies ALL of these conditions:
+- `allowedScreenIds` does **NOT** include `main` (no log search access)
+- `allowedScreenIds` **includes** `pending-approvals` (approval screen access)
+- (Optional) `approve=true` for the pending-approvals screen (can perform approve/reject)
 
-**Implementation**: Create a permission group (e.g. `APPROVE_USER`) with ONLY `pending-approvals` screen. The team leader is also registered in `decrypt_approver` table. This gives:
+This definition applies to **any** group matching the condition — e.g. APPROVE_USER, TEAM_APPROVER, REGIONAL_APPROVER. The group name/code is irrelevant.
+
+**Business rule**: Team leaders (팀장) must NOT view logs. They act as decrypt approvers only. Create a permission group (e.g. `APPROVE_USER`) matching the approval-only condition, and register the team leader in `decrypt_approver` table. This gives:
 - ✅ Can see pending approval requests (pending-approvals screen)
 - ✅ Can approve/reject decrypt requests (decrypt_approver + approve function)
 - ❌ Cannot search/view logs (no `main` screen)
-- ❌ Cannot view search history (no `search-history` screen)
+- ❌ Cannot view search history (no `search-history` screen, unless explicitly granted)
 
-**Constraint**: Frontend must support users whose `allowedScreenIds` does NOT include `main`. The initial view and fallback must redirect to the first allowed screen, not hardcode `main`. See req `20260304-approve-only-permission-group`.
-
-**Approver function scope rule**: Approvers (APPROVE_USER pattern) should ONLY have approval-related actions. Non-approval actions on screens they access must be hidden or disabled:
-- `search-history` screen → **재조회** (re-search): hidden for users without `main` screen (navigates to log search, which approvers must not access)
-- `search-history` screen → **재요청** (re-request): hidden for users without `main` screen (for original requesters to re-request expired approvals, not for approvers)
-- `search-history` screen → **자세히 보기** (view detail): allowed (provides approval context)
-- `pending-approvals` screen → **승인/반려**: allowed (core approver function, gated by `canApprove`)
+**Applicable rules (for all approval-only groups, regardless of name)**:
+- **Redirect**: After login, if `main` is not in `allowedScreenIds`, redirect to the first allowed screen (e.g. pending-approvals).
+- **Menu**: Sidebar shows only screens in `allowedScreenIds`. No `main` → no "로그 검색", "통계", etc.
+- **API**: `main` not in `allowedScreenIds` → log search API returns 403. `pending-approvals` + `decrypt_approver` → approve/reject API allowed.
+- **Action hiding**: Approvers should ONLY have approval-related actions. Non-approval actions on screens they access must be hidden or disabled:
+  - `search-history` screen → **재조회** (re-search): hidden for users without `main` screen
+  - `search-history` screen → **재요청** (re-request): hidden for users without `main` screen
+  - `search-history` screen → **자세히 보기** (view detail): allowed (provides approval context)
+  - `pending-approvals` screen → **승인/반려**: allowed (core approver function, gated by `canApprove`)
 
 **General rule**: If a screen action button navigates to or depends on another screen the user doesn't have access to, that button must be hidden. Use `allowedScreenIds.includes('main')` as the condition for search-related actions.
+
+**Constraint**: Frontend must support users whose `allowedScreenIds` does NOT include `main`. The initial view and fallback must redirect to the first allowed screen, not hardcode `main`. See req `20260304-approve-only-permission-group`.
 
 ## Quick reference
 
 - **All screen APIs** (user-management, permission-groups, hierarchy, main, search-history, etc.): `is_system_admin` OR user has screen in `allowedScreenIds` (from user's single permission group).
-- **Scope** (activity-log, statistics, search-history only): `self` = own data; `team` = same department (default when omitted); `all` = full. `is_system_admin` → always full.
+- **Decrypt API** (POST /api/logs/decrypt/*): Requires **main** screen **and** `screenFunctions.main.decrypt === true` (or is_system_admin). Otherwise 403 FUNCTION_NOT_ALLOWED. Permission management UI can grant/revoke "복호화" for the main screen. req 20260306.
+- **Scope** (activity-log, statistics, search-history, pending-approvals): **조회(목록) 범위**만 설정 가능 — `self` (본인), `team` (부서), `all` (전체). UI 문구: "조회", "본인"|"부서"|"전체" (not "조회만", "팀"). **승인 범위**는 부서(team)로 고정·변경 불가. `is_system_admin` → always full.
 - **is_system_admin**: DB column `app_user.is_system_admin`. Not settable via API; init-data or DB direct edit only.
-- **APPROVE_USER pattern**: Team leaders use a permission group with only `pending-approvals` (no `main`). They must be in `decrypt_approver` to approve. Frontend must not assume `main` is always available.
+- **Approval-only permission group**: Any group where `allowedScreenIds` has no `main` + has `pending-approvals` (e.g. APPROVE_USER, TEAM_APPROVER). Same redirect/menu/API rules apply regardless of group name. Must be in `decrypt_approver` to approve. Frontend must not assume `main` is always available.
 
 ## When to use
 
@@ -109,8 +120,9 @@ For detailed API-to-permission-check mapping, see skill: `api-permission-map`.
 
 1. For screen access (user-management, permission-groups, hierarchy): Answer per contract/spec — `is_system_admin` OR `allowedScreenIds` contains the screen. The user's single permission group grants access.
 2. For "user has group X but 403": Check (1) `allowedScreenIds` includes the required screen; (2) implementation may use `isSystemAdmin` only (bug). Reference: `specs/permission-group-hierarchy.spec.yaml` §4.3.
-3. For scope questions: Only activity-log, statistics, search-history use scope. Others ignore.
-4. **Requirement traceability**: When explaining design or "처리 이력", cite requirement doc (path + §section). Use **core** refs above; do **not** load full doc. For "전체 처리 이력", load `docs/requirements/TOPIC-INDEX.md` §permission only. Do **not** invoke RequirementsPastSearch for Q&A.
+3. For scope questions: activity-log, statistics, search-history, and pending-approvals use scope (self/team/all). Others ignore.
+4. **Adding a new scope-supporting screen** (checklist): When extending which screens support scope (self/team/all), update (a) **Backend**: ScreenConstants.SCREENS_WITH_SCOPE, PermissionGroupService.getScreenScopesForUser, controller scope resolution, service filter; (b) **Frontend — configuration**: ScreenSelectionTree.js `SCOPE_SUPPORTING_SCREENS` and PermissionGroupPanel.js `scopeScreens` so admins can set scope in the permission group edit dialog; (c) **Frontend — view**: the screen component (scope hint or filter behavior) if applicable. Missing (b) means scope cannot be configured for that screen. See `docs/workflow/ANALYSIS-pending-approvals-scope-frontend-incomplete.md`.
+5. **Requirement traceability**: When explaining design or "처리 이력", cite requirement doc (path + §section). Use **core** refs above; do **not** load full doc. For "전체 처리 이력", load `docs/requirements/TOPIC-INDEX.md` §permission only. Do **not** invoke RequirementsPastSearch for Q&A.
 
 ## References
 

@@ -22,10 +22,10 @@ When you modify code or config under `backend/` or `frontend/`, **always** perfo
    - Frontend: confirm http://localhost:3001 is reachable.
 
 3. **Requirement doc §2 변경 파일 목록**
-   - When implementing from a requirement doc, **confirm or update** §2 "변경 파일 목록" with actual files changed. See `docs/workflow/AGENT-COLLABORATION-ON-REQUIREMENT.md` §1.2.
+   - When implementing from a requirement doc, **confirm or update** §2 "변경 파일 목록" with actual files changed. See `docs/workflow/REQUIREMENTS-AUTHORING-WORKFLOW.md` §1.2.
 
 4. **Handoff to QA**
    - Include a one-line confirmation so QA can gate verification:
      `Build: [command] — exit 0. Restart: [command] — done. §2 변경 파일 목록 확정. QA verification requested.`
 
-Reference: `docs/workflow/AGENT-COLLABORATION-ON-REQUIREMENT.md` §1.2, `docs/workflow/SUBAGENT-DELEGATION.md`.
+Reference: `docs/workflow/REQUIREMENTS-AUTHORING-WORKFLOW.md` §1.2, `docs/workflow/SUBAGENT-DELEGATION.md`.

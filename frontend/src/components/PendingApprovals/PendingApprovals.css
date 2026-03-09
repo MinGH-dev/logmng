@@ -5,8 +5,14 @@
 }
 
 .pending-approvals h2 {
-  margin-bottom: 1rem;
+  margin-bottom: 0.5rem;
   font-size: 1.25rem;
+}
+
+.pending-approvals-scope-hint {
+  margin: 0 0 1rem;
+  font-size: 0.9rem;
+  color: #555;
 }
 
 .pending-approvals-back {

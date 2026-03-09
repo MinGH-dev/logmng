@@ -271,4 +271,84 @@ class SearchHistoryServiceTest {
                 });
     }
 
+    // ---- listPending scope (req 20260305-pending-approvals-scope) TC-01, TC-02, TC-03 ----
+
+    /** TC-01: scope self → only rows where requester = current user (approverUserId). */
+    @Test
+    void listPending_scopeSelf_returnsOnlyRowsWhereRequesterEqualsCurrentUser() throws Exception {
+        clearSearchHistory(dataSource);
+        insertPendingRow(dataSource, 201L, "approver1");
+        insertPendingRow(dataSource, 202L, "otherUser");
+        insertPendingRow(dataSource, 203L, "approver1");
+
+        SearchHistoryListResponse resp = searchHistoryService.listPending("approver1", false, 1, 20, false, null);
+
+        assertThat(resp.getData()).hasSize(2);
+        assertThat(resp.getData()).allMatch(row -> "approver1".equals(row.get("requester")));
+        assertThat(resp.getPagination().getTotalCount()).isEqualTo(2);
+    }
+
+    /** TC-02 / TC-06: scope team → only rows where requester in allowedUserIds (same department). */
+    @Test
+    void listPending_scopeTeam_returnsOnlyRowsWhereRequesterInAllowedUserIds() throws Exception {
+        clearSearchHistory(dataSource);
+        insertPendingRow(dataSource, 301L, "userA");
+        insertPendingRow(dataSource, 302L, "userB");
+        insertPendingRow(dataSource, 303L, "userC");
+
+        List<String> teamUserIds = List.of("userA", "userB");
+        SearchHistoryListResponse resp = searchHistoryService.listPending("approver1", false, 1, 20, false, teamUserIds);
+
+        assertThat(resp.getData()).hasSize(2);
+        assertThat(resp.getData()).extracting(row -> row.get("requester")).containsExactlyInAnyOrder("userA", "userB");
+        assertThat(resp.getPagination().getTotalCount()).isEqualTo(2);
+    }
+
+    /** TC-03: scope all (or is_system_admin) → all PENDING rows that canApproveForRequester allows. */
+    @Test
+    void listPending_scopeAll_returnsAllApprovableRows() throws Exception {
+        clearSearchHistory(dataSource);
+        insertPendingRow(dataSource, 401L, "req1");
+        insertPendingRow(dataSource, 402L, "req2");
+        insertPendingRow(dataSource, 403L, "req3");
+
+        SearchHistoryListResponse resp = searchHistoryService.listPending("approver1", false, 1, 20, true, null);
+
+        assertThat(resp.getData()).hasSize(3);
+        assertThat(resp.getPagination().getTotalCount()).isEqualTo(3);
+    }
+
+    @Test
+    void listPending_scopeSelf_withNoOwnRequests_returnsEmpty() throws Exception {
+        clearSearchHistory(dataSource);
+        insertPendingRow(dataSource, 501L, "otherUser");
+
+        SearchHistoryListResponse resp = searchHistoryService.listPending("approver1", false, 1, 20, false, null);
+
+        assertThat(resp.getData()).isEmpty();
+        assertThat(resp.getPagination().getTotalCount()).isEqualTo(0);
+    }
+
+    private static void clearSearchHistory(DataSource ds) throws Exception {
+        try (Connection conn = ds.getConnection();
+             Statement stmt = conn.createStatement()) {
+            stmt.execute("DELETE FROM search_history_approved_row");
+            stmt.execute("DELETE FROM search_history");
+        }
+    }
+
+    private static void insertPendingRow(DataSource ds, long id, String requesterUserId) throws Exception {
+        Timestamp requestedAt = Timestamp.from(Instant.now());
+        Timestamp expiresAt = Timestamp.from(Instant.now().plusSeconds(86400));
+        try (Connection conn = ds.getConnection();
+             PreparedStatement ps = conn.prepareStatement("INSERT INTO search_history (id, user_id, log_type, search_params, approval_status, requested_at, expires_at, updated_at) VALUES (?, ?, ?, '{}', 'PENDING', ?, ?, CURRENT_TIMESTAMP)")) {
+            ps.setLong(1, id);
+            ps.setString(2, requesterUserId);
+            ps.setString(3, "java_fw_imglog");
+            ps.setTimestamp(4, requestedAt);
+            ps.setTimestamp(5, expiresAt);
+            ps.executeUpdate();
+        }
+    }
+
 }

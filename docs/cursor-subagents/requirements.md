@@ -40,7 +40,7 @@ Do **not** write the requirement doc in isolation. **Solicit feedback from relev
 5. **Finalize** §3 (test plan) and complete the requirement doc.
 6. **When the doc is complete**, the flow continues per `docs/workflow/AGENT-COLLABORATION-ON-REQUIREMENT.md`: Step 2 (Security if needed), Step 3 (Contract/DBA/Architecture/Consistency/UX if needed), then **Step 4** — the **responsible subagent** (Backend, Frontend, or DB) takes over; after implementation, Step 5 (QA), and so on. You do not perform Step 4; you hand off so each **responsible subagent** performs its step in sequence.
 
-Reference: `docs/workflow/AGENT-COLLABORATION-ON-REQUIREMENT.md` §1.1, `docs/workflow/SUBAGENT-DELEGATION.md` Step 1.
+Reference: `docs/workflow/REQUIREMENTS-AUTHORING-WORKFLOW.md`, `docs/workflow/SUBAGENT-DELEGATION.md` Step 1.
 
 ## Before working
 
@@ -50,6 +50,6 @@ Reference: `docs/workflow/AGENT-COLLABORATION-ON-REQUIREMENT.md` §1.1, `docs/wo
 ## References
 
 - Workflow: `docs/workflow/DEVELOPMENT_WORKFLOW.md`
-- Collaboration (expert feedback, handoff): `docs/workflow/AGENT-COLLABORATION-ON-REQUIREMENT.md` §1.1, `docs/workflow/SUBAGENT-DELEGATION.md`
+- Collaboration (expert feedback, handoff): `docs/workflow/REQUIREMENTS-AUTHORING-WORKFLOW.md`, `docs/workflow/SUBAGENT-DELEGATION.md`
 - Requirement template: `docs/template/REQUIREMENT_TEMPLATE.md`
 - Contract: `docs/contract.md`

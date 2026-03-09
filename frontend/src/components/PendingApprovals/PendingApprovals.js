@@ -21,9 +21,17 @@ const PENDING_COLUMNS = [
 
 const FORBIDDEN_CODES = ['FORBIDDEN_NOT_APPROVER', 'NOT_APPROVER'];
 
+const SCOPE_HINT_LABELS = {
+  self: '표시: 본인',
+  team: '표시: 부서',
+  all: '표시: 전체',
+};
+
 const PendingApprovals = ({ user }) => {
   const screenFunctions = getScreenFunctions(user);
   const canApprove = screenFunctions?.['pending-approvals']?.approve === true;
+  const scope = user?.screenScopes?.['pending-approvals'];
+  const scopeHint = scope ? SCOPE_HINT_LABELS[scope] : null;
   const [list, setList] = useState([]);
   const [pagination, setPagination] = useState({ currentPage: 1, totalPages: 1, totalCount: 0 });
   const [loading, setLoading] = useState(false);
@@ -143,6 +151,11 @@ const PendingApprovals = ({ user }) => {
   return (
     <div className="pending-approvals">
       <h2>승인 대기</h2>
+      {scopeHint && (
+        <p className="pending-approvals-scope-hint" aria-live="polite">
+          {scopeHint}
+        </p>
+      )}
       {error && <div className="pending-approvals-error">{error}</div>}
       {message && <div className="pending-approvals-message">{message}</div>}
       {!error && (

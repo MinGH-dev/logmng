@@ -33,7 +33,7 @@ Do **not** use for: writing or editing requirement docs (→ Requirements), impl
 
 ## Collaboration
 
-- **Invoked by**: Requirements (during authoring), or any agent giving feedback on a requirement draft, to ensure "user's recent requests in past requirements" are maintained. See `docs/workflow/AGENT-COLLABORATION-ON-REQUIREMENT.md` §1.1 and `docs/workflow/SUBAGENT-DELEGATION.md`.
+- **Invoked by**: Requirements (during authoring), or any agent giving feedback on a requirement draft, to ensure "user's recent requests in past requirements" are maintained. See `docs/workflow/REQUIREMENTS-AUTHORING-WORKFLOW.md` (step 1) and `docs/workflow/SUBAGENT-DELEGATION.md`.
 - **Input**: Topic/feature area and/or list of requirement doc paths; question like "What did the user recently request in past requirements for [area]? Summarize so we preserve it unless the user explicitly asks to change it."
 - **Output**: Concise summary (bullets or short sections) of user-requested content to preserve.
 
@@ -41,5 +41,5 @@ Do **not** use for: writing or editing requirement docs (→ Requirements), impl
 
 - **Topic index**: `docs/requirements/TOPIC-INDEX.md` — read first.
 - Requirement docs: `docs/requirements/` (naming `yyyyMMdd-name.md`).
-- Collaboration: `docs/workflow/AGENT-COLLABORATION-ON-REQUIREMENT.md` §1.1.
+- Collaboration: `docs/workflow/REQUIREMENTS-AUTHORING-WORKFLOW.md` (Requirements invokes during authoring).
 - Prompt (full): `docs/cursor-subagents/past-requirements-search.md`.

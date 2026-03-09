@@ -26,7 +26,8 @@ Rules, commands, skills, agents, docs, and scripts — **how they connect per wo
 |-----------|-----------------|---------------|-------------------|
 | 워크플로우 순서 확인 | rules: docs-reference.mdc, skills: dev-workflow | docs/workflow/WORKFLOW_CHECKLIST.md | — |
 | 요건 문서 작성 | commands: plan.md, new-requirement.md / skills: requirement-doc | docs/template/REQUIREMENT_TEMPLATE.md, docs/requirements/ | — |
-| API·DB 계약 확인 | rules: contract-first.mdc | docs/contract.md, specs/ | — |
+| API·DB 계약 확인 | rules: contract-first.mdc | docs/contract.md, docs/api-definition.md, specs/ | — |
+| 문서–코드 동기화 (doc follows code) | rules: contract-first.mdc | docs/workflow/DOC-CODE-SYNC.md | — |
 | 어떤 Subagent 쓸지 | agents/*.mdc, commands: agent-*.md | docs/workflow/CURSOR-SUBAGENTS-DESIGN.md (§1, §1.1, §1.2, §1.3) | — |
 | Subagent별 모델 지정 | rules: agent-collaboration.mdc | docs/workflow/SUBAGENT-MODEL-SELECTION.md (§2.1 override, §5 visibility) | — |
 | 요구사항 시 에이전트 협업 순서·인계·역할 중복 방지 | rules: agent-collaboration.mdc | new-requirement.md | docs/workflow/AGENT-COLLABORATION-ON-REQUIREMENT.md, CURSOR-SUBAGENTS-DESIGN.md §2.6 | — |
@@ -45,7 +46,7 @@ Rules, commands, skills, agents, docs, and scripts — **how they connect per wo
   - docs-reference.mdc → WORKFLOW_CHECKLIST, DEVELOPMENT_WORKFLOW, contract.md, template, requirements, verify.md, run-tests, post-change-test-verify.  
   - **workflow-todos.mdc** → TodoWrite 시 todo 순서를 WORKFLOW_CHECKLIST와 동일하게 강제(요건+§3 → 개발 → 테스트 → 검증 → 문서화).  
   - post-change-test-verify.mdc → verify.md, run-tests.md, restart-*.md, check-*.md, BUGFIX_CHILD_TEMPLATE.  
-  - contract-first.mdc → contract.md, specs/, schema.sql.  
+  - contract-first.mdc → contract.md, api-definition.md, specs/, schema.sql; doc–code sync: **DOC-CODE-SYNC.md**.  
   - error-first-workflow.mdc → WORKFLOW_CHECKLIST, REQUIREMENT_TEMPLATE.  
   - core-principles.mdc → post-change-test-verify, verify.md, error-first-workflow, contract-first, security-permissions.
 

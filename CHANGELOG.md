@@ -6,6 +6,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### 2025-03-09 (문서–코드 동기화 정책, 핸드오프·트리맵)
+
+- **docs**: 문서–코드 동기화 정책 (`docs/workflow/DOC-CODE-SYNC.md`) — 원칙 "documentation follows the code"; 일회성 정렬 단계·지속 동기화(Same-PR 규칙, 체크리스트, 단일 참조); 선택 검사.
+- **chore (rules)**: `contract-first.mdc` — "Documentation follows the code" 반영; API/상수/에러 변경 시 동일 변경에서 문서 갱신; DOC-CODE-SYNC.md 참조.
+- **chore (handoff)**: `docs/workflow/HANDOFF-CHECKLIST.md` — Backend·Frontend·Review 핸드오프에 "Doc–code sync" 항목 추가; Reference에 DOC-CODE-SYNC.md 명시.
+- **chore (integration)**: `docs/workflow/CURSOR-AND-TOOLS-INTEGRATION.md` — 도구별 진입점 테이블에 "문서–코드 동기화" 행 추가; §3 contract-first에 DOC-CODE-SYNC 언급.
+- **chore (dry-run)**: `docs/workflow/DRYRUN-handoff-verification-report.md` — 가상 요건(INVALID_DATE_RANGE)으로 Requirements→Backend→QA 핸드오프 시뮬레이션; 검증 테이블 전체 통과.
+- **chore (treemap)**: `scripts/treemap-i18n.json` — DOC-CODE-SYNC.md, HANDOFF-CHECKLIST.md, CURSOR-AND-TOOLS-INTEGRATION.md, contract-first.mdc, DRYRUN-handoff-verification-report.md 워크플로·룰 항목 추가/갱신; `docs/cursor-tools-treemap.html` 재생성 반영.
+
 ### 2025-03-05 (approve-only permission group, requester-only actions)
 
 - **feat (approve-only-permission-group)**: APPROVE_USER 패턴 — 팀장 전용 승인 권한 그룹 (로그 검색 불가, 복호화 승인만 가능). DB init-data에 APPROVE_USER 그룹 추가 (pending-approvals 화면만, approve=true); 프론트엔드 main 화면 미허용 사용자 → 첫 번째 허용 화면으로 리다이렉트 (`getFirstAllowedScreen()`, `canAccessView('main')` 가드); auth-permission-domain·department-approver-domain·search-history-decrypt-domain 스킬 반영. (req 20260304-approve-only-permission-group)

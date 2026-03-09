@@ -42,8 +42,8 @@
   - `user.clientIP`: string
   - `user.isSystemAdmin`: boolean — 시스템 관리자 여부 (req 20250303). true면 전체 화면 접근.
   - `user.allowedScreenIds`: string[] (요건 20250227-permission-group-screen-menu-access) — 사용자 권한 그룹들의 접근 가능 화면 합집합.
-  - `user.screenScopes`: Record<string, 'self'|'all'> (요건 20250303-activity-statistics-self-only-scope) — 화면별 데이터 범위. key=screen_id (activity-log, statistics, search-history), value='self'(본인만) | 'all'(전체). is_system_admin=true이면 생략 가능(프론트는 전체로 처리). **용도**: scope=self → 사용자/부서/IP 필터 숨김; scope=all → 필터 표시.
-  - `user.screenFunctions`: Record<string, { read: boolean, write?: boolean, approve?: boolean }> (요건 20250303-screen-function-availability) — 화면별 기능 가능 여부. key=screen_id, value=read(필수), write(수정 지원 화면만), approve(search-history·pending-approvals만). main은 항상 read-only. **용도**: 버튼/액션 enable·disable, 비활성 시 툴팁 표시.
+  - `user.screenScopes`: Record<string, 'self'|'team'|'all'> (요건 20250303, 20260305) — 화면별 **조회(목록) 범위**. key=screen_id (activity-log, statistics, search-history, pending-approvals), value='self'(본인)|'team'(부서)|'all'(전체). is_system_admin=true이면 생략 가능(프론트는 전체로 처리). **용도**: 목록/조회에만 적용; scope=self → 본인; scope=team → 동일 부서; scope=all → 전체. **승인 범위는 부서로 고정**이며 변경 불가(권한 설정에서 선택하는 scope는 조회 범위만 해당).
+  - `user.screenFunctions`: Record<string, { read: boolean, write?: boolean, approve?: boolean, decrypt?: boolean }> (요건 20250303, 20260306) — 화면별 기능 가능 여부. key=screen_id, value=read(필수), write(수정 지원 화면만), approve(search-history·pending-approvals만), decrypt(main 전용, 복호화 요청 권한). main은 read + optional decrypt; decrypt는 권한관리에서 부여/해제. **용도**: 버튼/액션 enable·disable, 비활성 시 툴팁 표시.
 
 ### 2.2 로그아웃
 
@@ -60,7 +60,7 @@
 
 ### 2.4 현재 사용자 정보 (GET /api/auth/me, 선택)
 
-- **GET** `/api/auth/me` — 로그인 사용자 정보 반환. `isSystemAdmin: boolean`, `allowedScreenIds: string[]`, `screenScopes: Record<string, 'self'|'all'>`, `screenFunctions: Record<string, { read, write?, approve? }>` 포함 (req 20250303). screenScopes는 activity-log, statistics, search-history 화면별 필터 표시 여부 결정용. screenFunctions는 화면별 read/write/approve 가능 여부로 버튼·액션 enable·disable용.
+- **GET** `/api/auth/me` — 로그인 사용자 정보 반환. `isSystemAdmin: boolean`, `allowedScreenIds: string[]`, `screenScopes: Record<string, 'self'|'team'|'all'>`, `screenFunctions: Record<string, { read, write?, approve? }>` 포함 (req 20250303, 20260305). screenScopes는 조회(목록) 범위(본인/부서/전체) 결정용. 승인 범위는 부서 고정·변경 불가. screenFunctions는 화면별 read/write/approve 가능 여부로 버튼·액션 enable·disable용.
 
 ---
 
@@ -252,6 +252,7 @@
 
 - **GET** `/api/search-history/pending`
 - **권한**: 결재자(decrypt_approver에 등록된 사용자) 또는 관리자(is_system_admin=true)만 호출 가능. 그 외 403.
+- **Scope (검색 이력과 동일 규칙, req 20260305)**: is_system_admin=false일 때 권한 그룹의 pending-approvals scope 적용. scope='self' → 요청자(requester)=현재 사용자인 건만; scope='team' → 동일 부서 요청자만(그 중 canApproveForRequester 충족); scope='all' → 결재 가능한 전체(기존 동작). auth 응답 screenScopes['pending-approvals']에 따라 백엔드가 목록 필터.
 - **Query**: `page` (기본 1), `pageSize` (기본 20)
 - **Response (data)**: `SearchHistoryPendingListResponse`
   - `data`: 배열. 각 항목: `id`, `requester` (요청자 username), `searchParamsSummary` (요약 문자열), `requestedAt` (yyyy-MM-dd'T'HH:mm:ss), 기타 목록용 필드
@@ -263,15 +264,17 @@
 - **POST** `/api/search-history/{id}/approve`
 - **Path**: `id` — 검색 이력 ID (Long)
 - **권한**: 결재자 또는 관리자(is_system_admin=true)만 호출 가능. 그 외 403.
+- **부서별 승인 제한 (검색 이력과 동일)**: 서비스 레이어에서 `canApproveForRequester(승인자, 요청자)` 검사. 부서별 결재자는 **해당 요청자(requester)의 부서에 대한 결재자**일 때만 승인 가능; 전역 결재자(department_code NULL)·관리자는 전체 건 승인 가능. 미충족 시 403 `FUNCTION_NOT_ALLOWED`.
 - **Request body**: 없음
 - **Response (data)**: `{ "id": number, "approvalStatus": "APPROVED", "approvedBy": string, "approvedAt": string (yyyy-MM-dd'T'HH:mm:ss) }`
-- **에러**: 401 비인증, 403 결재자/관리자 아님 → `code: "FORBIDDEN_NOT_APPROVER"` 또는 `"NOT_APPROVER"`, 404 해당 이력 없음
+- **에러**: 401 비인증, 403 결재자/관리자 아님 → `code: "FORBIDDEN_NOT_APPROVER"` 또는 `"NOT_APPROVER"`, 403 해당 건에 대한 승인 권한 없음 → `code: "FUNCTION_NOT_ALLOWED"`, 404 해당 이력 없음
 
 ### 6.1.7 검색 이력 반려 (결재자·관리자 전용)
 
 - **POST** `/api/search-history/{id}/reject`
 - **Path**: `id` — 검색 이력 ID (Long)
 - **권한**: 결재자 또는 관리자(is_system_admin=true)만 호출 가능. 그 외 403.
+- **부서별 승인 제한 (검색 이력과 동일)**: 승인 API와 동일하게 `canApproveForRequester(승인자, 요청자)` 적용. 해당 부서의 승인자만 반려 가능. 미충족 시 403 `FUNCTION_NOT_ALLOWED`.
 - **Request body** (JSON, 선택):
 
 | 필드 | 타입 | 필수 | 설명 |
@@ -279,7 +282,7 @@
 | rejectionReason | string | X | 반려 사유 |
 
 - **Response (data)**: `{ "id": number, "approvalStatus": "REJECTED", "rejectedBy": string, "rejectedAt": string, "rejectionReason": string \| null }`
-- **에러**: 401 비인증, 403 결재자/관리자 아님 → `code: "FORBIDDEN_NOT_APPROVER"` 또는 `"NOT_APPROVER"`, 404 해당 이력 없음
+- **에러**: 401 비인증, 403 결재자/관리자 아님 → `code: "FORBIDDEN_NOT_APPROVER"` 또는 `"NOT_APPROVER"`, 403 해당 건에 대한 반려 권한 없음 → `code: "FUNCTION_NOT_ALLOWED"`, 404 해당 이력 없음
 
 ---
 
@@ -379,11 +382,13 @@
 ### 10.1 단일 로우 복호화
 
 - **POST** `/api/logs/decrypt/{logType}`
+- **권한 (req 20260306)**: **검색하기(main) 화면 접근 + screenFunctions.main.decrypt === true** (또는 is_system_admin). 권한 없으면 403 `code: "FUNCTION_NOT_ALLOWED"`. 권한관리 화면에서 검색하기 화면에 대해 "복호화" 권한을 부여/해제할 수 있음.
 - **Path**: `logType` — 현재 **java_fw_imglog** 만 지원
 - **Request body** (JSON): `{ "guid": string (필수), "status"?: string, "searchHistoryId": number (필수) }` — searchHistoryId는 이번 검색에 대한 승인된 검색 이력 ID. 해당 건이 본인 소유·APPROVED·미만료일 때만 복호화 허용.
 - **Response (data)**: Map (복호화된 필드)
 - **에러**:
   - 401 미로그인: `code: "UNAUTHORIZED"`
+  - 403 복호화 권한 없음: `code: "FUNCTION_NOT_ALLOWED"` — main 화면의 복호화(decrypt) 권한이 없음. 권한 그룹에서 검색하기 화면에 복호화 권한 부여 필요.
   - 403 복호화 미승인: `code: "DECRYPTION_NOT_APPROVED"` — searchHistoryId 없거나, 해당 검색 이력이 본인 소유·승인·미만료가 아님.
   - 403 스냅샷 미포함: `code: "ROW_NOT_IN_APPROVED_SNAPSHOT"` — 승인된 검색 결과(승인 시점 스냅샷)에 포함된 row만 복호화 가능. 해당 guid가 스냅샷에 없음. (참고: `docs/requirements/20260224-decryption-snapshot-final-design-en.md`)
   - java_fw_imglog 외: `code: "UNSUPPORTED_LOG_TYPE"`

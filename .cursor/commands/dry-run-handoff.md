@@ -11,7 +11,7 @@ Verify that the current workflow rules produce correct handoff prompts. **No cod
    a. **Requirements handoff** (main → Requirements):
       - Show the Task invocation the main agent would send.
       - Confirm: main does NOT author §1·§2·§3 (per `agent-collaboration.mdc` Step 1).
-      - Confirm: prompt instructs Requirements to follow `AGENT-COLLABORATION-ON-REQUIREMENT.md` §1.1 (hybrid consultation: skills-first → codebase investigation → selective experts).
+      - Confirm: prompt instructs Requirements to follow `docs/workflow/REQUIREMENTS-AUTHORING-WORKFLOW.md` (hybrid consultation: skills-first → codebase investigation → selective experts).
 
    b. **Backend handoff** (main → Backend):
       - Show the full Task prompt the main agent would build.
@@ -37,7 +37,7 @@ Verify that the current workflow rules produce correct handoff prompts. **No cod
    |-----------------|-------|-------|
    | `agent-collaboration.mdc` Step 1 gate | Main does not author §1·§2·§3 | |
    | `agent-collaboration.mdc` §3 gate | §3 exists before Step 4 | |
-   | `AGENT-COLLABORATION-ON-REQUIREMENT.md` §1.1 | Hybrid consultation (skills + tools + selective experts) | |
+   | `REQUIREMENTS-AUTHORING-WORKFLOW.md` | Hybrid consultation (skills + tools + selective experts) | |
    | `HANDOFF-CHECKLIST.md` Backend | All 6 items present | |
    | `HANDOFF-CHECKLIST.md` QA | All 3 items present | |
    | `REQUIREMENT_TEMPLATE.md` §3 Scope tag | TCs have Scope column | |

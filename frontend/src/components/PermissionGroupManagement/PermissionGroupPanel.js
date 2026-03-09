@@ -122,10 +122,14 @@ const PermissionGroupPanel = ({ user, onRefreshHierarchy }) => {
     }));
   };
 
-  /** Normalize allowedScreens to [{ screenId, scope?, read?, write?, approve? }]. API may return string[] or object array.
-   * Preserves explicit false for write/approve when API returns partial data. Aligns with ScreenSelectionTree normalizeSelected. req 20250303-permission-group-checkbox-not-working */
+  /** Screens where approval scope is fixed to team. req 20260306-approval-scope-fixed-department */
+  const APPROVAL_SCOPE_FIXED_SCREENS = ['search-history', 'pending-approvals'];
+
+  /** Normalize allowedScreens to [{ screenId, scope?, read?, write?, approve?, decrypt? }]. API may return string[] or object array.
+   * Preserves explicit false for write/approve/decrypt when API returns partial data. When approve=true for approval-fixed screens, scope is set to 'team'. req 20250303, 20260306, 20260306-search-screen-decrypt-permission */
   const normalizeAllowedScreens = (arr) => {
-    const scopeScreens = ['activity-log', 'statistics', 'search-history'];
+    const scopeScreens = ['activity-log', 'statistics', 'search-history', 'pending-approvals'];
+    const decryptScreens = ['main'];
     if (!Array.isArray(arr)) return [];
     return arr.map((s) => {
       const base = typeof s === 'string'
@@ -136,26 +140,41 @@ const PermissionGroupPanel = ({ user, onRefreshHierarchy }) => {
             read: s.read,
             write: s.write,
             approve: s.approve,
+            decrypt: s.decrypt,
           };
       const hasWrite = SCREENS_WITH_WRITE.includes(base.screenId);
       const hasApprove = SCREENS_WITH_APPROVE.includes(base.screenId);
+      const hasDecrypt = decryptScreens.includes(base.screenId);
+      const approved = base.approve ?? (hasApprove ? false : undefined);
+      const decryptVal = base.decrypt ?? (hasDecrypt ? false : undefined);
+      let scope = base.scope ?? (scopeScreens.includes(base.screenId) ? 'self' : undefined);
+      if (approved === true && APPROVAL_SCOPE_FIXED_SCREENS.includes(base.screenId)) {
+        scope = 'team';
+      }
       return {
         ...base,
+        scope,
         read: base.read ?? true,
         write: base.write ?? (hasWrite ? true : undefined),
-        approve: base.approve ?? (hasApprove ? false : undefined),
+        approve: approved ?? (hasApprove ? false : undefined),
+        decrypt: decryptVal ?? (hasDecrypt ? false : undefined),
       };
     });
   };
 
-  /** Build API payload for allowedScreens. Sends screenId, scope (when applicable), read, write, approve per spec §1.1. */
+  /** Build API payload for allowedScreens. Sends screenId, scope (when applicable), read, write, approve, decrypt per spec §1.1. For approval-fixed screens with approve=true, scope is always 'team'. req 20260306, 20260306-search-screen-decrypt-permission */
   const toAllowedScreensPayload = (screens) =>
     screens.map((s) => {
       const item = { screenId: s.screenId };
-      if (s.scope) item.scope = s.scope;
+      let scope = s.scope;
+      if (s.approve === true && APPROVAL_SCOPE_FIXED_SCREENS.includes(s.screenId)) {
+        scope = 'team';
+      }
+      if (scope) item.scope = scope;
       if (s.read !== undefined) item.read = s.read;
       if (s.write !== undefined) item.write = s.write;
       if (s.approve !== undefined) item.approve = s.approve;
+      if (s.decrypt !== undefined) item.decrypt = s.decrypt;
       return item;
     });
 

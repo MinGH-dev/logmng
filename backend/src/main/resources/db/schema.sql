@@ -201,6 +201,7 @@ CREATE TABLE IF NOT EXISTS permission_group_screen (
     read BOOLEAN NULL,
     write BOOLEAN NULL,
     approve BOOLEAN NULL,
+    decrypt BOOLEAN NULL,
     PRIMARY KEY (permission_group_id, screen_id),
     CONSTRAINT chk_permission_group_screen_scope CHECK (scope IS NULL OR scope IN ('self', 'all', 'team'))
 );

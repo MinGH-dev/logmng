@@ -86,6 +86,8 @@ When **Security** subagent has reviewed: summarize risks, acceptance criteria, a
   - If screen has scope "self" or scope not set: user sees only own data; filter controls hidden or disabled.
   - NULL or missing scope in DB = "self".
 
+**Terminology alignment**: Current UI and contract use scope labels **본인 | 부서 | 전체** and function labels **조회 | 승인** (not 조회만, not 팀) per specs/permission-group-hierarchy.spec.yaml §1.1 and docs/workflow/CONSISTENCY-STANDARDS.md §7.
+
 **Backend:**
 
 1. **ActivityStatisticsController** and **ActivityStatisticsService**:

@@ -286,9 +286,11 @@ public class SearchHistoryService {
 
     /**
      * 승인 대기(PENDING) 목록. 결재자/관리자 전용. §6.1.5
-     * 관리자: 전체. 그 외: canApproveForRequester(approverUserId, requester)인 건만.
+     * 먼저 canApproveForRequester(및 is_system_admin)로 필터한 뒤, scope 적용:
+     * scopeAll=true → 전부 유지; allowedUserIds!=null(team) → requester in allowedUserIds; else(self) → requester == approverUserId.
      */
-    public SearchHistoryListResponse listPending(String approverUserId, boolean isSystemAdmin, int page, int pageSize) {
+    public SearchHistoryListResponse listPending(String approverUserId, boolean isSystemAdmin, int page, int pageSize,
+                                                boolean scopeAll, List<String> allowedUserIds) {
         if (page < 1) page = 1;
         if (pageSize < 1 || pageSize > 100) pageSize = 20;
         boolean isAdmin = decryptApproverService.isAdmin(isSystemAdmin);
@@ -314,10 +316,26 @@ public class SearchHistoryService {
             log.error("승인 대기 목록 조회 실패", e);
             throw new RuntimeException("승인 대기 목록 조회 중 오류가 발생했습니다: " + e.getMessage(), e);
         }
-        long totalCount = allFiltered.size();
+        // Apply scope: all → keep all; team → requester in allowedUserIds; self → requester == approverUserId
+        List<Map<String, Object>> scopeFiltered = new ArrayList<>();
+        for (Map<String, Object> row : allFiltered) {
+            String requester = (String) row.get("requester");
+            if (scopeAll) {
+                scopeFiltered.add(row);
+            } else if (allowedUserIds != null) {
+                if (allowedUserIds.contains(requester)) {
+                    scopeFiltered.add(row);
+                }
+            } else {
+                if (approverUserId != null && approverUserId.equals(requester)) {
+                    scopeFiltered.add(row);
+                }
+            }
+        }
+        long totalCount = scopeFiltered.size();
         int from = (page - 1) * pageSize;
-        int to = Math.min(from + pageSize, allFiltered.size());
-        List<Map<String, Object>> pageItems = from < allFiltered.size() ? allFiltered.subList(from, to) : new ArrayList<>();
+        int to = Math.min(from + pageSize, scopeFiltered.size());
+        List<Map<String, Object>> pageItems = from < scopeFiltered.size() ? scopeFiltered.subList(from, to) : new ArrayList<>();
         int totalPages = (int) Math.ceil((double) totalCount / pageSize);
         UserActivityLogResponse.PaginationInfo pagination = new UserActivityLogResponse.PaginationInfo(page, totalPages, totalCount);
         return new SearchHistoryListResponse(pageItems, pagination);

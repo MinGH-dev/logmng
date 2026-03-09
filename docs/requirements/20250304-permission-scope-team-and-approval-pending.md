@@ -88,6 +88,8 @@ Approval pending and scope **team** involve **access control** (who sees which d
 - **.cursor/skills/auth-permission-domain/SKILL.md**: Update scope description to **self | team | all**; default **team** for scope-supported screens.
 - **docs/contract.md** (and specs if they mention scope): Update scope values and default to include **team** and default **team**.
 
+**Terminology alignment**: Current UI and contract use scope labels **본인 | 부서 | 전체** and function labels **조회 | 승인** (not 조회만, not 팀) per specs/permission-group-hierarchy.spec.yaml §1.1 and docs/workflow/CONSISTENCY-STANDARDS.md §7.
+
 ### Change file list
 
 **(Tentative. Implementing agent (Step 4) confirms or updates with actual files changed.)**

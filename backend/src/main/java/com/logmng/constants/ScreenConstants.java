@@ -16,11 +16,11 @@ public final class ScreenConstants {
     public static final String ACTIVITY_LOG = "activity-log";
     public static final String STATISTICS = "statistics";
 
-    /** Screens that support scope ('self'|'team'|'all'). Per req 20250303, 20250304-team-scope-default-and-approval. */
-    private static final Set<String> SCREENS_WITH_SCOPE = Collections.unmodifiableSet(
-            Arrays.asList(SEARCH_HISTORY, ACTIVITY_LOG, STATISTICS).stream().collect(Collectors.toSet())
-    );
     public static final String PENDING_APPROVALS = "pending-approvals";
+    /** Screens that support scope ('self'|'team'|'all'). Per req 20250303, 20250304, 20260305-pending-approvals-scope. */
+    private static final Set<String> SCREENS_WITH_SCOPE = Collections.unmodifiableSet(
+            Arrays.asList(SEARCH_HISTORY, ACTIVITY_LOG, STATISTICS, PENDING_APPROVALS).stream().collect(Collectors.toSet())
+    );
     public static final String USER_MANAGEMENT = "user-management";
     public static final String DEPARTMENT_APPROVERS = "department-approvers";
     public static final String USER_PERMISSION_HIERARCHY = "user-permission-hierarchy";
@@ -42,6 +42,11 @@ public final class ScreenConstants {
     /** Screens that support approve (decrypt_approver). Per spec §4.4. */
     private static final Set<String> SCREENS_WITH_APPROVE = Collections.unmodifiableSet(
             Arrays.asList(SEARCH_HISTORY, PENDING_APPROVALS).stream().collect(Collectors.toSet())
+    );
+
+    /** Screens that support decrypt (request decryption). Only main. Per spec §4.4, req 20260306. */
+    private static final Set<String> SCREENS_WITH_DECRYPT = Collections.unmodifiableSet(
+            Collections.singleton(MAIN)
     );
 
     private ScreenConstants() {
@@ -92,5 +97,10 @@ public final class ScreenConstants {
     /** Returns true if the screen supports approve (search-history, pending-approvals). Per spec §4.4. */
     public static boolean supportsApprove(String screenId) {
         return screenId != null && SCREENS_WITH_APPROVE.contains(screenId.trim());
+    }
+
+    /** Returns true if the screen supports decrypt (main only). Per spec §4.4, req 20260306. */
+    public static boolean supportsDecrypt(String screenId) {
+        return screenId != null && SCREENS_WITH_DECRYPT.contains(screenId.trim());
     }
 }

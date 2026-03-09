@@ -64,6 +64,6 @@ Claude Code의 "팀 에이전트"(대등한 메인 에이전트 간 협업)와 C
 | **2 (실행)** | `docs/workflow/HANDOFF-CHECKLIST.md` | 56 | 핸드오프 시 필수 포함 항목 |
 | **2 (실행)** | `.cursor/commands/new-requirement.md` | 9 | /new-requirement 진입점 |
 | **3 (상세)** | `docs/workflow/SUBAGENT-DELEGATION.md` | 113 | Task 호출 매핑, 핸드오프 규칙 |
-| **3 (상세)** | `docs/workflow/AGENT-COLLABORATION-ON-REQUIREMENT.md` | 150 | 협업 순서, §1.1 병렬 입력 |
+| **3 (상세)** | `docs/workflow/AGENT-COLLABORATION-ON-REQUIREMENT.md` | ~100 | 협업 순서·핸드오프 규칙(인덱스). 작성 절차 상세: REQUIREMENTS-AUTHORING-WORKFLOW.md |
 | **4 (배경)** | `docs/workflow/CONTEXT-QUALITY-AND-ORCHESTRATION-MITIGATION.md` | 203 | 분석 전용 — 에이전트가 읽을 필요 없음 |
 | **4 (배경)** | `docs/workflow/IMPROVEMENT-STRUCTURAL-ENFORCEMENT.md` | 144 | 분석 전용 — 에이전트가 읽을 필요 없음 |

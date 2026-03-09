@@ -122,7 +122,10 @@ public class SearchHistoryController {
         requireApproverOrAdmin(httpRequest);
         String approverUserId = getUserId(httpRequest);
         boolean isSystemAdmin = isSystemAdmin(httpRequest);
-        SearchHistoryListResponse data = searchHistoryService.listPending(approverUserId, isSystemAdmin, page, pageSize);
+        String scope = ScopeHelper.resolveScope(ScreenConstants.PENDING_APPROVALS, isSystemAdmin, getScreenScopes(httpRequest));
+        boolean scopeAll = "all".equals(scope);
+        List<String> allowedUserIds = "team".equals(scope) ? DepartmentScopeHelper.getUserIdsInSameDepartment(dataSource, approverUserId) : null;
+        SearchHistoryListResponse data = searchHistoryService.listPending(approverUserId, isSystemAdmin, page, pageSize, scopeAll, allowedUserIds);
         return ResponseEntity.ok(ApiResponse.success(data));
     }
 

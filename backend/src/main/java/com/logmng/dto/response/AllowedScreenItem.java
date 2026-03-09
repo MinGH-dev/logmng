@@ -7,7 +7,8 @@ import com.fasterxml.jackson.annotation.JsonProperty;
  * Screen item with optional scope and read/write/approve for permission group allowedScreens.
  * Per specs/permission-group-hierarchy.spec.yaml §1.1: allowedScreens: [{ screenId, scope?, read?, write?, approve? }].
  * Scope applies only to activity-log, statistics, search-history; null/omitted = 'team' (default).
- * read/write/approve: explicit per-screen functions; null = use derived default (backward compat).
+ * read/write/approve/decrypt: explicit per-screen functions; null = use derived default (backward compat).
+ * decrypt: only for main (req 20260306).
  */
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public class AllowedScreenItem {
@@ -26,6 +27,9 @@ public class AllowedScreenItem {
 
     /** Explicit approve flag. Null = use derived. Only for search-history, pending-approvals. */
     private Boolean approve;
+
+    /** Explicit decrypt flag. Null = use derived (false). Only for main; when true, user may request decryption. req 20260306. */
+    private Boolean decrypt;
 
     public AllowedScreenItem() {
     }
@@ -73,5 +77,13 @@ public class AllowedScreenItem {
 
     public void setApprove(Boolean approve) {
         this.approve = approve;
+    }
+
+    public Boolean getDecrypt() {
+        return decrypt;
+    }
+
+    public void setDecrypt(Boolean decrypt) {
+        this.decrypt = decrypt;
     }
 }

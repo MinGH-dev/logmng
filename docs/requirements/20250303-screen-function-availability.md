@@ -161,7 +161,7 @@ When an administrator configures screen-level function permissions (read/write/a
 - **On screen selection**: When a screen checkbox is checked, show a short summary of granted functions (e.g. "부여되는 권한: 조회" or "부여되는 권한: 조회, 수정").
 - **On hover/focus (tooltip or info icon)**: Expand to the full description from the table above.
 - **Per-function tooltip** (when read/write/approve are selectable): When the user hovers or focuses on a read/write/approve option, show the corresponding description.
-- **Scope + function**: For activity-log, statistics, search-history, combine scope (본인만/전체) with function description (e.g. "본인만 선택 시: 본인 데이터만 조회 가능").
+- **Scope + function**: For activity-log, statistics, search-history, combine scope (본인/부서/전체) with function description (e.g. "본인 선택 시: 본인 데이터만 조회 가능"). **Terminology alignment**: Current UI and contract use scope labels **본인 | 부서 | 전체** and function labels **조회 | 승인** (not 조회만, not 팀) per specs/permission-group-hierarchy.spec.yaml §1.1 and docs/workflow/CONSISTENCY-STANDARDS.md §7.
 
 **Example copy (Korean)**
 

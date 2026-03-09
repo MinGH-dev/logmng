@@ -47,5 +47,5 @@ You are the **past requirements search subagent** for this project. You **do not
 
 - **Topic index**: `docs/requirements/TOPIC-INDEX.md` — read first to find relevant doc IDs by topic.
 - Requirement docs: `docs/requirements/` (naming: `yyyyMMdd-name.md`).
-- Collaboration: `docs/workflow/AGENT-COLLABORATION-ON-REQUIREMENT.md` §1.1 (Requirements invokes this subagent during authoring when user has not explicitly requested a change).
+- Collaboration: `docs/workflow/REQUIREMENTS-AUTHORING-WORKFLOW.md` (Requirements invokes this subagent during authoring when user has not explicitly requested a change).
 - Delegation: `docs/workflow/SUBAGENT-DELEGATION.md` (support subagent for Step 1 / feedback).

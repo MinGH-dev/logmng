@@ -1,8 +1,10 @@
-# 20260304 - Approve-only permission group (APPROVE_USER)
+# 20260304 - Approve-only permission group (승인 전용 권한 그룹)
 
 **Type**: Bug fix + feature  
 **Scope**: Frontend routing/access-check bugs in `App.js` that block approve-only users, plus init-data for the APPROVE_USER permission group pattern.  
 **Related**: `.cursor/skills/auth-permission-domain/SKILL.md`, `.cursor/skills/search-history-decrypt-domain/SKILL.md`, `.cursor/skills/department-approver-domain/SKILL.md`, `docs/requirements/20250304-permission-group-function-verification.md`
+
+> **Note (generalization)**: This requirement applies to **all "approval-only permission groups"** — any group where `allowedScreenIds` has no `main` + has `pending-approvals` — not just the group named "APPROVE_USER". APPROVE_USER is the initial example group, but the same routing, menu filtering, and API rules apply to any group matching this condition (e.g. TEAM_APPROVER, REGIONAL_APPROVER). See `specs/permission-group-hierarchy.spec.yaml` §5 and `docs/requirements/20260305-approval-only-group-generalization.md`.
 
 ---
 
@@ -10,7 +12,7 @@
 
 ### Requirement description
 
-Team leaders (팀장) act as **decrypt approvers only** — they must NOT view or search logs. To enforce this, a permission group called **APPROVE_USER** is created with access to **only** the `pending-approvals` screen and `approve=true`. The team leader is registered in the `decrypt_approver` table so they can approve/reject decryption requests.
+Team leaders (팀장) act as **decrypt approvers only** — they must NOT view or search logs. To enforce this, an approval-only permission group (e.g. **APPROVE_USER**) is created with access to **only** the `pending-approvals` screen and `approve=true`. The team leader is registered in the `decrypt_approver` table so they can approve/reject decryption requests.
 
 However, the current frontend (`App.js`) has multiple bugs that prevent this pattern from working correctly. A user whose only allowed screen is `pending-approvals` still sees the log search screen (`LogTypeSelector` / `LogGrid`) because:
 

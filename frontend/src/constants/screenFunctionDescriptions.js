@@ -9,6 +9,7 @@ export const FUNCTION_DESCRIPTIONS = {
   read: '이 화면을 선택하면 사용자는 해당 화면의 데이터를 조회할 수 있습니다. 검색, 목록 보기, 상세 보기가 가능합니다.',
   write: '수정 권한이 있으면 사용자는 생성·수정·삭제 등 변경 작업을 수행할 수 있습니다. 사용자 추가/수정, 권한 그룹 할당, 결재자 지정 등이 포함됩니다.',
   approve: '승인 권한은 \'부서별 결재자\'에서 별도 지정이 필요합니다. 이 화면만 선택하면 승인/반려 버튼이 비활성화됩니다. 결재자로 지정된 사용자만 복호화 승인·반려를 처리할 수 있습니다.',
+  decrypt: '복호화 권한이 있으면 검색하기 화면에서 암호화된 로그의 복호화 요청이 가능합니다. 권한이 없으면 복호화 API 호출 시 403이 반환됩니다.',
 };
 
 /** Short labels for "부여되는 권한: 조회, 수정" summary */
@@ -16,6 +17,7 @@ export const FUNCTION_LABELS = {
   read: '조회',
   write: '수정',
   approve: '승인',
+  decrypt: '복호화',
 };
 
 /** Example copy (short) — req doc §2 */
@@ -36,6 +38,7 @@ export const ACTION_DISABLED_TOOLTIPS = {
   create: '생성 권한이 없습니다',
   edit: '수정 권한이 없습니다',
   delete: '삭제 권한이 없습니다',
+  decrypt: '복호화 권한이 없습니다',
 };
 
 /** Screens that support write (user-management, department-approvers, user-permission-hierarchy, permission-group-management) */
@@ -44,18 +47,23 @@ export const SCREENS_WITH_WRITE = ['user-management', 'department-approvers', 'u
 /** Screens that support approve (search-history, pending-approvals) */
 export const SCREENS_WITH_APPROVE = ['search-history', 'pending-approvals'];
 
+/** Screens that support decrypt (request decryption on search screen). Only main. req 20260306 */
+export const SCREENS_WITH_DECRYPT = ['main'];
+
 /**
  * Get functions available for a screen (for config UI display).
  * @param {string} screenId
- * @returns {{ read: boolean, write?: boolean, approve?: boolean }}
+ * @returns {{ read: boolean, write?: boolean, approve?: boolean, decrypt?: boolean }}
  */
 export const getScreenFunctionCapabilities = (screenId) => {
   const hasWrite = SCREENS_WITH_WRITE.includes(screenId);
   const hasApprove = SCREENS_WITH_APPROVE.includes(screenId);
+  const hasDecrypt = SCREENS_WITH_DECRYPT.includes(screenId);
   return {
     read: true,
     ...(hasWrite && { write: true }),
     ...(hasApprove && { approve: true }),
+    ...(hasDecrypt && { decrypt: true }),
   };
 };
 
@@ -70,5 +78,6 @@ export const getGrantedFunctionsSummary = (screenId) => {
   if (cap.read) parts.push(FUNCTION_LABELS.read);
   if (cap.write) parts.push(FUNCTION_LABELS.write);
   if (cap.approve) parts.push(FUNCTION_LABELS.approve);
+  if (cap.decrypt) parts.push(FUNCTION_LABELS.decrypt);
   return parts.length > 0 ? `부여되는 권한: ${parts.join(', ')}` : '';
 };
