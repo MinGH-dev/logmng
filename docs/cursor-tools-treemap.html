@@ -806,6 +806,7 @@ const TREEMAP_DATA = {
     "log-search-domain": ".cursor/skills/log-search-domain/SKILL.md",
     "react-debugging": ".cursor/skills/react-debugging/SKILL.md",
     "requirement-doc": ".cursor/skills/requirement-doc/SKILL.md",
+    "search-consistency-domain": ".cursor/skills/search-consistency-domain/SKILL.md",
     "search-history-decrypt-domain": ".cursor/skills/search-history-decrypt-domain/SKILL.md",
     "test-workflow": ".cursor/skills/test-workflow/SKILL.md",
     "ui-ux-domain": ".cursor/skills/ui-ux-domain/SKILL.md",
@@ -875,7 +876,11 @@ const TREEMAP_DATA = {
     "DESIGN-AGENT-COLLABORATION-DOC-SPLIT.md": "docs/workflow/DESIGN-AGENT-COLLABORATION-DOC-SPLIT.md",
     "DEVELOPMENT-QUERY-EXPERTS.md": "docs/workflow/DEVELOPMENT-QUERY-EXPERTS.md",
     "DEVELOPMENT_WORKFLOW.md": "docs/workflow/DEVELOPMENT_WORKFLOW.md",
+    "DOC-CODE-SYNC.md": "docs/workflow/DOC-CODE-SYNC.md",
     "DOCUMENT-LANGUAGE-POLICY.md": "docs/workflow/DOCUMENT-LANGUAGE-POLICY.md",
+    "DRYRUN-handoff-verification-report.md": "docs/workflow/DRYRUN-handoff-verification-report.md",
+    "DRYRUN-search-consistency-changes.md": "docs/workflow/DRYRUN-search-consistency-changes.md",
+    "DRYRUN-user-search-fields-improvement.md": "docs/workflow/DRYRUN-user-search-fields-improvement.md",
     "ERROR-FIX-WORKFLOW-FLOWCHART.md": "docs/workflow/ERROR-FIX-WORKFLOW-FLOWCHART.md",
     "HANDOFF-CHECKLIST.md": "docs/workflow/HANDOFF-CHECKLIST.md",
     "HANDOFF-CONTEXT-QUALITY-SESSION.md": "docs/workflow/HANDOFF-CONTEXT-QUALITY-SESSION.md",
@@ -885,6 +890,7 @@ const TREEMAP_DATA = {
     "REQUIREMENT-DATE-YEAR-ANALYSIS.md": "docs/workflow/REQUIREMENT-DATE-YEAR-ANALYSIS.md",
     "REQUIREMENTS-AUTHORING-WORKFLOW.md": "docs/workflow/REQUIREMENTS-AUTHORING-WORKFLOW.md",
     "REQUIREMENTS-CHANGE-TARGET-CHECKLIST.md": "docs/workflow/REQUIREMENTS-CHANGE-TARGET-CHECKLIST.md",
+    "REVIEW-agent-role-common-rules.md": "docs/workflow/REVIEW-agent-role-common-rules.md",
     "SUBAGENT-DELEGATION.md": "docs/workflow/SUBAGENT-DELEGATION.md",
     "SUBAGENT-MODEL-SELECTION.md": "docs/workflow/SUBAGENT-MODEL-SELECTION.md",
     "WHY-TESTS-VERIFY-NOT-AUTO.md": "docs/workflow/WHY-TESTS-VERIFY-NOT-AUTO.md",
@@ -1602,7 +1608,7 @@ const TREEMAP_DATA = {
         },
         {
           "name": "contract-first.mdc",
-          "desc": "API·DB 작업 시 계약/스펙 먼저 확인.",
+          "desc": "API·DB 작업 시 계약/스펙 확인. 문서는 코드 기준·동일 변경에서 doc 갱신. DOC-CODE-SYNC 참조.",
           "refs": [
             {
               "name": "docs/contract.md",
@@ -1610,9 +1616,19 @@ const TREEMAP_DATA = {
               "path": "docs/contract.md"
             },
             {
+              "name": "docs/api-definition.md",
+              "type": "other",
+              "path": "docs/api-definition.md"
+            },
+            {
               "name": "*.spec.yaml",
               "type": "other",
               "path": "specs/*.spec.yaml"
+            },
+            {
+              "name": "DOC-CODE-SYNC.md",
+              "type": "workflow",
+              "path": "docs/workflow/DOC-CODE-SYNC.md"
             },
             {
               "name": "schema.sql",
@@ -2099,6 +2115,11 @@ const TREEMAP_DATA = {
                 "name": "docs/requirements/TOPIC-INDEX.md",
                 "type": "other",
                 "path": "docs/requirements/TOPIC-INDEX.md"
+              },
+              {
+                "name": "docs/analysis-search-consistency-by-screen.md",
+                "type": "other",
+                "path": "docs/analysis-search-consistency-by-screen.md"
               }
             ]
           },
@@ -2238,6 +2259,18 @@ const TREEMAP_DATA = {
             ]
           },
           {
+            "name": "search-consistency-domain",
+            "desc": "> Screen-by-screen search/filter consistency: user-context axes (department, name, userId), scope=self hiding rule. Use when adding or changing search/filter UI on activity-log, statistics, user-management, permission-group-management, search-history, pending-approvals. 화면별 검색 통일, 부서·이름·사용자ID, scope=self 필터 숨김 관련 시 사용.",
+            "category": "domain",
+            "refs": [
+              {
+                "name": "docs/analysis-search-consistency-by-screen.md",
+                "type": "other",
+                "path": "docs/analysis-search-consistency-by-screen.md"
+              }
+            ]
+          },
+          {
             "name": "search-history-decrypt-domain",
             "desc": "검색 이력, 복호화 승인 흐름 (PENDING/APPROVED/REJECTED).",
             "category": "domain",
@@ -2283,6 +2316,11 @@ const TREEMAP_DATA = {
                 "name": "docs/requirements/TOPIC-INDEX.md",
                 "type": "other",
                 "path": "docs/requirements/TOPIC-INDEX.md"
+              },
+              {
+                "name": "docs/analysis-search-consistency-by-screen.md",
+                "type": "other",
+                "path": "docs/analysis-search-consistency-by-screen.md"
               }
             ]
           }
@@ -2800,7 +2838,7 @@ const TREEMAP_DATA = {
           },
           {
             "name": "CURSOR-AND-TOOLS-INTEGRATION.md",
-            "desc": "Cursor and tools / docs integration map",
+            "desc": "규칙·커맨드·스킬·문서·스크립트 연결 맵. DOC-CODE-SYNC 참조.",
             "refs": [
               {
                 "name": "TERMINOLOGY.md",
@@ -3328,6 +3366,42 @@ const TREEMAP_DATA = {
             "refs": []
           },
           {
+            "name": "DOC-CODE-SYNC.md",
+            "desc": "문서는 코드 기준. 문서–코드–Cursor 동기화 원칙·1회 정비·Same-PR 유지 방법.",
+            "refs": [
+              {
+                "name": "docs/api-definition.md",
+                "type": "other",
+                "path": "docs/api-definition.md"
+              },
+              {
+                "name": "docs/contract.md",
+                "type": "other",
+                "path": "docs/contract.md"
+              },
+              {
+                "name": "permission-group-hierarchy.spec.yaml",
+                "type": "other",
+                "path": "specs/permission-group-hierarchy.spec.yaml"
+              },
+              {
+                "name": "*.spec.yaml",
+                "type": "other",
+                "path": "specs/*.spec.yaml"
+              },
+              {
+                "name": "commit-on-complete",
+                "type": "commands",
+                "path": ".cursor/commands/commit-on-complete.md"
+              },
+              {
+                "name": "contract-first.mdc",
+                "type": "rules",
+                "path": ".cursor/rules/contract-first.mdc"
+              }
+            ]
+          },
+          {
             "name": "DOCUMENT-LANGUAGE-POLICY.md",
             "desc": "문서 작성 언어 정책.",
             "refs": [
@@ -3384,6 +3458,63 @@ const TREEMAP_DATA = {
             ]
           },
           {
+            "name": "DRYRUN-handoff-verification-report.md",
+            "desc": "핸드오프 dry-run 결과. Requirements→Backend→QA 프롬프트 검증.",
+            "refs": [
+              {
+                "name": "dry-run-handoff",
+                "type": "commands",
+                "path": ".cursor/commands/dry-run-handoff.md"
+              },
+              {
+                "name": "agent-collaboration.mdc",
+                "type": "rules",
+                "path": "agent-collaboration.mdc"
+              },
+              {
+                "name": "REQUIREMENTS-AUTHORING-WORKFLOW.md",
+                "type": "other",
+                "path": "REQUIREMENTS-AUTHORING-WORKFLOW.md"
+              },
+              {
+                "name": "HANDOFF-CHECKLIST.md",
+                "type": "other",
+                "path": "HANDOFF-CHECKLIST.md"
+              },
+              {
+                "name": "REQUIREMENT_TEMPLATE.md",
+                "type": "other",
+                "path": "REQUIREMENT_TEMPLATE.md"
+              },
+              {
+                "name": "CONTEXT-QUALITY-AND-ORCHESTRATION-MITIGATION.md",
+                "type": "other",
+                "path": "CONTEXT-QUALITY-AND-ORCHESTRATION-MITIGATION.md"
+              },
+              {
+                "name": "DOC-CODE-SYNC.md",
+                "type": "other",
+                "path": "DOC-CODE-SYNC.md"
+              }
+            ]
+          },
+          {
+            "name": "DRYRUN-search-consistency-changes.md",
+            "desc": "Dry-run: 검색 통일·scope=self 변경 사항 검증",
+            "refs": []
+          },
+          {
+            "name": "DRYRUN-user-search-fields-improvement.md",
+            "desc": "Dry-run: \"사용자 관련 검색필드를 규칙에 맞춰서 개선해줘\" 검증",
+            "refs": [
+              {
+                "name": "docs/analysis-search-consistency-by-screen.md",
+                "type": "other",
+                "path": "docs/analysis-search-consistency-by-screen.md"
+              }
+            ]
+          },
+          {
             "name": "ERROR-FIX-WORKFLOW-FLOWCHART.md",
             "desc": "오류 수정 시 Skills/Sub-Agent/Commands 사용 시점 흐름도.",
             "refs": [
@@ -3401,7 +3532,7 @@ const TREEMAP_DATA = {
           },
           {
             "name": "HANDOFF-CHECKLIST.md",
-            "desc": "Backend/Frontend/DB/Review/QA별 핸드오프 체크리스트.",
+            "desc": "Backend/Frontend/DB/Review/QA별 핸드오프 체크리스트 (Doc–code sync 포함).",
             "refs": [
               {
                 "name": "CONTEXT-QUALITY-AND-ORCHESTRATION-MITIGATION.md",
@@ -3412,6 +3543,16 @@ const TREEMAP_DATA = {
                 "name": "*.spec.yaml",
                 "type": "other",
                 "path": "specs/*.spec.yaml"
+              },
+              {
+                "name": "docs/api-definition.md",
+                "type": "other",
+                "path": "docs/api-definition.md"
+              },
+              {
+                "name": "docs/contract.md",
+                "type": "other",
+                "path": "docs/contract.md"
               },
               {
                 "name": "BROWSER-AUTOMATION-VERIFICATION-POLICY.md",
@@ -3683,6 +3824,17 @@ const TREEMAP_DATA = {
             ]
           },
           {
+            "name": "REVIEW-agent-role-common-rules.md",
+            "desc": "검토: 공통 규칙/공통 레이어 역할 — 에이전트 담당 방안",
+            "refs": [
+              {
+                "name": "docs/analysis-search-consistency-by-screen.md",
+                "type": "other",
+                "path": "docs/analysis-search-consistency-by-screen.md"
+              }
+            ]
+          },
+          {
             "name": "SUBAGENT-MODEL-SELECTION.md",
             "desc": "서브에이전트별 모델 티어 (Light / Default).",
             "refs": [
@@ -3821,35 +3973,35 @@ const TREEMAP_DATA = {
       "name": "docs/contract.md",
       "color": "other",
       "role": "API·DB·포트 계약 — 10개 이상 에이전트가 참조",
-      "refsTo": 31,
+      "refsTo": 33,
       "barWidth": 100
     },
     {
       "name": "REQUIREMENT_TEMPLATE.md",
       "color": "template",
       "role": "§1·§2·§3·§5·§6 요건 문서의 구조 정의",
-      "refsTo": 22,
-      "barWidth": 71
+      "refsTo": 23,
+      "barWidth": 70
     },
     {
       "name": "DEVELOPMENT_WORKFLOW.md",
       "color": "workflow",
       "role": "개발 워크플로우 상세 절차.",
       "refsTo": 18,
-      "barWidth": 58
+      "barWidth": 55
     },
     {
       "name": "AGENT-COLLABORATION-ON-REQUIREMENT.md",
       "color": "workflow",
       "role": "에이전트 협업 인덱스 — 순서·핸드오프 규칙. 상세: REQUIREMENTS-AUTHORING-WORKFLOW, DEVELOPMENT-QUERY-EXPERTS.",
       "refsTo": 17,
-      "barWidth": 55
+      "barWidth": 52
     },
     {
       "name": "commit-on-complete",
       "color": "commands",
       "role": "검증 통과 → §5/§6 갱신 → 커밋의 최종 게이트",
-      "refsTo": 16,
+      "refsTo": 17,
       "barWidth": 52
     },
     {
@@ -3857,7 +4009,7 @@ const TREEMAP_DATA = {
       "color": "workflow",
       "role": "Step별 서브에이전트 위임 테이블 + 게이트",
       "refsTo": 14,
-      "barWidth": 45
+      "barWidth": 42
     }
   ]
 };

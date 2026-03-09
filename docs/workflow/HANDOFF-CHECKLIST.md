@@ -12,6 +12,7 @@ When building a **scope-specific handoff** for Backend, Frontend, DB, Review, or
 - [ ] **Contract/spec**: Reference or excerpt of API/DB contract and `specs/*.spec.yaml` if the change touches API or schema.
 - [ ] **§3**: **All** test cases that involve Backend (unit, integration, and any Integration TCs that imply Backend behavior).
 - [ ] **Cross-scope** (if any): e.g. "Frontend will call POST /api/… with body X; implement to contract."
+- [ ] **Doc–code sync**: If the change adds or changes API paths, error codes, or shared constants, update `docs/api-definition.md` and/or `docs/contract.md` (and specs) in the same work. See **docs/workflow/DOC-CODE-SYNC.md**.
 
 ---
 
@@ -23,6 +24,8 @@ When building a **scope-specific handoff** for Backend, Frontend, DB, Review, or
 - [ ] **Contract/spec**: For any API the frontend calls (request/response shape, error codes).
 - [ ] **§3**: All TCs that involve Frontend (including manual/browser if applicable).
 - [ ] **Cross-scope** (if any): e.g. "Backend returns error code X; show message Y."
+- [ ] **Search/filter (user-context screens)**: If the requirement touches search or filter UI on activity-log, statistics, user-management, permission-group-management, search-history, or pending-approvals — reference **docs/analysis-search-consistency-by-screen.md** (or the search-consistency-domain skill) so the implementer applies unified axes (부서·이름·사용자ID) and the scope=self hiding rule.
+- [ ] **Doc–code sync**: If the change adds or changes API usage, error code handling, or shared constants, update `docs/api-definition.md` and/or `docs/contract.md` (and specs) in the same work. See **docs/workflow/DOC-CODE-SYNC.md**.
 
 ---
 
@@ -41,6 +44,7 @@ When building a **scope-specific handoff** for Backend, Frontend, DB, Review, or
 - [ ] **Full requirement doc** (§1–§3 at least) so Review can compare implementation against **full** doc, not only the excerpt the implementer received.
 - [ ] Implemented change (files changed, or path to diff/branch).
 - [ ] Instruction: "Verify implementation satisfies **all** of §2 and §3 that apply to this scope, including §2.1 and contract; not only what may have been in the handoff."
+- [ ] **Doc–code sync**: If API paths, error codes, or shared constants were changed, confirm that `docs/api-definition.md` and/or `docs/contract.md` (and specs) were updated in the same PR. See **docs/workflow/DOC-CODE-SYNC.md**.
 
 ---
 
@@ -53,4 +57,4 @@ When building a **scope-specific handoff** for Backend, Frontend, DB, Review, or
 
 ---
 
-**Reference**: `CONTEXT-QUALITY-AND-ORCHESTRATION-MITIGATION.md` §2.5 (wrong compression), §4.7 (mandatory checklist), §4.9 (Review vs full doc).
+**Reference**: `CONTEXT-QUALITY-AND-ORCHESTRATION-MITIGATION.md` §2.5 (wrong compression), §4.7 (mandatory checklist), §4.9 (Review vs full doc). Doc–code sync: **DOC-CODE-SYNC.md**.

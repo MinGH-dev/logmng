@@ -16,13 +16,14 @@ Apply automatically for API, DB, and frontend-backend integration work.
 
 ## Before changing
 
-- **API add/change**: Read `docs/contract.md` and `specs/*.spec.yaml` (or feature spec) first; implement to that spec.
-- **DB schema/connection**: Read `docs/contract.md` and `backend/src/main/resources/db/schema.sql` (and related spec) first; implement accordingly.
-- **Frontend-backend**: Use only APIs defined in specs/ or contract; same paths and shapes.
+- **API add/change**: Read `docs/contract.md` and `docs/api-definition.md` (and `specs/*.spec.yaml` if present). Implement to match; then update those docs if you added or changed API so they stay in sync. See `docs/workflow/DOC-CODE-SYNC.md`.
+- **DB schema/connection**: Read `docs/contract.md` and `backend/src/main/resources/db/schema.sql` (and related spec) first; implement; update contract/spec if schema or env changed.
+- **Frontend-backend**: Use only APIs and shapes described in contract/api-definition/specs; same paths and request/response.
 
 ## Compliance
 
-- API shape is single source of truth in specs/ or contract. If you change code without updating spec, update the spec first then implement.
+- **Documentation follows the code**: Code is the source of truth for current behavior. When you change API paths, request/response shape, error codes, or shared constants in code, update `docs/api-definition.md` and/or `docs/contract.md` (and specs if applicable) **in the same change** so Cursor tools stay accurate. See `docs/workflow/DOC-CODE-SYNC.md`.
 - Ports, URLs, env: use the "Environment · Ports" table in `docs/contract.md`.
+- For **new** API or DB changes: read contract and specs first; implement; then update those docs if they don’t yet describe the new behavior.
 
 Dev workspace only.

@@ -4,7 +4,7 @@
     "core-principles.mdc": "응답 언어, 병렬 도구, 도구 우선순위, 품질 게이트, 보안 원칙. 모든 규칙의 허브.",
     "error-first-workflow.mdc": "에러/버그 수정 시 요건 문서 + §3 테스트 계획 먼저 작성.",
     "post-change-test-verify.mdc": "코드 변경 후 테스트·검증 실행. 실패 시 bugfix 자식 요건 생성.",
-    "contract-first.mdc": "API·DB 작업 시 계약/스펙 먼저 확인.",
+    "contract-first.mdc": "API·DB 작업 시 계약/스펙 확인. 문서는 코드 기준·동일 변경에서 doc 갱신. DOC-CODE-SYNC 참조.",
     "workflow-todos.mdc": "TodoWrite 시 WORKFLOW_CHECKLIST 순서 필수 준수.",
     "language-policy.mdc": "규칙/스킬/워크플로우는 영어, 사용자 응답은 요청 언어.",
     "build-restart-handoff.mdc": "코드 변경 후 빌드·재시작·§2 갱신·QA 핸드오프.",
@@ -58,14 +58,17 @@
     "SUBAGENT-DELEGATION.md": "Step별 서브에이전트 위임 테이블 및 게이트 규정.",
     "CURSOR-SUBAGENTS-DESIGN.md": "서브에이전트 역할·범위·등록 방법 정의.",
     "WORKFLOW_CHECKLIST.md": "새 요건·버그 수정 시 순서와 게이트 체크리스트.",
-    "HANDOFF-CHECKLIST.md": "Backend/Frontend/DB/Review/QA별 핸드오프 체크리스트.",
+    "HANDOFF-CHECKLIST.md": "Backend/Frontend/DB/Review/QA별 핸드오프 체크리스트 (Doc–code sync 포함).",
+    "DOC-CODE-SYNC.md": "문서는 코드 기준. 문서–코드–Cursor 동기화 원칙·1회 정비·Same-PR 유지 방법.",
+    "CURSOR-AND-TOOLS-INTEGRATION.md": "규칙·커맨드·스킬·문서·스크립트 연결 맵. DOC-CODE-SYNC 참조.",
     "ERROR-FIX-WORKFLOW-FLOWCHART.md": "오류 수정 시 Skills/Sub-Agent/Commands 사용 시점 흐름도.",
     "WORKFLOW_MODES.md": "TDD vs DDD 개발 방식 선택 가이드.",
     "SUBAGENT-MODEL-SELECTION.md": "서브에이전트별 모델 티어 (Light / Default).",
     "DEVELOPMENT_WORKFLOW.md": "개발 워크플로우 상세 절차.",
     "BROWSER-AUTOMATION-VERIFICATION-POLICY.md": "브라우저 자동화 검증 정책.",
     "DOCUMENT-LANGUAGE-POLICY.md": "문서 작성 언어 정책.",
-    "CONSISTENCY-STANDARDS.md": "프로젝트 컨벤션·네이밍·에러코드 일관성 표준."
+    "CONSISTENCY-STANDARDS.md": "프로젝트 컨벤션·네이밍·에러코드 일관성 표준.",
+    "DRYRUN-handoff-verification-report.md": "핸드오프 dry-run 결과. Requirements→Backend→QA 프롬프트 검증."
   },
   "templates": {
     "REQUIREMENT_TEMPLATE.md": "요건 문서 §1·§2·§3·§5·§6 템플릿.",
