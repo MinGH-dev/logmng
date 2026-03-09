@@ -888,8 +888,9 @@ function showAgentDetail(agentName) {
   const categories = ['rules', 'skills', 'commands', 'workflow', 'templates', 'agents', 'other'];
   let hasAny = false;
   for (const cat of categories) {
-    const items = data[cat];
-    if (!items || items.length === 0) continue;
+    const items = data[cat] || [];
+    var showGroup = items.length > 0 || cat === 'agents';
+    if (!showGroup) continue;
     hasAny = true;
     const cfg = CATEGORY_CONFIG[cat];
     const group = document.createElement('div');
@@ -901,11 +902,11 @@ function showAgentDetail(agentName) {
         '<span style="color:var(--text-dim); font-weight:400">(' + items.length + ')</span>' +
       '</div>' +
       '<div class="agent-ref-list">' +
-        items.map(function(i) {
+        (items.length > 0 ? items.map(function(i) {
           var fp = (cat === 'agents') ? (resolveFilepath('agent:' + i) || resolveFilepath(i)) : resolveFilepath(i);
           var docBtn = fp ? '<button class="doc-btn" title="문서 보기" data-docbtn="' + i + '">📄</button>' : '';
           return '<span class="agent-ref-item ' + cfg.dotClass + '" data-docname="' + i + '">' + i + docBtn + '</span>';
-        }).join('') +
+        }).join('') : '<span style="color:var(--text-dim); font-size:12px;">.cursor/agents/*.mdc 참조만 표시</span>') +
       '</div>';
     grid.appendChild(group);
     group.querySelectorAll('.doc-btn[data-docbtn]').forEach(function(btn) {

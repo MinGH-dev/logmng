@@ -6,6 +6,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### 2026-03-10 (트리맵 Subagents 카테고리 항상 표시)
+
+- **chore (treemap)**: 에이전트 상세 패널에서 "Subagents" (agents) 카테고리를 항상 표시 — 항목이 없을 때(items.length === 0)에도 "Subagents (0)" 및 힌트 ".cursor/agents/*.mdc 참조만 표시" 노출. `scripts/treemap-template.html` 수정, `docs/cursor-tools-treemap.html` 재생성 반영.
+
 ### 2026-03-09 (트리맵 cursor-subagents → Other Docs 복원)
 
 - **chore (treemap)**: `docs/cursor-subagents/*.md` 분류 복원 — Agents/Subagents가 아닌 **Other Docs**에 표시. `scripts/generate-treemap.js`에서 cursor-subagents 경로·파일명을 agents 분류에서 제거하고 'other'로 복귀; refDisplayName용 cursor-subagents 분기 제거.
