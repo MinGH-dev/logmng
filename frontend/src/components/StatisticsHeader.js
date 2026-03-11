@@ -1,6 +1,7 @@
 import React from 'react';
 import './StatisticsHeader.css';
 
+/** Error id for date range validation; must match the id on the error element in ActivityStatistics (date-search.md, UX-REDESIGN §4.2). */
 const DATE_RANGE_ERROR_ID = 'activity-statistics-date-range-error';
 
 const StatisticsHeader = ({

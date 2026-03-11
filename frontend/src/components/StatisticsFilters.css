@@ -1,39 +1,217 @@
+/* Compact variant: row/field gap 8–12px, block 12–16px, padding 12–16px (forms-and-filters.md § Compact variant; aligned with activity log). Panel uses page container width; no statistics-only max-width. */
 .statistics-filters {
-  margin-bottom: 20px;
-  padding: 15px;
+  margin-bottom: 14px;
+  padding: 12px 16px;
   background-color: #f9f9f9;
   border-radius: 8px;
 }
 
-.statistics-filters h3 {
-  margin-bottom: 15px;
+.statistics-filters__header {
+  margin-bottom: 12px;
+}
+
+.statistics-filters__header h3 {
+  margin: 0;
   font-size: 16px;
   color: #333;
 }
 
+.statistics-filters__form {
+  margin: 0;
+}
+
+/* Row/field gap 8–12px, block 12–16px; aligned with activity log search form */
+.statistics-filters__row-1 {
+  display: grid;
+  grid-template-columns: minmax(140px, 180px) 1fr;
+  gap: 10px;
+  align-items: end;
+  margin-bottom: 12px;
+}
+
+.statistics-filters__row-2 {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.statistics-filters__row-2-fields {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 10px;
+  flex: 1;
+  min-width: 0;
+}
+
+/* 기타 조건: title above fields (block-level), aligned with activity log — forms-and-filters.md § Filter group title placement */
+.statistics-filters__extra {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  flex: 0 1 auto;
+  min-width: 0;
+}
+
+.statistics-filters__extra-heading {
+  font-size: 14px;
+  font-weight: 600;
+  color: #333;
+  margin: 0 0 8px 0;
+  padding: 0;
+}
+
+.statistics-filters__extra-fields {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 10px;
+}
+
+.statistics-filters__extra-fields .form-group {
+  flex: 1 1 auto;
+  min-width: 100px;
+  max-width: 200px;
+}
+
+.statistics-filters__actions {
+  display: flex;
+  gap: 10px;
+  margin-left: auto;
+}
+
+.statistics-filters__block {
+  margin-bottom: 0;
+}
+
+.statistics-filters__block:last-child {
+  margin-bottom: 0;
+}
+
+.statistics-filters__block-heading {
+  font-size: 14px;
+  font-weight: 600;
+  color: #333;
+  margin: 0 0 8px 0;
+  padding: 0;
+}
+
+.statistics-filters__block .form-group {
+  display: flex;
+  flex-direction: column;
+  margin-bottom: 0;
+}
+
+.statistics-filters__block .form-group label {
+  font-size: 14px;
+  font-weight: 500;
+  margin-bottom: 4px;
+  color: #333;
+}
+
+.statistics-filters .form-control {
+  height: 34px;
+  min-height: 34px;
+  padding: 6px 10px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 14px;
+  box-sizing: border-box;
+}
+
 .filter-row {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 15px;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 10px;
 }
 
 .filter-row label {
   display: flex;
   flex-direction: column;
-  gap: 5px;
+  gap: 4px;
   font-size: 14px;
 }
 
 .filter-row select,
 .filter-row input {
+  height: 34px;
+  min-height: 34px;
   padding: 6px 10px;
   border: 1px solid #ddd;
   border-radius: 4px;
   font-size: 14px;
+  box-sizing: border-box;
 }
 
 .filter-row input[type="text"] {
   width: 100%;
+}
+
+.statistics-filters select:focus,
+.statistics-filters input:focus {
+  outline: none;
+  border-color: #007bff;
+  box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.25);
+}
+
+/* Filter action buttons (검색, 초기화) — 44×44px min, per UX-REDESIGN */
+.statistics-filters .btn {
+  min-width: 44px;
+  min-height: 44px;
+  padding: 8px 16px;
+  border: none;
+  border-radius: 4px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.2s;
+  box-sizing: border-box;
+}
+
+.statistics-filters .btn:focus {
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.35);
+}
+
+.statistics-filters .btn-primary {
+  background-color: #007bff;
+  color: white;
+}
+
+.statistics-filters .btn-primary:hover:not(:disabled) {
+  background-color: #0056b3;
+}
+
+.statistics-filters .btn-primary:disabled {
+  background-color: #6c757d;
+  cursor: not-allowed;
+}
+
+.statistics-filters .btn-secondary {
+  background-color: #6c757d;
+  color: white;
+}
+
+.statistics-filters .btn-secondary:hover {
+  background-color: #5a6268;
+}
+
+@media (max-width: 768px) {
+  .statistics-filters__row-1 {
+    grid-template-columns: 1fr;
+    align-items: stretch;
+  }
+
+  .statistics-filters__row-2 {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .statistics-filters__actions {
+    margin-left: 0;
+  }
 }
 
 
