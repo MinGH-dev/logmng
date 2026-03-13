@@ -44,6 +44,7 @@
   - `user.allowedScreenIds`: string[] (요건 20250227-permission-group-screen-menu-access) — 사용자 권한 그룹들의 접근 가능 화면 합집합.
   - `user.screenScopes`: Record<string, 'self'|'team'|'all'> (요건 20250303, 20260305) — 화면별 **조회(목록) 범위**. key=screen_id (activity-log, statistics, search-history, pending-approvals), value='self'(본인)|'team'(부서)|'all'(전체). is_system_admin=true이면 생략 가능(프론트는 전체로 처리). **용도**: 목록/조회에만 적용; scope=self → 본인; scope=team → 동일 부서; scope=all → 전체. **승인 범위는 부서로 고정**이며 변경 불가(권한 설정에서 선택하는 scope는 조회 범위만 해당).
   - `user.screenFunctions`: Record<string, { read: boolean, write?: boolean, approve?: boolean, decrypt?: boolean }> (요건 20250303, 20260306) — 화면별 기능 가능 여부. key=screen_id, value=read(필수), write(수정 지원 화면만), approve(search-history·pending-approvals만), decrypt(main 전용, 복호화 요청 권한). main은 read + optional decrypt; decrypt는 권한관리에서 부여/해제. **용도**: 버튼/액션 enable·disable, 비활성 시 툴팁 표시.
+  - `user.selfContext`: `{ department: string | null, username: string, userId: string }` — self-scoped user/requester block의 **visible locked self-context** 표시값. `scope=self` 화면에서 Department, Username, User ID를 고정 표시할 때 사용하는 권위 소스다. `userId`의 canonical meaning은 `app_user.username`이다.
 
 ### 2.2 로그아웃
 
@@ -60,7 +61,7 @@
 
 ### 2.4 현재 사용자 정보 (GET /api/auth/me, 선택)
 
-- **GET** `/api/auth/me` — 로그인 사용자 정보 반환. `isSystemAdmin: boolean`, `allowedScreenIds: string[]`, `screenScopes: Record<string, 'self'|'team'|'all'>`, `screenFunctions: Record<string, { read, write?, approve? }>` 포함 (req 20250303, 20260305). screenScopes는 조회(목록) 범위(본인/부서/전체) 결정용. 승인 범위는 부서 고정·변경 불가. screenFunctions는 화면별 read/write/approve 가능 여부로 버튼·액션 enable·disable용.
+- **GET** `/api/auth/me` — 로그인 사용자 정보 반환. `isSystemAdmin: boolean`, `allowedScreenIds: string[]`, `screenScopes: Record<string, 'self'|'team'|'all'>`, `screenFunctions: Record<string, { read, write?, approve?, decrypt? }>`, `selfContext: { department: string | null, username: string, userId: string }` 포함 (req 20250303, 20260305, 20260313). screenScopes는 조회(목록) 범위(본인/부서/전체) 결정용. 승인 범위는 부서 고정·변경 불가. screenFunctions는 화면별 read/write/approve/decrypt 가능 여부로 버튼·액션 enable·disable용. `selfContext`는 applicable shared-pattern 화면에서 `scope=self`일 때 보이는 잠금 self-context 표시값의 권위 소스이며, `userId`는 `app_user.username`을 의미한다.
 
 ---
 
@@ -207,7 +208,7 @@
 
 **Base path**: `/api/search-history`
 
-**화면별 범위(scope)**: is_system_admin=false일 때 권한 그룹의 search-history scope 적용. scope='self' → 현재 요청자 본인 데이터만 반환하며 requester filter(`department`, `username`, `userId`)는 무시; scope='team' → 동일 부서 요청자만 반환하며 requester filter는 그 허용 집합 안에서만 추가 좁힘; scope='all' → 전체 가시 집합에 requester filter를 적용. requester filter는 scope를 넓히지 않으며, 상세 규칙은 `specs/permission-group-hierarchy.spec.yaml` §4.3을 따른다.
+**화면별 범위(scope)**: is_system_admin=false일 때 권한 그룹의 search-history scope 적용. scope='self' → 현재 요청자 본인 데이터만 반환하며 requester filter(`department`, `username`, `userId`)는 무시한다. 이때 requester block은 숨기지 않고 `department -> username -> userId` 순서의 visible locked self-context를 표시하며, 표시값은 auth/current-user payload의 `selfContext`를 기준으로 한다. scope='team' → 동일 부서 요청자만 반환하며 requester filter는 그 허용 집합 안에서만 추가 좁힘; scope='all' → 전체 가시 집합에 requester filter를 적용. requester filter는 scope를 넓히지 않으며, 상세 규칙은 `specs/permission-group-hierarchy.spec.yaml` §4.3을 따른다.
 
 - 검색 이력은 "복호화 승인 요청"이 발생한 검색을 저장하며, 사용자별 최근 이력 목록·재요청·재조회를 지원한다.
 - 승인 유효 기간: 요청일시 + 1일. 만료 시 재요청 가능.
@@ -330,7 +331,7 @@
 
 **Base path**: `/api/activity-log`
 
-**화면별 범위(scope)**: is_system_admin=false일 때 권한 그룹의 activity-log scope 적용. scope='self' → userId, username, department(또는 departmentCode), ipAddress 등 사용자·부서 관련 파라미터 무시, 현재 사용자 데이터만 반환; scope='team'/'all' → 요청의 department 등 필터 적용. 상세: `specs/permission-group-hierarchy.spec.yaml` §4.3.
+**화면별 범위(scope)**: is_system_admin=false일 때 권한 그룹의 activity-log scope 적용. scope='self' → user/requester block은 숨기지 않고 visible locked self-context로 유지된다. `department`, `username`, `userId`는 auth/current-user payload의 `selfContext` 기준으로 표시되고 수정할 수 없으며, `userId`는 `app_user.username` 의미로 고정한다. 검색 실행 시 userId는 현재 인증 사용자로 강제되고, username, department(또는 departmentCode), ipAddress 등 사용자·부서 관련 파라미터와 동등한 widening 입력은 무시되거나 안전하게 override되며, 현재 사용자 데이터만 반환한다. `department`에 빈 값, `all`, `ALL`, `전체` 등 "전체" 의미 표현이 들어와도 범위를 넓히지 못한다. scope='team'/'all' → 요청의 department 등 필터 적용. 상세: `specs/permission-group-hierarchy.spec.yaml` §4.3.
 
 ### 8.1 활동 이력 검색
 
@@ -341,9 +342,9 @@
 |------|------|------|
 | startDate | string | yyyy-MM-dd HH:mm:ss 등 |
 | endDate | string | |
-| userId | string | |
-| username | string | |
-| department | string | (선택) 부서 필터. scope=self이면 무시; scope=team/all일 때만 적용. body에 departmentCode로 보내도 동일 필드로 처리. (req 20260310) |
+| userId | string | (선택) 사용자 ID. `scope=self`이면 클라이언트 입력값과 관계없이 현재 인증 사용자로 강제되며, 타 사용자 값으로 범위를 넓힐 수 없다. |
+| username | string | (선택) 사용자명 필터. `scope=self`이면 무시되며 결과 범위를 넓히지 못한다. |
+| department | string | (선택) 부서 필터. `scope=self`이면 무시되며, 빈 값, `all`, `ALL`, `전체` 등 전체 의미 표현도 범위를 넓히지 못한다. `scope=team/all`일 때만 적용. body에 departmentCode로 보내도 동일 필드로 처리. (req 20260310) |
 | actionType | string | |
 | ipAddress | string | |
 | page | integer | 기본 1 |
@@ -367,7 +368,39 @@
 
 - **GET** `/api/statistics/activity/daily`, **GET** `/api/statistics/activity/monthly`, **GET** `/api/statistics/activity/users/all`, **GET** `/api/statistics/activity/export`
 - **Query params** (공통 필터): `startDate`, `endDate` (일별/export), `year`, `month` (월별), `logType`, `userId`, `department`, `ip`, `username` (또는 `name`, 사용자명 LIKE 필터). (req 20260310)
-- **화면별 범위(scope)**: statistics 화면 scope 적용. scope='self'일 때 userId, username/name, department, ip 등 사용자·부서 관련 파라미터는 무시되고 현재 사용자 데이터만 반환. scope=team/all일 때는 전달된 필터 적용.
+- **화면별 범위(scope)**: statistics 화면 scope 적용. scope='self'일 때 user/requester block은 숨기지 않고 visible locked self-context로 유지된다. `department`, `username`, `userId`는 auth/current-user payload의 `selfContext` 기준으로 표시되고 수정할 수 없으며, `userId`는 `app_user.username` 의미로 고정한다. API 처리에서는 userId, username/name, department, ip 등 사용자·부서 관련 파라미터를 무시하고 현재 사용자 데이터만 반환한다. scope=team/all일 때는 전달된 필터 적용.
+
+### 8.3.1 공유 부서 필터 옵션 조회
+
+- **GET** `/api/filter-options/departments`
+- **의도 / 소비 화면**: 활동 이력(`activity-log`), 활동 통계(`statistics`), 검색 이력(`search-history`)의 부서 필터 콤보박스가 공통으로 사용하는 **editable department option source**.
+- **Query**:
+  - `screen` (필수) — 호출 화면 컨텍스트. `activity-log` | `statistics` | `search-history`
+- **권한 / 접근 모델**:
+  - 인증 필요. 비인증 시 401.
+  - 요청한 `screen`에 대한 접근 권한이 있는 사용자(또는 `is_system_admin=true`)만 호출 가능. 백엔드는 `screen` 값에 해당하는 화면의 권한과 scope를 적용해 결과를 계산한다.
+  - 이 엔드포인트는 관리자/관리화면용 `GET /api/departments`와 별개다. 검색 필터 소비자는 부서 관리 API 권한을 요구하지 않는다.
+- **Response (data)**: `string[]`
+  - 각 항목은 필터 select에서 바로 `value`와 표시 문자열로 사용하는 부서 옵션 값이다.
+  - 응답에는 `"전체"`를 포함하지 않는다. `"전체"` 기본 옵션은 각 화면 클라이언트가 로컬로 추가한다.
+  - 이 응답은 편집 가능한 선택지 계약이다. effective `scope=self`에서 보이는 locked Department 표시값의 권위 소스는 이 엔드포인트가 아니라 auth/current-user payload의 `selfContext.department`다.
+- **Scope behavior**:
+  - `scope=self`: 해당 화면은 부서 필터를 숨기지 않고 visible locked self-context를 표시한다. 이 엔드포인트는 editable options source이므로 빈 배열 `[]`를 반환해도 되고 호출하지 않아도 된다. 중요한 점은 이 응답이 locked Department 표시값의 권위 소스가 아니라는 것이다.
+  - `scope=team`: **현재 사용자의 자기 부서만** 반환한다. 응답은 0개 또는 1개의 자기 부서 옵션이어야 하며, 같은 조직의 다른 부서나 전체 부서 목록을 노출하지 않는다.
+  - `scope=all` 또는 `is_system_admin=true`: 현재 생성된 부서 데이터셋에서 필터에 사용 가능한 부서 옵션 전체를 반환한다.
+- **예시**:
+  - `GET /api/filter-options/departments?screen=activity-log`
+  - `GET /api/filter-options/departments?screen=statistics`
+  - `GET /api/filter-options/departments?screen=search-history`
+- **에러**:
+  - 400 `INVALID_SCREEN_ID` — `screen`이 누락되었거나 지원하지 않는 값
+  - 401 비인증
+  - 403 `FORBIDDEN` — 요청한 `screen` 접근 권한 없음
+
+### 8.3.2 구형 통계 부서 목록 엔드포인트 (전환 메모)
+
+- `GET /api/statistics/departments`는 더 이상 권위 있는 계약이 아니다.
+- 구현 전환 중 임시 호환이 필요하더라도, 새 개발과 문서 기준은 항상 `GET /api/filter-options/departments?screen=...`를 사용한다.
 
 ---
 
@@ -437,7 +470,7 @@
 | PERMISSION_GROUP_NOT_FOUND | 해당 ID의 권한 그룹 없음 (404) |
 | PERMISSION_GROUP_HAS_USERS | 삭제 시 해당 그룹에 사용자 배정 있음 (400) |
 | USER_ALREADY_IN_GROUP | 해당 사용자가 이미 그룹에 배정됨 (400) |
-| INVALID_SCREEN_ID | allowedScreens에 허용 목록에 없는 screen_id 포함 (400) |
+| INVALID_SCREEN_ID | 허용 목록에 없는 screen_id 포함 또는 공유 필터 옵션 API의 `screen` 파라미터가 지원되지 않음 (400) |
 | INVALID_SCREEN_FUNCTION | 화면별 read/write/approve 조합이 허용되지 않음 (400). main read-only: main에 write=true 또는 approve=true; approve 미지원 화면에 approve=true; write 미지원 화면에 write=true. POST/PUT permission-groups 시 `specs/permission-group-hierarchy.spec.yaml` §1.1.1 검증. |
 | USER_NOT_FOUND | 해당 사용자 없음 (404) |
 | SELF_DEMOTION_BLOCKED | 자기 자신의 역할 변경 시도 (400) |
@@ -483,7 +516,7 @@
 요건: `docs/requirements/20250227-user-permission-hierarchy-group.md`, `docs/requirements/20250227-permission-group-screen-menu-access.md`, `docs/requirements/20250303-activity-statistics-self-only-scope.md`. 상세 스펙: `specs/permission-group-hierarchy.spec.yaml`.  
 모든 API는 **관리자(is_system_admin=true)** 만 호출 가능. 그 외 403, `code: "FORBIDDEN"`.  
 **화면 기반 접근**: 화면에 대응하는 API는 사용자가 해당 화면을 권한 그룹으로 허용받았거나 is_system_admin=true이어야 함. 그 외 403. 화면↔API 매핑: `specs/permission-group-hierarchy.spec.yaml` §4.3.  
-**화면별 범위(scope)**: activity-log, statistics, search-history, pending-approvals 화면은 권한 그룹에서 화면별 scope('self'|'team'|'all') 설정 가능. scope='self' → 본인 데이터만(또는 본인 요청만)이며 search-history requester filter는 무시; scope='team' → 동일 부서 범위; scope='all' → 전체. is_system_admin=false일 때만 적용. 상세: `specs/permission-group-hierarchy.spec.yaml` §4.2, §4.3.
+**화면별 범위(scope)**: activity-log, statistics, search-history, pending-approvals 화면은 권한 그룹에서 화면별 scope('self'|'team'|'all') 설정 가능. scope='self' → 본인 데이터만(또는 본인 요청만)이며 applicable shared-pattern 화면에서는 user/requester block을 숨기지 않고 `department -> username -> userId`의 visible locked self-context를 표시한다. 이 표시값의 권위 소스는 auth/current-user payload의 `selfContext`이고, `userId`는 `app_user.username` 의미다. search-history requester filter는 `scope=self`에서 무시된다. scope='team' → 동일 부서 범위; scope='all' → 전체. is_system_admin=false일 때만 적용. 상세: `specs/permission-group-hierarchy.spec.yaml` §4.2, §4.3.
 
 ### 14.1 권한 그룹 목록 조회
 

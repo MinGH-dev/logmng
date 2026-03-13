@@ -1,10 +1,14 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   getSearchHistoryList,
   reRequestSearchHistory,
   getSearchHistoryDetail,
 } from '../../services/searchHistoryService';
-import { statisticsApi } from '../../services/api';
+import {
+  FILTER_OPTION_SCREEN_IDS,
+  getDepartmentFilterOptions,
+} from '../../services/filterOptionsService';
+import { getSelfContext } from '../../utils/security';
 import DataTable, { EmptyTableBody } from '../DataTable';
 import UserContextFilterBlock from '../common/UserContextFilterBlock';
 import './SearchHistory.css';
@@ -33,6 +37,12 @@ const createEmptyRequesterFilters = () => ({
   department: '',
   username: '',
   userId: '',
+});
+
+const getLockedRequesterFilters = (selfContext) => ({
+  department: selfContext?.department || '',
+  username: selfContext?.username || '',
+  userId: selfContext?.userId || '',
 });
 
 /** 결재 이력 한 줄 요약: 승인/반려 시 결재자와 일시, 없으면 "-" */
@@ -118,6 +128,9 @@ function SearchParamsDetailView({ searchParams }) {
 }
 
 const SearchHistoryList = ({ onBackToMain, onReSearch, user }) => {
+  const isSelfScope = !user?.isSystemAdmin && user?.screenScopes?.['search-history'] === 'self';
+  const selfContext = useMemo(() => getSelfContext(user), [user]);
+  const lockedRequesterFilters = getLockedRequesterFilters(selfContext);
   const [list, setList] = useState([]);
   const [pagination, setPagination] = useState({ currentPage: 1, totalPages: 1, totalCount: 0 });
   const [loading, setLoading] = useState(false);
@@ -126,16 +139,19 @@ const SearchHistoryList = ({ onBackToMain, onReSearch, user }) => {
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
   const [sortConfig, setSortConfig] = useState({ key: 'requested_at', direction: 'desc' });
-  const [requesterFilters, setRequesterFilters] = useState(createEmptyRequesterFilters);
-  const [appliedRequesterFilters, setAppliedRequesterFilters] = useState(createEmptyRequesterFilters);
+  const [requesterFilters, setRequesterFilters] = useState(
+    () => (isSelfScope ? lockedRequesterFilters : createEmptyRequesterFilters()),
+  );
+  const [appliedRequesterFilters, setAppliedRequesterFilters] = useState(
+    () => (isSelfScope ? lockedRequesterFilters : createEmptyRequesterFilters()),
+  );
   const [reRequestingId, setReRequestingId] = useState(null);
   const [detailModalOpen, setDetailModalOpen] = useState(false);
   const [detailData, setDetailData] = useState(null);
   const [detailLoading, setDetailLoading] = useState(false);
   const [detailError, setDetailError] = useState(null);
 
-  const hideRequesterFilters = !user?.isSystemAdmin && user?.screenScopes?.['search-history'] === 'self';
-  const effectiveRequesterFilters = hideRequesterFilters ? null : appliedRequesterFilters;
+  const effectiveRequesterFilters = isSelfScope ? null : appliedRequesterFilters;
 
   const loadList = useCallback(async () => {
     setLoading(true);
@@ -162,16 +178,17 @@ const SearchHistoryList = ({ onBackToMain, onReSearch, user }) => {
   }, [effectiveRequesterFilters, page, pageSize, sortConfig.direction, sortConfig.key]);
 
   useEffect(() => {
-    if (hideRequesterFilters) {
-      setRequesterFilters(createEmptyRequesterFilters());
-      setAppliedRequesterFilters(createEmptyRequesterFilters());
+    if (isSelfScope) {
+      const nextLockedRequesterFilters = getLockedRequesterFilters(selfContext);
+      setRequesterFilters(nextLockedRequesterFilters);
+      setAppliedRequesterFilters(nextLockedRequesterFilters);
       setPage(1);
       setDepartmentList([]);
       return;
     }
 
     let cancelled = false;
-    statisticsApi.getDepartmentList()
+    getDepartmentFilterOptions(FILTER_OPTION_SCREEN_IDS.SEARCH_HISTORY)
       .then((res) => {
         if (!cancelled && res.success && Array.isArray(res.data)) {
           setDepartmentList(res.data);
@@ -186,7 +203,7 @@ const SearchHistoryList = ({ onBackToMain, onReSearch, user }) => {
     return () => {
       cancelled = true;
     };
-  }, [hideRequesterFilters]);
+  }, [isSelfScope, selfContext]);
 
   useEffect(() => {
     loadList();
@@ -219,8 +236,9 @@ const SearchHistoryList = ({ onBackToMain, onReSearch, user }) => {
   };
 
   const handleReset = () => {
-    setRequesterFilters(createEmptyRequesterFilters());
-    setAppliedRequesterFilters(createEmptyRequesterFilters());
+    const resetFilters = isSelfScope ? lockedRequesterFilters : createEmptyRequesterFilters();
+    setRequesterFilters(resetFilters);
+    setAppliedRequesterFilters(resetFilters);
     setPage(1);
   };
 
@@ -299,18 +317,17 @@ const SearchHistoryList = ({ onBackToMain, onReSearch, user }) => {
         aria-label="검색 이력 조회 조건"
         onSubmit={handleSearchSubmit}
       >
-        {!hideRequesterFilters && (
-          <UserContextFilterBlock
-            blockLabel="요청자"
-            hideUserFilters={false}
-            departmentList={departmentList}
-            values={requesterFilters}
-            onChange={handleRequesterFilterChange}
-            idPrefix="search-history-requester"
-            compact
-            usernameMaxLength={5}
-          />
-        )}
+        <UserContextFilterBlock
+          blockLabel="요청자"
+          mode={isSelfScope ? 'locked' : 'editable'}
+          departmentList={departmentList}
+          values={requesterFilters}
+          lockedValues={lockedRequesterFilters}
+          onChange={handleRequesterFilterChange}
+          idPrefix="search-history-requester"
+          compact
+          usernameMaxLength={5}
+        />
         <div className="search-history-toolbar__actions" role="group" aria-label="검색 액션">
           <button type="submit" className="btn btn-primary sf-btn" disabled={loading} aria-busy={loading}>
             {loading ? '검색 중...' : '검색'}

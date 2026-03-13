@@ -98,6 +98,7 @@ public class AuthController {
                 data.put("allowedScreenIds", userInfo.getAllowedScreenIds());
                 data.put("screenScopes", userInfo.getScreenScopes());
                 data.put("screenFunctions", userInfo.getScreenFunctions());
+                data.put("selfContext", userInfo.getSelfContext());
             }
         }
         

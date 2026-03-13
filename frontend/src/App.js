@@ -13,7 +13,15 @@ import PermissionGroupManagement from './components/PermissionGroupManagement/Pe
 import PendingApprovals from './components/PendingApprovals/PendingApprovals';
 import AppSidebar from './components/AppSidebar';
 import AppBar from './components/AppBar';
-import { saveMinimalUserData, getMinimalUserData, getAllowedScreenIds, getScreenFunctions, deriveScreenFunctionsFromAllowed, clearUserData } from './utils/security';
+import {
+  saveMinimalUserData,
+  getMinimalUserData,
+  getAllowedScreenIds,
+  getScreenFunctions,
+  getSelfContext,
+  deriveScreenFunctionsFromAllowed,
+  clearUserData,
+} from './utils/security';
 import logger from './utils/logger';
 
 function App() {
@@ -86,6 +94,8 @@ function App() {
         setIsAuthenticated(true);
         const savedUser = getMinimalUserData();
         const fromApi = result.data;
+        const apiSelfContext = getSelfContext(fromApi);
+        const savedSelfContext = getSelfContext(savedUser);
         const apiScreenFunctions = getScreenFunctions(fromApi);
         const mergedScreenFunctions = apiScreenFunctions && typeof apiScreenFunctions === 'object'
           ? apiScreenFunctions
@@ -102,6 +112,7 @@ function App() {
                 ? fromApi.screenScopes
                 : savedUser?.screenScopes ?? null,
               screenFunctions: mergedScreenFunctions ?? fallbackScreenFunctions,
+              selfContext: apiSelfContext ?? savedSelfContext,
             }
           : fromApi?.username
             ? {
@@ -110,6 +121,7 @@ function App() {
                 allowedScreenIds: getAllowedScreenIds(fromApi),
                 screenScopes: fromApi?.screenScopes && typeof fromApi.screenScopes === 'object' ? fromApi.screenScopes : null,
                 screenFunctions: mergedScreenFunctions ?? fallbackScreenFunctions,
+                selfContext: apiSelfContext,
               }
             : null;
         if (merged) {
@@ -135,12 +147,14 @@ function App() {
       return;
     }
     const sf = getScreenFunctions(userData);
+    const selfContext = getSelfContext(userData);
     const minimalUserData = {
       username: userData.username || null,
       isSystemAdmin: userData.isSystemAdmin === true,
       allowedScreenIds: getAllowedScreenIds(userData),
       screenScopes: userData.screenScopes && typeof userData.screenScopes === 'object' ? userData.screenScopes : null,
       screenFunctions: sf && typeof sf === 'object' ? sf : deriveScreenFunctionsFromAllowed(getAllowedScreenIds(userData), userData.isSystemAdmin === true),
+      selfContext,
     };
     setUser(minimalUserData);
     setIsAuthenticated(true);

@@ -3,6 +3,7 @@
 For **RequirementsPastSearch** token optimization. Read this file first to find relevant doc IDs by topic, then read only §1 of those docs (offset=1, limit=90).
 
 **Maintenance**: When adding a new requirement, add one line under the matching topic(s). Format: `- doc-id | one-line §1 summary`
+**Automation**: When a requirement doc transitions to `- [x] Requirement doc completed`, the completion hook auto-adds it to the best-matching topic section in this file. If no topic clearly matches, it is added under `misc` and may be moved manually later.
 
 ---
 
@@ -129,5 +130,7 @@ For **RequirementsPastSearch** token optimization. Read this file first to find 
 - 20260225-logout-persist-after-refresh | 로그아웃 후 새로고침 시 로그인 상태 유지 버그
 
 ## misc | bugfix | pretty | highlighting
+
+Auto-managed fallback section for requirement docs whose topic does not clearly match another section.
 
 - 20260206-pretty-mode-highlighting-fix | Pretty 모드 하이라이팅 표시 문제 수정

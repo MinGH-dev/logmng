@@ -12,7 +12,7 @@ Copy this template to create `docs/requirements/yyyyMMdd-short-name.md`. Use low
 
 **Date**: For `yyyyMMdd` and in-document dates (Date, Completed, §5 test run date, authored date), use the **current year and date** from `.cursor/CURRENT-DATE-CONVENTION.md` so the correct year is used even when the conversation context is wrong.
 
-**After verification**: Add the new doc to `docs/requirements/TOPIC-INDEX.md` under the matching topic (one line: `- doc-id | one-line §1 summary`). Run `./scripts/generate-requirements-index.sh` to check for docs not yet in the index.
+**After verification**: Add the new doc to `docs/requirements/TOPIC-INDEX.md` under the matching topic (one line: `- doc-id | one-line §1 summary`). Run `./scripts/generate-requirements-index.sh` to check for docs not yet in the index. Cursor automation treats the checklist transition `- [ ] Requirement doc completed` -> `- [x] Requirement doc completed` as the canonical requirement-completion trigger, and that completion flow now auto-adds the doc to the best-matching `TOPIC-INDEX.md` section (or `misc` when no clear topic matches). Check that item only when the doc has truly reached its final completed state for the workflow.
 
 ---
 

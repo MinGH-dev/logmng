@@ -2,6 +2,8 @@ package com.logmng.controller;
 
 import com.logmng.service.StubActivityStatisticsServiceCapture;
 import com.logmng.service.StubAuthServiceForStatistics;
+import com.logmng.service.FilterOptionsService;
+import com.logmng.service.DepartmentService;
 import com.logmng.util.StubDataSource;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -30,7 +32,9 @@ class ActivityStatisticsControllerTest {
         DataSource dataSource = new StubDataSource();
         stubService = new StubActivityStatisticsServiceCapture(dataSource);
         stubAuth = new StubAuthServiceForStatistics("self");
-        ActivityStatisticsController controller = new ActivityStatisticsController(stubService, stubAuth, dataSource);
+        FilterOptionsService filterOptionsService = new FilterOptionsService(new DepartmentService(dataSource));
+        ActivityStatisticsController controller = new ActivityStatisticsController(
+                stubService, stubAuth, filterOptionsService, dataSource);
         mockMvc = MockMvcBuilders.standaloneSetup(controller)
                 .setControllerAdvice(new com.logmng.exception.GlobalExceptionHandler())
                 .build();

@@ -34,7 +34,7 @@ For fields with **controlType: select**, also define:
 
 | Item | Korean | Description | Example |
 |------|--------|--------------|---------|
-| **dataSource** | 데이터 소스 | API path or static list. If API, method and response shape for options. | GET /api/statistics/departments → string[] |
+| **dataSource** | 데이터 소스 | The real authoritative API/domain source for options. Do **not** write only an intermediate prop or local variable name such as `departmentList`. If the UI receives a prop, the design doc must still name the upstream contract (API/domain source), response shape, and any scope-specific filtering rule. When a shared filter-options API is the contract, name that shared API explicitly and do not describe an old screen-specific endpoint as the source. | shared filter-options API (department options) → documented option shape |
 | **optionValue** | 옵션 value | How option value is taken (e.g. `id`, `value`, or same as label). | value: lt.id |
 | **optionLabel** | 옵션 label | How option label is shown (e.g. `displayName`, `name`). | label: lt.displayName \|\| lt.name |
 | **emptyOption** | 빈 옵션 | First option for "all" / "전체": `true` or label string. | true (전체) |
@@ -52,6 +52,7 @@ For fields with **controlType: select**, also define:
 
 - **Same field, multiple screens**: For a field that appears on both activity-log and statistics (e.g. 부서, 사용자명, 사용자 ID, IP), **width**, **height**, **padding**, **controlType**, and **constraints** must be identical so the two screens look and behave the same.
 - **User-context block**: 부서, 사용자명, 사용자 ID share the same block ("사용자"); same sizing and order (부서 → 사용자명 → 사용자 ID) on all screens.
+- **Shared select contract**: When the same select field is shared across aligned screens, document one shared option contract in the per-screen doc and reuse it consistently. For the `department` field on activity-log, statistics, and search-history, the screen docs must identify the same authoritative source: the new shared filter-options API for department options, not `/api/statistics/departments`. The docs must also identify the same response shape and the same scope rule. `scope=team` must show only the current user's own department unless a later requirement explicitly updates that contract.
 - **Date/period block (날짜·기간 블록)**: Treated as the **same tier** as user block and extra block. When the screen has a period mode (e.g. 일별/월별), the date block may show different fields per mode (일별: start/end date; 월별: year, month); optionally use separate form structure per mode per `forms-and-filters.md` § Form per mode.
 - **Width by role**: Use the same min/max width for the same role (e.g. date/single-select, extra-condition) on all screens. Prefer `var(--sf-field-date-min)`, `var(--sf-field-date-max)`, `var(--sf-field-extra-min)`, `var(--sf-field-extra-max)` from `frontend/src/styles/search-filter-standard.css` where the role matches; see `forms-and-filters.md` § Width by role.
 - **Block-level width (블록 단위 너비)**: For same-row layout so that 기타 조건 sits in one column to the right, define **block-level** min/max for date-period block, user block, and extra block. Use `var(--sf-field-date-block-min/max)`, `var(--sf-field-user-block-min/max)` from `search-filter-standard.css`; see `forms-and-filters.md` § Filter block tiers and § Width by role.

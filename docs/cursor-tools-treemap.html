@@ -2348,7 +2348,7 @@ const TREEMAP_DATA = {
         },
         {
           "name": "search-filter-form-design.mdc",
-          "desc": "When changing search/filter form UI, follow field-level design docs; use single wrapper for control sizing; width by role; if standard undefined, inform user and do not implement first.",
+          "desc": "When changing search/filter form UI, follow field-level design docs; use single wrapper for control sizing; width by role; keep self-scope user blocks visible and locked where applicable; if standard undefined, inform user and do not implement first.",
           "refs": [
             {
               "name": "docs/design/ux-frontend-standard-principles.md",
@@ -2454,14 +2454,14 @@ const TREEMAP_DATA = {
               "path": "docs/workflow/RECOMMENDATION-requirement-doc-ref-display.md"
             },
             {
-              "name": "after-file-edit-treemap.sh",
-              "type": "other",
-              "path": ".cursor/hooks/after-file-edit-treemap.sh"
-            },
-            {
               "name": "hooks.json",
               "type": "other",
               "path": ".cursor/hooks.json"
+            },
+            {
+              "name": "after-file-edit-treemap.sh",
+              "type": "other",
+              "path": ".cursor/hooks/after-file-edit-treemap.sh"
             },
             {
               "name": "setup-hooks.sh",
@@ -2887,7 +2887,7 @@ const TREEMAP_DATA = {
           },
           {
             "name": "search-consistency-domain",
-            "desc": "Screen-by-screen search/filter consistency, shared user axes, and scope=self hiding rules.",
+            "desc": "Screen-by-screen search/filter consistency, shared user axes, and visible locked self rules for applicable scope=self user/requester blocks.",
             "category": "domain",
             "refs": [
               {
@@ -4067,6 +4067,11 @@ const TREEMAP_DATA = {
                 "name": "docs/requirements/yyyyMMdd-name.md",
                 "type": "other",
                 "path": "docs/requirements/yyyyMMdd-name.md"
+              },
+              {
+                "name": "TOPIC-INDEX.md",
+                "type": "other",
+                "path": "TOPIC-INDEX.md"
               },
               {
                 "name": "REQUIREMENT_TEMPLATE.md",

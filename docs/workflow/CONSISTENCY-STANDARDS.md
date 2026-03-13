@@ -54,6 +54,15 @@
 - Scope configuration changes the **list/view range** only.
 - Approval range remains fixed to the department-based approval rule where that business rule applies.
 
+## 8. Self-scope user/requester blocks
+
+- For applicable user-context or requester-context search/filter blocks, do not use old wording such as "hide-on-self" or "hidden on self".
+- The standard wording is: **visible, fixed to current user, not editable**.
+- Keep the shared field order as `department -> username -> userId`.
+- The authoritative source for locked self values is the authenticated current-user payload or equivalent auth/current-user context, not arbitrary client-entered filter values.
+- Visible locked self fields are presentation-only. Backend self-scope enforcement remains authoritative and must ignore or normalize client-provided identity values that would widen scope.
+- If a screen intentionally hides the user/requester block in `scope=self`, that exception must be explicitly stated by requirement and aligned in contract, design docs, and handoff wording. Do not infer the exception from older guidance.
+
 ## References
 
 - Contract: `docs/contract.md`

@@ -48,14 +48,26 @@ const toDateTimeLocal = (dateStr) => {
   return { start: `${dateStr}T00:00`, end: `${dateStr}T23:59` };
 };
 
-const UserActivityLogSearchForm = ({ onSearch, loading, initialServerDate, hideUserFilters = false, departmentList = [] }) => {
+const getLockedSelfValues = (selfContext) => ({
+  userId: selfContext?.userId || '',
+  username: selfContext?.username || '',
+  department: selfContext?.department || '',
+});
+
+const UserActivityLogSearchForm = ({
+  onSearch,
+  loading,
+  initialServerDate,
+  isSelfScope = false,
+  departmentList = [],
+  selfContext = null,
+}) => {
   const serverRange = toDateTimeLocal(initialServerDate);
+  const lockedSelfValues = getLockedSelfValues(selfContext);
   const [formData, setFormData] = useState({
     startDate: serverRange ? serverRange.start : getTodayStart(),
     endDate: serverRange ? serverRange.end : getTodayEnd(),
-    userId: '',
-    username: '',
-    department: '',
+    ...getLockedSelfValues(isSelfScope ? selfContext : null),
     actionType: '',
     ipAddress: '',
   });
@@ -73,6 +85,16 @@ const UserActivityLogSearchForm = ({ onSearch, loading, initialServerDate, hideU
       }));
     }
   }, [initialServerDate]);
+
+  useEffect(() => {
+    setFormData((prev) => ({
+      ...prev,
+      ...getLockedSelfValues(isSelfScope ? selfContext : null),
+      ...(isSelfScope
+        ? { actionType: '', ipAddress: '' }
+        : {}),
+    }));
+  }, [isSelfScope, selfContext]);
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -113,15 +135,16 @@ const UserActivityLogSearchForm = ({ onSearch, loading, initialServerDate, hideU
     const resetData = {
       startDate: getTodayStart(),
       endDate: getTodayEnd(),
-      userId: '',
-      username: '',
-      department: '',
+      ...getLockedSelfValues(isSelfScope ? selfContext : null),
       actionType: '',
       ipAddress: '',
     };
     setFormData(resetData);
     setErrors({});
     onSearch({
+      department: resetData.department,
+      username: resetData.username,
+      userId: resetData.userId,
       startDate: formatDateForAPI(resetData.startDate),
       endDate: formatDateForAPI(resetData.endDate),
     });
@@ -191,20 +214,21 @@ const UserActivityLogSearchForm = ({ onSearch, loading, initialServerDate, hideU
           <h2 id="activity-log-search-row2-heading" className="activity-log-search-form__row2-heading-sr-only">검색 조건</h2>
           <UserContextFilterBlock
             blockLabel="사용자"
-            hideUserFilters={hideUserFilters}
+            mode={isSelfScope ? 'locked' : 'editable'}
             departmentList={departmentList}
             values={{
               department: formData.department,
               username: formData.username,
               userId: formData.userId,
             }}
+            lockedValues={lockedSelfValues}
             onChange={(name, value) => setFormData((prev) => ({ ...prev, [name]: value }))}
             idPrefix="activity-log-search"
             compact
             usernameMaxLength={5}
           />
           {/* 기타 조건: scope=self 시 전체 숨김 (req 20260313); 제목 필드 위 배치 */}
-          {!hideUserFilters && (
+          {!isSelfScope && (
             <div className="search-form-row-2__extra" role="group" aria-labelledby="activity-log-search-extra-heading">
               <h4 id="activity-log-search-extra-heading" className="search-form-block__heading">기타 조건</h4>
               <div className="search-form-row-2__extra-fields">

@@ -272,6 +272,7 @@ Validation: PUT/POST permission-groups with `allowedScreens` must have each valu
 **POST /api/auth/login** and **GET /api/auth/me** (or equivalent) response (user object) includes:
 - `allowedScreenIds`: string[] — allowed screens from the user's permission group (single group per user, req 20250304). If user is system admin (is_system_admin=true), return all screen IDs.
 - `screenScopes`: Record<string, 'self'|'team'|'all'> — per-screen **list/read scope** (조회 범위) for screens that support it (activity-log, statistics, search-history, pending-approvals). Key = screen_id, value = 'self' (본인), 'team' (부서), or 'all' (전체). **Purpose**: Controls which data is listed (self → own only; team → same department; all → all). Approval (승인) is always department-scoped and not configurable; this field does not change who can approve.
+- `selfContext`: `{ department: string | null, username: string, userId: string }` — authoritative display payload for **visible locked self-context** on applicable shared-pattern screens when effective scope is `self`. `userId` is the canonical `app_user.username` value.
 
 ## 4.3 Screen-based API access enforcement
 
@@ -279,18 +280,26 @@ APIs that correspond to screens must validate: user has is_system_admin=true **o
 
 **Scope enforcement (activity-log, statistics, search-history, pending-approvals)** — when is_system_admin=false:
 - Use scope from permission group for that screen (from `screenScopes` or permission_group_screen.scope). Default for scope-supporting screens = 'team' when null/omitted.
-- scope='self': Backend overrides userId with current user; ignores department, ip params. For `GET /api/search-history`, backend also ignores requester filters (`department`, `username`, `userId`) and returns only the current requester's rows. For detail/getById: enforce ownership; return 403/404 if accessing another user's data.
-- scope='team': Filter by current user's department (same department_code only). For `GET /api/search-history`, requester filters are allowed only as additional narrowing filters inside that same-department set.
+- scope='self': Backend must keep the result set fixed to the current authenticated user. On applicable shared-pattern screens (`activity-log`, `statistics`, `search-history`), this scope means **visible locked self-context**, not hidden user/requester fields: `department`, `username`, and `userId` stay visible in `department -> username -> userId` order, are not editable, and must be populated from auth/current-user `selfContext`. For `activity-log`, backend overrides `userId` with the current user and ignores or safely overrides widening inputs such as `username`, `department`, `departmentCode`, `ipAddress`, and equivalent "all departments" representations (`all`, `ALL`, `전체`, empty value, etc.), so those inputs never widen scope. For `GET /api/search-history`, backend also ignores requester filters (`department`, `username`, `userId`) and returns only the current requester's rows. For detail/getById: enforce ownership; return 403/404 if accessing another user's data.
+- scope='team': Filter by current user's department (same department_code only). For `GET /api/search-history`, requester filters are allowed only as additional narrowing filters inside that same-department set. For the shared department filter-options endpoint `GET /api/filter-options/departments?screen={screenId}`, return **only the current user's own department** as the sole selectable option; do not expose sibling or unrelated departments.
 - scope='all': Pass request params as-is; no override. For `GET /api/search-history`, requester filters narrow the full visible set and never expand scope.
 - scope null/omitted: Treated as 'team' (default for scope-supporting screens).
 - is_system_admin=true: Always full scope; ignore permission group scope.
 
+**Shared filter-options contract**:
+- `GET /api/filter-options/departments?screen={screenId}` is the authoritative contract for **editable department select options** on `activity-log`, `statistics`, and `search-history`.
+- Query parameter `screen` is required and must be one of `activity-log`, `statistics`, `search-history`.
+- Backend must validate access against the requested `screenId`, not against a separate shared screen.
+- `scope='self'` for the requested screen must **not** be documented or implemented as the authoritative source of locked self display values. The locked Department/Username/User ID values come from auth/current-user `selfContext`. Because the endpoint is only for editable options, implementations may return an empty option list or skip calling it in `scope='self'`.
+- `scope='team'` for the requested screen returns only the current user's own department option.
+- `scope='all'` (or `is_system_admin=true`) returns the full current department option set.
+
 | screen_id | APIs (require this screen or is_system_admin=true) | Scope enforcement when is_system_admin=false |
 |-----------|------------------------------------|---------------------------------------------|
 | main | /api/logs/db-refactored/*, /api/log-types/* | — |
-| search-history | /api/search-history/* | Use scope: self → own only and ignore requester filters (`department`, `username`, `userId`); team → same department first, then requester filters narrow within that set; all → pass requester filters as narrowing-only params |
-| activity-log | /api/activity-log/* | Use scope: self → override userId; team → same department; all → pass params as-is |
-| statistics | /api/statistics/* | Use scope: self → override userId, ignore dept/ip; team → same department; all → pass params as-is |
+| search-history | /api/search-history/*, /api/filter-options/departments?screen=search-history | Use scope: self → own only, ignore requester filters (`department`, `username`, `userId`), and show visible locked self-context from auth/current-user `selfContext`; shared filter-options endpoint is not the source of those locked values and may return `[]`; team → same department first, then requester filters narrow within that set, and shared filter-options endpoint returns only the current user's own department option; all → pass requester filters as narrowing-only params |
+| activity-log | /api/activity-log/*, /api/filter-options/departments?screen=activity-log | Use scope: self → override `userId`, ignore or safely override `username`, `department`, `departmentCode`, `ipAddress`, and equivalent "all" inputs so the result remains current-user-only, and show visible locked self-context from auth/current-user `selfContext`; shared filter-options endpoint is not the source of those locked values and may return `[]`; team → same department and shared filter-options endpoint returns only the current user's own department option; all → pass params as-is |
+| statistics | /api/statistics/*, /api/filter-options/departments?screen=statistics | Use scope: self → override userId, ignore dept/ip, and show visible locked self-context from auth/current-user `selfContext`; shared filter-options endpoint is not the source of those locked values and may return `[]`; team → same department and shared filter-options endpoint returns only the current user's own department option; all → pass params as-is |
 | pending-approvals | /api/search-history/pending, /api/search-history/{id}/approve, /api/search-history/{id}/reject | Use scope: self → own requests only (requester=current user); team → same department requesters + canApproveForRequester; all → all approvable (current behavior). |
 | user-management | /api/users, /api/users/approvers, /api/users/approvers/{userId} | — |
 | department-approvers | /api/departments, /api/departments/{code}/approvers, /api/departments/{code}/members, /api/departments/{code}/approvers/default | — |

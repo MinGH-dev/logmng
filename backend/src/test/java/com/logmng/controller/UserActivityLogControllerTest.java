@@ -6,7 +6,6 @@ import com.logmng.service.StubUserActivityLogServiceCapture;
 import com.logmng.util.StubDataSource;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
@@ -25,13 +24,17 @@ class UserActivityLogControllerTest {
 
     private MockMvc mockMvc;
     private StubUserActivityLogServiceCapture stubService;
-    private StubAuthServiceForActivityLog stubAuth;
+    private DataSource dataSource;
 
     @BeforeEach
     void setUp() {
-        DataSource dataSource = new StubDataSource();
+        dataSource = new StubDataSource();
         stubService = new StubUserActivityLogServiceCapture(dataSource);
-        stubAuth = new StubAuthServiceForActivityLog("self");
+        configureController("self");
+    }
+
+    private void configureController(String scope) {
+        StubAuthServiceForActivityLog stubAuth = new StubAuthServiceForActivityLog(scope);
         UserActivityLogController controller = new UserActivityLogController(stubService, stubAuth, dataSource);
         mockMvc = MockMvcBuilders.standaloneSetup(controller)
                 .setControllerAdvice(new com.logmng.exception.GlobalExceptionHandler())
@@ -41,7 +44,7 @@ class UserActivityLogControllerTest {
     @Test
     void searchActivityLogs_scopeSelf_ignoresUserIdAndDepartment_fixesToCurrentUser() throws Exception {
         mockMvc.perform(post("/api/activity-log/search")
-                        .contentType(MediaType.APPLICATION_JSON)
+                        .contentType("application/json")
                         .content("{\"userId\":\"otherUser\",\"department\":\"D01\"}"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success").value(true));
@@ -50,5 +53,41 @@ class UserActivityLogControllerTest {
         assertThat(captured).isNotNull();
         assertThat(captured.getUserId()).isEqualTo("currentUser");
         assertThat(captured.getDepartment()).isNull();
+    }
+
+    @Test
+    void searchActivityLogs_scopeSelf_ignoresUsernameDepartmentCodeIpAndClientAllowedUserIds() throws Exception {
+        mockMvc.perform(post("/api/activity-log/search")
+                        .contentType("application/json")
+                        .content("{\"userId\":\"otherUser\",\"username\":\"Other User\",\"departmentCode\":\"전체\",\"ipAddress\":\"10.10.10.10\",\"allowedUserIds\":[\"otherUser\",\"thirdUser\"]}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true));
+
+        UserActivityLogSearchRequest captured = stubService.getLastRequest();
+        assertThat(captured).isNotNull();
+        assertThat(captured.getUserId()).isEqualTo("currentUser");
+        assertThat(captured.getUsername()).isNull();
+        assertThat(captured.getDepartment()).isNull();
+        assertThat(captured.getIpAddress()).isNull();
+        assertThat(captured.getAllowedUserIds()).isNull();
+    }
+
+    @Test
+    void searchActivityLogs_scopeAll_preservesLegitimateCrossUserFilters() throws Exception {
+        configureController("all");
+
+        mockMvc.perform(post("/api/activity-log/search")
+                        .contentType("application/json")
+                        .content("{\"userId\":\"otherUser\",\"username\":\"Other User\",\"departmentCode\":\"D01\",\"ipAddress\":\"10.10.10.10\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true));
+
+        UserActivityLogSearchRequest captured = stubService.getLastRequest();
+        assertThat(captured).isNotNull();
+        assertThat(captured.getUserId()).isEqualTo("otherUser");
+        assertThat(captured.getUsername()).isEqualTo("Other User");
+        assertThat(captured.getDepartment()).isEqualTo("D01");
+        assertThat(captured.getIpAddress()).isEqualTo("10.10.10.10");
+        assertThat(captured.getAllowedUserIds()).isNull();
     }
 }

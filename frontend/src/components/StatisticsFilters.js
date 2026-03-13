@@ -15,7 +15,8 @@ const StatisticsFilters = ({
   departmentList,
   ipList, // unused: IP is text input per search-fields-by-screen.md §3 (activity-log alignment)
   logTypeList,
-  hideUserFilters = false,
+  isSelfScope = false,
+  selfContext = null,
   // Form per mode (req 20260313): date/period block inside form; content differs by statisticsType
   statisticsType = 'daily',
   startDate = '',
@@ -161,7 +162,7 @@ const StatisticsFilters = ({
             </div>
             <UserContextFilterBlock
               blockLabel="사용자"
-              hideUserFilters={hideUserFilters}
+              mode={isSelfScope ? 'locked' : 'editable'}
               departmentList={departmentList}
               userList={userList}
               values={{
@@ -169,12 +170,13 @@ const StatisticsFilters = ({
                 username: filters.username || '',
                 userId: filters.userId || '',
               }}
+              lockedValues={selfContext || undefined}
               onChange={(name, value) => handleFilterChange(name, value)}
               idPrefix="statistics-filter"
               compact
               usernameMaxLength={5}
             />
-            {!hideUserFilters && (
+            {!isSelfScope && (
               <div className="statistics-filters__extra" role="group" aria-labelledby="statistics-filter-extra-heading">
                 <h4 id="statistics-filter-extra-heading" className="statistics-filters__extra-heading">기타 조건</h4>
                 <div className="statistics-filters__extra-fields">

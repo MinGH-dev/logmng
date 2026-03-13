@@ -52,3 +52,10 @@
   min-width: 0;
   box-sizing: border-box;
 }
+
+.user-context-filter-block--locked .form-group .form-control[readonly] {
+  width: 100%;
+  background-color: #fff;
+  color: #333;
+  cursor: default;
+}

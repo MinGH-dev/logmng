@@ -12,6 +12,10 @@ Use this skill for questions about permissions, screen access, `is_system_admin`
 - Screen access is determined by system-admin status or `allowedScreenIds`, plus any screen-specific rules.
 - Decrypt capability requires the appropriate screen/function permission when that rule applies.
 - Scope values such as `self`, `team`, and `all` affect list/view range; they do not automatically redefine every business rule.
+- Auth current-user payloads (`/api/auth/login` user payload, `/api/auth/check`, `/api/auth/me`) are the authoritative source for locked self-context display values on applicable self-scoped screens.
+- The shared auth `selfContext` contract is `department`, `username`, `userId`, and `userId` means the canonical `app_user.username`.
+- For `activity-log`, effective `scope=self` is a hard backend boundary: force the current authenticated user and ignore widening inputs such as `department`, `departmentCode`, `username`, `userId`, `ipAddress`, and any server-only user-list fields.
+- For `activity-log`, `scope=team` means "same-department allowlist first, optional filters second"; `scope=all` is the only legitimate cross-user search mode.
 - Approval-only roles must stay aligned with approver business rules and screen-access limits.
 
 ## References

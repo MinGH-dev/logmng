@@ -21,7 +21,8 @@ When you change **subagent delegation**, **who Main invokes**, or **how requirem
 
 ## Automatic treemap update
 
-- **Cursor hooks**: When you edit files under `.cursor/rules/`, `.cursor/agents/`, `.cursor/commands/`, `.cursor/skills/`, `docs/workflow/`, `docs/template/`, or the treemap script/template/i18n, **Cursor runs** `.cursor/hooks/after-file-edit-treemap.sh` (see `.cursor/hooks.json`). The treemap is regenerated automatically after each such edit so the HTML stays in sync.
+- **Cursor hooks**: `.cursor/hooks.json` may contain multiple `afterFileEdit` hooks. The treemap hook remains `.cursor/hooks/after-file-edit-treemap.sh`: when you edit files under `.cursor/rules/`, `.cursor/agents/`, `.cursor/commands/`, `.cursor/skills/`, `docs/workflow/`, `docs/template/`, or the treemap script/template/i18n, that treemap hook regenerates the treemap automatically so the HTML stays in sync.
+- **Separation of concerns**: Requirement-document completion automation must remain independent from treemap regeneration. Requirement-doc saves must not regenerate the treemap unless the edited file also matches the treemap-owned path rules.
 - **Git pre-commit** (optional): Run `./scripts/setup-hooks.sh` once to install a pre-commit hook that regenerates and stages the treemap when tool files are committed. Complements Cursor hooks for commit-time consistency.
 
 ## After making changes (if not auto-run)
@@ -35,4 +36,4 @@ When you change **subagent delegation**, **who Main invokes**, or **how requirem
 - **Delegation**: `docs/workflow/SUBAGENT-DELEGATION.md` §1 (table), §2.2 (Step → subagent_type), §3 (Backend/Frontend team lead).
 - **Requirement-doc display**: `docs/workflow/RECOMMENDATION-requirement-doc-ref-display.md`, `docs/workflow/ANALYSIS-requirement-doc-search-vs-path-pattern.md`.
 - **Script**: `scripts/generate-treemap.js` (MAIN_INVOKES, AGENT_INVOCATION_MAP, isRequirementDocPathPattern, AGENTS_WITH_REQUIREMENT_DOC_REF, TOPIC_INDEX_REF).
-- **Cursor hooks**: `.cursor/hooks.json` (afterFileEdit → `.cursor/hooks/after-file-edit-treemap.sh`) so the treemap is regenerated when tool files are edited.
+- **Cursor hooks**: `.cursor/hooks.json` (`afterFileEdit` includes `.cursor/hooks/after-file-edit-treemap.sh`) so the treemap is regenerated when tool files are edited.

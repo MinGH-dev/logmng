@@ -19,7 +19,6 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import jakarta.servlet.http.HttpServletRequest;
-import jakarta.validation.Valid;
 import java.util.Map;
 
 /**
@@ -61,19 +60,14 @@ public class UserActivityLogController {
         Map<String, String> scopes = userInfo.getScreenScopes();
         String scope = ScopeHelper.resolveScope(ScreenConstants.ACTIVITY_LOG, Boolean.TRUE.equals(userInfo.getIsSystemAdmin()),
                 scopes != null ? scopes : java.util.Collections.emptyMap());
-        if ("self".equals(scope)) {
-            request.setUserId(userInfo.getUsername());
-            request.setUsername(null);
-            request.setIpAddress(null);
-            request.setDepartment(null);
-        } else if ("team".equals(scope)) {
-            List<String> teamUserIds = DepartmentScopeHelper.getUserIdsInSameDepartment(dataSource, userInfo.getUsername());
-            request.setAllowedUserIds(teamUserIds);
-            request.setUserId(null);
-            request.setUsername(null);
-            request.setIpAddress(null);
-            // department: keep from request when provided (apply filter within team)
+        String currentUserId = ScopeHelper.normalizeOptionalParam(userInfo.getUsername());
+        if (("self".equals(scope) || "team".equals(scope)) && currentUserId == null) {
+            throw CustomException.unauthorized("로그인이 필요합니다.", "UNAUTHORIZED");
         }
+        List<String> teamUserIds = "team".equals(scope)
+                ? DepartmentScopeHelper.getUserIdsInSameDepartment(dataSource, currentUserId)
+                : null;
+        ScopeHelper.applyActivityLogSearchScope(request, scope, currentUserId, teamUserIds);
         
         UserActivityLogResponse response = userActivityLogService.searchActivityLogs(request);
         

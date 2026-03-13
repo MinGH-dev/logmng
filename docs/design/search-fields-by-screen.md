@@ -75,7 +75,7 @@ Per-field design definition for **검색하기 (main)**, **활동 이력 (activi
 |---------|-------|-------------|-------|-------|--------|---------|--------------|------------|--------------|-------------|------------------------|
 | startDate | 시작 일시 | datetime-local | row1-date | min 140px, max 220px | 34px | 6px 8–10px | start ≤ end | startDate ≤ endDate | 서버 오늘 00:00 | — | — |
 | endDate | 종료 일시 | datetime-local | row1-date | min 140px, max 220px | 34px | 6px 8–10px | start ≤ end | startDate ≤ endDate | 서버 오늘 23:59 | — | — |
-| department | 부서 | select | user | min 100px, 1fr in row | 34px | 6px 8–10px | — | — | '' | — | emptyOption: 전체; options: departmentList (prop from parent) |
+| department | 부서 | select | user | min 100px, 1fr in row | 34px | 6px 8–10px | — | — | '' | — | emptyOption: 전체; shared contract with `statistics` and `search-history`; authoritative source = new shared filter-options API for department options (not `/api/statistics/departments` and not only `departmentList` prop); design/handoff must name the response shape; `scope=team`: only the current user's own department |
 | username | 사용자명 | text | user | min 100px, 1fr | 34px | 6px 8–10px | maxLength 5 | — | '' | (선택) | — |
 | userId | 사용자 ID | text or select | user | min 100px, 1fr | 34px | 6px 8–10px | — | — | '' | (선택) | userList 있으면 select: value=userId, label=표시명; emptyOption: 전체 |
 | actionType | 액션 타입 | select | extra | min 100px, max 200px | 34px | 6px 8–10px | — | — | '' | — | Static: 전체, 로그인, 로그아웃, 검색, 조회, 복호화, 고급 검색, 내보내기 |
@@ -103,6 +103,7 @@ Per-field design definition for **검색하기 (main)**, **활동 이력 (activi
 
 - **블록 순서 (단일 행)**: 날짜·기간은 헤더에 두고, **날짜 제외 단일 행**에 로그 타입 + 사용자 블록 + 기타 조건(IP 주소) + 검색/초기화 버튼을 한 행에 배치. Per `docs/design/forms-and-filters.md` § Single row for non-date. 블록 단위 너비는 `var(--sf-field-user-block-max)` 등 적용. See § Filter block tiers.
 - **날짜·기간 블록 (동일 계층)**: 일별(시작일/종료일)·월별(연도/월)은 **날짜·기간 블록**으로 사용자·기타 조건과 같은 계층. 일별/월별 선택 시 **모드별 폼 로드**(일별용 폼 vs 월별용 폼) 방식으로 구현 가능; 각 폼에서 날짜 블록만 교체하고 나머지 블록은 동일. See `docs/design/forms-and-filters.md` § Form per mode.
+- **부서 옵션 소스**: 통계의 `department`는 `UserContextFilterBlock` 내부 공통 필드이더라도, 문서와 핸드오프에는 `activity-log` / `search-history`와 공유하는 **new shared filter-options API for department options**를 적어야 한다. `/api/statistics/departments`는 이 세 화면의 authoritative source가 아니다. 응답 shape와 `emptyOption` 동작도 함께 적어야 하며, `scope=team`에서는 현재 로그인 사용자의 own department만 보여야 한다.
 - **패널 너비**: `.activity-statistics` max-width 1400px (`.activity-log-list-container`와 동일).
 - **간격**: row/field gap 8–12px, block 12–16px, container padding 12–16px (compact variant). `docs/design/search-field-definition-items.md` §4 (cross-field rules) 및 `forms-and-filters.md` § Compact variant 참조.
 
@@ -116,7 +117,7 @@ Per-field design definition for **검색하기 (main)**, **활동 이력 (activi
 
 | fieldId | label | controlType | block | width | height | padding | constraints | validation | defaultValue | placeholder | dataSource (select만) |
 |---------|-------|-------------|-------|-------|--------|---------|--------------|------------|--------------|-------------|------------------------|
-| department | 부서 | select | requester | min 100px, 1fr in row | 34px | 6px 8–10px | — | — | '' | — | emptyOption: 전체; options: departmentList |
+| department | 부서 | select | requester | min 100px, 1fr in row | 34px | 6px 8–10px | — | — | '' | — | emptyOption: 전체; shared contract with `activity-log` and `statistics`; authoritative source = new shared filter-options API for department options (not `/api/statistics/departments` and not only `departmentList` prop); design/handoff must name the response shape; `scope=team`: only the current user's own department |
 | username | 사용자명 | text | requester | min 100px, 1fr | 34px | 6px 8–10px | maxLength 5 | — | '' | 최대 5자 | — |
 | userId | 사용자 ID | text | requester | min 100px, 1fr | 34px | 6px 8–10px | maxLength 8, digits only | exact match | '' | 8자리 숫자 | — |
 
@@ -137,6 +138,7 @@ Per-field design definition for **검색하기 (main)**, **활동 이력 (activi
 
 - **날짜 필드 (startDate / endDate)**: § "동일 이름·다른 성격" 결정 전까지는 검색하기·활동 이력 각각 위 표대로 정의. **시각적 크기**(width, height, padding)는 동일하게 적용(예: min 140px, max 220px, 34px, 6px 8–10px).
 - **사용자 맥락 화면(활동 이력, 통계 등)**: 부서·사용자명·사용자 ID는 `docs/design/search-field-definition-items.md` §4 및 `docs/analysis-search-consistency-by-screen.md`에 따라 동일 축·동일 크기 유지.
+- **부서 옵션 계약 (activity-log / statistics / search-history 공통)**: 세 화면의 `department` select는 동일한 옵션 계약을 공유한다. authoritative source는 **new shared filter-options API for department options**이며, `/api/statistics/departments`는 이 계약의 source가 아니다. 화면별 정의나 핸드오프에는 `departmentList` 같은 prop 이름이 아니라 이 shared API, 응답 shape, `emptyOption` 동작, scope 규칙을 적어야 한다. `scope=team`에서는 **현재 로그인 사용자의 own department만 표시**한다.
 - **Compact variant**: 모든 검색/필터 폼에서 row/field gap 8–12px, block gap 12–16px, container padding 12–16px. `docs/design/forms-and-filters.md` § Compact variant.
 - **필드 너비 — 최대 글자 수 기준, 모든 화면 동일**: 입력창 너비는 **필드별 최대 글자 수(maxLength)**에 따라 정하며, **기준은 사용자 활동 이력 화면**이다. `docs/design/search-field-definition-items.md` §4.5 Width by max character count에 정의된 표준값(활동 이력 §2.1 기준)을 **어느 화면에서나 동일**하게 적용한다. 활동 이력, 통계, 검색 이력, 승인 대기, 사용자 관리, 권한 그룹 등 동일 역할·동일 maxLength인 필드는 같은 min-width/max-width를 사용한다.
 

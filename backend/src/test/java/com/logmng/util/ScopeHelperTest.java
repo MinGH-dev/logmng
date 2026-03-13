@@ -73,4 +73,20 @@ class ScopeHelperTest {
         assertThat(ScopeHelper.resolveScope(ACTIVITY_LOG, false, Map.of(ACTIVITY_LOG, "Self"))).isEqualTo("self");
         assertThat(ScopeHelper.resolveScope(ACTIVITY_LOG, false, Map.of(ACTIVITY_LOG, "ALL"))).isEqualTo("all");
     }
+
+    @Test
+    void normalizeDepartmentFilter_treatsAllRepresentationsAsNull() {
+        assertThat(ScopeHelper.normalizeDepartmentFilter(null)).isNull();
+        assertThat(ScopeHelper.normalizeDepartmentFilter("")).isNull();
+        assertThat(ScopeHelper.normalizeDepartmentFilter(" all ")).isNull();
+        assertThat(ScopeHelper.normalizeDepartmentFilter("전체")).isNull();
+        assertThat(ScopeHelper.normalizeDepartmentFilter("전체 부서")).isNull();
+    }
+
+    @Test
+    void normalizeAllowedUserIds_removesBlankAndDuplicateEntries() {
+        assertThat(ScopeHelper.normalizeAllowedUserIds(null)).isNull();
+        assertThat(ScopeHelper.normalizeAllowedUserIds(java.util.Arrays.asList(" currentUser ", "", "teamMate", "teamMate", null)))
+                .containsExactly("currentUser", "teamMate");
+    }
 }

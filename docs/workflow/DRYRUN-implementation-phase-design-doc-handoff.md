@@ -55,7 +55,7 @@ Before changing form/filter CSS or component layout, read docs/design/search-fie
 
 §3 Frontend TCs: [TC-01 through TC-07 from requirement doc, Scope=Frontend.]
 
-Search/filter (user-context screens): Apply unified axes and scope=self hiding per docs/analysis-search-consistency-by-screen.md.
+Search/filter (user-context screens): Apply unified axes and the `scope=self` rule "visible, fixed to current user, not editable" for applicable user/requester blocks per docs/analysis-search-consistency-by-screen.md.
 
 Contract/spec: No API change; UI only.
 ```

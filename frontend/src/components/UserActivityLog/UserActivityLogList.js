@@ -3,11 +3,30 @@ import UserActivityLogSearchForm from './UserActivityLogSearchForm';
 import UserActivityLogTable from './UserActivityLogTable';
 import UserActivityLogDetail from './UserActivityLogDetail';
 import { searchActivityLogs } from '../../services/userActivityLogService';
-import { statisticsApi } from '../../services/api';
+import {
+  FILTER_OPTION_SCREEN_IDS,
+  getDepartmentFilterOptions,
+} from '../../services/filterOptionsService';
+import { getSelfContext } from '../../utils/security';
 import './UserActivityLog.css';
 import logger from '../../utils/logger';
 
 const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || 'http://localhost:9200/api';
+const SELF_SCOPE_OMIT_FIELDS = ['userId', 'username', 'department', 'ipAddress'];
+
+const sanitizeSearchParamsForScope = (params = {}, isSelfScope = false) => {
+  const normalizedParams = { ...params };
+
+  if (!isSelfScope) {
+    return normalizedParams;
+  }
+
+  SELF_SCOPE_OMIT_FIELDS.forEach((field) => {
+    delete normalizedParams[field];
+  });
+
+  return normalizedParams;
+};
 
 const UserActivityLogList = ({ user }) => {
   const [logs, setLogs] = useState([]);
@@ -22,16 +41,30 @@ const UserActivityLogList = ({ user }) => {
   const [serverToday, setServerToday] = useState(null);
   const [departmentList, setDepartmentList] = useState([]);
 
-  // scope=self: hide user/username/department/IP filters; omit from API. req 20250303, 20260310
-  const hideUserFilters = !user?.isSystemAdmin && user?.screenScopes?.['activity-log'] === 'self';
+  const isSelfScope = !user?.isSystemAdmin && user?.screenScopes?.['activity-log'] === 'self';
+  const selfContext = getSelfContext(user);
 
   // 부서 목록 로드 (scope≠self일 때 검색 폼 드롭다운용)
   useEffect(() => {
-    if (hideUserFilters) return;
-    statisticsApi.getDepartmentList()
-      .then((res) => { if (res.success && res.data) setDepartmentList(res.data || []); })
-      .catch(() => {});
-  }, [hideUserFilters]);
+    if (isSelfScope) {
+      setDepartmentList([]);
+      return;
+    }
+    getDepartmentFilterOptions(FILTER_OPTION_SCREEN_IDS.ACTIVITY_LOG)
+      .then((res) => {
+        if (res.success && Array.isArray(res.data)) {
+          setDepartmentList(res.data);
+        }
+      })
+      .catch(() => {
+        setDepartmentList([]);
+      });
+  }, [isSelfScope]);
+
+  useEffect(() => {
+    if (!isSelfScope) return;
+    setSearchParams((prev) => sanitizeSearchParamsForScope(prev, true));
+  }, [isSelfScope]);
 
   // 초기 로드 - 서버 날짜(health) 기준 '오늘'로 검색 (브라우저/서버 타임존 불일치 방지)
   useEffect(() => {
@@ -79,15 +112,12 @@ const UserActivityLogList = ({ user }) => {
   // 검색 실행
   const handleSearch = async (params) => {
     setLoading(true);
-    setSearchParams(params);
     setCurrentPage(1);
 
     try {
-      let requestParams = { ...params, page: 1, pageSize };
-      if (hideUserFilters) {
-        const { userId, username, department, ipAddress, ...rest } = requestParams;
-        requestParams = { ...rest, page: 1, pageSize };
-      }
+      const sanitizedParams = sanitizeSearchParamsForScope(params, isSelfScope);
+      setSearchParams(sanitizedParams);
+      const requestParams = { ...sanitizedParams, page: 1, pageSize };
 
       logger.debug('🔍 활동 이력 검색 요청:', requestParams);
 
@@ -131,11 +161,11 @@ const UserActivityLogList = ({ user }) => {
     setCurrentPage(page);
 
     try {
-      let requestParams = { ...searchParams, page, pageSize };
-      if (hideUserFilters) {
-        const { userId, username, department, ipAddress, ...rest } = requestParams;
-        requestParams = { ...rest, page, pageSize };
-      }
+      const requestParams = {
+        ...sanitizeSearchParamsForScope(searchParams, isSelfScope),
+        page,
+        pageSize,
+      };
       const result = await searchActivityLogs(requestParams);
 
       if (result.success && result.data) {
@@ -153,11 +183,9 @@ const UserActivityLogList = ({ user }) => {
   const handlePageSizeChange = (newSize) => {
     setPageSize(newSize);
     setCurrentPage(1);
-    let requestParams = { ...searchParams, page: 1, pageSize: newSize };
-    if (hideUserFilters) {
-      const { userId, username, department, ipAddress, ...rest } = requestParams;
-      requestParams = { ...rest, page: 1, pageSize: newSize };
-    }
+    const sanitizedParams = sanitizeSearchParamsForScope(searchParams, isSelfScope);
+    setSearchParams(sanitizedParams);
+    const requestParams = { ...sanitizedParams, page: 1, pageSize: newSize };
     setLoading(true);
     searchActivityLogs(requestParams)
       .then((result) => {
@@ -203,8 +231,9 @@ const UserActivityLogList = ({ user }) => {
         onSearch={handleSearch}
         loading={loading}
         initialServerDate={serverToday}
-        hideUserFilters={hideUserFilters}
+        isSelfScope={isSelfScope}
         departmentList={departmentList}
+        selfContext={selfContext}
       />
 
       {authError && (

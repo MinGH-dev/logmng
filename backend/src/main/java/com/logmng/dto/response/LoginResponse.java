@@ -36,6 +36,9 @@ public class LoginResponse {
     /** Per-screen function availability. Key=screenId, value={read, write?, approve?}. Per req 20250303-screen-function-availability. */
     private Map<String, ScreenFunctionCapability> screenFunctions;
 
+    /** Authoritative locked self-context for visible self-scoped user/requester fields. */
+    private SelfContext selfContext;
+
     public LoginResponse() {
     }
     
@@ -107,6 +110,54 @@ public class LoginResponse {
 
     public void setScreenFunctions(Map<String, ScreenFunctionCapability> screenFunctions) {
         this.screenFunctions = screenFunctions;
+    }
+
+    public SelfContext getSelfContext() {
+        return selfContext;
+    }
+
+    public void setSelfContext(SelfContext selfContext) {
+        this.selfContext = selfContext;
+    }
+
+    public static class SelfContext {
+
+        private String department;
+        private String username;
+        private String userId;
+
+        public SelfContext() {
+        }
+
+        public SelfContext(String department, String username, String userId) {
+            this.department = department;
+            this.username = username;
+            this.userId = userId;
+        }
+
+        public String getDepartment() {
+            return department;
+        }
+
+        public void setDepartment(String department) {
+            this.department = department;
+        }
+
+        public String getUsername() {
+            return username;
+        }
+
+        public void setUsername(String username) {
+            this.username = username;
+        }
+
+        public String getUserId() {
+            return userId;
+        }
+
+        public void setUserId(String userId) {
+            this.userId = userId;
+        }
     }
 }
 

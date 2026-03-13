@@ -74,6 +74,7 @@ Use a requirement doc first. Add or update specs when the change needs technical
 ### Step 7. Update documentation
 
 - Update requirement-doc §5, and §6 for error fixes.
+- Change the checklist item `- [ ] Requirement doc completed` to `- [x] Requirement doc completed` only when the requirement doc has reached its final completed state after tests/verification. This checklist transition is the canonical completion trigger used by automation, and it is also when `TOPIC-INDEX.md` auto-maintenance runs for that document.
 - Update related docs if the change affects release, contract, or user/ops documentation.
 
 ### Step 8. Commit

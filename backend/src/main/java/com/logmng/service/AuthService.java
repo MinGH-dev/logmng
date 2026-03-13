@@ -119,6 +119,7 @@ public class AuthService {
         response.setAllowedScreenIds(resolveAllowedScreenIds(username, isSystemAdmin));
         response.setScreenScopes(resolveScreenScopes(username, isSystemAdmin));
         response.setScreenFunctions(resolveScreenFunctions(username, isSystemAdmin));
+        response.setSelfContext(resolveSelfContext(username));
         return response;
     }
     
@@ -135,7 +136,7 @@ public class AuthService {
     /**
      * Returns allowed screen IDs for the user. System admin gets all; others get union from permission groups.
      */
-    private List<String> resolveAllowedScreenIds(String username, boolean isSystemAdmin) {
+    protected List<String> resolveAllowedScreenIds(String username, boolean isSystemAdmin) {
         if (username == null || username.isBlank()) {
             return List.of();
         }
@@ -149,7 +150,7 @@ public class AuthService {
      * Returns screenScopes for activity-log, statistics, search-history.
      * is_system_admin=true → all screens get 'all'. Otherwise from permission groups.
      */
-    private Map<String, String> resolveScreenScopes(String username, boolean isSystemAdmin) {
+    protected Map<String, String> resolveScreenScopes(String username, boolean isSystemAdmin) {
         if (username == null || username.isBlank()) {
             return new HashMap<>();
         }
@@ -161,6 +162,35 @@ public class AuthService {
             return all;
         }
         return permissionGroupService.getScreenScopesForUser(username);
+    }
+
+    /**
+     * Resolves the authoritative current-user self-context for self-scoped filter display.
+     * `userId` remains the canonical `app_user.username`, and `username` display reuses the
+     * authenticated username until a separate profile/display-name field exists.
+     */
+    protected LoginResponse.SelfContext resolveSelfContext(String username) {
+        if (username == null || username.isBlank()) {
+            return null;
+        }
+
+        String normalizedUsername = username.trim();
+        String department = null;
+        try (Connection conn = dataSource.getConnection()) {
+            String sql = "SELECT department_code FROM app_user WHERE username = ? LIMIT 1";
+            try (PreparedStatement ps = conn.prepareStatement(sql)) {
+                ps.setString(1, normalizedUsername);
+                try (ResultSet rs = ps.executeQuery()) {
+                    if (rs.next()) {
+                        department = rs.getString("department_code");
+                    }
+                }
+            }
+        } catch (SQLException e) {
+            log.warn("selfContext 조회 실패: username={}", normalizedUsername, e);
+        }
+
+        return new LoginResponse.SelfContext(department, normalizedUsername, normalizedUsername);
     }
 
     /**
@@ -183,6 +213,7 @@ public class AuthService {
         resp.setAllowedScreenIds(resolveAllowedScreenIds(uname, sysAdmin));
         resp.setScreenScopes(resolveScreenScopes(uname, sysAdmin));
         resp.setScreenFunctions(resolveScreenFunctions(uname, sysAdmin));
+        resp.setSelfContext(resolveSelfContext(uname));
         return resp;
     }
 
@@ -191,7 +222,7 @@ public class AuthService {
      * Per spec §4.4: when pgs.read/write/approve non-null, use them; else use derivation.
      * approve = (pgs.approve OR null) AND (decrypt_approver canApproveForRequester OR is_system_admin).
      */
-    private Map<String, ScreenFunctionCapability> resolveScreenFunctions(String username, boolean isSystemAdmin) {
+    protected Map<String, ScreenFunctionCapability> resolveScreenFunctions(String username, boolean isSystemAdmin) {
         Map<String, ScreenFunctionCapability> result = new LinkedHashMap<>();
         if (username == null || username.isBlank()) {
             return result;
@@ -244,6 +275,27 @@ public class AuthService {
         List<String> allowed = user.getAllowedScreenIds();
         return allowed != null && (allowed.contains(ScreenConstants.DEPARTMENT_APPROVERS)
                 || allowed.contains(ScreenConstants.USER_PERMISSION_HIERARCHY));
+    }
+
+    /**
+     * Ensures the current user can access the requested screen.
+     * Shared filter-option APIs use query parameters, so they must validate screen access explicitly.
+     */
+    public LoginResponse requireScreenAccess(HttpServletRequest request, String screenId) {
+        LoginResponse user = getCurrentUserInfo(request);
+        if (user == null) {
+            throw CustomException.unauthorized("로그인이 필요합니다.", "UNAUTHORIZED");
+        }
+        if (Boolean.TRUE.equals(user.getIsSystemAdmin())) {
+            return user;
+        }
+        List<String> allowed = user.getAllowedScreenIds();
+        if (allowed != null && allowed.contains(screenId)) {
+            return user;
+        }
+        log.info("화면 접근 거부: screenId={} allowedScreenCount={}", screenId,
+                allowed != null ? allowed.size() : 0);
+        throw CustomException.forbidden("해당 화면에 대한 접근 권한이 없습니다.", "FORBIDDEN");
     }
 
     /**

@@ -2,7 +2,8 @@
   "version": 1,
   "hooks": {
     "afterFileEdit": [
-      { "command": ".cursor/hooks/after-file-edit-treemap.sh" }
+      { "command": ".cursor/hooks/after-file-edit-treemap.sh" },
+      { "command": ".cursor/hooks/after-requirement-doc-complete.sh" }
     ]
   }
 }

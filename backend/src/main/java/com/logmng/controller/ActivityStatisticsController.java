@@ -6,12 +6,12 @@ import com.logmng.dto.response.LoginResponse;
 import com.logmng.exception.CustomException;
 import com.logmng.service.ActivityStatisticsService;
 import com.logmng.service.AuthService;
+import com.logmng.service.FilterOptionsService;
 import com.logmng.util.DepartmentScopeHelper;
 import com.logmng.util.ScopeHelper;
 import org.slf4j.Logger;
 
 import javax.sql.DataSource;
-import java.util.List;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
@@ -35,11 +35,16 @@ public class ActivityStatisticsController {
 
     private final ActivityStatisticsService activityStatisticsService;
     private final AuthService authService;
+    private final FilterOptionsService filterOptionsService;
     private final DataSource dataSource;
 
-    public ActivityStatisticsController(ActivityStatisticsService activityStatisticsService, AuthService authService, DataSource dataSource) {
+    public ActivityStatisticsController(ActivityStatisticsService activityStatisticsService,
+                                        AuthService authService,
+                                        FilterOptionsService filterOptionsService,
+                                        DataSource dataSource) {
         this.activityStatisticsService = activityStatisticsService;
         this.authService = authService;
+        this.filterOptionsService = filterOptionsService;
         this.dataSource = dataSource;
     }
 
@@ -148,9 +153,15 @@ public class ActivityStatisticsController {
         return ResponseEntity.ok(ApiResponse.success(data));
     }
 
+    /**
+     * Temporary compatibility alias for legacy statistics callers.
+     * New consumers must use GET /api/filter-options/departments?screen=statistics.
+     */
+    @Deprecated
     @GetMapping("/departments")
-    public ResponseEntity<ApiResponse<List<String>>> getDepartments() {
-        List<String> data = activityStatisticsService.getDepartments();
+    public ResponseEntity<ApiResponse<List<String>>> getDepartments(HttpServletRequest request) {
+        LoginResponse userInfo = authService.requireScreenAccess(request, ScreenConstants.STATISTICS);
+        List<String> data = filterOptionsService.getDepartmentOptions(ScreenConstants.STATISTICS, userInfo);
         return ResponseEntity.ok(ApiResponse.success(data));
     }
 

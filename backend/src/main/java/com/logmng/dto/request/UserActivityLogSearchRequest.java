@@ -1,5 +1,6 @@
 package com.logmng.dto.request;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 import java.time.LocalDate;
@@ -38,7 +39,7 @@ public class UserActivityLogSearchRequest {
         }
     }
 
-    /** When scope=team, set by controller: only logs for these user ids are returned. Not from client. */
+    /** When scope=team, set by server-side scope enforcement only. Never trust client input. */
     private List<String> allowedUserIds;
 
     private Integer page = 1;
@@ -103,10 +104,12 @@ public class UserActivityLogSearchRequest {
         this.department = department;
     }
 
+    @JsonIgnore
     public List<String> getAllowedUserIds() {
         return allowedUserIds;
     }
 
+    @JsonIgnore
     public void setAllowedUserIds(List<String> allowedUserIds) {
         this.allowedUserIds = allowedUserIds;
     }

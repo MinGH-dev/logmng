@@ -75,6 +75,23 @@ export const getScreenFunctions = (user) => {
 };
 
 /**
+ * Normalize selfContext from user-like object (handles camelCase and snake_case).
+ * @param {object} user - User or userData object
+ * @returns {{department: string, username: string, userId: string}|null} selfContext or null
+ */
+export const getSelfContext = (user) => {
+  if (!user) return null;
+  const ctx = user.selfContext ?? user.self_context;
+  if (!ctx || typeof ctx !== 'object') return null;
+
+  return {
+    department: ctx.department ?? '',
+    username: ctx.username ?? '',
+    userId: ctx.userId ?? ctx.user_id ?? '',
+  };
+};
+
+/**
  * Derive minimal screenFunctions from allowedScreenIds when backend does not provide screenFunctions.
  * Returns read-only capability; write/approve default to false (safe fallback).
  * @param {string[]|null} allowedScreenIds
@@ -103,6 +120,7 @@ export const saveMinimalUserData = (userData) => {
   }
 
   const sf = getScreenFunctions(userData);
+  const selfContext = getSelfContext(userData);
   // 필요한 최소한의 정보만 저장 (isSystemAdmin, allowedScreenIds, screenScopes, screenFunctions — 메뉴·화면 접근·액션 제어용)
   const minimalData = {
     username: userData.username || null,
@@ -110,6 +128,7 @@ export const saveMinimalUserData = (userData) => {
     allowedScreenIds: getAllowedScreenIds(userData),
     screenScopes: userData.screenScopes && typeof userData.screenScopes === 'object' ? userData.screenScopes : null,
     screenFunctions: sf && typeof sf === 'object' ? sf : null,
+    selfContext,
   };
 
   setSecureStorage('user', minimalData);
@@ -184,6 +203,7 @@ const securityUtils = {
   getMinimalUserData,
   getAllowedScreenIds,
   getScreenFunctions,
+  getSelfContext,
   deriveScreenFunctionsFromAllowed,
   clearUserData,
   sanitizeErrorMessage,

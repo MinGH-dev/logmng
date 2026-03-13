@@ -7,7 +7,10 @@ import {
   getSearchHistoryDetail,
   reRequestSearchHistory,
 } from '../../services/searchHistoryService';
-import { statisticsApi } from '../../services/api';
+import {
+  FILTER_OPTION_SCREEN_IDS,
+  getDepartmentFilterOptions,
+} from '../../services/filterOptionsService';
 
 jest.mock('../../services/searchHistoryService', () => ({
   getSearchHistoryList: jest.fn(),
@@ -15,10 +18,13 @@ jest.mock('../../services/searchHistoryService', () => ({
   reRequestSearchHistory: jest.fn(),
 }));
 
-jest.mock('../../services/api', () => ({
-  statisticsApi: {
-    getDepartmentList: jest.fn(),
+jest.mock('../../services/filterOptionsService', () => ({
+  FILTER_OPTION_SCREEN_IDS: {
+    ACTIVITY_LOG: 'activity-log',
+    STATISTICS: 'statistics',
+    SEARCH_HISTORY: 'search-history',
   },
+  getDepartmentFilterOptions: jest.fn(),
 }));
 
 const baseUser = {
@@ -26,6 +32,11 @@ const baseUser = {
   isSystemAdmin: false,
   screenScopes: {
     'search-history': 'team',
+  },
+  selfContext: {
+    department: '개발부',
+    username: '홍길동',
+    userId: '10000001',
   },
 };
 
@@ -79,7 +90,7 @@ const renderAndWaitForInitialLoad = async (ui) => {
 describe('SearchHistoryList', () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    statisticsApi.getDepartmentList.mockResolvedValue({
+    getDepartmentFilterOptions.mockResolvedValue({
       success: true,
       data: ['개발부', '운영부'],
     });
@@ -91,7 +102,10 @@ describe('SearchHistoryList', () => {
   test('TC-07: non-self scope shows standard requester toolbar with compact shared classes', async () => {
     const { container } = await renderAndWaitForInitialLoad(<SearchHistoryList user={baseUser} />);
 
-    expect(statisticsApi.getDepartmentList).toHaveBeenCalledTimes(1);
+    expect(getDepartmentFilterOptions).toHaveBeenCalledTimes(1);
+    expect(getDepartmentFilterOptions).toHaveBeenCalledWith(
+      FILTER_OPTION_SCREEN_IDS.SEARCH_HISTORY,
+    );
 
     const toolbar = container.querySelector('.search-history-toolbar.sf-compact-panel');
     expect(toolbar).not.toBeNull();
@@ -106,6 +120,10 @@ describe('SearchHistoryList', () => {
       container.querySelectorAll('.user-context-filter-block .form-group label'),
     ).map((node) => node.textContent);
     expect(labelTexts).toEqual(['부서', '사용자명 (최대 5자)', '사용자 ID (8자리)']);
+
+    expect(screen.getByRole('option', { name: '전체' })).toBeInTheDocument();
+    expect(screen.getByRole('option', { name: '개발부' })).toBeInTheDocument();
+    expect(screen.getByRole('option', { name: '운영부' })).toBeInTheDocument();
 
     expect(within(toolbar).getByRole('button', { name: '검색' })).toBeInTheDocument();
     expect(within(toolbar).getByRole('button', { name: '초기화' })).toBeInTheDocument();
@@ -181,7 +199,7 @@ describe('SearchHistoryList', () => {
     expect(container.querySelector('.search-history-pagination')).toBeNull();
   });
 
-  test('TC-10: switching to self scope hides requester UI, clears local state, and omits requester params', async () => {
+  test('TC-10: switching to self scope shows locked requester UI and omits requester params', async () => {
     const { rerender } = await renderAndWaitForInitialLoad(<SearchHistoryList user={baseUser} />);
 
     await userEvent.selectOptions(screen.getByLabelText('부서'), '개발부');
@@ -206,7 +224,10 @@ describe('SearchHistoryList', () => {
     await waitFor(() => expect(getSearchHistoryList).toHaveBeenCalledTimes(3));
     await waitFor(() => expect(screen.queryByText('데이터를 불러오는 중...')).not.toBeInTheDocument());
 
-    expect(screen.queryByText('요청자')).not.toBeInTheDocument();
+    expect(screen.getByText('요청자')).toBeInTheDocument();
+    expect(screen.getByDisplayValue('개발부')).toHaveAttribute('readonly');
+    expect(screen.getByDisplayValue('홍길동')).toHaveAttribute('readonly');
+    expect(screen.getByDisplayValue('10000001')).toHaveAttribute('readonly');
     expect(getSearchHistoryList).toHaveBeenLastCalledWith({
       page: 1,
       pageSize: 20,
