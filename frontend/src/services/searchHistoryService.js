@@ -35,8 +35,32 @@ export const createSearchHistory = async (logType, searchParams) => {
 /**
  * 검색 이력 목록 조회
  */
-export const getSearchHistoryList = async (page = 1, pageSize = 20, sortField = 'requested_at', sortDirection = 'desc') => {
-  const params = new URLSearchParams({ page, pageSize, sortField, sortDirection });
+export const getSearchHistoryList = async ({
+  page = 1,
+  pageSize = 20,
+  sortField = 'requested_at',
+  sortDirection = 'desc',
+  department = '',
+  username = '',
+  userId = '',
+} = {}) => {
+  const params = new URLSearchParams({
+    page: String(page),
+    pageSize: String(pageSize),
+    sortField,
+    sortDirection,
+  });
+
+  if (department) {
+    params.set('department', department);
+  }
+  if (username && username.trim()) {
+    params.set('username', username.trim());
+  }
+  if (userId && userId.trim()) {
+    params.set('userId', userId.trim());
+  }
+
   const response = await fetch(`${API_BASE_URL}/search-history?${params}`, {
     method: 'GET',
     headers: { 'Content-Type': 'application/json' },

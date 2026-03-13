@@ -30,6 +30,12 @@ For **RequirementsPastSearch** token optimization. Read this file first to find 
 
 ## activity-log | statistics | 활동 로그 | 통계 | scope
 
+- 20260311-activity-log-statistics-design-improvement | 활동 이력·통계 두 화면 디자인 표준 정렬: 그룹 제목·패널 너비·compact·사용자 블록 동일 크기·검색/초기화·폼 시맨틱·row1=날짜 row2=나머지
+- 20260313-activity-log-statistics-design-standards | 활동 이력·통계 두 화면 디자인 표준 정렬: 그룹 제목·패널 너비·compact·검색/초기화·폼 시맨틱·row1=날짜 row2=나머지·필터 접기 제거
+- 20260310-search-consistency-all-screens | All screens rule-compliant search; per-screen table (부서·이름·사용자ID, scope=self 숨김); re-review final doc
+- 20260310-search-consistency-phase1 | Phase 1: activity-log (add 부서) + statistics (add 이름); scope=self hide; implementable handoff for Step 4
+- 20260310-search-ui-unify | Search UI unified concept: same field order (부서→이름→사용자ID), grouping, labels; optional shared UserContextFilterBlock
+- 20260310-search-screens-qa-ux-redesign-handoff | QA inspect activity-log + statistics search UI → feedback to UX → UX redesign → Frontend implementation; process and deliverables
 - 20250304-team-scope-default-and-approval | 권한그룹 scope에 팀(team) 추가·기본값 팀; 승인 대기창 팀장은 팀원 요청만
 - 20260206-activity-log-statistics | 활동로그 통계 화면 (월별/일별/사용자별)
 - 20260206-activity-log-statistics-improvement | 활동 로그 통계 화면 개선
@@ -66,6 +72,7 @@ For **RequirementsPastSearch** token optimization. Read this file first to find 
 
 ## user-management | 사용자 관리 | hierarchy
 
+- 20260310-search-consistency-all-screens | User-management·permission-group search form (부서·이름·사용자ID) per-screen table
 - 20250227-user-management-hierarchy-permissions | 사용자 관리: 계층 표시, role·권한 그룹 편집
 - 20250227-user-permission-hierarchy-group | 사용자 권한 계층 및 권한 그룹 관리
 - 20250227-user-permission-hierarchy-group-bugfix-1 | DB schema·init-data 미적용
@@ -76,6 +83,7 @@ For **RequirementsPastSearch** token optimization. Read this file first to find 
 
 ## decryption | 복호화 | search-history | 검색 이력 | approval
 
+- 20260310-search-consistency-all-screens | All screens rule-compliant search; search-history·pending-approvals requester filters (부서·이름·사용자ID)
 - 20260306-search-screen-decrypt-permission | 검색하기 화면 복호화 권한 부여/해제; 복호화 API는 main.decrypt 권한 있는 사용자만 요청 가능
 - 20260306-approval-scope-fixed-department | Approval scope fixed to department; config UI shows 부서 read-only when approve selected
 - 20260224-decryption-approver-designation | 복호화 결재자 지정 및 결재자 전용 승인
@@ -96,6 +104,8 @@ For **RequirementsPastSearch** token optimization. Read this file first to find 
 
 ## grid | UX | ux-standards | 그리드
 
+- 20260313-activity-log-statistics-design-standards | 활동 이력·통계 두 화면 디자인 표준 정렬 (그룹 제목·패널 너비·compact·검색/초기화·a11y)
+- 20260310-search-screens-qa-ux-redesign-handoff | QA→UX redesign→Frontend handoff for activity-log and statistics search screens; deliverables and process
 - 20260304-permission-group-modal-error-visibility | Error message visibility inside permission-group modals (not behind overlay)
 - 20260226-grid-design-unification | 그리드 디자인 통일
 - 20260226-ux-grid-review-and-push | UX grid review and push

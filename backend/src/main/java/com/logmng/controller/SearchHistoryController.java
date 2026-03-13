@@ -3,6 +3,7 @@ package com.logmng.controller;
 import com.logmng.constants.ScreenConstants;
 import com.logmng.dto.request.RejectRequest;
 import com.logmng.dto.request.SearchHistoryCreateRequest;
+import com.logmng.dto.request.SearchHistoryListRequest;
 import com.logmng.dto.response.ApiResponse;
 import com.logmng.dto.response.SearchHistoryListResponse;
 import com.logmng.exception.CustomException;
@@ -75,6 +76,14 @@ public class SearchHistoryController {
         return v instanceof Map ? (Map<String, String>) v : null;
     }
 
+    private static String normalizeOptionalParam(String value) {
+        if (value == null) {
+            return null;
+        }
+        String trimmed = value.trim();
+        return trimmed.isEmpty() ? null : trimmed;
+    }
+
     /** Requires (isAdmin or isApprover) AND (isAdmin or screenFunctions.approve for search-history/pending-approvals). Per spec §4.4. */
     private void requireApproverOrAdmin(HttpServletRequest request) {
         String userId = getUserId(request);
@@ -135,6 +144,9 @@ public class SearchHistoryController {
      */
     @GetMapping
     public ResponseEntity<ApiResponse<SearchHistoryListResponse>> list(
+            @RequestParam(required = false) String department,
+            @RequestParam(required = false) String username,
+            @RequestParam(name = "userId", required = false) String requesterUserId,
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "20") int pageSize,
             @RequestParam(defaultValue = "requested_at") String sortField,
@@ -146,9 +158,25 @@ public class SearchHistoryController {
                     .body(ApiResponse.failure("로그인이 필요합니다.", "UNAUTHORIZED"));
         }
         String scope = ScopeHelper.resolveScope(ScreenConstants.SEARCH_HISTORY, isSystemAdmin(httpRequest), getScreenScopes(httpRequest));
-        boolean scopeAll = "all".equals(scope);
-        List<String> allowedUserIds = "team".equals(scope) ? DepartmentScopeHelper.getUserIdsInSameDepartment(dataSource, userId) : null;
-        SearchHistoryListResponse data = searchHistoryService.list(userId, page, pageSize, sortField, sortDirection, scopeAll, allowedUserIds);
+        SearchHistoryListRequest listRequest = new SearchHistoryListRequest();
+        listRequest.setActorUserId(userId);
+        listRequest.setPage(page);
+        listRequest.setPageSize(pageSize);
+        listRequest.setSortField(sortField);
+        listRequest.setSortDirection(sortDirection);
+
+        if ("self".equals(scope)) {
+            listRequest.setUserId(userId);
+        } else {
+            listRequest.setDepartment(normalizeOptionalParam(department));
+            listRequest.setUsername(normalizeOptionalParam(username));
+            listRequest.setUserId(normalizeOptionalParam(requesterUserId));
+            if ("team".equals(scope)) {
+                listRequest.setAllowedUserIds(DepartmentScopeHelper.getUserIdsInSameDepartment(dataSource, userId));
+            }
+        }
+
+        SearchHistoryListResponse data = searchHistoryService.list(listRequest);
         return ResponseEntity.ok(ApiResponse.success(data));
     }
 
@@ -166,10 +194,7 @@ public class SearchHistoryController {
                     .body(ApiResponse.failure("로그인이 필요합니다.", "UNAUTHORIZED"));
         }
         try {
-            String scope = ScopeHelper.resolveScope(ScreenConstants.SEARCH_HISTORY, isSystemAdmin(httpRequest), getScreenScopes(httpRequest));
-            boolean scopeAll = "all".equals(scope);
-            List<String> allowedUserIds = "team".equals(scope) ? DepartmentScopeHelper.getUserIdsInSameDepartment(dataSource, userId) : null;
-            Map<String, Object> data = searchHistoryService.reRequest(userId, id, scopeAll, allowedUserIds);
+            Map<String, Object> data = searchHistoryService.reRequest(userId, id);
             return ResponseEntity.ok(ApiResponse.success(data));
         } catch (NoSuchElementException e) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(ApiResponse.failure(e.getMessage(), "NOT_FOUND"));
@@ -194,10 +219,7 @@ public class SearchHistoryController {
                     .body(ApiResponse.failure("로그인이 필요합니다.", "UNAUTHORIZED"));
         }
         try {
-            String scope = ScopeHelper.resolveScope(ScreenConstants.SEARCH_HISTORY, isSystemAdmin(httpRequest), getScreenScopes(httpRequest));
-            boolean scopeAll = "all".equals(scope);
-            List<String> allowedUserIds = "team".equals(scope) ? DepartmentScopeHelper.getUserIdsInSameDepartment(dataSource, userId) : null;
-            Map<String, Object> data = searchHistoryService.getDetail(userId, id, scopeAll, allowedUserIds);
+            Map<String, Object> data = searchHistoryService.getDetail(userId, id);
             return ResponseEntity.ok(ApiResponse.success(data));
         } catch (NoSuchElementException e) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(ApiResponse.failure(e.getMessage(), "NOT_FOUND"));

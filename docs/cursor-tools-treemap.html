@@ -132,6 +132,42 @@ body {
   color: var(--text);
   margin-bottom: 8px;
 }
+.step-invocations {
+  margin-top: 10px;
+  padding-top: 8px;
+  border-top: 1px solid var(--border);
+  font-size: 11px;
+  color: var(--text-dim);
+}
+.step-invocation-line {
+  margin-bottom: 4px;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.step-invocation-line .from {
+  font-family: 'JetBrains Mono', monospace;
+  font-weight: 600;
+  color: var(--accent-subagent);
+}
+.step-invocation-line .arrow {
+  color: var(--text-dim);
+  margin: 0 2px;
+}
+.step-invocation-line .to-item {
+  font-family: 'JetBrains Mono', monospace;
+  padding: 1px 6px;
+  border-radius: 3px;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.step-invocation-line .to-item:hover {
+  border-color: var(--accent-subagent);
+  color: var(--accent-subagent);
+}
 .step-agents {
   display: flex;
   flex-direction: column;
@@ -187,9 +223,12 @@ body {
   transition: max-height 0.4s ease, opacity 0.3s ease, margin 0.3s ease;
 }
 .agent-detail-panel.open {
-  max-height: 600px;
+  max-height: min(70vh, 720px);
   opacity: 1;
   margin-bottom: 20px;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
 }
 .agent-detail-inner {
   background: var(--surface);
@@ -197,6 +236,9 @@ body {
   border-radius: 12px;
   padding: 20px 24px;
   box-shadow: 0 4px 24px rgba(59,130,246,0.1);
+  overflow-y: auto;
+  max-height: min(70vh, 720px);
+  min-height: 0;
 }
 .agent-detail-header {
   display: flex;
@@ -253,6 +295,7 @@ body {
   background: var(--surface2);
   border-radius: 8px;
   border: 1px solid var(--border);
+  min-width: 0;
 }
 .agent-ref-group-title {
   font-family: 'JetBrains Mono', monospace;
@@ -275,6 +318,7 @@ body {
   display: flex;
   flex-wrap: wrap;
   gap: 4px;
+  min-width: 0;
 }
 .agent-ref-item {
   font-family: 'JetBrains Mono', monospace;
@@ -282,6 +326,17 @@ body {
   padding: 2px 6px;
   border-radius: 3px;
   border: 1px solid;
+  max-width: 100%;
+  white-space: normal;
+  word-break: break-word;
+  overflow-wrap: break-word;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+.agent-ref-item .agent-ref-item-text {
+  min-width: 0;
 }
 .agent-ref-item.rules { color: var(--accent-rules); border-color: rgba(249,115,22,0.3); background: var(--glow-rules); }
 .agent-ref-item.skills { color: var(--accent-skills); border-color: rgba(6,182,212,0.3); background: var(--glow-skills); }
@@ -290,6 +345,8 @@ body {
 .agent-ref-item.template { color: var(--accent-template); border-color: rgba(244,63,94,0.3); background: var(--glow-template); }
 .agent-ref-item.agents { color: var(--accent-subagent); border-color: rgba(59,130,246,0.3); background: var(--glow-subagent); }
 .agent-ref-item.other { color: var(--text-dim); border-color: var(--border); background: var(--surface); }
+.agent-ref-item.invokes, .agent-ref-item.invokedBy { cursor: pointer; }
+.agent-ref-item.invokes:hover, .agent-ref-item.invokedBy:hover { border-color: var(--accent-subagent); color: var(--accent-subagent); }
 .no-refs { font-size: 11px; color: var(--text-dim); font-style: italic; }
 
 .sections {
@@ -704,7 +761,7 @@ body {
 <!-- Flow Steps (rendered by JS) -->
 <div class="flow-container">
   <div class="flow-title">▸ 협업 순서 (Collaboration Sequence)</div>
-  <div class="flow-hint">서브에이전트를 클릭하면 실행 시 참조하는 도구 목록이 표시됩니다</div>
+  <div class="flow-hint">각 스텝의 화살표(→)는 호출 관계(누가 누구를 호출하는지)를 나타냅니다. 에이전트 칩을 클릭하면 호출 관계와 참조 도구가 표시됩니다.</div>
   <div class="flow-steps" id="flowSteps"></div>
 </div>
 
@@ -794,8 +851,11 @@ const TREEMAP_DATA = {
     "frontend-agent.mdc": ".cursor/rules/frontend-agent.mdc",
     "language-policy.mdc": ".cursor/rules/language-policy.mdc",
     "post-change-test-verify.mdc": ".cursor/rules/post-change-test-verify.mdc",
+    "search-filter-form-design.mdc": ".cursor/rules/search-filter-form-design.mdc",
     "security-permissions.mdc": ".cursor/rules/security-permissions.mdc",
     "subagent-invoke.mdc": ".cursor/rules/subagent-invoke.mdc",
+    "treemap-consistency.mdc": ".cursor/rules/treemap-consistency.mdc",
+    "ux-frontend-standard-first.mdc": ".cursor/rules/ux-frontend-standard-first.mdc",
     "workflow-todos.mdc": ".cursor/rules/workflow-todos.mdc",
     "activity-statistics-domain": ".cursor/skills/activity-statistics-domain/SKILL.md",
     "api-permission-map": ".cursor/skills/api-permission-map/SKILL.md",
@@ -825,6 +885,7 @@ const TREEMAP_DATA = {
     "new-requirement": ".cursor/commands/new-requirement.md",
     "plan": ".cursor/commands/plan.md",
     "record-error-fix": ".cursor/commands/record-error-fix.md",
+    "release": "docs/cursor-subagents/release.md",
     "restart-all": ".cursor/commands/restart-all.md",
     "restart-backend": ".cursor/commands/restart-backend.md",
     "restart-db": ".cursor/commands/restart-db.md",
@@ -863,11 +924,27 @@ const TREEMAP_DATA = {
     "agent:RequirementsPastSearch": ".cursor/agents/RequirementsPastSearch.mdc",
     "agent:Review": ".cursor/agents/Review.mdc",
     "agent:Security": ".cursor/agents/Security.mdc",
+    "agent:UX-A11y": ".cursor/agents/UX-A11y.mdc",
+    "agent:UX-Components": ".cursor/agents/UX-Components.mdc",
+    "agent:UX-Layout": ".cursor/agents/UX-Layout.mdc",
     "agent:UX": ".cursor/agents/UX.mdc",
     "AGENT-COLLABORATION-ON-REQUIREMENT.md": "docs/workflow/AGENT-COLLABORATION-ON-REQUIREMENT.md",
     "AGENT-INSTRUCTION-AND-PERFORMANCE.md": "docs/workflow/AGENT-INSTRUCTION-AND-PERFORMANCE.md",
+    "ANALYSIS-backend-team-lead-vs-direct-invocation.md": "docs/workflow/ANALYSIS-backend-team-lead-vs-direct-invocation.md",
+    "ANALYSIS-design-doc-conflict-root-cause.md": "docs/workflow/ANALYSIS-design-doc-conflict-root-cause.md",
+    "ANALYSIS-implementation-phase-design-doc-usage.md": "docs/workflow/ANALYSIS-implementation-phase-design-doc-usage.md",
     "ANALYSIS-pending-approvals-scope-frontend-incomplete.md": "docs/workflow/ANALYSIS-pending-approvals-scope-frontend-incomplete.md",
     "ANALYSIS-requirement-authored-without-requirements-agent.md": "docs/workflow/ANALYSIS-requirement-authored-without-requirements-agent.md",
+    "ANALYSIS-requirement-doc-design-standards-feedback.md": "docs/workflow/ANALYSIS-requirement-doc-design-standards-feedback.md",
+    "ANALYSIS-requirement-doc-search-vs-path-pattern.md": "docs/workflow/ANALYSIS-requirement-doc-search-vs-path-pattern.md",
+    "ANALYSIS-same-case-yyyyMMdd-path-pattern-by-agent.md": "docs/workflow/ANALYSIS-same-case-yyyyMMdd-path-pattern-by-agent.md",
+    "ANALYSIS-search-field-design-doc-reference-gaps.md": "docs/workflow/ANALYSIS-search-field-design-doc-reference-gaps.md",
+    "ANALYSIS-search-window-size-and-tools-improvement.md": "docs/workflow/ANALYSIS-search-window-size-and-tools-improvement.md",
+    "ANALYSIS-statistics-extra-block-row-placement.md": "docs/workflow/ANALYSIS-statistics-extra-block-row-placement.md",
+    "ANALYSIS-tool-improvement-from-design-standards-feedback.md": "docs/workflow/ANALYSIS-tool-improvement-from-design-standards-feedback.md",
+    "ANALYSIS-treemap-main-invokes-all-step-agents.md": "docs/workflow/ANALYSIS-treemap-main-invokes-all-step-agents.md",
+    "ANALYSIS-user-field-size-activity-log-vs-statistics.md": "docs/workflow/ANALYSIS-user-field-size-activity-log-vs-statistics.md",
+    "ANALYSIS-ux-standard-first-vs-existing-docs.md": "docs/workflow/ANALYSIS-ux-standard-first-vs-existing-docs.md",
     "BROWSER-AUTOMATION-VERIFICATION-POLICY.md": "docs/workflow/BROWSER-AUTOMATION-VERIFICATION-POLICY.md",
     "CONSISTENCY-STANDARDS.md": "docs/workflow/CONSISTENCY-STANDARDS.md",
     "CONTEXT-QUALITY-AND-ORCHESTRATION-MITIGATION.md": "docs/workflow/CONTEXT-QUALITY-AND-ORCHESTRATION-MITIGATION.md",
@@ -879,15 +956,27 @@ const TREEMAP_DATA = {
     "DEVELOPMENT_WORKFLOW.md": "docs/workflow/DEVELOPMENT_WORKFLOW.md",
     "DOC-CODE-SYNC.md": "docs/workflow/DOC-CODE-SYNC.md",
     "DOCUMENT-LANGUAGE-POLICY.md": "docs/workflow/DOCUMENT-LANGUAGE-POLICY.md",
+    "DRYRUN-20260311-activity-log-row1-date-row2-rest.md": "docs/workflow/DRYRUN-20260311-activity-log-row1-date-row2-rest.md",
+    "DRYRUN-20260311-activity-log-single-row-handoff.md": "docs/workflow/DRYRUN-20260311-activity-log-single-row-handoff.md",
     "DRYRUN-backend-team-lead-handoff.md": "docs/workflow/DRYRUN-backend-team-lead-handoff.md",
+    "DRYRUN-css-standard-and-exceptions-handoff.md": "docs/workflow/DRYRUN-css-standard-and-exceptions-handoff.md",
+    "DRYRUN-frontend-design-rules-without-req-bullets.md": "docs/workflow/DRYRUN-frontend-design-rules-without-req-bullets.md",
+    "DRYRUN-handoff-after-search-field-doc-improvements.md": "docs/workflow/DRYRUN-handoff-after-search-field-doc-improvements.md",
     "DRYRUN-handoff-verification-report.md": "docs/workflow/DRYRUN-handoff-verification-report.md",
+    "DRYRUN-implementation-phase-design-doc-handoff.md": "docs/workflow/DRYRUN-implementation-phase-design-doc-handoff.md",
+    "DRYRUN-paging-standard-handoff.md": "docs/workflow/DRYRUN-paging-standard-handoff.md",
     "DRYRUN-search-consistency-changes.md": "docs/workflow/DRYRUN-search-consistency-changes.md",
+    "DRYRUN-search-ui-unify-handoff.md": "docs/workflow/DRYRUN-search-ui-unify-handoff.md",
+    "DRYRUN-tool-changes-verification.md": "docs/workflow/DRYRUN-tool-changes-verification.md",
+    "DRYRUN-tool-edit-hooks-release-handoff.md": "docs/workflow/DRYRUN-tool-edit-hooks-release-handoff.md",
     "DRYRUN-user-search-fields-improvement.md": "docs/workflow/DRYRUN-user-search-fields-improvement.md",
     "ERROR-FIX-WORKFLOW-FLOWCHART.md": "docs/workflow/ERROR-FIX-WORKFLOW-FLOWCHART.md",
     "HANDOFF-CHECKLIST.md": "docs/workflow/HANDOFF-CHECKLIST.md",
     "HANDOFF-CONTEXT-QUALITY-SESSION.md": "docs/workflow/HANDOFF-CONTEXT-QUALITY-SESSION.md",
     "IMPROVEMENT-STRUCTURAL-ENFORCEMENT.md": "docs/workflow/IMPROVEMENT-STRUCTURAL-ENFORCEMENT.md",
     "PLAN-approval-only-group-tool-generalization.md": "docs/workflow/PLAN-approval-only-group-tool-generalization.md",
+    "QA-FEEDBACK-TO-UX-activity-log-statistics-search.md": "docs/workflow/QA-FEEDBACK-TO-UX-activity-log-statistics-search.md",
+    "RECOMMENDATION-requirement-doc-ref-display.md": "docs/workflow/RECOMMENDATION-requirement-doc-ref-display.md",
     "RELEASE_CHECKLIST.md": "docs/workflow/RELEASE_CHECKLIST.md",
     "REQUIREMENT-DATE-YEAR-ANALYSIS.md": "docs/workflow/REQUIREMENT-DATE-YEAR-ANALYSIS.md",
     "REQUIREMENTS-AUTHORING-WORKFLOW.md": "docs/workflow/REQUIREMENTS-AUTHORING-WORKFLOW.md",
@@ -895,6 +984,8 @@ const TREEMAP_DATA = {
     "REVIEW-agent-role-common-rules.md": "docs/workflow/REVIEW-agent-role-common-rules.md",
     "SUBAGENT-DELEGATION.md": "docs/workflow/SUBAGENT-DELEGATION.md",
     "SUBAGENT-MODEL-SELECTION.md": "docs/workflow/SUBAGENT-MODEL-SELECTION.md",
+    "UX-REVIEW-activity-log-search-window.md": "docs/workflow/UX-REVIEW-activity-log-search-window.md",
+    "UX-ROLE-SEPARATION-DESIGN.md": "docs/workflow/UX-ROLE-SEPARATION-DESIGN.md",
     "WHY-TESTS-VERIFY-NOT-AUTO.md": "docs/workflow/WHY-TESTS-VERIFY-NOT-AUTO.md",
     "WORKFLOW_CHECKLIST.md": "docs/workflow/WORKFLOW_CHECKLIST.md",
     "WORKFLOW_MODES.md": "docs/workflow/WORKFLOW_MODES.md",
@@ -921,10 +1012,12 @@ const TREEMAP_DATA = {
     "frontend": "docs/cursor-subagents/frontend.md",
     "past-requirements-search": "docs/cursor-subagents/past-requirements-search.md",
     "qa-test": "docs/cursor-subagents/qa-test.md",
-    "release": "docs/cursor-subagents/release.md",
     "requirements": "docs/cursor-subagents/requirements.md",
     "security": "docs/cursor-subagents/security.md",
+    "ux-a11y": "docs/cursor-subagents/ux-a11y.md",
+    "ux-components": "docs/cursor-subagents/ux-components.md",
     "ux-design": "docs/cursor-subagents/ux-design.md",
+    "ux-layout": "docs/cursor-subagents/ux-layout.md",
     "docs/contract.md": "docs/contract.md",
     "docs/security-guide.md": "docs/security-guide.md",
     "docs/api-definition.md": "docs/api-definition.md",
@@ -937,6 +1030,10 @@ const TREEMAP_DATA = {
     "Architecture": {
       "step": "Step 3",
       "scope": "Architecture expert. Review system/feature design for performance, scalability, and trade-offs. No code changes; propose design notes and recommendations.",
+      "invokes": [],
+      "invokedBy": [
+        "Main"
+      ],
       "rules": [],
       "skills": [
         "search-history-decrypt-domain",
@@ -959,6 +1056,10 @@ const TREEMAP_DATA = {
     "Backend-ActivityLog": {
       "step": "Step 4",
       "scope": "Backend activity log and statistics only — ActivityStatistics*, UserActivityLog*, ActivityLogAspect. Use when task is activity/statistics-only.",
+      "invokes": [],
+      "invokedBy": [
+        "Backend"
+      ],
       "rules": [],
       "skills": [
         "activity-statistics-domain"
@@ -977,6 +1078,10 @@ const TREEMAP_DATA = {
     "Backend-Auth": {
       "step": "Step 4",
       "scope": "Backend auth only — login, AuthController, AuthService, AuthInterceptor. Use when task is auth-only.",
+      "invokes": [],
+      "invokedBy": [
+        "Backend"
+      ],
       "rules": [],
       "skills": [
         "auth-permission-domain",
@@ -998,6 +1103,10 @@ const TREEMAP_DATA = {
     "Backend-Log": {
       "step": "Step 4",
       "scope": "Backend log DB, search, decrypt, log type only — LogDb*, SearchSuggest*, Decrypt*, LogType*. Use when task is log/search/decrypt-only. - \"backend/src/main/java/**/*LogDb*\" - \"backend/src/main/java/**/*Decrypt*\" - \"backend/src/main/java/**/*SearchSuggest*\" - \"backend/src/main/java/**/*LogType*\"",
+      "invokes": [],
+      "invokedBy": [
+        "Backend"
+      ],
       "rules": [],
       "skills": [
         "log-search-domain",
@@ -1019,7 +1128,15 @@ const TREEMAP_DATA = {
     },
     "Backend": {
       "step": "Step 4",
-      "scope": "Backend team lead. Main invokes Backend only; may delegate to Backend-Auth/ActivityLog/Log. Single build/restart, §2 aggregation. Modify backend/ only; API and DB per contract and specs.",
+      "scope": "Backend team lead. Main invokes Backend only; prefer delegating to Backend-Auth/ActivityLog/Log when scope matches. Single build/restart, §2 aggregation. Modify backend/ only; API and DB per contract and specs.",
+      "invokes": [
+        "Backend-Auth",
+        "Backend-ActivityLog",
+        "Backend-Log"
+      ],
+      "invokedBy": [
+        "Main"
+      ],
       "rules": [
         "build-restart-handoff"
       ],
@@ -1030,12 +1147,12 @@ const TREEMAP_DATA = {
       ],
       "commands": [],
       "workflow": [
+        "HANDOFF-CHECKLIST",
         "DEVELOPMENT_WORKFLOW",
         "AGENT-COLLABORATION-ON-REQUIREMENT",
         "DEVELOPMENT-QUERY-EXPERTS",
         "REQUIREMENTS-AUTHORING-WORKFLOW",
         "SUBAGENT-DELEGATION",
-        "HANDOFF-CHECKLIST",
         "CONSISTENCY-STANDARDS",
         "CURSOR-SUBAGENTS-DESIGN"
       ],
@@ -1044,7 +1161,8 @@ const TREEMAP_DATA = {
       ],
       "agents": [],
       "other": [
-        "docs/requirements/yyyyMMdd-name.md",
+        "docs/cursor-subagents/backend.md",
+        "docs/requirements/TOPIC-INDEX.md",
         "backend/src/main/resources/db/schema.sql",
         "docs/contract.md",
         "specs/*.spec.yaml",
@@ -1056,6 +1174,10 @@ const TREEMAP_DATA = {
     "Consistency": {
       "step": "Step 3",
       "scope": "Defines and maintains project standards (naming, structure, error codes, conventions). No code changes; no review execution.",
+      "invokes": [],
+      "invokedBy": [
+        "Main"
+      ],
       "rules": [],
       "skills": [
         "error-codes-domain"
@@ -1076,6 +1198,10 @@ const TREEMAP_DATA = {
     "Contract": {
       "step": "Step 3",
       "scope": "Define and update API contract (contract.md, specs). Single source of truth. No code changes.",
+      "invokes": [],
+      "invokedBy": [
+        "Main"
+      ],
       "rules": [],
       "skills": [],
       "commands": [],
@@ -1093,6 +1219,10 @@ const TREEMAP_DATA = {
     "DB": {
       "step": "Step 4",
       "scope": "DB schema, migrations, config. Modify backend/.../db/ only. Contract compliant.",
+      "invokes": [],
+      "invokedBy": [
+        "Main"
+      ],
       "rules": [],
       "skills": [
         "db-domain"
@@ -1111,7 +1241,7 @@ const TREEMAP_DATA = {
       "agents": [],
       "other": [
         "docs/contract.md",
-        "docs/requirements/yyyyMMdd-name.md",
+        "docs/requirements/TOPIC-INDEX.md",
         "backend/src/main/resources/db/schema.sql",
         "backend/DB_SETUP_GUIDE.md"
       ]
@@ -1119,6 +1249,10 @@ const TREEMAP_DATA = {
     "DBA": {
       "step": "Step 3",
       "scope": "DBA perspective reviewer. Review schema and data design (indexing, JSON vs relational, performance, constraints). No code changes; propose design notes.",
+      "invokes": [],
+      "invokedBy": [
+        "Main"
+      ],
       "rules": [],
       "skills": [
         "search-history-decrypt-domain",
@@ -1141,6 +1275,10 @@ const TREEMAP_DATA = {
     "Documentation": {
       "step": "Step 6",
       "scope": "User-facing and operations docs only. README, QUICK_START, deployment, runbooks. No requirement docs, no API spec, no code.",
+      "invokes": [],
+      "invokedBy": [
+        "Main"
+      ],
       "rules": [],
       "skills": [],
       "commands": [],
@@ -1158,6 +1296,10 @@ const TREEMAP_DATA = {
     "Frontend-ActivityLog": {
       "step": "Step 4",
       "scope": "Frontend activity log and statistics UI only — ActivityStatistics, UserActivityLog/*, Statistics*. Use when task is activity/statistics-only. - \"frontend/src/components/ActivityStatistics*\" - \"frontend/src/components/UserActivityLog/*\" - \"frontend/src/services/userActivityLogService*\"",
+      "invokes": [],
+      "invokedBy": [
+        "Frontend"
+      ],
       "rules": [],
       "skills": [
         "react-debugging",
@@ -1170,6 +1312,17 @@ const TREEMAP_DATA = {
       "templates": [],
       "agents": [],
       "other": [
+        "docs/design/README.md",
+        "docs/design/layout-and-navigation.md",
+        "docs/design/grid-and-table.md",
+        "docs/design/forms-and-filters.md",
+        "docs/design/date-search.md",
+        "docs/design/search-fields-by-screen.md",
+        "docs/design/search-field-definition-items.md",
+        "docs/design/buttons.md",
+        "docs/design/text-input.md",
+        "docs/design/css-standard-and-exceptions.md",
+        "docs/design/ux-frontend-standard-principles.md",
         "docs/contract.md",
         "docs/cursor-subagents/frontend-activity-log.md"
       ]
@@ -1177,6 +1330,10 @@ const TREEMAP_DATA = {
     "Frontend-Auth": {
       "step": "Step 4",
       "scope": "Frontend auth UI only — LoginForm, login flow, auth state. Use when task is auth-only.",
+      "invokes": [],
+      "invokedBy": [
+        "Frontend"
+      ],
       "rules": [],
       "skills": [
         "react-debugging",
@@ -1191,6 +1348,12 @@ const TREEMAP_DATA = {
       "agents": [],
       "other": [
         "docs/security-guide.md",
+        "docs/design/README.md",
+        "docs/design/layout-and-navigation.md",
+        "docs/design/forms-and-filters.md",
+        "docs/design/buttons.md",
+        "docs/design/text-input.md",
+        "docs/design/ux-frontend-standard-principles.md",
         "docs/contract.md",
         "docs/cursor-subagents/frontend-auth.md"
       ]
@@ -1198,6 +1361,10 @@ const TREEMAP_DATA = {
     "Frontend-Log": {
       "step": "Step 4",
       "scope": "Frontend log/search/log-type UI only — LogGrid, LogTable, ImageLog*, SearchForm, LogTypeSelector. Use when task is log-only. - \"frontend/src/components/LogGrid*\" - \"frontend/src/components/LogTable*\" - \"frontend/src/components/ImageLog*\" - \"frontend/src/components/SearchForm*\" - \"frontend/src/components/AdvancedSearchForm*\" - \"frontend/src/components/LogTypeSelector*\"",
+      "invokes": [],
+      "invokedBy": [
+        "Frontend"
+      ],
       "rules": [],
       "skills": [
         "react-debugging",
@@ -1212,13 +1379,32 @@ const TREEMAP_DATA = {
       "agents": [],
       "other": [
         "docs/security-guide.md",
+        "docs/design/README.md",
+        "docs/design/layout-and-navigation.md",
+        "docs/design/grid-and-table.md",
+        "docs/design/forms-and-filters.md",
+        "docs/design/date-search.md",
+        "docs/design/search-fields-by-screen.md",
+        "docs/design/search-field-definition-items.md",
+        "docs/design/buttons.md",
+        "docs/design/text-input.md",
+        "docs/design/css-standard-and-exceptions.md",
+        "docs/design/ux-frontend-standard-principles.md",
         "docs/contract.md",
         "docs/cursor-subagents/frontend-log.md"
       ]
     },
     "Frontend": {
       "step": "Step 4",
-      "scope": "Frontend development, requirement docs, tests. frontend/ only. API per contract and specs. Scope boundaries, a11y, performance.",
+      "scope": "Frontend team lead. Prefer delegating to Frontend-Auth/ActivityLog/Log when scope matches. frontend/ only. API per contract and specs. Scope boundaries, a11y, performance.",
+      "invokes": [
+        "Frontend-Auth",
+        "Frontend-ActivityLog",
+        "Frontend-Log"
+      ],
+      "invokedBy": [
+        "Main"
+      ],
       "rules": [
         "build-restart-handoff"
       ],
@@ -1231,9 +1417,11 @@ const TREEMAP_DATA = {
       ],
       "commands": [],
       "workflow": [
+        "HANDOFF-CHECKLIST",
         "DEVELOPMENT_WORKFLOW",
         "AGENT-COLLABORATION-ON-REQUIREMENT",
         "DEVELOPMENT-QUERY-EXPERTS",
+        "UX-ROLE-SEPARATION-DESIGN",
         "REQUIREMENTS-AUTHORING-WORKFLOW",
         "CURSOR-SUBAGENTS-DESIGN",
         "BROWSER-AUTOMATION-MCP"
@@ -1243,9 +1431,20 @@ const TREEMAP_DATA = {
       ],
       "agents": [],
       "other": [
-        "docs/contract.md",
-        "docs/security-guide.md",
         "docs/cursor-subagents/frontend.md",
+        "docs/contract.md",
+        "docs/design/README.md",
+        "docs/design/layout-and-navigation.md",
+        "docs/design/grid-and-table.md",
+        "docs/design/forms-and-filters.md",
+        "docs/design/date-search.md",
+        "docs/design/search-fields-by-screen.md",
+        "docs/design/search-field-definition-items.md",
+        "docs/design/buttons.md",
+        "docs/design/text-input.md",
+        "docs/design/css-standard-and-exceptions.md",
+        "docs/design/ux-frontend-standard-principles.md",
+        "docs/security-guide.md",
         "docs/cursor-subagents/frontend-auth.md",
         "frontend-activity-log.md",
         "frontend-log.md",
@@ -1255,6 +1454,12 @@ const TREEMAP_DATA = {
     "QA": {
       "step": "Step 5",
       "scope": "Test scenarios, verification checklists, test result documentation. Focus on test design and docs.",
+      "invokes": [
+        "Requirements"
+      ],
+      "invokedBy": [
+        "Main"
+      ],
       "rules": [],
       "skills": [
         "test-workflow"
@@ -1290,6 +1495,10 @@ const TREEMAP_DATA = {
     "Release": {
       "step": "Step 6",
       "scope": "Changelog, version, and release checklist only. No user guides, no code, no requirement docs.",
+      "invokes": [],
+      "invokedBy": [
+        "Main"
+      ],
       "rules": [],
       "skills": [],
       "commands": [
@@ -1310,6 +1519,13 @@ const TREEMAP_DATA = {
     "Requirements": {
       "step": "Step 1",
       "scope": "Requirement and spec document authoring only. No code changes. docs/requirements/, specs/",
+      "invokes": [
+        "RequirementsPastSearch"
+      ],
+      "invokedBy": [
+        "Main",
+        "QA"
+      ],
       "rules": [],
       "skills": [
         "requirement-doc",
@@ -1330,16 +1546,20 @@ const TREEMAP_DATA = {
       ],
       "agents": [],
       "other": [
-        "docs/requirements/yyyyMMdd-name.md",
         "specs/name.spec.yaml",
         "name.spec.yaml",
-        "yyyyMMdd-name.md",
-        "docs/contract.md"
+        "docs/contract.md",
+        "docs/requirements/TOPIC-INDEX.md"
       ]
     },
     "RequirementsPastSearch": {
       "step": "Step 1",
       "scope": "Search past requirement docs and summarize user-requested content so new requirements preserve it. Read-only; no code or doc edits.",
+      "invokes": [],
+      "invokedBy": [
+        "Main",
+        "Requirements"
+      ],
       "rules": [],
       "skills": [],
       "commands": [],
@@ -1352,13 +1572,16 @@ const TREEMAP_DATA = {
       "other": [
         "docs/requirements/*.md",
         "docs/requirements/TOPIC-INDEX.md",
-        "yyyyMMdd-name.md",
         "docs/cursor-subagents/past-requirements-search.md"
       ]
     },
     "Review": {
       "step": "Step 4.5",
       "scope": "Code and change review only. Checks contract, workflow, and quality against checklist. No code changes; suggests fixes for implementing agents.",
+      "invokes": [],
+      "invokedBy": [
+        "Main"
+      ],
       "rules": [],
       "skills": [
         "auth-permission-domain",
@@ -1381,6 +1604,10 @@ const TREEMAP_DATA = {
     "Security": {
       "step": "Step 2",
       "scope": "Security reviewer. Review requirements and design for PII, access control, decryption scope. No code changes; propose security sections and design.",
+      "invokes": [],
+      "invokedBy": [
+        "Main"
+      ],
       "rules": [],
       "skills": [
         "api-permission-map",
@@ -1404,13 +1631,102 @@ const TREEMAP_DATA = {
         "docs/security-guide.md"
       ]
     },
-    "UX": {
+    "UX-A11y": {
       "step": "Step 3",
-      "scope": "Design and UX review only. Accessibility, UI consistency, design system, layout and navigation. No code; Frontend implements.",
+      "scope": "UX accessibility review only — WCAG 2.1 AA, ARIA, keyboard, contrast. Use when task is a11y-only.",
+      "invokes": [],
+      "invokedBy": [
+        "UX"
+      ],
       "rules": [],
       "skills": [],
       "commands": [],
       "workflow": [
+        "UX-ROLE-SEPARATION-DESIGN"
+      ],
+      "templates": [],
+      "agents": [],
+      "other": [
+        "docs/design/README.md",
+        "docs/design/buttons.md",
+        "docs/design/grid-and-table.md",
+        "docs/design/forms-and-filters.md",
+        "docs/cursor-subagents/ux-a11y.md"
+      ]
+    },
+    "UX-Components": {
+      "step": "Step 3",
+      "scope": "UX design system / components review only — buttons, forms, filters, grid/table. Use when task is component consistency-only.",
+      "invokes": [],
+      "invokedBy": [
+        "UX"
+      ],
+      "rules": [],
+      "skills": [],
+      "commands": [],
+      "workflow": [
+        "UX-ROLE-SEPARATION-DESIGN"
+      ],
+      "templates": [],
+      "agents": [],
+      "other": [
+        "docs/design/README.md",
+        "docs/design/grid-and-table.md",
+        "docs/design/forms-and-filters.md",
+        "docs/design/date-search.md",
+        "docs/design/search-fields-by-screen.md",
+        "docs/design/search-field-definition-items.md",
+        "docs/design/buttons.md",
+        "docs/design/text-input.md",
+        "docs/design/ux-frontend-standard-principles.md",
+        "buttons.md",
+        "forms-and-filters.md",
+        "text-input.md",
+        "date-search.md",
+        "search-fields-by-screen.md",
+        "search-field-definition-items.md",
+        "docs/cursor-subagents/ux-components.md"
+      ]
+    },
+    "UX-Layout": {
+      "step": "Step 3",
+      "scope": "UX layout and navigation review only — app shell, sidebar, menu, z-index, overlays. Use when task is layout-only.",
+      "invokes": [],
+      "invokedBy": [
+        "UX"
+      ],
+      "rules": [
+        "UX"
+      ],
+      "skills": [],
+      "commands": [],
+      "workflow": [
+        "UX-ROLE-SEPARATION-DESIGN"
+      ],
+      "templates": [],
+      "agents": [],
+      "other": [
+        "docs/design/layout-and-navigation.md",
+        "docs/design/README.md",
+        "docs/cursor-subagents/ux-layout.md"
+      ]
+    },
+    "UX": {
+      "step": "Step 3",
+      "scope": "UX team lead. Design/UX review; prefer delegating to UX-A11y, UX-Layout, UX-Components when scope matches. No code; Frontend implements.",
+      "invokes": [
+        "UX-A11y",
+        "UX-Layout",
+        "UX-Components"
+      ],
+      "invokedBy": [
+        "Main"
+      ],
+      "rules": [],
+      "skills": [],
+      "commands": [],
+      "workflow": [
+        "UX-ROLE-SEPARATION-DESIGN",
         "BROWSER-AUTOMATION-MCP",
         "AGENT-COLLABORATION-ON-REQUIREMENT",
         "CURSOR-SUBAGENTS-DESIGN"
@@ -1419,13 +1735,16 @@ const TREEMAP_DATA = {
       "agents": [],
       "other": [
         "docs/design/grid-and-table.md",
+        "docs/design/README.md",
         "docs/design/layout-and-navigation.md",
+        "docs/design/forms-and-filters.md",
+        "docs/design/date-search.md",
+        "docs/design/search-fields-by-screen.md",
+        "docs/design/search-field-definition-items.md",
         "docs/design/buttons.md",
         "docs/design/text-input.md",
-        "docs/design/date-search.md",
-        "docs/design/forms-and-filters.md",
+        "docs/design/ux-frontend-standard-principles.md",
         ".cursor/mcp.json",
-        "docs/design/README.md",
         "docs/cursor-subagents/ux-design.md"
       ]
     }
@@ -1445,6 +1764,21 @@ const TREEMAP_DATA = {
           "light": true,
           "displayName": null
         }
+      ],
+      "invocations": [
+        {
+          "from": "Main",
+          "to": [
+            "Requirements",
+            "RequirementsPastSearch"
+          ]
+        },
+        {
+          "from": "Requirements",
+          "to": [
+            "RequirementsPastSearch"
+          ]
+        }
       ]
     },
     {
@@ -1455,6 +1789,14 @@ const TREEMAP_DATA = {
           "name": "Security",
           "light": false,
           "displayName": null
+        }
+      ],
+      "invocations": [
+        {
+          "from": "Main",
+          "to": [
+            "Security"
+          ]
         }
       ]
     },
@@ -1485,7 +1827,42 @@ const TREEMAP_DATA = {
         {
           "name": "UX",
           "light": false,
+          "displayName": "UX (팀장)"
+        },
+        {
+          "name": "UX-A11y",
+          "light": true,
           "displayName": null
+        },
+        {
+          "name": "UX-Components",
+          "light": true,
+          "displayName": null
+        },
+        {
+          "name": "UX-Layout",
+          "light": true,
+          "displayName": null
+        }
+      ],
+      "invocations": [
+        {
+          "from": "Main",
+          "to": [
+            "Architecture",
+            "Consistency",
+            "Contract",
+            "DBA",
+            "UX"
+          ]
+        },
+        {
+          "from": "UX",
+          "to": [
+            "UX-A11y",
+            "UX-Layout",
+            "UX-Components"
+          ]
         }
       ]
     },
@@ -1538,6 +1915,32 @@ const TREEMAP_DATA = {
           "light": true,
           "displayName": null
         }
+      ],
+      "invocations": [
+        {
+          "from": "Main",
+          "to": [
+            "Backend",
+            "DB",
+            "Frontend"
+          ]
+        },
+        {
+          "from": "Backend",
+          "to": [
+            "Backend-Auth",
+            "Backend-ActivityLog",
+            "Backend-Log"
+          ]
+        },
+        {
+          "from": "Frontend",
+          "to": [
+            "Frontend-Auth",
+            "Frontend-ActivityLog",
+            "Frontend-Log"
+          ]
+        }
       ]
     },
     {
@@ -1549,6 +1952,14 @@ const TREEMAP_DATA = {
           "light": false,
           "displayName": null
         }
+      ],
+      "invocations": [
+        {
+          "from": "Main",
+          "to": [
+            "Review"
+          ]
+        }
       ]
     },
     {
@@ -1559,6 +1970,20 @@ const TREEMAP_DATA = {
           "name": "QA",
           "light": false,
           "displayName": null
+        }
+      ],
+      "invocations": [
+        {
+          "from": "Main",
+          "to": [
+            "QA"
+          ]
+        },
+        {
+          "from": "QA",
+          "to": [
+            "Requirements"
+          ]
         }
       ]
     },
@@ -1575,6 +2000,15 @@ const TREEMAP_DATA = {
           "name": "Release",
           "light": true,
           "displayName": null
+        }
+      ],
+      "invocations": [
+        {
+          "from": "Main",
+          "to": [
+            "Documentation",
+            "Release"
+          ]
         }
       ]
     }
@@ -1913,6 +2347,47 @@ const TREEMAP_DATA = {
           ]
         },
         {
+          "name": "search-filter-form-design.mdc",
+          "desc": "When changing search/filter form UI, follow field-level design docs; use single wrapper for control sizing; width by role; if standard undefined, inform user and do not implement first.",
+          "refs": [
+            {
+              "name": "docs/design/ux-frontend-standard-principles.md",
+              "type": "other",
+              "path": "docs/design/ux-frontend-standard-principles.md"
+            },
+            {
+              "name": "docs/design/search-field-definition-items.md",
+              "type": "other",
+              "path": "docs/design/search-field-definition-items.md"
+            },
+            {
+              "name": "docs/design/search-fields-by-screen.md",
+              "type": "other",
+              "path": "docs/design/search-fields-by-screen.md"
+            },
+            {
+              "name": "docs/design/forms-and-filters.md",
+              "type": "other",
+              "path": "docs/design/forms-and-filters.md"
+            },
+            {
+              "name": "docs/design/css-standard-and-exceptions.md",
+              "type": "other",
+              "path": "docs/design/css-standard-and-exceptions.md"
+            },
+            {
+              "name": "ANALYSIS-user-field-size-activity-log-vs-statistics.md",
+              "type": "workflow",
+              "path": "docs/workflow/ANALYSIS-user-field-size-activity-log-vs-statistics.md"
+            },
+            {
+              "name": "ux-frontend-standard-principles.md",
+              "type": "other",
+              "path": "ux-frontend-standard-principles.md"
+            }
+          ]
+        },
+        {
           "name": "security-permissions.mdc",
           "desc": "읽기/실행 금지 경로, 위험 명령 확인 필수.",
           "refs": [
@@ -1956,6 +2431,103 @@ const TREEMAP_DATA = {
               "name": "README.md",
               "type": "other",
               "path": ".cursor/subagents/README.md"
+            }
+          ]
+        },
+        {
+          "name": "treemap-consistency.mdc",
+          "desc": "위임·요건문서 ref 일관성: 트리맵 스크립트를 단일 소스로 유지. 에이전트/워크플로 변경 후 generate-treemap.js 실행.",
+          "refs": [
+            {
+              "name": "SUBAGENT-DELEGATION.md",
+              "type": "workflow",
+              "path": "docs/workflow/SUBAGENT-DELEGATION.md"
+            },
+            {
+              "name": "docs/requirements/yyyyMMdd-name.md",
+              "type": "other",
+              "path": "docs/requirements/yyyyMMdd-name.md"
+            },
+            {
+              "name": "RECOMMENDATION-requirement-doc-ref-display.md",
+              "type": "workflow",
+              "path": "docs/workflow/RECOMMENDATION-requirement-doc-ref-display.md"
+            },
+            {
+              "name": "after-file-edit-treemap.sh",
+              "type": "other",
+              "path": ".cursor/hooks/after-file-edit-treemap.sh"
+            },
+            {
+              "name": "hooks.json",
+              "type": "other",
+              "path": ".cursor/hooks.json"
+            },
+            {
+              "name": "setup-hooks.sh",
+              "type": "other",
+              "path": "./scripts/setup-hooks.sh"
+            },
+            {
+              "name": "AGENT-COLLABORATION-ON-REQUIREMENT.md",
+              "type": "other",
+              "path": "AGENT-COLLABORATION-ON-REQUIREMENT.md"
+            },
+            {
+              "name": "ANALYSIS-requirement-doc-search-vs-path-pattern.md",
+              "type": "workflow",
+              "path": "docs/workflow/ANALYSIS-requirement-doc-search-vs-path-pattern.md"
+            }
+          ]
+        },
+        {
+          "name": "ux-frontend-standard-first.mdc",
+          "desc": "UX/Frontend standard-first agent. Prefer common standards over per-screen implementation; when standard is undefined or unclear, inform user and ask for standard definition before implementing.",
+          "refs": [
+            {
+              "name": "docs/design/README.md",
+              "type": "other",
+              "path": "docs/design/README.md"
+            },
+            {
+              "name": "docs/design/ux-frontend-standard-principles.md",
+              "type": "other",
+              "path": "docs/design/ux-frontend-standard-principles.md"
+            },
+            {
+              "name": "docs/design/grid-and-table.md",
+              "type": "other",
+              "path": "docs/design/grid-and-table.md"
+            },
+            {
+              "name": "docs/design/layout-and-navigation.md",
+              "type": "other",
+              "path": "docs/design/layout-and-navigation.md"
+            },
+            {
+              "name": "docs/design/forms-and-filters.md",
+              "type": "other",
+              "path": "docs/design/forms-and-filters.md"
+            },
+            {
+              "name": "docs/design/search-fields-by-screen.md",
+              "type": "other",
+              "path": "docs/design/search-fields-by-screen.md"
+            },
+            {
+              "name": "docs/design/css-standard-and-exceptions.md",
+              "type": "other",
+              "path": "docs/design/css-standard-and-exceptions.md"
+            },
+            {
+              "name": "ux-frontend-standard-principles.md",
+              "type": "other",
+              "path": "ux-frontend-standard-principles.md"
+            },
+            {
+              "name": "css-standard-and-exceptions.md",
+              "type": "other",
+              "path": "css-standard-and-exceptions.md"
             }
           ]
         },
@@ -2063,6 +2635,16 @@ const TREEMAP_DATA = {
                 "name": "REQUIREMENTS-AUTHORING-WORKFLOW.md",
                 "type": "workflow",
                 "path": "docs/workflow/REQUIREMENTS-AUTHORING-WORKFLOW.md"
+              },
+              {
+                "name": "docs/design/ux-frontend-standard-principles.md",
+                "type": "other",
+                "path": "docs/design/ux-frontend-standard-principles.md"
+              },
+              {
+                "name": "ANALYSIS-user-field-size-activity-log-vs-statistics.md",
+                "type": "workflow",
+                "path": "docs/workflow/ANALYSIS-user-field-size-activity-log-vs-statistics.md"
               },
               {
                 "name": "REQUIREMENT_TEMPLATE.md",
@@ -2336,6 +2918,16 @@ const TREEMAP_DATA = {
                 "name": "docs/analysis-search-consistency-by-screen.md",
                 "type": "other",
                 "path": "docs/analysis-search-consistency-by-screen.md"
+              },
+              {
+                "name": "docs/requirements/20260310-search-ui-unify.md",
+                "type": "other",
+                "path": "docs/requirements/20260310-search-ui-unify.md"
+              },
+              {
+                "name": "docs/design/forms-and-filters.md",
+                "type": "other",
+                "path": "docs/design/forms-and-filters.md"
               }
             ]
           },
@@ -2390,6 +2982,21 @@ const TREEMAP_DATA = {
                 "name": "docs/analysis-search-consistency-by-screen.md",
                 "type": "other",
                 "path": "docs/analysis-search-consistency-by-screen.md"
+              },
+              {
+                "name": "docs/design/search-fields-by-screen.md",
+                "type": "other",
+                "path": "docs/design/search-fields-by-screen.md"
+              },
+              {
+                "name": "docs/design/search-field-definition-items.md",
+                "type": "other",
+                "path": "docs/design/search-field-definition-items.md"
+              },
+              {
+                "name": "UX-ROLE-SEPARATION-DESIGN.md",
+                "type": "workflow",
+                "path": "docs/workflow/UX-ROLE-SEPARATION-DESIGN.md"
               }
             ]
           }
@@ -2432,6 +3039,11 @@ const TREEMAP_DATA = {
           {
             "name": "record-error-fix",
             "desc": "§6 에러 수정 결과 기록",
+            "category": "workflow"
+          },
+          {
+            "name": "release",
+            "desc": "Release 서브에이전트: CHANGELOG·체크리스트 갱신 후 커밋 및 push",
             "category": "workflow"
           },
           {
@@ -2574,128 +3186,6 @@ const TREEMAP_DATA = {
                 "path": "docs/template/REQUIREMENT_TEMPLATE.md"
               }
             ]
-          },
-          {
-            "name": "DEVELOPMENT_WORKFLOW.md",
-            "desc": "개발 워크플로우 상세 절차.",
-            "refs": [
-              {
-                "name": "WORKFLOW_CHECKLIST.md",
-                "type": "other",
-                "path": "WORKFLOW_CHECKLIST.md"
-              },
-              {
-                "name": "docs-reference.mdc",
-                "type": "rules",
-                "path": "docs-reference.mdc"
-              },
-              {
-                "name": "docs/requirements/20260206-image-log-datastring-search.md",
-                "type": "other",
-                "path": "docs/requirements/20260206-image-log-datastring-search.md"
-              },
-              {
-                "name": "docs/requirements/20260206-user-authentication-improvement.md",
-                "type": "other",
-                "path": "docs/requirements/20260206-user-authentication-improvement.md"
-              },
-              {
-                "name": "user-management.spec.yaml",
-                "type": "other",
-                "path": "specs/user-management.spec.yaml"
-              },
-              {
-                "name": "advanced-search.spec.yaml",
-                "type": "other",
-                "path": "specs/advanced-search.spec.yaml"
-              },
-              {
-                "name": "docs/requirements/yyyyMMdd-요건명.md",
-                "type": "other",
-                "path": "docs/requirements/yyyyMMdd-요건명.md"
-              },
-              {
-                "name": "요건명.spec.yaml",
-                "type": "other",
-                "path": "specs/요건명.spec.yaml"
-              },
-              {
-                "name": "docs/requirements/{부모ID}-bugfix-{N}.md",
-                "type": "other",
-                "path": "docs/requirements/{부모ID}-bugfix-{N}.md"
-              },
-              {
-                "name": "commit-on-complete",
-                "type": "commands",
-                "path": ".cursor/commands/commit-on-complete.md"
-              },
-              {
-                "name": "ERROR-FIX-WORKFLOW-FLOWCHART.md",
-                "type": "other",
-                "path": "ERROR-FIX-WORKFLOW-FLOWCHART.md"
-              },
-              {
-                "name": "CURSOR-AND-TOOLS-INTEGRATION.md",
-                "type": "other",
-                "path": "CURSOR-AND-TOOLS-INTEGRATION.md"
-              }
-            ]
-          },
-          {
-            "name": "SUBAGENT-DELEGATION.md",
-            "desc": "Step별 서브에이전트 위임. 백엔드: Main→Backend(팀장)만 호출; Backend가 Backend-Auth/ActivityLog/Log 위임·§2 집계·빌드 1회.",
-            "refs": [
-              {
-                "name": "REQUIREMENTS-CHANGE-TARGET-CHECKLIST.md",
-                "type": "other",
-                "path": "REQUIREMENTS-CHANGE-TARGET-CHECKLIST.md"
-              },
-              {
-                "name": "docs/contract.md",
-                "type": "other",
-                "path": "docs/contract.md"
-              },
-              {
-                "name": "CONSISTENCY-STANDARDS.md",
-                "type": "other",
-                "path": "CONSISTENCY-STANDARDS.md"
-              },
-              {
-                "name": "HANDOFF-CHECKLIST.md",
-                "type": "other",
-                "path": "HANDOFF-CHECKLIST.md"
-              },
-              {
-                "name": "commit-on-complete",
-                "type": "commands",
-                "path": ".cursor/commands/commit-on-complete.md"
-              },
-              {
-                "name": "SUBAGENT-MODEL-SELECTION.md",
-                "type": "other",
-                "path": "SUBAGENT-MODEL-SELECTION.md"
-              },
-              {
-                "name": "docs/cursor-subagents/db.md",
-                "type": "other",
-                "path": "docs/cursor-subagents/db.md"
-              },
-              {
-                "name": "REQUIREMENT_TEMPLATE.md",
-                "type": "templates",
-                "path": "docs/template/REQUIREMENT_TEMPLATE.md"
-              },
-              {
-                "name": "verify",
-                "type": "commands",
-                "path": ".cursor/commands/verify.md"
-              },
-              {
-                "name": "agent-collaboration.mdc",
-                "type": "rules",
-                "path": ".cursor/rules/agent-collaboration.mdc"
-              }
-            ]
           }
         ],
         "기타 워크플로우 문서": [
@@ -2727,6 +3217,99 @@ const TREEMAP_DATA = {
                 "name": "moai-constitution.md",
                 "type": "other",
                 "path": "https://github.com/modu-ai/moai-adk/blob/main/.claude/rules/moai/core/moai-constitution.md"
+              }
+            ]
+          },
+          {
+            "name": "ANALYSIS-backend-team-lead-vs-direct-invocation.md",
+            "desc": "Analysis: Backend Team Lead vs Main Direct Invocation",
+            "refs": [
+              {
+                "name": "SUBAGENT-DELEGATION.md",
+                "type": "other",
+                "path": "SUBAGENT-DELEGATION.md"
+              },
+              {
+                "name": "CURSOR-SUBAGENTS-DESIGN.md",
+                "type": "other",
+                "path": "CURSOR-SUBAGENTS-DESIGN.md"
+              }
+            ]
+          },
+          {
+            "name": "ANALYSIS-design-doc-conflict-root-cause.md",
+            "desc": "Analysis: Root cause of conflicting content across design docs (도구 상 중첩·상충 현상)",
+            "refs": [
+              {
+                "name": "docs/design/search-fields-by-screen.md",
+                "type": "other",
+                "path": "docs/design/search-fields-by-screen.md"
+              },
+              {
+                "name": "docs/design/search-field-definition-items.md",
+                "type": "other",
+                "path": "docs/design/search-field-definition-items.md"
+              },
+              {
+                "name": "search-field-definition-items.md",
+                "type": "other",
+                "path": "search-field-definition-items.md"
+              },
+              {
+                "name": "search-fields-by-screen.md",
+                "type": "other",
+                "path": "search-fields-by-screen.md"
+              },
+              {
+                "name": "docs/design/README.md",
+                "type": "other",
+                "path": "docs/design/README.md"
+              }
+            ]
+          },
+          {
+            "name": "ANALYSIS-implementation-phase-design-doc-usage.md",
+            "desc": "Analysis: Implementation phase not applying design doc (search-field-definition-items)",
+            "refs": [
+              {
+                "name": "20260311-statistics-screen-design-standards.md",
+                "type": "other",
+                "path": "20260311-statistics-screen-design-standards.md"
+              },
+              {
+                "name": "docs/design/search-fields-by-screen.md",
+                "type": "other",
+                "path": "docs/design/search-fields-by-screen.md"
+              },
+              {
+                "name": "docs/design/search-field-definition-items.md",
+                "type": "other",
+                "path": "docs/design/search-field-definition-items.md"
+              },
+              {
+                "name": "docs/analysis-search-consistency-by-screen.md",
+                "type": "other",
+                "path": "docs/analysis-search-consistency-by-screen.md"
+              },
+              {
+                "name": "search-filter-form-design.mdc",
+                "type": "rules",
+                "path": ".cursor/rules/search-filter-form-design.mdc"
+              },
+              {
+                "name": "docs/requirements/20260311-statistics-screen-design-standards.md",
+                "type": "other",
+                "path": "docs/requirements/20260311-statistics-screen-design-standards.md"
+              },
+              {
+                "name": "docs/cursor-subagents/frontend.md",
+                "type": "other",
+                "path": "docs/cursor-subagents/frontend.md"
+              },
+              {
+                "name": "REQUIREMENT_TEMPLATE.md",
+                "type": "templates",
+                "path": "docs/template/REQUIREMENT_TEMPLATE.md"
               }
             ]
           },
@@ -2789,6 +3372,364 @@ const TREEMAP_DATA = {
                 "name": "new-requirement",
                 "type": "commands",
                 "path": ".cursor/commands/new-requirement.md"
+              }
+            ]
+          },
+          {
+            "name": "ANALYSIS-requirement-doc-design-standards-feedback.md",
+            "desc": "Analysis: Requirement doc and agent strengthening (design-standards feedback)",
+            "refs": [
+              {
+                "name": "docs/requirements/20260311-activity-log-statistics-design-standards.md",
+                "type": "other",
+                "path": "docs/requirements/20260311-activity-log-statistics-design-standards.md"
+              },
+              {
+                "name": "REQUIREMENTS-CHANGE-TARGET-CHECKLIST.md",
+                "type": "other",
+                "path": "REQUIREMENTS-CHANGE-TARGET-CHECKLIST.md"
+              },
+              {
+                "name": "docs/design/ux-frontend-standard-principles.md",
+                "type": "other",
+                "path": "docs/design/ux-frontend-standard-principles.md"
+              },
+              {
+                "name": "HANDOFF-CHECKLIST.md",
+                "type": "other",
+                "path": "HANDOFF-CHECKLIST.md"
+              },
+              {
+                "name": "REQUIREMENT_TEMPLATE.md",
+                "type": "other",
+                "path": "REQUIREMENT_TEMPLATE.md"
+              },
+              {
+                "name": "REQUIREMENTS-AUTHORING-WORKFLOW.md",
+                "type": "other",
+                "path": "REQUIREMENTS-AUTHORING-WORKFLOW.md"
+              },
+              {
+                "name": "20260311-activity-log-statistics-design-standards.md",
+                "type": "other",
+                "path": "20260311-activity-log-statistics-design-standards.md"
+              },
+              {
+                "name": "REQUIREMENT_TEMPLATE.md",
+                "type": "templates",
+                "path": "docs/template/REQUIREMENT_TEMPLATE.md"
+              }
+            ]
+          },
+          {
+            "name": "ANALYSIS-requirement-doc-search-vs-path-pattern.md",
+            "desc": "Analysis: Requirement doc search — path pattern vs RequirementsPastSearch / TOPIC-INDEX",
+            "refs": [
+              {
+                "name": "docs/requirements/yyyyMMdd-name.md",
+                "type": "other",
+                "path": "docs/requirements/yyyyMMdd-name.md"
+              },
+              {
+                "name": "docs/requirements/20260310-activity-log-filter.md",
+                "type": "other",
+                "path": "docs/requirements/20260310-activity-log-filter.md"
+              },
+              {
+                "name": "docs/requirements/TOPIC-INDEX.md",
+                "type": "other",
+                "path": "docs/requirements/TOPIC-INDEX.md"
+              }
+            ]
+          },
+          {
+            "name": "ANALYSIS-same-case-yyyyMMdd-path-pattern-by-agent.md",
+            "desc": "Same-case analysis: yyyyMMdd path pattern vs RequirementsPastSearch/TOPIC-INDEX",
+            "refs": [
+              {
+                "name": "docs/requirements/yyyyMMdd-name.md",
+                "type": "other",
+                "path": "docs/requirements/yyyyMMdd-name.md"
+              },
+              {
+                "name": "yyyyMMdd-name.md",
+                "type": "other",
+                "path": "yyyyMMdd-name.md"
+              },
+              {
+                "name": "docs/requirements/TOPIC-INDEX.md",
+                "type": "other",
+                "path": "docs/requirements/TOPIC-INDEX.md"
+              },
+              {
+                "name": "TOPIC-INDEX.md",
+                "type": "other",
+                "path": "TOPIC-INDEX.md"
+              },
+              {
+                "name": "docs/requirements/*.md",
+                "type": "other",
+                "path": "docs/requirements/*.md"
+              },
+              {
+                "name": "docs/requirements/{parentID}-bugfix-{N}.md",
+                "type": "other",
+                "path": "docs/requirements/{parentID}-bugfix-{N}.md"
+              },
+              {
+                "name": "docs/requirements/20260224-decryption-approval-snapshot-guide.md",
+                "type": "other",
+                "path": "docs/requirements/20260224-decryption-approval-snapshot-guide.md"
+              },
+              {
+                "name": "docs/RELEASE_NOTES-yyyyMMdd-*.md",
+                "type": "other",
+                "path": "docs/RELEASE_NOTES-yyyyMMdd-*.md"
+              }
+            ]
+          },
+          {
+            "name": "ANALYSIS-search-field-design-doc-reference-gaps.md",
+            "desc": "Analysis: Search field design doc reference gaps and improvements",
+            "refs": [
+              {
+                "name": "20260311-statistics-screen-design-standards.md",
+                "type": "other",
+                "path": "20260311-statistics-screen-design-standards.md"
+              },
+              {
+                "name": "docs/design/search-fields-by-screen.md",
+                "type": "other",
+                "path": "docs/design/search-fields-by-screen.md"
+              },
+              {
+                "name": "docs/design/search-field-definition-items.md",
+                "type": "other",
+                "path": "docs/design/search-field-definition-items.md"
+              },
+              {
+                "name": "search-filter-form-design.mdc",
+                "type": "rules",
+                "path": ".cursor/rules/search-filter-form-design.mdc"
+              },
+              {
+                "name": "search-filter-form-design.mdc",
+                "type": "rules",
+                "path": "search-filter-form-design.mdc"
+              },
+              {
+                "name": "docs/requirements/*.md",
+                "type": "other",
+                "path": "docs/requirements/*.md"
+              },
+              {
+                "name": "REQUIREMENTS-CHANGE-TARGET-CHECKLIST.md",
+                "type": "other",
+                "path": "REQUIREMENTS-CHANGE-TARGET-CHECKLIST.md"
+              },
+              {
+                "name": "forms-and-filters.md",
+                "type": "other",
+                "path": "forms-and-filters.md"
+              },
+              {
+                "name": "analysis-search-consistency-by-screen.md",
+                "type": "other",
+                "path": "analysis-search-consistency-by-screen.md"
+              },
+              {
+                "name": "search-fields-by-screen.md",
+                "type": "other",
+                "path": "search-fields-by-screen.md"
+              },
+              {
+                "name": "search-field-definition-items.md",
+                "type": "other",
+                "path": "search-field-definition-items.md"
+              },
+              {
+                "name": "docs/requirements/20260311-statistics-screen-design-standards.md",
+                "type": "other",
+                "path": "docs/requirements/20260311-statistics-screen-design-standards.md"
+              },
+              {
+                "name": "REQUIREMENTS-AUTHORING-WORKFLOW.md",
+                "type": "other",
+                "path": "REQUIREMENTS-AUTHORING-WORKFLOW.md"
+              },
+              {
+                "name": "REQUIREMENT_TEMPLATE.md",
+                "type": "templates",
+                "path": "docs/template/REQUIREMENT_TEMPLATE.md"
+              }
+            ]
+          },
+          {
+            "name": "ANALYSIS-search-window-size-and-tools-improvement.md",
+            "desc": "Analysis: Search window size not aligned & tool improvement",
+            "refs": [
+              {
+                "name": "forms-and-filters.md",
+                "type": "other",
+                "path": "forms-and-filters.md"
+              },
+              {
+                "name": "analysis-search-consistency-by-screen.md",
+                "type": "other",
+                "path": "analysis-search-consistency-by-screen.md"
+              },
+              {
+                "name": "docs/design/forms-and-filters.md",
+                "type": "other",
+                "path": "docs/design/forms-and-filters.md"
+              },
+              {
+                "name": "docs/analysis-search-consistency-by-screen.md",
+                "type": "other",
+                "path": "docs/analysis-search-consistency-by-screen.md"
+              }
+            ]
+          },
+          {
+            "name": "ANALYSIS-statistics-extra-block-row-placement.md",
+            "desc": "Analysis: Statistics “기타 조건” row placement (row2 vs single row)",
+            "refs": []
+          },
+          {
+            "name": "ANALYSIS-tool-improvement-from-design-standards-feedback.md",
+            "desc": "Analysis: Tool improvement from design-standards requirement feedback",
+            "refs": [
+              {
+                "name": "docs/requirements/20260311-activity-log-statistics-design-standards.md",
+                "type": "other",
+                "path": "docs/requirements/20260311-activity-log-statistics-design-standards.md"
+              },
+              {
+                "name": "REQUIREMENT_TEMPLATE.md",
+                "type": "templates",
+                "path": "docs/template/REQUIREMENT_TEMPLATE.md"
+              },
+              {
+                "name": "docs/design/ux-frontend-standard-principles.md",
+                "type": "other",
+                "path": "docs/design/ux-frontend-standard-principles.md"
+              },
+              {
+                "name": "requirement-doc",
+                "type": "skills",
+                "path": ".cursor/skills/requirement-doc/SKILL.md"
+              },
+              {
+                "name": "ux-frontend-standard-first.mdc",
+                "type": "rules",
+                "path": ".cursor/rules/ux-frontend-standard-first.mdc"
+              },
+              {
+                "name": "search-filter-form-design.mdc",
+                "type": "rules",
+                "path": ".cursor/rules/search-filter-form-design.mdc"
+              },
+              {
+                "name": "forms-and-filters.md",
+                "type": "other",
+                "path": "forms-and-filters.md"
+              },
+              {
+                "name": "search-fields-by-screen.md",
+                "type": "other",
+                "path": "search-fields-by-screen.md"
+              },
+              {
+                "name": "search-filter-form-design.mdc",
+                "type": "rules",
+                "path": "search-filter-form-design.mdc"
+              },
+              {
+                "name": "ux-frontend-standard-principles.md",
+                "type": "other",
+                "path": "ux-frontend-standard-principles.md"
+              }
+            ]
+          },
+          {
+            "name": "ANALYSIS-treemap-main-invokes-all-step-agents.md",
+            "desc": "Treemap: Why it shows \"Main invokes all Backend/Frontend agents\"",
+            "refs": []
+          },
+          {
+            "name": "ANALYSIS-user-field-size-activity-log-vs-statistics.md",
+            "desc": "Analysis: 통계 검색 필드 사용자 필드 크기가 활동 이력과 동일하게 적용되지 않은 원인",
+            "refs": [
+              {
+                "name": "docs/design/search-fields-by-screen.md",
+                "type": "other",
+                "path": "docs/design/search-fields-by-screen.md"
+              },
+              {
+                "name": "docs/design/search-field-definition-items.md",
+                "type": "other",
+                "path": "docs/design/search-field-definition-items.md"
+              },
+              {
+                "name": "docs/cursor-subagents/frontend.md",
+                "type": "other",
+                "path": "docs/cursor-subagents/frontend.md"
+              },
+              {
+                "name": "search-filter-form-design.mdc",
+                "type": "rules",
+                "path": ".cursor/rules/search-filter-form-design.mdc"
+              },
+              {
+                "name": "requirement-doc",
+                "type": "skills",
+                "path": ".cursor/skills/requirement-doc/SKILL.md"
+              }
+            ]
+          },
+          {
+            "name": "ANALYSIS-ux-standard-first-vs-existing-docs.md",
+            "desc": "Analysis: UX/Frontend standard-first vs existing docs (중첩·범위 검토)",
+            "refs": [
+              {
+                "name": "ux-frontend-standard-principles.md",
+                "type": "other",
+                "path": "ux-frontend-standard-principles.md"
+              },
+              {
+                "name": "ux-frontend-standard-first.mdc",
+                "type": "rules",
+                "path": "ux-frontend-standard-first.mdc"
+              },
+              {
+                "name": "search-filter-form-design.mdc",
+                "type": "rules",
+                "path": "search-filter-form-design.mdc"
+              },
+              {
+                "name": "css-standard-and-exceptions.md",
+                "type": "other",
+                "path": "css-standard-and-exceptions.md"
+              },
+              {
+                "name": "forms-and-filters.md",
+                "type": "other",
+                "path": "forms-and-filters.md"
+              },
+              {
+                "name": "search-field-definition-items.md",
+                "type": "other",
+                "path": "search-field-definition-items.md"
+              },
+              {
+                "name": "search-fields-by-screen.md",
+                "type": "other",
+                "path": "search-fields-by-screen.md"
+              },
+              {
+                "name": "docs/design/ux-frontend-standard-principles.md",
+                "type": "other",
+                "path": "docs/design/ux-frontend-standard-principles.md"
               }
             ]
           },
@@ -3001,6 +3942,11 @@ const TREEMAP_DATA = {
                 "path": "backend-log.md"
               },
               {
+                "name": "docs/cursor-subagents/backend.md",
+                "type": "other",
+                "path": "docs/cursor-subagents/backend.md"
+              },
+              {
                 "name": "frontend-auth.md",
                 "type": "other",
                 "path": "frontend-auth.md"
@@ -3014,6 +3960,11 @@ const TREEMAP_DATA = {
                 "name": "frontend-log.md",
                 "type": "other",
                 "path": "frontend-log.md"
+              },
+              {
+                "name": "docs/cursor-subagents/frontend.md",
+                "type": "other",
+                "path": "docs/cursor-subagents/frontend.md"
               },
               {
                 "name": "docs/cursor-subagents/FRONTEND-IMPROVEMENT-POINTS.md",
@@ -3051,6 +4002,21 @@ const TREEMAP_DATA = {
                 "path": "past-requirements-search.md"
               },
               {
+                "name": "ux-a11y.md",
+                "type": "other",
+                "path": "ux-a11y.md"
+              },
+              {
+                "name": "ux-layout.md",
+                "type": "other",
+                "path": "ux-layout.md"
+              },
+              {
+                "name": "ux-components.md",
+                "type": "other",
+                "path": "ux-components.md"
+              },
+              {
                 "name": "docs/requirements/yyyyMMdd-name.md",
                 "type": "other",
                 "path": "docs/requirements/yyyyMMdd-name.md"
@@ -3069,16 +4035,6 @@ const TREEMAP_DATA = {
                 "name": "verify",
                 "type": "commands",
                 "path": ".cursor/commands/verify.md"
-              },
-              {
-                "name": "docs/cursor-subagents/frontend.md",
-                "type": "other",
-                "path": "docs/cursor-subagents/frontend.md"
-              },
-              {
-                "name": "docs/cursor-subagents/backend.md",
-                "type": "other",
-                "path": "docs/cursor-subagents/backend.md"
               },
               {
                 "name": "docs/cursor-subagents/qa-test.md",
@@ -3440,6 +4396,72 @@ const TREEMAP_DATA = {
             "refs": []
           },
           {
+            "name": "DEVELOPMENT_WORKFLOW.md",
+            "desc": "개발 워크플로우 상세 절차.",
+            "refs": [
+              {
+                "name": "WORKFLOW_CHECKLIST.md",
+                "type": "other",
+                "path": "WORKFLOW_CHECKLIST.md"
+              },
+              {
+                "name": "docs-reference.mdc",
+                "type": "rules",
+                "path": "docs-reference.mdc"
+              },
+              {
+                "name": "docs/requirements/20260206-image-log-datastring-search.md",
+                "type": "other",
+                "path": "docs/requirements/20260206-image-log-datastring-search.md"
+              },
+              {
+                "name": "docs/requirements/20260206-user-authentication-improvement.md",
+                "type": "other",
+                "path": "docs/requirements/20260206-user-authentication-improvement.md"
+              },
+              {
+                "name": "user-management.spec.yaml",
+                "type": "other",
+                "path": "specs/user-management.spec.yaml"
+              },
+              {
+                "name": "advanced-search.spec.yaml",
+                "type": "other",
+                "path": "specs/advanced-search.spec.yaml"
+              },
+              {
+                "name": "docs/requirements/yyyyMMdd-요건명.md",
+                "type": "other",
+                "path": "docs/requirements/yyyyMMdd-요건명.md"
+              },
+              {
+                "name": "요건명.spec.yaml",
+                "type": "other",
+                "path": "specs/요건명.spec.yaml"
+              },
+              {
+                "name": "docs/requirements/{부모ID}-bugfix-{N}.md",
+                "type": "other",
+                "path": "docs/requirements/{부모ID}-bugfix-{N}.md"
+              },
+              {
+                "name": "commit-on-complete",
+                "type": "commands",
+                "path": ".cursor/commands/commit-on-complete.md"
+              },
+              {
+                "name": "ERROR-FIX-WORKFLOW-FLOWCHART.md",
+                "type": "other",
+                "path": "ERROR-FIX-WORKFLOW-FLOWCHART.md"
+              },
+              {
+                "name": "CURSOR-AND-TOOLS-INTEGRATION.md",
+                "type": "other",
+                "path": "CURSOR-AND-TOOLS-INTEGRATION.md"
+              }
+            ]
+          },
+          {
             "name": "DOC-CODE-SYNC.md",
             "desc": "문서는 코드 기준. 문서–코드–Cursor 동기화 원칙·1회 정비·Same-PR 유지 방법.",
             "refs": [
@@ -3532,6 +4554,38 @@ const TREEMAP_DATA = {
             ]
           },
           {
+            "name": "DRYRUN-20260311-activity-log-row1-date-row2-rest.md",
+            "desc": "Dry-run handoff verification — 20260311 activity log row1=date, row2=rest",
+            "refs": [
+              {
+                "name": "docs/requirements/20260311-activity-log-search-row1-date-row2-rest.md",
+                "type": "other",
+                "path": "docs/requirements/20260311-activity-log-search-row1-date-row2-rest.md"
+              },
+              {
+                "name": "HANDOFF-CHECKLIST.md",
+                "type": "other",
+                "path": "HANDOFF-CHECKLIST.md"
+              }
+            ]
+          },
+          {
+            "name": "DRYRUN-20260311-activity-log-single-row-handoff.md",
+            "desc": "Dry-run handoff verification — 20260311 activity log single row",
+            "refs": [
+              {
+                "name": "docs/requirements/20260311-activity-log-search-single-row-fields.md",
+                "type": "other",
+                "path": "docs/requirements/20260311-activity-log-search-single-row-fields.md"
+              },
+              {
+                "name": "HANDOFF-CHECKLIST.md",
+                "type": "other",
+                "path": "HANDOFF-CHECKLIST.md"
+              }
+            ]
+          },
+          {
             "name": "DRYRUN-backend-team-lead-handoff.md",
             "desc": "Backend 팀장 모델 dry-run. Main→Backend만 호출, 위임·§2 집계·빌드 1회·CONSISTENCY 체크 검증.",
             "refs": [
@@ -3544,6 +4598,139 @@ const TREEMAP_DATA = {
                 "name": "docs/requirements/yyyyMMdd-activity-log-department-filter.md",
                 "type": "other",
                 "path": "docs/requirements/yyyyMMdd-activity-log-department-filter.md"
+              }
+            ]
+          },
+          {
+            "name": "DRYRUN-css-standard-and-exceptions-handoff.md",
+            "desc": "Dry-run: Handoff verification — CSS standard and exception management",
+            "refs": [
+              {
+                "name": "dry-run-handoff",
+                "type": "commands",
+                "path": ".cursor/commands/dry-run-handoff.md"
+              },
+              {
+                "name": "agent-collaboration.mdc",
+                "type": "rules",
+                "path": "agent-collaboration.mdc"
+              },
+              {
+                "name": "REQUIREMENTS-AUTHORING-WORKFLOW.md",
+                "type": "other",
+                "path": "REQUIREMENTS-AUTHORING-WORKFLOW.md"
+              },
+              {
+                "name": "HANDOFF-CHECKLIST.md",
+                "type": "other",
+                "path": "HANDOFF-CHECKLIST.md"
+              },
+              {
+                "name": "REQUIREMENTS-CHANGE-TARGET-CHECKLIST.md",
+                "type": "other",
+                "path": "REQUIREMENTS-CHANGE-TARGET-CHECKLIST.md"
+              },
+              {
+                "name": "docs/design/css-standard-and-exceptions.md",
+                "type": "other",
+                "path": "docs/design/css-standard-and-exceptions.md"
+              }
+            ]
+          },
+          {
+            "name": "DRYRUN-frontend-design-rules-without-req-bullets.md",
+            "desc": "DRYRUN: Would Frontend consider Single row for non-date and Form per mode without explicit §1 bullets?",
+            "refs": [
+              {
+                "name": "docs/design/forms-and-filters.md",
+                "type": "other",
+                "path": "docs/design/forms-and-filters.md"
+              },
+              {
+                "name": "20260313-activity-log-statistics-design-standards.md",
+                "type": "other",
+                "path": "20260313-activity-log-statistics-design-standards.md"
+              },
+              {
+                "name": "HANDOFF-CHECKLIST.md",
+                "type": "other",
+                "path": "HANDOFF-CHECKLIST.md"
+              },
+              {
+                "name": "docs/design/search-field-definition-items.md",
+                "type": "other",
+                "path": "docs/design/search-field-definition-items.md"
+              },
+              {
+                "name": "docs/design/search-fields-by-screen.md",
+                "type": "other",
+                "path": "docs/design/search-fields-by-screen.md"
+              },
+              {
+                "name": "docs/design/UX-REDESIGN-activity-log-statistics-search.md",
+                "type": "other",
+                "path": "docs/design/UX-REDESIGN-activity-log-statistics-search.md"
+              },
+              {
+                "name": "forms-and-filters.md",
+                "type": "other",
+                "path": "forms-and-filters.md"
+              },
+              {
+                "name": "search-field-definition-items.md",
+                "type": "other",
+                "path": "search-field-definition-items.md"
+              },
+              {
+                "name": "search-fields-by-screen.md",
+                "type": "other",
+                "path": "search-fields-by-screen.md"
+              }
+            ]
+          },
+          {
+            "name": "DRYRUN-handoff-after-search-field-doc-improvements.md",
+            "desc": "Dry-run handoff verification — after search-field design doc reference improvements",
+            "refs": [
+              {
+                "name": "dry-run-handoff",
+                "type": "commands",
+                "path": ".cursor/commands/dry-run-handoff.md"
+              },
+              {
+                "name": "agent-collaboration.mdc",
+                "type": "rules",
+                "path": "agent-collaboration.mdc"
+              },
+              {
+                "name": "search-fields-by-screen.md",
+                "type": "other",
+                "path": "search-fields-by-screen.md"
+              },
+              {
+                "name": "search-field-definition-items.md",
+                "type": "other",
+                "path": "search-field-definition-items.md"
+              },
+              {
+                "name": "REQUIREMENTS-AUTHORING-WORKFLOW.md",
+                "type": "other",
+                "path": "REQUIREMENTS-AUTHORING-WORKFLOW.md"
+              },
+              {
+                "name": "HANDOFF-CHECKLIST.md",
+                "type": "other",
+                "path": "HANDOFF-CHECKLIST.md"
+              },
+              {
+                "name": "REQUIREMENT_TEMPLATE.md",
+                "type": "other",
+                "path": "REQUIREMENT_TEMPLATE.md"
+              },
+              {
+                "name": "CONTEXT-QUALITY-AND-ORCHESTRATION-MITIGATION.md",
+                "type": "other",
+                "path": "CONTEXT-QUALITY-AND-ORCHESTRATION-MITIGATION.md"
               }
             ]
           },
@@ -3589,9 +4776,139 @@ const TREEMAP_DATA = {
             ]
           },
           {
+            "name": "DRYRUN-implementation-phase-design-doc-handoff.md",
+            "desc": "Dry-run: Implementation-phase design doc handoff (search/filter)",
+            "refs": [
+              {
+                "name": "dry-run-handoff",
+                "type": "commands",
+                "path": ".cursor/commands/dry-run-handoff.md"
+              },
+              {
+                "name": "agent-collaboration.mdc",
+                "type": "rules",
+                "path": "agent-collaboration.mdc"
+              },
+              {
+                "name": "REQUIREMENTS-AUTHORING-WORKFLOW.md",
+                "type": "other",
+                "path": "REQUIREMENTS-AUTHORING-WORKFLOW.md"
+              },
+              {
+                "name": "HANDOFF-CHECKLIST.md",
+                "type": "other",
+                "path": "HANDOFF-CHECKLIST.md"
+              },
+              {
+                "name": "REQUIREMENT_TEMPLATE.md",
+                "type": "other",
+                "path": "REQUIREMENT_TEMPLATE.md"
+              },
+              {
+                "name": "search-field-definition-items.md",
+                "type": "other",
+                "path": "search-field-definition-items.md"
+              },
+              {
+                "name": "search-fields-by-screen.md",
+                "type": "other",
+                "path": "search-fields-by-screen.md"
+              }
+            ]
+          },
+          {
+            "name": "DRYRUN-paging-standard-handoff.md",
+            "desc": "Dry-run: 페이징 표준 적용 시 도구·핸드오프 관계 검증",
+            "refs": [
+              {
+                "name": "grid-and-table.md",
+                "type": "other",
+                "path": "grid-and-table.md"
+              },
+              {
+                "name": "CONSISTENCY-STANDARDS.md",
+                "type": "other",
+                "path": "CONSISTENCY-STANDARDS.md"
+              },
+              {
+                "name": "docs/design/grid-and-table.md",
+                "type": "other",
+                "path": "docs/design/grid-and-table.md"
+              }
+            ]
+          },
+          {
             "name": "DRYRUN-search-consistency-changes.md",
             "desc": "Dry-run: 검색 통일·scope=self 변경 사항 검증",
             "refs": []
+          },
+          {
+            "name": "DRYRUN-search-ui-unify-handoff.md",
+            "desc": "Handoff dry run: \"검색UI를 모두 같은 컨셉트로 통일해줘\"",
+            "refs": [
+              {
+                "name": "dry-run-handoff",
+                "type": "commands",
+                "path": ".cursor/commands/dry-run-handoff.md"
+              },
+              {
+                "name": "docs/analysis-search-consistency-by-screen.md",
+                "type": "other",
+                "path": "docs/analysis-search-consistency-by-screen.md"
+              }
+            ]
+          },
+          {
+            "name": "DRYRUN-tool-changes-verification.md",
+            "desc": "Dry-run: Tool changes verification (도구 수정)",
+            "refs": [
+              {
+                "name": "hooks.json",
+                "type": "other",
+                "path": ".cursor/hooks.json"
+              },
+              {
+                "name": "after-file-edit-treemap.sh",
+                "type": "other",
+                "path": "after-file-edit-treemap.sh"
+              },
+              {
+                "name": "treemap-consistency.mdc",
+                "type": "rules",
+                "path": "treemap-consistency.mdc"
+              },
+              {
+                "name": "release",
+                "type": "commands",
+                "path": ".cursor/commands/release.md"
+              },
+              {
+                "name": "after-file-edit-treemap.sh",
+                "type": "other",
+                "path": ".cursor/hooks/after-file-edit-treemap.sh"
+              },
+              {
+                "name": "treemap-consistency.mdc",
+                "type": "rules",
+                "path": ".cursor/rules/treemap-consistency.mdc"
+              }
+            ]
+          },
+          {
+            "name": "DRYRUN-tool-edit-hooks-release-handoff.md",
+            "desc": "Dry-run: Tool edit → Hooks (treemap) → Release handoff → Push",
+            "refs": [
+              {
+                "name": "release",
+                "type": "commands",
+                "path": ".cursor/commands/release.md"
+              },
+              {
+                "name": "after-file-edit-treemap.sh",
+                "type": "other",
+                "path": ".cursor/hooks/after-file-edit-treemap.sh"
+              }
+            ]
           },
           {
             "name": "DRYRUN-user-search-fields-improvement.md",
@@ -3643,6 +4960,36 @@ const TREEMAP_DATA = {
                 "name": "docs/contract.md",
                 "type": "other",
                 "path": "docs/contract.md"
+              },
+              {
+                "name": "docs/design/README.md",
+                "type": "other",
+                "path": "docs/design/README.md"
+              },
+              {
+                "name": "docs/design/search-field-definition-items.md",
+                "type": "other",
+                "path": "docs/design/search-field-definition-items.md"
+              },
+              {
+                "name": "docs/design/search-fields-by-screen.md",
+                "type": "other",
+                "path": "docs/design/search-fields-by-screen.md"
+              },
+              {
+                "name": "docs/design/forms-and-filters.md",
+                "type": "other",
+                "path": "docs/design/forms-and-filters.md"
+              },
+              {
+                "name": "docs/design/css-standard-and-exceptions.md",
+                "type": "other",
+                "path": "docs/design/css-standard-and-exceptions.md"
+              },
+              {
+                "name": "docs/design/ux-frontend-standard-principles.md",
+                "type": "other",
+                "path": "docs/design/ux-frontend-standard-principles.md"
               },
               {
                 "name": "BROWSER-AUTOMATION-VERIFICATION-POLICY.md",
@@ -3800,6 +5147,63 @@ const TREEMAP_DATA = {
             ]
           },
           {
+            "name": "QA-FEEDBACK-TO-UX-activity-log-statistics-search.md",
+            "desc": "QA feedback to UX — Activity Log & Statistics search/filter UI",
+            "refs": [
+              {
+                "name": "docs/requirements/20260310-search-screens-qa-ux-redesign-handoff.md",
+                "type": "other",
+                "path": "docs/requirements/20260310-search-screens-qa-ux-redesign-handoff.md"
+              },
+              {
+                "name": "docs/design/forms-and-filters.md",
+                "type": "other",
+                "path": "docs/design/forms-and-filters.md"
+              },
+              {
+                "name": "docs/analysis-search-consistency-by-screen.md",
+                "type": "other",
+                "path": "docs/analysis-search-consistency-by-screen.md"
+              },
+              {
+                "name": "docs/requirements/20260310-search-ui-unify.md",
+                "type": "other",
+                "path": "docs/requirements/20260310-search-ui-unify.md"
+              },
+              {
+                "name": "buttons.md",
+                "type": "other",
+                "path": "buttons.md"
+              }
+            ]
+          },
+          {
+            "name": "RECOMMENDATION-requirement-doc-ref-display.md",
+            "desc": "Recommendation: How to express requirement-doc refs (writing vs search)",
+            "refs": [
+              {
+                "name": "docs/requirements/yyyyMMdd-name.md",
+                "type": "other",
+                "path": "docs/requirements/yyyyMMdd-name.md"
+              },
+              {
+                "name": "yyyyMMdd-name.md",
+                "type": "other",
+                "path": "yyyyMMdd-name.md"
+              },
+              {
+                "name": "docs/requirements/TOPIC-INDEX.md",
+                "type": "other",
+                "path": "docs/requirements/TOPIC-INDEX.md"
+              },
+              {
+                "name": "treemap-consistency.mdc",
+                "type": "rules",
+                "path": ".cursor/rules/treemap-consistency.mdc"
+              }
+            ]
+          },
+          {
             "name": "RELEASE_CHECKLIST.md",
             "desc": "Release Checklist",
             "refs": [
@@ -3881,6 +5285,26 @@ const TREEMAP_DATA = {
                 "path": "docs/requirements/TOPIC-INDEX.md"
               },
               {
+                "name": "docs/design/forms-and-filters.md",
+                "type": "other",
+                "path": "docs/design/forms-and-filters.md"
+              },
+              {
+                "name": "docs/design/search-fields-by-screen.md",
+                "type": "other",
+                "path": "docs/design/search-fields-by-screen.md"
+              },
+              {
+                "name": "docs/design/search-field-definition-items.md",
+                "type": "other",
+                "path": "docs/design/search-field-definition-items.md"
+              },
+              {
+                "name": "docs/design/css-standard-and-exceptions.md",
+                "type": "other",
+                "path": "docs/design/css-standard-and-exceptions.md"
+              },
+              {
                 "name": "HANDOFF-CHECKLIST.md",
                 "type": "other",
                 "path": "HANDOFF-CHECKLIST.md"
@@ -3910,6 +5334,41 @@ const TREEMAP_DATA = {
                 "name": "ANALYSIS-pending-approvals-scope-frontend-incomplete.md",
                 "type": "other",
                 "path": "ANALYSIS-pending-approvals-scope-frontend-incomplete.md"
+              },
+              {
+                "name": "docs/design/forms-and-filters.md",
+                "type": "other",
+                "path": "docs/design/forms-and-filters.md"
+              },
+              {
+                "name": "docs/design/search-fields-by-screen.md",
+                "type": "other",
+                "path": "docs/design/search-fields-by-screen.md"
+              },
+              {
+                "name": "docs/design/search-field-definition-items.md",
+                "type": "other",
+                "path": "docs/design/search-field-definition-items.md"
+              },
+              {
+                "name": "docs/design/README.md",
+                "type": "other",
+                "path": "docs/design/README.md"
+              },
+              {
+                "name": "docs/design/ux-frontend-standard-principles.md",
+                "type": "other",
+                "path": "docs/design/ux-frontend-standard-principles.md"
+              },
+              {
+                "name": "docs/design/css-standard-and-exceptions.md",
+                "type": "other",
+                "path": "docs/design/css-standard-and-exceptions.md"
+              },
+              {
+                "name": "docs/analysis-search-consistency-by-screen.md",
+                "type": "other",
+                "path": "docs/analysis-search-consistency-by-screen.md"
               }
             ]
           },
@@ -3921,6 +5380,77 @@ const TREEMAP_DATA = {
                 "name": "docs/analysis-search-consistency-by-screen.md",
                 "type": "other",
                 "path": "docs/analysis-search-consistency-by-screen.md"
+              }
+            ]
+          },
+          {
+            "name": "SUBAGENT-DELEGATION.md",
+            "desc": "Step별 서브에이전트 위임. Backend/Frontend/UX 팀장만 Main 호출; 팀장이 모듈 에이전트(Backend-Auth·Frontend-Log·UX-A11y 등) 위임.",
+            "refs": [
+              {
+                "name": "REQUIREMENTS-CHANGE-TARGET-CHECKLIST.md",
+                "type": "other",
+                "path": "REQUIREMENTS-CHANGE-TARGET-CHECKLIST.md"
+              },
+              {
+                "name": "docs/contract.md",
+                "type": "other",
+                "path": "docs/contract.md"
+              },
+              {
+                "name": "CONSISTENCY-STANDARDS.md",
+                "type": "other",
+                "path": "CONSISTENCY-STANDARDS.md"
+              },
+              {
+                "name": "HANDOFF-CHECKLIST.md",
+                "type": "other",
+                "path": "HANDOFF-CHECKLIST.md"
+              },
+              {
+                "name": "commit-on-complete",
+                "type": "commands",
+                "path": ".cursor/commands/commit-on-complete.md"
+              },
+              {
+                "name": "SUBAGENT-MODEL-SELECTION.md",
+                "type": "other",
+                "path": "SUBAGENT-MODEL-SELECTION.md"
+              },
+              {
+                "name": "docs/cursor-subagents/db.md",
+                "type": "other",
+                "path": "docs/cursor-subagents/db.md"
+              },
+              {
+                "name": "docs/cursor-subagents/frontend.md",
+                "type": "other",
+                "path": "docs/cursor-subagents/frontend.md"
+              },
+              {
+                "name": "docs/cursor-subagents/backend.md",
+                "type": "other",
+                "path": "docs/cursor-subagents/backend.md"
+              },
+              {
+                "name": "REQUIREMENT_TEMPLATE.md",
+                "type": "templates",
+                "path": "docs/template/REQUIREMENT_TEMPLATE.md"
+              },
+              {
+                "name": "verify",
+                "type": "commands",
+                "path": ".cursor/commands/verify.md"
+              },
+              {
+                "name": "agent-collaboration.mdc",
+                "type": "rules",
+                "path": ".cursor/rules/agent-collaboration.mdc"
+              },
+              {
+                "name": "treemap-consistency.mdc",
+                "type": "rules",
+                "path": ".cursor/rules/treemap-consistency.mdc"
               }
             ]
           },
@@ -3937,6 +5467,118 @@ const TREEMAP_DATA = {
                 "name": "agent-collaboration.mdc",
                 "type": "rules",
                 "path": ".cursor/rules/agent-collaboration.mdc"
+              }
+            ]
+          },
+          {
+            "name": "UX-REVIEW-activity-log-search-window.md",
+            "desc": "UX 검토 — 사용자 활동 이력 검색/필터 영역",
+            "refs": [
+              {
+                "name": "docs/design/forms-and-filters.md",
+                "type": "other",
+                "path": "docs/design/forms-and-filters.md"
+              },
+              {
+                "name": "docs/design/buttons.md",
+                "type": "other",
+                "path": "docs/design/buttons.md"
+              },
+              {
+                "name": "docs/design/text-input.md",
+                "type": "other",
+                "path": "docs/design/text-input.md"
+              },
+              {
+                "name": "docs/design/date-search.md",
+                "type": "other",
+                "path": "docs/design/date-search.md"
+              },
+              {
+                "name": "docs/design/UX-REDESIGN-activity-log-statistics-search.md",
+                "type": "other",
+                "path": "docs/design/UX-REDESIGN-activity-log-statistics-search.md"
+              },
+              {
+                "name": "forms-and-filters.md",
+                "type": "other",
+                "path": "forms-and-filters.md"
+              },
+              {
+                "name": "buttons.md",
+                "type": "other",
+                "path": "buttons.md"
+              },
+              {
+                "name": "text-input.md",
+                "type": "other",
+                "path": "text-input.md"
+              },
+              {
+                "name": "date-search.md",
+                "type": "other",
+                "path": "date-search.md"
+              }
+            ]
+          },
+          {
+            "name": "UX-ROLE-SEPARATION-DESIGN.md",
+            "desc": "UX 역할 분리 세분화 설계",
+            "refs": [
+              {
+                "name": "permission-group-hierarchy.spec.yaml",
+                "type": "other",
+                "path": "specs/permission-group-hierarchy.spec.yaml"
+              },
+              {
+                "name": "docs/analysis-search-consistency-by-screen.md",
+                "type": "other",
+                "path": "docs/analysis-search-consistency-by-screen.md"
+              },
+              {
+                "name": "docs/design/grid-and-table.md",
+                "type": "other",
+                "path": "docs/design/grid-and-table.md"
+              },
+              {
+                "name": "docs/design/layout-and-navigation.md",
+                "type": "other",
+                "path": "docs/design/layout-and-navigation.md"
+              },
+              {
+                "name": "docs/design/buttons.md",
+                "type": "other",
+                "path": "docs/design/buttons.md"
+              },
+              {
+                "name": "docs/cursor-subagents/ux-a11y.md",
+                "type": "other",
+                "path": "docs/cursor-subagents/ux-a11y.md"
+              },
+              {
+                "name": "docs/cursor-subagents/ux-layout.md",
+                "type": "other",
+                "path": "docs/cursor-subagents/ux-layout.md"
+              },
+              {
+                "name": "docs/cursor-subagents/ux-components.md",
+                "type": "other",
+                "path": "docs/cursor-subagents/ux-components.md"
+              },
+              {
+                "name": "UX-A11y.mdc",
+                "type": "rules",
+                "path": "UX-A11y.mdc"
+              },
+              {
+                "name": "UX-Layout.mdc",
+                "type": "rules",
+                "path": "UX-Layout.mdc"
+              },
+              {
+                "name": "UX-Components.mdc",
+                "type": "rules",
+                "path": "UX-Components.mdc"
               }
             ]
           },
@@ -4070,36 +5712,36 @@ const TREEMAP_DATA = {
       "name": "REQUIREMENT_TEMPLATE.md",
       "color": "template",
       "role": "§1·§2·§3·§5·§6 요건 문서의 구조 정의",
-      "refsTo": 23,
-      "barWidth": 70
+      "refsTo": 30,
+      "barWidth": 91
     },
     {
-      "name": "DEVELOPMENT_WORKFLOW.md",
+      "name": "search-fields-by-screen",
       "color": "workflow",
-      "role": "개발 워크플로우 상세 절차.",
-      "refsTo": 18,
-      "barWidth": 55
+      "role": "search-fields-by-screen",
+      "refsTo": 24,
+      "barWidth": 73
+    },
+    {
+      "name": "forms-and-filters",
+      "color": "workflow",
+      "role": "forms-and-filters",
+      "refsTo": 24,
+      "barWidth": 73
+    },
+    {
+      "name": "search-field-definition-items",
+      "color": "workflow",
+      "role": "search-field-definition-items",
+      "refsTo": 22,
+      "barWidth": 67
     },
     {
       "name": "AGENT-COLLABORATION-ON-REQUIREMENT.md",
       "color": "workflow",
       "role": "에이전트 협업 인덱스 — 순서·핸드오프 규칙. 상세: REQUIREMENTS-AUTHORING-WORKFLOW, DEVELOPMENT-QUERY-EXPERTS.",
-      "refsTo": 17,
-      "barWidth": 52
-    },
-    {
-      "name": "commit-on-complete",
-      "color": "commands",
-      "role": "검증 통과 → §5/§6 갱신 → 커밋의 최종 게이트",
-      "refsTo": 17,
-      "barWidth": 52
-    },
-    {
-      "name": "SUBAGENT-DELEGATION.md",
-      "color": "workflow",
-      "role": "Step별 위임 + Backend 팀장(Main→Backend만; 위임·§2 집계·빌드 1회)",
-      "refsTo": 15,
-      "barWidth": 45
+      "refsTo": 18,
+      "barWidth": 55
     }
   ]
 };
@@ -4113,12 +5755,13 @@ const GITHUB_REPO = github.repo;
 const GITHUB_BRANCH = github.branch;
 
 const CATEGORY_CONFIG = {
+  invokedBy: { label: 'Invoked by (호출 주체)', color: '#3b82f6', dotClass: 'agents' },
+  invokes:   { label: 'Invokes (호출 대상)',   color: '#3b82f6', dotClass: 'agents' },
   rules:     { label: 'Rules',         color: '#f97316', dotClass: 'rules' },
   skills:    { label: 'Skills',        color: '#06b6d4', dotClass: 'skills' },
   commands:  { label: 'Commands',      color: '#a855f7', dotClass: 'commands' },
   workflow:  { label: 'Workflow Docs', color: '#10b981', dotClass: 'workflow' },
   templates: { label: 'Templates',     color: '#f43f5e', dotClass: 'template' },
-  agents:    { label: 'Agents / Subagents', color: '#3b82f6', dotClass: 'agents' },
   other:     { label: 'Other Docs',    color: '#64748b', dotClass: 'other' }
 };
 
@@ -4172,7 +5815,28 @@ function resolveFilepath(name) {
   if (DOC_PATHS[trimmed + '.md']) return DOC_PATHS[trimmed + '.md'];
   if (DOC_PATHS[trimmed + '.mdc']) return DOC_PATHS[trimmed + '.mdc'];
   if (DOC_PATHS['agent:' + trimmed]) return DOC_PATHS['agent:' + trimmed];
+  // 프로젝트 상대 경로(슬래시 포함): 문서 아이콘 표시용으로 그대로 경로로 사용
+  var pathLikeExtensions = ['.md', '.mdc', '.sql', '.yaml', '.yml', '.sh', '.json', '.html'];
+  if (name.indexOf('/') !== -1 && pathLikeExtensions.some(function(ext) { return name.endsWith(ext); })) return name;
+  if (name.indexOf('/') !== -1) {
+    var base = name.split('/').pop();
+    var baseNoExt = base.replace(/\.md$/, '').replace(/\.mdc$/, '');
+    if (DOC_PATHS[baseNoExt]) return DOC_PATHS[baseNoExt];
+    if (DOC_PATHS[base]) return DOC_PATHS[base];
+  }
   return null;
+}
+
+/** Resolved path의 basename(확장자 포함) 또는 항목명을 반환. 에이전트 상세 패널 표시용. */
+function getDisplayFileName(itemKey, category, resolvedPath) {
+  if (resolvedPath) {
+    var base = resolvedPath.split('/').pop();
+    if (base) return base;
+  }
+  if (category === 'agents') return itemKey + '.mdc';
+  if (['rules', 'skills', 'commands', 'workflow', 'templates'].indexOf(category) !== -1) return itemKey + '.mdc';
+  if (itemKey.indexOf('.') === -1) return itemKey + '.md';
+  return itemKey;
 }
 
 async function showDocPreview(name) {
@@ -4213,33 +5877,48 @@ function showAgentDetail(agentName) {
   document.getElementById('agentScope').textContent = data.scope;
   const grid = document.getElementById('agentRefsGrid');
   grid.innerHTML = '';
-  const categories = ['rules', 'skills', 'commands', 'workflow', 'templates', 'agents', 'other'];
+  const categories = ['invokedBy', 'invokes', 'rules', 'skills', 'commands', 'workflow', 'templates', 'other'];
   let hasAny = false;
   for (const cat of categories) {
     const items = data[cat] || [];
-    var showGroup = items.length > 0 || cat === 'agents';
+    var showGroup = items.length > 0;
     if (!showGroup) continue;
     hasAny = true;
     const cfg = CATEGORY_CONFIG[cat];
     const group = document.createElement('div');
     group.className = 'agent-ref-group';
+    var listHtml;
+    if (cat === 'invokedBy' || cat === 'invokes') {
+      listHtml = items.length > 0 ? items.map(function(i) {
+        return '<span class="agent-ref-item ' + cfg.dotClass + ' ' + cat + '" data-agent="' + i + '" title="클릭: ' + i + ' 상세">' +
+          '<span class="agent-ref-item-text">' + i + '</span></span>';
+      }).join('') : '<span style="color:var(--text-dim); font-size:12px;">없음</span>';
+    } else {
+      listHtml = items.length > 0 ? items.map(function(i) {
+        var fp = resolveFilepath(i);
+        var displayName = getDisplayFileName(i, cat, fp);
+        var docBtn = fp ? '<button class="doc-btn" title="문서 보기" data-docbtn="' + i + '">📄</button>' : '';
+        return '<span class="agent-ref-item ' + cfg.dotClass + '" data-docname="' + i + '" title="' + displayName.replace(/"/g, '&quot;') + '">' +
+          '<span class="agent-ref-item-text">' + displayName + '</span>' + docBtn + '</span>';
+      }).join('') : '';
+    }
     group.innerHTML =
       '<div class="agent-ref-group-title">' +
         '<div class="dot" style="background:' + cfg.color + '"></div>' +
         '<span style="color:' + cfg.color + '">' + cfg.label + '</span>' +
         '<span style="color:var(--text-dim); font-weight:400">(' + items.length + ')</span>' +
       '</div>' +
-      '<div class="agent-ref-list">' +
-        (items.length > 0 ? items.map(function(i) {
-          var fp = (cat === 'agents') ? (resolveFilepath('agent:' + i) || resolveFilepath(i)) : resolveFilepath(i);
-          var docBtn = fp ? '<button class="doc-btn" title="문서 보기" data-docbtn="' + i + '">📄</button>' : '';
-          return '<span class="agent-ref-item ' + cfg.dotClass + '" data-docname="' + i + '">' + i + docBtn + '</span>';
-        }).join('') : '<span style="color:var(--text-dim); font-size:12px;">.cursor/agents/*.mdc 참조만 표시</span>') +
-      '</div>';
+      '<div class="agent-ref-list">' + listHtml + '</div>';
     grid.appendChild(group);
-    group.querySelectorAll('.doc-btn[data-docbtn]').forEach(function(btn) {
-      btn.addEventListener('click', function(e) { e.stopPropagation(); showDocPreview(btn.dataset.docbtn); });
-    });
+    if (cat === 'invokedBy' || cat === 'invokes') {
+      group.querySelectorAll('.agent-ref-item[data-agent]').forEach(function(el) {
+        el.addEventListener('click', function(e) { e.stopPropagation(); showAgentDetail(el.dataset.agent); });
+      });
+    } else {
+      group.querySelectorAll('.doc-btn[data-docbtn]').forEach(function(btn) {
+        btn.addEventListener('click', function(e) { e.stopPropagation(); showDocPreview(btn.dataset.docbtn); });
+      });
+    }
   }
   if (!hasAny) grid.innerHTML = '<div class="no-refs">참조하는 도구가 없습니다 (독립 실행)</div>';
   var panel = document.getElementById('agentDetailPanel');
@@ -4303,10 +5982,24 @@ function renderFlowSteps() {
         '" data-agent="' + a.name + '" onclick="showAgentDetail(\'' + a.name + '\')" title="' + (a.displayName ? a.name + ' (team lead)' : '') + '">' +
         label + '</div>';
     }).join('');
+    var invocationsHtml = '';
+    if (step.invocations && step.invocations.length) {
+      invocationsHtml = '<div class="step-invocations">';
+      step.invocations.forEach(function(inv) {
+        var toChips = (inv.to || []).map(function(t) {
+          return '<span class="to-item" data-agent="' + t + '" onclick="event.stopPropagation(); showAgentDetail(\'' + t.replace(/'/g, "\\'") + '\')">' + t + '</span>';
+        }).join('');
+        invocationsHtml += '<div class="step-invocation-line">' +
+          '<span class="from">' + inv.from + '</span>' +
+          '<span class="arrow">→</span>' + toChips + '</div>';
+      });
+      invocationsHtml += '</div>';
+    }
     card.innerHTML =
       '<div class="step-num">' + step.step + '</div>' +
       '<div class="step-name">' + step.name + '</div>' +
-      '<div class="step-agents">' + agentsHtml + '</div>';
+      '<div class="step-agents">' + agentsHtml + '</div>' +
+      invocationsHtml;
     container.appendChild(card);
   });
   container.querySelectorAll('.agent-chip[data-agent]').forEach(function(el) {

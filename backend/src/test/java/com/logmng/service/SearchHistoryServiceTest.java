@@ -1,5 +1,6 @@
 package com.logmng.service;
 
+import com.logmng.dto.request.SearchHistoryListRequest;
 import com.logmng.dto.response.SearchHistoryListResponse;
 import com.logmng.exception.CustomException;
 import com.logmng.util.CryptoUtil;
@@ -42,6 +43,7 @@ class SearchHistoryServiceTest {
     @BeforeEach
     void setUp() throws Exception {
         dataSource = createH2DataSource();
+        clearAllTables(dataSource);
         CryptoUtil cryptoUtil = new CryptoUtil();
         ReflectionTestUtils.setField(cryptoUtil, "encryptionKey", "test-key-32-bytes-long!!!!!!!!!");
         ReflectionTestUtils.setField(cryptoUtil, "decryptionEnabled", true);
@@ -61,6 +63,8 @@ class SearchHistoryServiceTest {
                     "id BIGINT PRIMARY KEY, user_id VARCHAR(100), log_type VARCHAR(50), search_params CLOB, " +
                     "requested_at TIMESTAMP, expires_at TIMESTAMP, approval_status VARCHAR(20), approved_by VARCHAR(100), approved_at TIMESTAMP, " +
                     "rejected_by VARCHAR(100), rejected_at TIMESTAMP, rejection_reason VARCHAR(500), created_at TIMESTAMP, updated_at TIMESTAMP)");
+            stmt.execute("CREATE TABLE IF NOT EXISTS app_user (" +
+                    "username VARCHAR(100) PRIMARY KEY, department_code VARCHAR(50))");
         }
         org.h2.jdbcx.JdbcDataSource ds = new org.h2.jdbcx.JdbcDataSource();
         ds.setURL(H2_URL);
@@ -192,7 +196,10 @@ class SearchHistoryServiceTest {
 
     /** Insert a search_history row for list/getDetail/reRequest tests. expired=true sets expires_at in the past and status EXPIRED for reRequest. */
     private static long insertSearchHistoryRow(DataSource ds, long id, String ownerUserId, boolean expired) throws Exception {
-        Timestamp requestedAt = Timestamp.from(Instant.now().minusSeconds(3600));
+        return insertSearchHistoryRow(ds, id, ownerUserId, expired, Instant.now().minusSeconds(3600));
+    }
+
+    private static long insertSearchHistoryRow(DataSource ds, long id, String ownerUserId, boolean expired, Instant requestedAtInstant) throws Exception {
         Timestamp expiresAt = expired ? Timestamp.from(Instant.now().minusSeconds(3600)) : Timestamp.from(Instant.now().plusSeconds(86400));
         String status = expired ? "EXPIRED" : "PENDING";
         try (Connection conn = ds.getConnection();
@@ -200,7 +207,7 @@ class SearchHistoryServiceTest {
             ps.setLong(1, id);
             ps.setString(2, ownerUserId);
             ps.setString(3, "java_fw_imglog");
-            ps.setTimestamp(4, requestedAt);
+            ps.setTimestamp(4, Timestamp.from(requestedAtInstant));
             ps.setTimestamp(5, expiresAt);
             ps.setString(6, status);
             ps.executeUpdate();
@@ -208,26 +215,130 @@ class SearchHistoryServiceTest {
         return id;
     }
 
-    // ---- Requester-only: list always has userId; getDetail/reRequest only for owner (TC-01–TC-05) ----
+    private static void insertAppUser(DataSource ds, String username, String departmentCode) throws Exception {
+        try (Connection conn = ds.getConnection();
+             PreparedStatement ps = conn.prepareStatement("INSERT INTO app_user (username, department_code) VALUES (?, ?)")) {
+            ps.setString(1, username);
+            ps.setString(2, departmentCode);
+            ps.executeUpdate();
+        }
+    }
+
+    private static SearchHistoryListRequest newListRequest(String actorUserId) {
+        SearchHistoryListRequest request = new SearchHistoryListRequest();
+        request.setActorUserId(actorUserId);
+        request.setPage(1);
+        request.setPageSize(20);
+        request.setSortField("requested_at");
+        request.setSortDirection("desc");
+        return request;
+    }
+
+    // ---- Search-history requester filter + paging (req 20260313) ----
 
     @Test
-    void list_alwaysReturnsUserIdInEveryRow() throws Exception {
-        insertSearchHistoryRow(dataSource, 100L, "user1", false);
+    void list_scopeAll_filtersByUserId_andCountMatchesRows() throws Exception {
+        insertAppUser(dataSource, "alpha-user", "D01");
+        insertAppUser(dataSource, "beta-user", "D02");
+        insertSearchHistoryRow(dataSource, 100L, "alpha-user", false);
+        insertSearchHistoryRow(dataSource, 101L, "alpha-user", false);
+        insertSearchHistoryRow(dataSource, 102L, "beta-user", false);
 
-        SearchHistoryListResponse resp = searchHistoryService.list("user1", 1, 20, "requested_at", "desc", false, null);
+        SearchHistoryListRequest request = newListRequest("adminUser");
+        request.setUserId("alpha-user");
+        SearchHistoryListResponse resp = searchHistoryService.list(request);
 
-        assertThat(resp.getData()).isNotEmpty();
-        for (Map<String, Object> row : resp.getData()) {
-            assertThat(row).containsKey("userId");
-            assertThat(row.get("userId")).isEqualTo("user1");
-        }
+        assertThat(resp.getData()).hasSize(2);
+        assertThat(resp.getData()).allMatch(row -> "alpha-user".equals(row.get("userId")));
+        assertThat(resp.getPagination().getTotalCount()).isEqualTo(2);
+        assertThat(resp.getPagination().getTotalPages()).isEqualTo(1);
+    }
+
+    @Test
+    void list_scopeAll_filtersByUsernamePartial_andCountMatchesRows() throws Exception {
+        insertAppUser(dataSource, "alice-admin", "D01");
+        insertAppUser(dataSource, "alice-viewer", "D02");
+        insertAppUser(dataSource, "bob-user", "D01");
+        insertSearchHistoryRow(dataSource, 110L, "alice-admin", false);
+        insertSearchHistoryRow(dataSource, 111L, "alice-viewer", false);
+        insertSearchHistoryRow(dataSource, 112L, "bob-user", false);
+
+        SearchHistoryListRequest request = newListRequest("adminUser");
+        request.setUsername("alice");
+        SearchHistoryListResponse resp = searchHistoryService.list(request);
+
+        assertThat(resp.getData()).hasSize(2);
+        assertThat(resp.getData()).extracting(row -> row.get("userId"))
+                .containsExactlyInAnyOrder("alice-admin", "alice-viewer");
+        assertThat(resp.getPagination().getTotalCount()).isEqualTo(2);
+    }
+
+    @Test
+    void list_scopeAll_filtersByDepartmentExact() throws Exception {
+        insertAppUser(dataSource, "sales-user", "SALES");
+        insertAppUser(dataSource, "research-user", "RESEARCH");
+        insertSearchHistoryRow(dataSource, 120L, "sales-user", false);
+        insertSearchHistoryRow(dataSource, 121L, "research-user", false);
+
+        SearchHistoryListRequest request = newListRequest("adminUser");
+        request.setDepartment("SALES");
+        SearchHistoryListResponse resp = searchHistoryService.list(request);
+
+        assertThat(resp.getData()).hasSize(1);
+        assertThat(resp.getData().get(0).get("userId")).isEqualTo("sales-user");
+        assertThat(resp.getPagination().getTotalCount()).isEqualTo(1);
+    }
+
+    @Test
+    void list_scopeTeam_appliesAllowedUserIds_beforeRequesterFilters() throws Exception {
+        insertAppUser(dataSource, "current-user", "D01");
+        insertAppUser(dataSource, "team-mate", "D01");
+        insertAppUser(dataSource, "outside-user", "D02");
+        insertSearchHistoryRow(dataSource, 130L, "current-user", false);
+        insertSearchHistoryRow(dataSource, 131L, "team-mate", false);
+        insertSearchHistoryRow(dataSource, 132L, "outside-user", false);
+
+        SearchHistoryListRequest request = newListRequest("current-user");
+        request.setAllowedUserIds(List.of("current-user", "team-mate"));
+        request.setUserId("outside-user");
+        SearchHistoryListResponse outsideResp = searchHistoryService.list(request);
+
+        assertThat(outsideResp.getData()).isEmpty();
+        assertThat(outsideResp.getPagination().getTotalCount()).isEqualTo(0);
+
+        request.setUserId(null);
+        request.setUsername("team");
+        SearchHistoryListResponse teamResp = searchHistoryService.list(request);
+
+        assertThat(teamResp.getData()).hasSize(1);
+        assertThat(teamResp.getData().get(0).get("userId")).isEqualTo("team-mate");
+        assertThat(teamResp.getPagination().getTotalCount()).isEqualTo(1);
+    }
+
+    @Test
+    void list_usesConsistentFilterSetForCountAndPageRows_andKeepsDefaultSortDesc() throws Exception {
+        insertAppUser(dataSource, "alpha-user", "D01");
+        insertSearchHistoryRow(dataSource, 140L, "alpha-user", false, Instant.parse("2026-03-13T01:00:00Z"));
+        insertSearchHistoryRow(dataSource, 141L, "alpha-user", false, Instant.parse("2026-03-13T02:00:00Z"));
+        insertSearchHistoryRow(dataSource, 142L, "alpha-user", false, Instant.parse("2026-03-13T03:00:00Z"));
+
+        SearchHistoryListRequest request = newListRequest("adminUser");
+        request.setUserId("alpha-user");
+        request.setPageSize(2);
+        SearchHistoryListResponse resp = searchHistoryService.list(request);
+
+        assertThat(resp.getPagination().getTotalCount()).isEqualTo(3);
+        assertThat(resp.getPagination().getTotalPages()).isEqualTo(2);
+        assertThat(resp.getData()).hasSize(2);
+        assertThat(resp.getData().get(0).get("id")).isEqualTo(142L);
+        assertThat(resp.getData().get(1).get("id")).isEqualTo(141L);
     }
 
     @Test
     void getDetail_allowsRequesterOwnRow() throws Exception {
         long id = insertSearchHistoryRow(dataSource, 101L, "user1", false);
 
-        Map<String, Object> detail = searchHistoryService.getDetail("user1", id, false, null);
+        Map<String, Object> detail = searchHistoryService.getDetail("user1", id);
 
         assertThat(detail).isNotNull();
         assertThat(detail.get("id")).isEqualTo(id);
@@ -238,7 +349,7 @@ class SearchHistoryServiceTest {
     void reRequest_allowsRequesterOwnExpiredRow() throws Exception {
         long id = insertSearchHistoryRow(dataSource, 102L, "user1", true);
 
-        Map<String, Object> result = searchHistoryService.reRequest("user1", id, false, null);
+        Map<String, Object> result = searchHistoryService.reRequest("user1", id);
 
         assertThat(result).isNotNull();
         assertThat(result.get("id")).isEqualTo(id);
@@ -249,7 +360,7 @@ class SearchHistoryServiceTest {
     void getDetail_returns403WhenNotRequester() throws Exception {
         long id = insertSearchHistoryRow(dataSource, 103L, "ownerUser", false);
 
-        assertThatThrownBy(() -> searchHistoryService.getDetail("otherUser", id, true, List.of("ownerUser")))
+        assertThatThrownBy(() -> searchHistoryService.getDetail("otherUser", id))
                 .isInstanceOf(CustomException.class)
                 .satisfies(e -> {
                     CustomException ex = (CustomException) e;
@@ -262,7 +373,7 @@ class SearchHistoryServiceTest {
     void reRequest_returns403WhenNotRequester() throws Exception {
         long id = insertSearchHistoryRow(dataSource, 104L, "ownerUser", true);
 
-        assertThatThrownBy(() -> searchHistoryService.reRequest("otherUser", id, true, List.of("ownerUser")))
+        assertThatThrownBy(() -> searchHistoryService.reRequest("otherUser", id))
                 .isInstanceOf(CustomException.class)
                 .satisfies(e -> {
                     CustomException ex = (CustomException) e;
@@ -276,7 +387,7 @@ class SearchHistoryServiceTest {
     /** TC-01: scope self → only rows where requester = current user (approverUserId). */
     @Test
     void listPending_scopeSelf_returnsOnlyRowsWhereRequesterEqualsCurrentUser() throws Exception {
-        clearSearchHistory(dataSource);
+        clearAllTables(dataSource);
         insertPendingRow(dataSource, 201L, "approver1");
         insertPendingRow(dataSource, 202L, "otherUser");
         insertPendingRow(dataSource, 203L, "approver1");
@@ -291,7 +402,7 @@ class SearchHistoryServiceTest {
     /** TC-02 / TC-06: scope team → only rows where requester in allowedUserIds (same department). */
     @Test
     void listPending_scopeTeam_returnsOnlyRowsWhereRequesterInAllowedUserIds() throws Exception {
-        clearSearchHistory(dataSource);
+        clearAllTables(dataSource);
         insertPendingRow(dataSource, 301L, "userA");
         insertPendingRow(dataSource, 302L, "userB");
         insertPendingRow(dataSource, 303L, "userC");
@@ -307,7 +418,7 @@ class SearchHistoryServiceTest {
     /** TC-03: scope all (or is_system_admin) → all PENDING rows that canApproveForRequester allows. */
     @Test
     void listPending_scopeAll_returnsAllApprovableRows() throws Exception {
-        clearSearchHistory(dataSource);
+        clearAllTables(dataSource);
         insertPendingRow(dataSource, 401L, "req1");
         insertPendingRow(dataSource, 402L, "req2");
         insertPendingRow(dataSource, 403L, "req3");
@@ -320,7 +431,7 @@ class SearchHistoryServiceTest {
 
     @Test
     void listPending_scopeSelf_withNoOwnRequests_returnsEmpty() throws Exception {
-        clearSearchHistory(dataSource);
+        clearAllTables(dataSource);
         insertPendingRow(dataSource, 501L, "otherUser");
 
         SearchHistoryListResponse resp = searchHistoryService.listPending("approver1", false, 1, 20, false, null);
@@ -329,11 +440,12 @@ class SearchHistoryServiceTest {
         assertThat(resp.getPagination().getTotalCount()).isEqualTo(0);
     }
 
-    private static void clearSearchHistory(DataSource ds) throws Exception {
+    private static void clearAllTables(DataSource ds) throws Exception {
         try (Connection conn = ds.getConnection();
              Statement stmt = conn.createStatement()) {
             stmt.execute("DELETE FROM search_history_approved_row");
             stmt.execute("DELETE FROM search_history");
+            stmt.execute("DELETE FROM app_user");
         }
     }
 

@@ -279,16 +279,16 @@ APIs that correspond to screens must validate: user has is_system_admin=true **o
 
 **Scope enforcement (activity-log, statistics, search-history, pending-approvals)** — when is_system_admin=false:
 - Use scope from permission group for that screen (from `screenScopes` or permission_group_screen.scope). Default for scope-supporting screens = 'team' when null/omitted.
-- scope='self': Backend overrides userId with current user; ignores department, ip params. For detail/getById: enforce ownership; return 403/404 if accessing another user's data.
-- scope='team': Filter by current user's department (same department_code only).
-- scope='all': Pass request params as-is; no override.
+- scope='self': Backend overrides userId with current user; ignores department, ip params. For `GET /api/search-history`, backend also ignores requester filters (`department`, `username`, `userId`) and returns only the current requester's rows. For detail/getById: enforce ownership; return 403/404 if accessing another user's data.
+- scope='team': Filter by current user's department (same department_code only). For `GET /api/search-history`, requester filters are allowed only as additional narrowing filters inside that same-department set.
+- scope='all': Pass request params as-is; no override. For `GET /api/search-history`, requester filters narrow the full visible set and never expand scope.
 - scope null/omitted: Treated as 'team' (default for scope-supporting screens).
 - is_system_admin=true: Always full scope; ignore permission group scope.
 
 | screen_id | APIs (require this screen or is_system_admin=true) | Scope enforcement when is_system_admin=false |
 |-----------|------------------------------------|---------------------------------------------|
 | main | /api/logs/db-refactored/*, /api/log-types/* | — |
-| search-history | /api/search-history/* | Use scope: self → own only; team → same department; all → pass params as-is |
+| search-history | /api/search-history/* | Use scope: self → own only and ignore requester filters (`department`, `username`, `userId`); team → same department first, then requester filters narrow within that set; all → pass requester filters as narrowing-only params |
 | activity-log | /api/activity-log/* | Use scope: self → override userId; team → same department; all → pass params as-is |
 | statistics | /api/statistics/* | Use scope: self → override userId, ignore dept/ip; team → same department; all → pass params as-is |
 | pending-approvals | /api/search-history/pending, /api/search-history/{id}/approve, /api/search-history/{id}/reject | Use scope: self → own requests only (requester=current user); team → same department requesters + canApproveForRequester; all → all approvable (current behavior). |
