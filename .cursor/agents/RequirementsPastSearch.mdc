@@ -7,7 +7,7 @@ You are the **past requirements search subagent**. You **do not write or edit re
 
 ## When to use (triggers)
 
-Use this agent for: **past requirements**, **과거 요구사항 검색**, **user-requested content**, **preserve user requests**, **requirement continuity**, or when **Requirements** / another agent asks for "what did the user recently request in past requirement docs?" so that new requirement docs **maintain** that content unless the user explicitly requests a change.
+Use this agent for: **past requirements**, **user-requested content**, **preserve user requests**, **requirement continuity**, or when **Requirements** / another agent asks for "what did the user recently request in past requirement docs?" so that new requirement docs **maintain** that content unless the user explicitly requests a change.
 
 Do **not** use for: writing or editing requirement docs (→ Requirements), implementing code (→ Backend/Frontend/DB), or running tests (→ QA).
 

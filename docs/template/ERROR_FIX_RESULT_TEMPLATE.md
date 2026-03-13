@@ -1,42 +1,39 @@
-# 오류 조치 결과 템플릿 (동일 요구사항 ID 추적)
+# Error Fix Result Template
 
-**용도**: 오류/버그 수정 요건의 조치가 끝난 뒤, **해당 요건 문서와 동일한 ID**를 유지한 채 원인·조치 결과를 기록할 때 사용한다.  
-**추적**: 요구사항 ID = `docs/requirements/yyyyMMdd-요건명.md` 의 파일명(확장자 제외). 조치 결과는 **같은 파일**에 아래 섹션을 추가하거나 갱신한다.
+Use this template after an error or bug-fix requirement has been resolved and you need to record the root cause and remediation result while keeping the **same requirement ID**.
 
----
+**Traceability**: The requirement ID comes from the existing requirement file name, for example `docs/requirements/yyyyMMdd-name.md`. Add the result to the **same file**; do not create a separate result-only document.
 
-## 붙여넣기용 블록 (동일 요건 문서에 추가)
+## Paste-in block
 
-조치가 완료된 요건 문서(`docs/requirements/yyyyMMdd-요건명.md`) 맨 아래에 다음 섹션을 추가한다.
+Append the following section to the end of the existing requirement document:
 
 ```markdown
 ---
 
-## 6. 오류 조치 결과 (원인·조치)
+## 6. Error fix result
 
-**요구사항 ID**: `yyyyMMdd-요건명` (본 문서와 동일)
+**Requirement ID**: `yyyyMMdd-name`
 
-### 원인 (Root Cause)
-- [발생 원인 1]
-- [발생 원인 2]
-- (필요 시 기술적 근거: 로그/스택/설정 등)
+### Root cause
+- [Cause 1]
+- [Cause 2]
+- [Optional technical evidence: log, stack trace, configuration, etc.]
 
-### 조치 내용 (Actions Taken)
-- [조치 1: 변경 파일·수정 요약]
-- [조치 2: 설정·배포 변경 등]
+### Actions taken
+- [Action 1: changed files and summary]
+- [Action 2: config, operational, or deployment change]
 
-### 조치 결과 (Result)
-- [검증 방법 및 결과: 예) API 호출 성공, 화면 정상 표시]
-- [재발 방지: 예) 동일 조건 재현 테스트 통과, 모니터링 추가]
+### Result
+- [Verification method and result]
+- [Recurrence prevention or follow-up guardrail]
 
-### 완료 일시
+### Completed at
 - yyyy-MM-dd HH:mm
 ```
 
----
+## Notes
 
-## 작성 시 유의사항
-
-- **동일 ID**: 반드시 **기존 요건 문서와 같은 파일**에 추가한다. 별도 "조치 결과 전용" 파일을 만들지 않는다.
-- **검색·추적**: `yyyyMMdd-요건명` 또는 문서 제목으로 검색하면 "요건 내용 → 설계 → 테스트 결과 → 원인·조치 결과"까지 한 번에 추적 가능하다.
-- 오류가 아닌 기능 개선 요건에는 이 섹션을 생략해도 된다.
+- Keep the same requirement ID and the same file.
+- This makes it easy to trace requirement -> design -> test results -> root cause -> remediation in one document.
+- Skip this section for non-error feature work.

@@ -6,6 +6,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### 2026-03-13 (tooling workflow 영문화 일관성)
+
+- **chore (workflow)**: `.cursor/rules/`, `.cursor/commands/`, `.cursor/skills/`, `.cursor/agents/`, `docs/workflow/`, `docs/template/`, `docs/cursor-subagents/`의 활성 도구 지향 문서를 English-only로 정리하고, 사용자 응답은 한국어로 유지하는 정책을 일관되게 맞춤. (req `20260313-english-only-tooling-workflow-consistency`)
+- **docs**: `docs/requirements/20260313-english-only-tooling-workflow-consistency.md` 기준으로 언어 정책, 위임/핸드오프, Release 기반 최종 push 경로, 예외 분류 규칙을 문서 전반에서 정렬.
+- **chore (workflow)**: 레거시 한글 오류 개선 프롬프트 예시를 `docs/workflow/error-fix-prompting-examples.md`로 교체하고, `node scripts/generate-treemap.js` 결과인 `docs/cursor-tools-treemap.html` 갱신을 포함해 추적 가능하도록 반영.
+
 ### 2026-03-10 (트리맵 Subagents 카테고리 항상 표시)
 
 - **chore (treemap)**: 에이전트 상세 패널에서 "Subagents" (agents) 카테고리를 항상 표시 — 항목이 없을 때(items.length === 0)에도 "Subagents (0)" 및 힌트 ".cursor/agents/*.mdc 참조만 표시" 노출. `scripts/treemap-template.html` 수정, `docs/cursor-tools-treemap.html` 재생성 반영.

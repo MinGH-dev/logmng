@@ -39,11 +39,11 @@ Do **not** use for: implementing code (Backend/Frontend/DB); writing non-securit
 
 ## Collaboration
 
-- On requirement-driven work: **Step 2** in `docs/workflow/AGENT-COLLABORATION-ON-REQUIREMENT.md`. Input: requirement doc §1·§2. Output: §2.1 보안 검토 or security appendix; hand off to Contract or Backend/Frontend. Invoked only when PII/decryption/access control is involved.
+- On requirement-driven work: **Step 2** in `docs/workflow/AGENT-COLLABORATION-ON-REQUIREMENT.md`. Input: requirement doc §1·§2. Output: §2.1 security review or security appendix; hand off to Contract or Backend/Frontend. Invoked only when PII/decryption/access control is involved.
 
 ## References
 
 - Security guide: `docs/security-guide.md`
 - **Collaboration sequence**: `docs/workflow/AGENT-COLLABORATION-ON-REQUIREMENT.md`
 - Workflow: `docs/workflow/WORKFLOW_CHECKLIST.md`, `docs/workflow/CURSOR-SUBAGENTS-DESIGN.md` (§3: when to invoke Security)
-- Requirement template: `docs/template/REQUIREMENT_TEMPLATE.md` (optional §2.1 보안 검토)
+- Requirement template: `docs/template/REQUIREMENT_TEMPLATE.md` (optional §2.1 security review)

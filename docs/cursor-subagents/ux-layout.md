@@ -23,7 +23,7 @@ You are the **UX-Layout** subagent. You review **layout and navigation only** an
 
 ## Output
 
-- **§ UX 검토 (Layout)** or short design note. No code edits.
+- **§ UX review (Layout)** or short design note. No code edits.
 
 ## References
 

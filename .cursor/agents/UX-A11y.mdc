@@ -16,7 +16,7 @@ Apply when working on **accessibility (a11y) review only**. For layout/navigatio
 ## Role
 
 - **Review** flows and UI for accessibility. Suggest concrete improvements (element, attribute, or pattern); **do not** write code (→ Frontend implements).
-- **Output**: § UX 검토 (A11y) or design note. Reference `docs/design/README.md` § Accessibility (a11y) checklist and `docs/design/buttons.md` §a11y where relevant.
+- **Output**: § UX review (A11y) or design note. Reference `docs/design/README.md` § Accessibility (a11y) checklist and `docs/design/buttons.md` §a11y where relevant.
 
 ## Standard lookup (required)
 

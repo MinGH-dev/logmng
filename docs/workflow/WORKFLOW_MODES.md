@@ -1,48 +1,43 @@
-# Workflow Modes (TDD vs DDD)
+# Workflow Modes
 
-Development methodology selection for this project. Choose **TDD** or **DDD** per task (or as default) to keep behavior predictable and maintainable.
+This document explains when to prefer a more test-driven loop versus a more discovery-driven loop during Step 4.
 
-Reference: [moai-adk workflow-modes](https://github.com/modu-ai/moai-adk/blob/main/.claude/rules/moai/workflow/workflow-modes.md). This document adapts the same idea for Cursor: no automatic phase switch; the agent and user choose the mode and follow the corresponding cycle.
+## 1. TDD
 
-## Mode summary
+Prefer TDD when:
 
-| Mode | Cycle | Best for | Test timing |
-|------|--------|----------|-------------|
-| **TDD** | RED → GREEN → REFACTOR | New features, greenfield, or code with existing tests | Test **before** implementation |
-| **DDD** | ANALYZE → PRESERVE → IMPROVE | Legacy code, low/no test coverage, refactors | Characterization tests **after** understanding |
+- the requirement is clearly defined
+- the expected behavior is easy to express as tests
+- the affected area already has stable test coverage
 
-## TDD (default)
+Typical loop:
 
-**When to use**: New feature, bugfix in well-tested area, or when §3 test cases can be written before code.
+1. write or extend a failing test
+2. implement the smallest change that makes it pass
+3. refactor while keeping tests green
 
-**Cycle** (within "3. 개발" in WORKFLOW_CHECKLIST):
+## 2. Discovery-driven development
 
-1. **RED**: Write a failing test (or add §3 test case and implement it as a failing test). Verify it fails.
-2. **GREEN**: Write minimal code to pass. No extra abstraction yet.
-3. **REFACTOR**: Improve code while keeping tests green. Record in §5 after run.
+Prefer a discovery-driven loop when:
 
-**Maintenance effect**: Test-first keeps regressions visible; refactors are safe.
+- the affected area is legacy or poorly understood
+- the current behavior must be preserved carefully
+- you need to inspect and stabilize the system before introducing stronger tests
 
-## DDD (legacy / low coverage)
+Typical loop:
 
-**When to use**: Existing code with few or no tests; refactor or behavior-preserving change; "유지보수" on legacy area.
+1. analyze the current implementation
+2. preserve or document important existing behavior
+3. improve the implementation in small steps
+4. add or extend tests as understanding improves
 
-**Cycle** (within "3. 개발"):
+## 3. Selection rule
 
-1. **ANALYZE**: Read existing code and dependencies; map behavior and side effects.
-2. **PRESERVE**: Write characterization tests (or §3 cases) that capture **current** behavior. Run and confirm they pass.
-3. **IMPROVE**: Make small changes; run characterization tests after each step. Add or adjust tests only when behavior intentionally changes.
-
-**Maintenance effect**: Avoids breaking existing behavior; tests document current behavior before changes.
-
-## How to choose in Cursor
-
-- **No config file**: Decide per task. When starting a task, state "TDD" or "DDD" in the requirement doc (§2 or note) or in the chat. The agent follows the chosen cycle during development (step 3).
-- **Optional default**: To set a project default, add a short note in this file under "Project default" (e.g. `Default: TDD`) or in `.cursor/README.md`. The agent reads it when applying dev-workflow.
-- **Heuristic**: New feature or error fix in tested code → TDD. Refactor or change in legacy, low-coverage code → DDD.
+- Choose TDD for new features or well-isolated logic.
+- Choose discovery-driven work for legacy fixes or fragile areas.
+- In both modes, the requirement doc and §3 test plan still come first.
 
 ## References
 
-- Order and gates: `docs/workflow/WORKFLOW_CHECKLIST.md`
-- Detail: `docs/workflow/DEVELOPMENT_WORKFLOW.md`
-- Dev workflow skill: `.cursor/skills/dev-workflow/SKILL.md`
+- `docs/workflow/WORKFLOW_CHECKLIST.md`
+- `docs/workflow/DEVELOPMENT_WORKFLOW.md`

@@ -63,7 +63,7 @@ Do **not** write §1 (user scenario, expected outcome) and §2 (codebase summary
    - **QA**: user scenario testability, §3 alignment, edge/regression suggestions.
    - Pass to each: user request or error message; ask for (a) user scenario/expected outcome for §1, (b) codebase summary for their area, (c) problem analysis, (d) solution approach.
 2. **Orchestrate**  
-   Merge responses into **§1** (description, user scenario, expected outcome) and **§2** (codebase summary, problem analysis, solution, **변경 파일 목록 (예상)**). The change file list in §2 is **tentative**; the implementing agent (Step 4) **confirms or updates** it when implementation is done (see `docs/workflow/REQUIREMENTS-AUTHORING-WORKFLOW.md` §1.2).
+   Merge responses into **§1** (description, user scenario, expected outcome) and **§2** (codebase summary, problem analysis, solution, **planned change file list**). The change file list in §2 is **tentative**; the implementing agent (Step 4) **confirms or updates** it when implementation is done (see `docs/workflow/REQUIREMENTS-AUTHORING-WORKFLOW.md` §1.2).
 3. **Finalize**  
    Complete **§3** (test plan) and the requirement doc.
 

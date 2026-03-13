@@ -989,7 +989,7 @@ const TREEMAP_DATA = {
     "WHY-TESTS-VERIFY-NOT-AUTO.md": "docs/workflow/WHY-TESTS-VERIFY-NOT-AUTO.md",
     "WORKFLOW_CHECKLIST.md": "docs/workflow/WORKFLOW_CHECKLIST.md",
     "WORKFLOW_MODES.md": "docs/workflow/WORKFLOW_MODES.md",
-    "오류-개선-프롬프팅-예시.md": "docs/workflow/오류-개선-프롬프팅-예시.md",
+    "error-fix-prompting-examples.md": "docs/workflow/error-fix-prompting-examples.md",
     "AGENT_PROMPT_TEMPLATE.md": "docs/template/AGENT_PROMPT_TEMPLATE.md",
     "BUGFIX_CHILD_TEMPLATE.md": "docs/template/BUGFIX_CHILD_TEMPLATE.md",
     "ERROR_FIX_RESULT_TEMPLATE.md": "docs/template/ERROR_FIX_RESULT_TEMPLATE.md",
@@ -2576,7 +2576,18 @@ const TREEMAP_DATA = {
             "name": "api-permission-map",
             "desc": "API 엔드포인트 → 컨트롤러 → 권한 체크 → 거부 에러코드 매핑.",
             "category": "workflow",
-            "refs": []
+            "refs": [
+              {
+                "name": "docs/contract.md",
+                "type": "other",
+                "path": "docs/contract.md"
+              },
+              {
+                "name": "permission-group-hierarchy.spec.yaml",
+                "type": "other",
+                "path": "specs/permission-group-hierarchy.spec.yaml"
+              }
+            ]
           },
           {
             "name": "dev-workflow",
@@ -2753,24 +2764,14 @@ const TREEMAP_DATA = {
                 "path": "docs/api-definition.md"
               },
               {
-                "name": "permission-group-hierarchy.spec.yaml",
+                "name": "docs/contract.md",
                 "type": "other",
-                "path": "specs/permission-group-hierarchy.spec.yaml"
-              },
-              {
-                "name": "docs/requirements/20250303-activity-statistics-self-only-scope.md",
-                "type": "other",
-                "path": "docs/requirements/20250303-activity-statistics-self-only-scope.md"
+                "path": "docs/contract.md"
               },
               {
                 "name": "docs/requirements/TOPIC-INDEX.md",
                 "type": "other",
                 "path": "docs/requirements/TOPIC-INDEX.md"
-              },
-              {
-                "name": "docs/analysis-search-consistency-by-screen.md",
-                "type": "other",
-                "path": "docs/analysis-search-consistency-by-screen.md"
               }
             ]
           },
@@ -2780,34 +2781,19 @@ const TREEMAP_DATA = {
             "category": "domain",
             "refs": [
               {
-                "name": "permission-group-hierarchy.spec.yaml",
-                "type": "other",
-                "path": "specs/permission-group-hierarchy.spec.yaml"
-              },
-              {
                 "name": "docs/contract.md",
                 "type": "other",
                 "path": "docs/contract.md"
               },
               {
-                "name": "docs/requirements/20250303-remove-role-single-admin.md",
+                "name": "permission-group-hierarchy.spec.yaml",
                 "type": "other",
-                "path": "docs/requirements/20250303-remove-role-single-admin.md"
-              },
-              {
-                "name": "docs/requirements/20250227-permission-group-screen-menu-access.md",
-                "type": "other",
-                "path": "docs/requirements/20250227-permission-group-screen-menu-access.md"
+                "path": "specs/permission-group-hierarchy.spec.yaml"
               },
               {
                 "name": "docs/requirements/TOPIC-INDEX.md",
                 "type": "other",
                 "path": "docs/requirements/TOPIC-INDEX.md"
-              },
-              {
-                "name": "ANALYSIS-pending-approvals-scope-frontend-incomplete.md",
-                "type": "workflow",
-                "path": "docs/workflow/ANALYSIS-pending-approvals-scope-frontend-incomplete.md"
               }
             ]
           },
@@ -2854,24 +2840,14 @@ const TREEMAP_DATA = {
                 "path": "docs/api-definition.md"
               },
               {
-                "name": "docs/requirements/20260224-decryption-approver-designation.md",
+                "name": "docs/contract.md",
                 "type": "other",
-                "path": "docs/requirements/20260224-decryption-approver-designation.md"
-              },
-              {
-                "name": "docs/requirements/20260225-department-approver-hierarchy.md",
-                "type": "other",
-                "path": "docs/requirements/20260225-department-approver-hierarchy.md"
+                "path": "docs/contract.md"
               },
               {
                 "name": "docs/requirements/TOPIC-INDEX.md",
                 "type": "other",
                 "path": "docs/requirements/TOPIC-INDEX.md"
-              },
-              {
-                "name": "schema.sql",
-                "type": "other",
-                "path": "backend/src/main/resources/db/schema.sql"
               }
             ]
           },
@@ -2903,31 +2879,36 @@ const TREEMAP_DATA = {
                 "path": "docs/api-definition.md"
               },
               {
-                "name": "docs/requirements/TOPIC-INDEX.md",
+                "name": "docs/contract.md",
                 "type": "other",
-                "path": "docs/requirements/TOPIC-INDEX.md"
+                "path": "docs/contract.md"
               }
             ]
           },
           {
             "name": "search-consistency-domain",
-            "desc": "> Screen-by-screen search/filter consistency: user-context axes (department, name, userId), scope=self hiding rule. Use when adding or changing search/filter UI on activity-log, statistics, user-management, permission-group-management, search-history, pending-approvals. 화면별 검색 통일, 부서·이름·사용자ID, scope=self 필터 숨김 관련 시 사용.",
+            "desc": "Screen-by-screen search/filter consistency, shared user axes, and scope=self hiding rules.",
             "category": "domain",
             "refs": [
               {
-                "name": "docs/analysis-search-consistency-by-screen.md",
+                "name": "docs/design/search-fields-by-screen.md",
                 "type": "other",
-                "path": "docs/analysis-search-consistency-by-screen.md"
+                "path": "docs/design/search-fields-by-screen.md"
               },
               {
-                "name": "docs/requirements/20260310-search-ui-unify.md",
+                "name": "docs/design/search-field-definition-items.md",
                 "type": "other",
-                "path": "docs/requirements/20260310-search-ui-unify.md"
+                "path": "docs/design/search-field-definition-items.md"
               },
               {
                 "name": "docs/design/forms-and-filters.md",
                 "type": "other",
                 "path": "docs/design/forms-and-filters.md"
+              },
+              {
+                "name": "ANALYSIS-user-field-size-activity-log-vs-statistics.md",
+                "type": "workflow",
+                "path": "docs/workflow/ANALYSIS-user-field-size-activity-log-vs-statistics.md"
               }
             ]
           },
@@ -2942,19 +2923,14 @@ const TREEMAP_DATA = {
                 "path": "docs/api-definition.md"
               },
               {
-                "name": "docs/requirements/20260224-decryption-snapshot-final-design-en.md",
+                "name": "docs/contract.md",
                 "type": "other",
-                "path": "docs/requirements/20260224-decryption-snapshot-final-design-en.md"
+                "path": "docs/contract.md"
               },
               {
                 "name": "docs/requirements/20260224-decryption-approval-snapshot-guide.md",
                 "type": "other",
                 "path": "docs/requirements/20260224-decryption-approval-snapshot-guide.md"
-              },
-              {
-                "name": "docs/requirements/20260224-decryption-require-approval.md",
-                "type": "other",
-                "path": "docs/requirements/20260224-decryption-require-approval.md"
               }
             ]
           },
@@ -2964,24 +2940,9 @@ const TREEMAP_DATA = {
             "category": "domain",
             "refs": [
               {
-                "name": "permission-group-hierarchy.spec.yaml",
-                "type": "other",
-                "path": "specs/permission-group-hierarchy.spec.yaml"
-              },
-              {
                 "name": "docs/contract.md",
                 "type": "other",
                 "path": "docs/contract.md"
-              },
-              {
-                "name": "docs/requirements/TOPIC-INDEX.md",
-                "type": "other",
-                "path": "docs/requirements/TOPIC-INDEX.md"
-              },
-              {
-                "name": "docs/analysis-search-consistency-by-screen.md",
-                "type": "other",
-                "path": "docs/analysis-search-consistency-by-screen.md"
               },
               {
                 "name": "docs/design/search-fields-by-screen.md",
@@ -2992,11 +2953,6 @@ const TREEMAP_DATA = {
                 "name": "docs/design/search-field-definition-items.md",
                 "type": "other",
                 "path": "docs/design/search-field-definition-items.md"
-              },
-              {
-                "name": "UX-ROLE-SEPARATION-DESIGN.md",
-                "type": "workflow",
-                "path": "docs/workflow/UX-ROLE-SEPARATION-DESIGN.md"
               }
             ]
           }
@@ -3802,16 +3758,6 @@ const TREEMAP_DATA = {
                 "name": "docs/design/grid-and-table.md",
                 "type": "other",
                 "path": "docs/design/grid-and-table.md"
-              },
-              {
-                "name": "schema.sql",
-                "type": "other",
-                "path": "backend/src/main/resources/db/schema.sql"
-              },
-              {
-                "name": "permission-group-hierarchy.spec.yaml",
-                "type": "other",
-                "path": "specs/permission-group-hierarchy.spec.yaml"
               }
             ]
           },
@@ -3854,299 +3800,12 @@ const TREEMAP_DATA = {
           {
             "name": "CURSOR-AND-TOOLS-INTEGRATION.md",
             "desc": "규칙·커맨드·스킬·문서·스크립트 연결 맵. DOC-CODE-SYNC 참조.",
-            "refs": [
-              {
-                "name": "TERMINOLOGY.md",
-                "type": "other",
-                "path": ".cursor/TERMINOLOGY.md"
-              },
-              {
-                "name": "docs/contract.md",
-                "type": "other",
-                "path": "docs/contract.md"
-              },
-              {
-                "name": "run-tests.md",
-                "type": "other",
-                "path": "run-tests.md"
-              },
-              {
-                "name": "dev-services.sh",
-                "type": "other",
-                "path": "scripts/dev-services.sh"
-              }
-            ]
+            "refs": []
           },
           {
             "name": "CURSOR-SUBAGENTS-DESIGN.md",
             "desc": "서브에이전트 역할·범위·등록 방법 정의.",
-            "refs": [
-              {
-                "name": "frontend.md",
-                "type": "other",
-                "path": "frontend.md"
-              },
-              {
-                "name": "backend.md",
-                "type": "other",
-                "path": "backend.md"
-              },
-              {
-                "name": "db.md",
-                "type": "other",
-                "path": "db.md"
-              },
-              {
-                "name": "requirements.md",
-                "type": "other",
-                "path": "requirements.md"
-              },
-              {
-                "name": "qa-test.md",
-                "type": "other",
-                "path": "qa-test.md"
-              },
-              {
-                "name": "contract-api.md",
-                "type": "other",
-                "path": "contract-api.md"
-              },
-              {
-                "name": "security.md",
-                "type": "other",
-                "path": "security.md"
-              },
-              {
-                "name": "dba.md",
-                "type": "other",
-                "path": "dba.md"
-              },
-              {
-                "name": "architecture.md",
-                "type": "other",
-                "path": "architecture.md"
-              },
-              {
-                "name": "backend-auth.md",
-                "type": "other",
-                "path": "backend-auth.md"
-              },
-              {
-                "name": "backend-activity-log.md",
-                "type": "other",
-                "path": "backend-activity-log.md"
-              },
-              {
-                "name": "backend-log.md",
-                "type": "other",
-                "path": "backend-log.md"
-              },
-              {
-                "name": "docs/cursor-subagents/backend.md",
-                "type": "other",
-                "path": "docs/cursor-subagents/backend.md"
-              },
-              {
-                "name": "frontend-auth.md",
-                "type": "other",
-                "path": "frontend-auth.md"
-              },
-              {
-                "name": "frontend-activity-log.md",
-                "type": "other",
-                "path": "frontend-activity-log.md"
-              },
-              {
-                "name": "frontend-log.md",
-                "type": "other",
-                "path": "frontend-log.md"
-              },
-              {
-                "name": "docs/cursor-subagents/frontend.md",
-                "type": "other",
-                "path": "docs/cursor-subagents/frontend.md"
-              },
-              {
-                "name": "docs/cursor-subagents/FRONTEND-IMPROVEMENT-POINTS.md",
-                "type": "other",
-                "path": "docs/cursor-subagents/FRONTEND-IMPROVEMENT-POINTS.md"
-              },
-              {
-                "name": "review.md",
-                "type": "other",
-                "path": "review.md"
-              },
-              {
-                "name": "documentation.md",
-                "type": "other",
-                "path": "documentation.md"
-              },
-              {
-                "name": "release.md",
-                "type": "other",
-                "path": "release.md"
-              },
-              {
-                "name": "consistency.md",
-                "type": "other",
-                "path": "consistency.md"
-              },
-              {
-                "name": "ux-design.md",
-                "type": "other",
-                "path": "ux-design.md"
-              },
-              {
-                "name": "past-requirements-search.md",
-                "type": "other",
-                "path": "past-requirements-search.md"
-              },
-              {
-                "name": "ux-a11y.md",
-                "type": "other",
-                "path": "ux-a11y.md"
-              },
-              {
-                "name": "ux-layout.md",
-                "type": "other",
-                "path": "ux-layout.md"
-              },
-              {
-                "name": "ux-components.md",
-                "type": "other",
-                "path": "ux-components.md"
-              },
-              {
-                "name": "docs/requirements/yyyyMMdd-name.md",
-                "type": "other",
-                "path": "docs/requirements/yyyyMMdd-name.md"
-              },
-              {
-                "name": "docs/contract.md",
-                "type": "other",
-                "path": "docs/contract.md"
-              },
-              {
-                "name": "*.spec.yaml",
-                "type": "other",
-                "path": "specs/*.spec.yaml"
-              },
-              {
-                "name": "verify",
-                "type": "commands",
-                "path": ".cursor/commands/verify.md"
-              },
-              {
-                "name": "docs/cursor-subagents/qa-test.md",
-                "type": "other",
-                "path": "docs/cursor-subagents/qa-test.md"
-              },
-              {
-                "name": "language-policy.mdc",
-                "type": "rules",
-                "path": ".cursor/rules/language-policy.mdc"
-              },
-              {
-                "name": "docs/security-guide.md",
-                "type": "other",
-                "path": "docs/security-guide.md"
-              },
-              {
-                "name": "agent-collaboration.mdc",
-                "type": "rules",
-                "path": ".cursor/rules/agent-collaboration.mdc"
-              },
-              {
-                "name": "CONSISTENCY-STANDARDS.md",
-                "type": "other",
-                "path": "CONSISTENCY-STANDARDS.md"
-              },
-              {
-                "name": "Frontend.mdc",
-                "type": "rules",
-                "path": "Frontend.mdc"
-              },
-              {
-                "name": "Backend.mdc",
-                "type": "rules",
-                "path": "Backend.mdc"
-              },
-              {
-                "name": "DB.mdc",
-                "type": "rules",
-                "path": "DB.mdc"
-              },
-              {
-                "name": "Requirements.mdc",
-                "type": "rules",
-                "path": "Requirements.mdc"
-              },
-              {
-                "name": "QA.mdc",
-                "type": "rules",
-                "path": "QA.mdc"
-              },
-              {
-                "name": "Contract.mdc",
-                "type": "rules",
-                "path": "Contract.mdc"
-              },
-              {
-                "name": "Security.mdc",
-                "type": "rules",
-                "path": "Security.mdc"
-              },
-              {
-                "name": "DBA.mdc",
-                "type": "rules",
-                "path": "DBA.mdc"
-              },
-              {
-                "name": "Architecture.mdc",
-                "type": "rules",
-                "path": "Architecture.mdc"
-              },
-              {
-                "name": "Review.mdc",
-                "type": "rules",
-                "path": "Review.mdc"
-              },
-              {
-                "name": "Documentation.mdc",
-                "type": "rules",
-                "path": "Documentation.mdc"
-              },
-              {
-                "name": "Release.mdc",
-                "type": "rules",
-                "path": "Release.mdc"
-              },
-              {
-                "name": "Consistency.mdc",
-                "type": "rules",
-                "path": "Consistency.mdc"
-              },
-              {
-                "name": "UX.mdc",
-                "type": "rules",
-                "path": "UX.mdc"
-              },
-              {
-                "name": "docs/cursor-subagents/*.md",
-                "type": "other",
-                "path": "docs/cursor-subagents/*.md"
-              },
-              {
-                "name": "dev-services.sh",
-                "type": "other",
-                "path": "scripts/dev-services.sh"
-              },
-              {
-                "name": "expert-frontend.md",
-                "type": "other",
-                "path": "https://github.com/modu-ai/moai-adk/blob/main/.claude/agents/moai/expert-frontend.md"
-              }
-            ]
+            "refs": []
           },
           {
             "name": "DELEGATION-ANALYSIS-20250304.md",
@@ -4405,59 +4064,29 @@ const TREEMAP_DATA = {
                 "path": "WORKFLOW_CHECKLIST.md"
               },
               {
-                "name": "docs-reference.mdc",
-                "type": "rules",
-                "path": "docs-reference.mdc"
+                "name": "docs/requirements/yyyyMMdd-name.md",
+                "type": "other",
+                "path": "docs/requirements/yyyyMMdd-name.md"
               },
               {
-                "name": "docs/requirements/20260206-image-log-datastring-search.md",
-                "type": "other",
-                "path": "docs/requirements/20260206-image-log-datastring-search.md"
+                "name": "REQUIREMENT_TEMPLATE.md",
+                "type": "templates",
+                "path": "docs/template/REQUIREMENT_TEMPLATE.md"
               },
               {
-                "name": "docs/requirements/20260206-user-authentication-improvement.md",
-                "type": "other",
-                "path": "docs/requirements/20260206-user-authentication-improvement.md"
+                "name": "run-tests",
+                "type": "commands",
+                "path": ".cursor/commands/run-tests.md"
               },
               {
-                "name": "user-management.spec.yaml",
-                "type": "other",
-                "path": "specs/user-management.spec.yaml"
-              },
-              {
-                "name": "advanced-search.spec.yaml",
-                "type": "other",
-                "path": "specs/advanced-search.spec.yaml"
-              },
-              {
-                "name": "docs/requirements/yyyyMMdd-요건명.md",
-                "type": "other",
-                "path": "docs/requirements/yyyyMMdd-요건명.md"
-              },
-              {
-                "name": "요건명.spec.yaml",
-                "type": "other",
-                "path": "specs/요건명.spec.yaml"
-              },
-              {
-                "name": "docs/requirements/{부모ID}-bugfix-{N}.md",
-                "type": "other",
-                "path": "docs/requirements/{부모ID}-bugfix-{N}.md"
+                "name": "verify",
+                "type": "commands",
+                "path": ".cursor/commands/verify.md"
               },
               {
                 "name": "commit-on-complete",
                 "type": "commands",
                 "path": ".cursor/commands/commit-on-complete.md"
-              },
-              {
-                "name": "ERROR-FIX-WORKFLOW-FLOWCHART.md",
-                "type": "other",
-                "path": "ERROR-FIX-WORKFLOW-FLOWCHART.md"
-              },
-              {
-                "name": "CURSOR-AND-TOOLS-INTEGRATION.md",
-                "type": "other",
-                "path": "CURSOR-AND-TOOLS-INTEGRATION.md"
               }
             ]
           },
@@ -4517,39 +4146,34 @@ const TREEMAP_DATA = {
                 "path": "docs/cursor-subagents/*.md"
               },
               {
-                "name": "docs/design/*.md",
+                "name": "CHANGELOG.md",
                 "type": "other",
-                "path": "docs/design/*.md"
+                "path": "CHANGELOG.md"
               },
               {
-                "name": "docs/requirements/yyyyMMdd-short-name.md",
+                "name": "docs/RELEASE_NOTES-*.md",
                 "type": "other",
-                "path": "docs/requirements/yyyyMMdd-short-name.md"
+                "path": "docs/RELEASE_NOTES-*.md"
+              },
+              {
+                "name": "release",
+                "type": "commands",
+                "path": ".cursor/commands/release.md"
+              },
+              {
+                "name": "docs/cursor-subagents/release.md",
+                "type": "other",
+                "path": "docs/cursor-subagents/release.md"
+              },
+              {
+                "name": "docs/cursor-subagents/FRONTEND-IMPROVEMENT-POINTS.md",
+                "type": "other",
+                "path": "docs/cursor-subagents/FRONTEND-IMPROVEMENT-POINTS.md"
               },
               {
                 "name": "REQUIREMENT_TEMPLATE.md",
                 "type": "templates",
                 "path": "docs/template/REQUIREMENT_TEMPLATE.md"
-              },
-              {
-                "name": "docs/requirements/yyyyMMdd-short-name-ko.md",
-                "type": "other",
-                "path": "docs/requirements/yyyyMMdd-short-name-ko.md"
-              },
-              {
-                "name": "docs/RELEASE_NOTES-yyyyMMdd-*.md",
-                "type": "other",
-                "path": "docs/RELEASE_NOTES-yyyyMMdd-*.md"
-              },
-              {
-                "name": "docs/requirements/yyyyMMdd-name.md",
-                "type": "other",
-                "path": "docs/requirements/yyyyMMdd-name.md"
-              },
-              {
-                "name": "commit-on-complete",
-                "type": "commands",
-                "path": ".cursor/commands/commit-on-complete.md"
               }
             ]
           },
@@ -4926,14 +4550,14 @@ const TREEMAP_DATA = {
             "desc": "오류 수정 시 Skills/Sub-Agent/Commands 사용 시점 흐름도.",
             "refs": [
               {
-                "name": "docs/requirements/{부모요건ID}-bugfix-{N}.md",
-                "type": "other",
-                "path": "docs/requirements/{부모요건ID}-bugfix-{N}.md"
+                "name": "error-first-workflow.mdc",
+                "type": "rules",
+                "path": ".cursor/rules/error-first-workflow.mdc"
               },
               {
-                "name": "BUGFIX_CHILD_TEMPLATE.md",
+                "name": "ERROR_FIX_RESULT_TEMPLATE.md",
                 "type": "templates",
-                "path": "docs/template/BUGFIX_CHILD_TEMPLATE.md"
+                "path": "docs/template/ERROR_FIX_RESULT_TEMPLATE.md"
               }
             ]
           },
@@ -5213,19 +4837,24 @@ const TREEMAP_DATA = {
             "desc": "Release Checklist",
             "refs": [
               {
-                "name": "docs/RELEASE_NOTES-*.md",
+                "name": "CHANGELOG.md",
                 "type": "other",
-                "path": "docs/RELEASE_NOTES-*.md"
+                "path": "CHANGELOG.md"
               },
               {
-                "name": "commit-on-complete.md",
+                "name": "docs/RELEASE_NOTES-yyyyMMdd-*.md",
                 "type": "other",
-                "path": "commit-on-complete.md"
+                "path": "docs/RELEASE_NOTES-yyyyMMdd-*.md"
               },
               {
                 "name": "commit-on-complete",
                 "type": "commands",
                 "path": ".cursor/commands/commit-on-complete.md"
+              },
+              {
+                "name": "release",
+                "type": "commands",
+                "path": ".cursor/commands/release.md"
               }
             ]
           },
@@ -5336,9 +4965,19 @@ const TREEMAP_DATA = {
             "desc": "Requirements authoring — change target checklist",
             "refs": [
               {
-                "name": "ANALYSIS-pending-approvals-scope-frontend-incomplete.md",
+                "name": "docs/contract.md",
                 "type": "other",
-                "path": "ANALYSIS-pending-approvals-scope-frontend-incomplete.md"
+                "path": "docs/contract.md"
+              },
+              {
+                "name": "docs/api-definition.md",
+                "type": "other",
+                "path": "docs/api-definition.md"
+              },
+              {
+                "name": "*.spec.yaml",
+                "type": "other",
+                "path": "specs/*.spec.yaml"
               },
               {
                 "name": "docs/design/forms-and-filters.md",
@@ -5356,34 +4995,9 @@ const TREEMAP_DATA = {
                 "path": "docs/design/search-field-definition-items.md"
               },
               {
-                "name": "docs/design/README.md",
-                "type": "other",
-                "path": "docs/design/README.md"
-              },
-              {
-                "name": "docs/design/ux-frontend-standard-principles.md",
-                "type": "other",
-                "path": "docs/design/ux-frontend-standard-principles.md"
-              },
-              {
                 "name": "docs/design/css-standard-and-exceptions.md",
                 "type": "other",
                 "path": "docs/design/css-standard-and-exceptions.md"
-              },
-              {
-                "name": "docs/analysis-search-consistency-by-screen.md",
-                "type": "other",
-                "path": "docs/analysis-search-consistency-by-screen.md"
-              },
-              {
-                "name": "docs/design/grid-and-table.md",
-                "type": "other",
-                "path": "docs/design/grid-and-table.md"
-              },
-              {
-                "name": "CONSISTENCY-STANDARDS.md",
-                "type": "other",
-                "path": "CONSISTENCY-STANDARDS.md"
               }
             ]
           },
@@ -5538,62 +5152,17 @@ const TREEMAP_DATA = {
           },
           {
             "name": "UX-ROLE-SEPARATION-DESIGN.md",
-            "desc": "UX 역할 분리 세분화 설계",
+            "desc": "UX role separation design",
             "refs": [
               {
-                "name": "permission-group-hierarchy.spec.yaml",
+                "name": "docs/design/README.md",
                 "type": "other",
-                "path": "specs/permission-group-hierarchy.spec.yaml"
+                "path": "docs/design/README.md"
               },
               {
-                "name": "docs/analysis-search-consistency-by-screen.md",
+                "name": "docs/cursor-subagents/frontend.md",
                 "type": "other",
-                "path": "docs/analysis-search-consistency-by-screen.md"
-              },
-              {
-                "name": "docs/design/grid-and-table.md",
-                "type": "other",
-                "path": "docs/design/grid-and-table.md"
-              },
-              {
-                "name": "docs/design/layout-and-navigation.md",
-                "type": "other",
-                "path": "docs/design/layout-and-navigation.md"
-              },
-              {
-                "name": "docs/design/buttons.md",
-                "type": "other",
-                "path": "docs/design/buttons.md"
-              },
-              {
-                "name": "docs/cursor-subagents/ux-a11y.md",
-                "type": "other",
-                "path": "docs/cursor-subagents/ux-a11y.md"
-              },
-              {
-                "name": "docs/cursor-subagents/ux-layout.md",
-                "type": "other",
-                "path": "docs/cursor-subagents/ux-layout.md"
-              },
-              {
-                "name": "docs/cursor-subagents/ux-components.md",
-                "type": "other",
-                "path": "docs/cursor-subagents/ux-components.md"
-              },
-              {
-                "name": "UX-A11y.mdc",
-                "type": "rules",
-                "path": "UX-A11y.mdc"
-              },
-              {
-                "name": "UX-Layout.mdc",
-                "type": "rules",
-                "path": "UX-Layout.mdc"
-              },
-              {
-                "name": "UX-Components.mdc",
-                "type": "rules",
-                "path": "UX-Components.mdc"
+                "path": "docs/cursor-subagents/frontend.md"
               }
             ]
           },
@@ -5623,9 +5192,9 @@ const TREEMAP_DATA = {
             "desc": "새 요건·버그 수정 시 순서와 게이트 체크리스트.",
             "refs": [
               {
-                "name": "commit-on-complete",
-                "type": "commands",
-                "path": ".cursor/commands/commit-on-complete.md"
+                "name": "DEVELOPMENT_WORKFLOW.md",
+                "type": "other",
+                "path": "DEVELOPMENT_WORKFLOW.md"
               },
               {
                 "name": "REQUIREMENT_TEMPLATE.md",
@@ -5633,36 +5202,20 @@ const TREEMAP_DATA = {
                 "path": "docs/template/REQUIREMENT_TEMPLATE.md"
               },
               {
-                "name": "DEVELOPMENT_WORKFLOW.md",
-                "type": "other",
-                "path": "DEVELOPMENT_WORKFLOW.md"
+                "name": "commit-on-complete",
+                "type": "commands",
+                "path": ".cursor/commands/commit-on-complete.md"
               }
             ]
           },
           {
             "name": "WORKFLOW_MODES.md",
             "desc": "TDD vs DDD 개발 방식 선택 가이드.",
-            "refs": [
-              {
-                "name": "README.md",
-                "type": "other",
-                "path": ".cursor/README.md"
-              },
-              {
-                "name": "dev-workflow",
-                "type": "skills",
-                "path": ".cursor/skills/dev-workflow/SKILL.md"
-              },
-              {
-                "name": "workflow-modes.md",
-                "type": "other",
-                "path": "https://github.com/modu-ai/moai-adk/blob/main/.claude/rules/moai/workflow/workflow-modes.md"
-              }
-            ]
+            "refs": []
           },
           {
-            "name": "오류-개선-프롬프팅-예시.md",
-            "desc": "오류 개선 요청 시 프롬프팅 예시",
+            "name": "error-fix-prompting-examples.md",
+            "desc": "Error-fix prompting examples",
             "refs": [
               {
                 "name": "error-first-workflow.mdc",
@@ -5720,43 +5273,43 @@ const TREEMAP_DATA = {
       "name": "docs/contract.md",
       "color": "other",
       "role": "API·DB·포트 계약 — 10개 이상 에이전트가 참조",
-      "refsTo": 33,
+      "refsTo": 37,
       "barWidth": 100
     },
     {
       "name": "REQUIREMENT_TEMPLATE.md",
       "color": "template",
       "role": "§1·§2·§3·§5·§6 요건 문서의 구조 정의",
-      "refsTo": 30,
-      "barWidth": 91
+      "refsTo": 31,
+      "barWidth": 84
     },
     {
       "name": "search-fields-by-screen",
       "color": "workflow",
       "role": "search-fields-by-screen",
-      "refsTo": 24,
-      "barWidth": 73
+      "refsTo": 25,
+      "barWidth": 68
     },
     {
       "name": "forms-and-filters",
       "color": "workflow",
       "role": "forms-and-filters",
       "refsTo": 24,
-      "barWidth": 73
+      "barWidth": 65
     },
     {
       "name": "search-field-definition-items",
       "color": "workflow",
       "role": "search-field-definition-items",
-      "refsTo": 22,
-      "barWidth": 67
+      "refsTo": 23,
+      "barWidth": 62
     },
     {
       "name": "AGENT-COLLABORATION-ON-REQUIREMENT.md",
       "color": "workflow",
       "role": "에이전트 협업 인덱스 — 순서·핸드오프 규칙. 상세: REQUIREMENTS-AUTHORING-WORKFLOW, DEVELOPMENT-QUERY-EXPERTS.",
       "refsTo": 18,
-      "barWidth": 55
+      "barWidth": 49
     }
   ]
 };

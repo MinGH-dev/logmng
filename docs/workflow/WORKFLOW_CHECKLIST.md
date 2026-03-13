@@ -1,26 +1,34 @@
-# 워크플로우 체크리스트 (순서만)
+# Workflow Checklist (order only)
 
-이 프로젝트에서 **새 요건·버그 수정**을 할 때 **가장 먼저** 읽을 문서입니다. **순서와 게이트**만 담고 있으며, 상세·예시·원칙은 [DEVELOPMENT_WORKFLOW.md](DEVELOPMENT_WORKFLOW.md)를 보세요.
+Read this document first for any **new requirement** or **bug fix** in this project. It contains the **required order and gates only**. For detail, examples, commands, and rationale, see `DEVELOPMENT_WORKFLOW.md`.
 
-## 게이트 (개발 전)
+## Gate (before development)
 
-- 코드 수정(개발) 시작 **전에** 아래 1·2·3 완료 필수. 개발 끝난 뒤에 요건·테스트 계획 기록하지 않음.
+- Do **not** start code changes before steps 1, 2, and 3 are complete.
+- Do **not** record the requirement or test plan only after implementation. The requirement doc and §3 test cases must exist first.
 
-## 순서
+## Order
 
-1. 요건 수집·분석 → 2. 요건 문서 작성 (§1·§2) → 3. 테스트 계획 수립 (§3 테스트 케이스 목록)
-2. **(개인정보·복호화·접근통제 관련 시)** 보안 검토 — **Security** Subagent로 §2.1 보안 검토 또는 권고안 반영. 검토된 대로 설계·개발 진행. (참고: `docs/workflow/CURSOR-SUBAGENTS-DESIGN.md` §3)
-3. (복잡 시) 스펙 작성 → 브랜치
-4. 개발 (frontend/backend만, 기존 파일 복사·주석 후 신규)
-5. 단위/통합 테스트 **구현** (수정·추가된 코드에 대해 §3 TC 자동화) + 실행 (mvn test / npm test) → §5 기록
-6. 검증 · 재시작·정상 확인 (자동) · 실패 시 bugfix 반복
-7. 문서화 (§5·오류 시 §6)
-8. **해결 완료 시 Git commit** — 검증 통과·문서 반영 후 `.cursor/commands/commit-on-complete.md` 따라 커밋 (push는 사용자 요청 시에만)
+1. Collect and analyze the requirement.
+2. Author the requirement document (§1, §2).
+3. Define the test plan (§3 test case list).
+4. If the requirement involves PII, decryption, or access control: run **Security** review and add/apply §2.1.
+5. If needed for a complex change: write/update specs, then work on a feature branch.
+6. Implement the change.
+7. Implement and run automated tests for the modified behavior (unit and/or integration) and record results in §5.
+8. Verify on a restarted application and repeat the bugfix loop if verification fails.
+9. Update documentation (§5, and §6 for error fixes).
+10. Commit only after verification passes and documentation is updated. Push only when the user explicitly requests it or when the workflow explicitly hands off the final release-and-push step.
 
-## 참조
+## Language rule for tooling
 
-- 템플릿: `docs/template/REQUIREMENT_TEMPLATE.md`
-- 상세: `docs/workflow/DEVELOPMENT_WORKFLOW.md`
-- 보안 검토(개인정보·복호화·접근통제 시): **Security** Subagent, `docs/workflow/CURSOR-SUBAGENTS-DESIGN.md` §3
-- Cursor·문서·스크립트 연동 맵: `docs/workflow/CURSOR-AND-TOOLS-INTEGRATION.md`
-- 해결 완료 후 커밋: `.cursor/commands/commit-on-complete.md`
+- User-facing assistant replies follow the user's requested language.
+- Tool-facing workflow documents, copied handoff blocks, and Task/subagent prompts must be written in **English**.
+
+## References
+
+- Template: `docs/template/REQUIREMENT_TEMPLATE.md`
+- Detail: `docs/workflow/DEVELOPMENT_WORKFLOW.md`
+- Security review timing: `docs/workflow/CURSOR-SUBAGENTS-DESIGN.md`
+- Cursor/doc/script integration map: `docs/workflow/CURSOR-AND-TOOLS-INTEGRATION.md`
+- Commit when complete: `.cursor/commands/commit-on-complete.md`

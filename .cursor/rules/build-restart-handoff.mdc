@@ -21,11 +21,11 @@ When you modify code or config under `backend/` or `frontend/`, **always** perfo
    - Backend: wait 5–10s, then `curl -s http://localhost:9200/api/health` → 200/OK.
    - Frontend: confirm http://localhost:3001 is reachable.
 
-3. **Requirement doc §2 변경 파일 목록**
-   - When implementing from a requirement doc, **confirm or update** §2 "변경 파일 목록" with actual files changed. See `docs/workflow/REQUIREMENTS-AUTHORING-WORKFLOW.md` §1.2.
+3. **Requirement doc §2 planned change file list**
+   - When implementing from a requirement doc, **confirm or update** §2 "Planned change file list" with the actual files changed. See `docs/workflow/REQUIREMENTS-AUTHORING-WORKFLOW.md` §1.2.
 
 4. **Handoff to QA**
    - Include a one-line confirmation so QA can gate verification:
-     `Build: [command] — exit 0. Restart: [command] — done. §2 변경 파일 목록 확정. QA verification requested.`
+     `Build: [command] — exit 0. Restart: [command] — done. §2 change file list confirmed. QA verification requested.`
 
 Reference: `docs/workflow/REQUIREMENTS-AUTHORING-WORKFLOW.md` §1.2, `docs/workflow/SUBAGENT-DELEGATION.md`.

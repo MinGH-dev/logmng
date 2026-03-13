@@ -1,52 +1,61 @@
 # Release Checklist
 
-릴리스 시 수행할 단계. Release 서브에이전트는 이 문서를 유지·갱신하며, **실행은 담당하지 않음**(개발자 또는 사용자가 체크리스트대로 수행).
+This checklist defines the release sequence. The **Release** subagent maintains this document and uses it when the workflow reaches release scope.
 
-**언어**: 릴리즈 노트(`docs/RELEASE_NOTES-*.md`)·CHANGELOG 항목은 **한글**로 기록. 커밋 메시지도 한글 요약(요건 ID 포함) 사용. 정책: `docs/workflow/DOCUMENT-LANGUAGE-POLICY.md` §3–§4.
+## Role boundary
 
-## 순서
+- Release owns: `CHANGELOG.md`, release notes, version guidance, release checklist, and the final release-and-push step when the user explicitly asks for it.
+- Documentation owns: README, QUICK_START, runbooks, and other user or operations guides.
 
-1. **요건 해결 확인**  
-   - 검증 통과, §5·§6 반영, 로컬 commit 완료 (`commit-on-complete.md`).
+## Language rule
 
-2. **CHANGELOG·버전**  
-   - CHANGELOG에 해당 릴리스 항목 **한글**로 추가.  
-   - 필요 시 버전 부여(예: package.json / pom.xml X.Y.Z). Release 에이전트가 안내만 함.
+- This checklist and any copied handoff instructions must be in **English**.
+- Stakeholder-facing release artifacts such as changelog entries or release notes may be **Korean**.
 
-3. **태그**  
-   - 버전 태그 생성(예: `git tag vX.Y.Z`). 선택 사항.
+## Sequence
 
-4. **빌드·테스트**  
-   - 백엔드: `cd backend && mvn clean package` (또는 test 포함).  
-   - 프론트엔드: `cd frontend && npm run build` / `npm test -- --watchAll=false`.  
-   - 통합/수동 검증 필요 시 수행.
+1. Confirm the requirement is complete.
+   - Verification passed.
+   - Requirement doc §5 and §6 are up to date if applicable.
+   - Local changes are ready to commit.
+2. Update release artifacts.
+   - Add the release entry to `CHANGELOG.md`.
+   - Update or create `docs/RELEASE_NOTES-yyyyMMdd-*.md` if the release scope requires it.
+   - Document any version recommendation if needed.
+3. Commit release-scoped changes.
+   - Use `.cursor/commands/commit-on-complete.md` when the release closes a requirement.
+   - For release-only doc updates, use a sensible release/chore commit message.
+4. Run build/test checks if the release scope requires them.
+   - Backend: `cd backend && mvn clean package` or equivalent
+   - Frontend: `cd frontend && npm run build` and any required tests
+5. Push the current branch when the user explicitly requested push or when the handoff says **release including push**.
+   - Preferred: `git push origin <current-branch>`
+   - If a tag is created, push the tag separately.
+6. Deploy according to the environment-specific process when deployment is in scope.
 
-5. **원격 push**  
-   - 릴리스 완료 시 **원격 push까지 수행** 권장. 현재 브랜치 반영: `git push origin <branch>` (예: `git push origin feat/xxx`).  
-   - 태그 푸시 시: `git push origin vX.Y.Z` (태그 사용 시).
+## Execution rule
 
-6. **배포**  
-   - 환경에 맞는 배포 절차(배포 스크립트, CI/CD, 수동 배포 등) 수행.  
-   - 배포 상세는 Documentation/운영 문서 참고.
+The Release subagent may execute git operations when the user explicitly requests push, for example:
 
-## 수행 기록 (참고)
+- "push this"
+- "release including push"
+- "finish with Release and push"
 
-- **2025-03-04**: 단일 권한 그룹( req 20250304-single-permission-group-per-user ) 반영 및 워크플로·서브에이전트 문서 정리. CHANGELOG 2025-03-04 feat·chore 항목 추가, 커밋 후 `git push` 수행. (1–2, 5 수행)
-- **2025-03-04**: 워크플로·서브에이전트 문서 정리 (SUBAGENT-DELEGATION Task tool 매핑, SUBAGENT-MODEL-SELECTION 재정비, CURSOR-SUBAGENTS-DESIGN §2.6 역할 경계, AGENT-COLLABORATION §1.4, agent-collaboration.mdc, TERMINOLOGY). CHANGELOG 2025-03-04 항목 추가. (1–2 수행, 버전 부여 없음)
-- **2025-03-03**: Agent Skill Phase 3 — department-approver, log-search, activity-statistics, ui-ux domain skills 추가. CHANGELOG·RELEASE_NOTES·README 갱신, 커밋 후 `git push` 수행. (1–2, 5 수행)
-- **2025-03-03**: Permission group delete constraint + system administrator protection (req `20250303-permission-group-delete-system-admin-protection`). CHANGELOG 2025-03-03 항목 추가, 릴리스 커밋 후 `git push` 수행. (1–2, 5 수행)
-- **2026-02-27**: docs/workflow, .cursor 업데이트 (DB-AGENT-REVIEW, QA-BROWSER-TEST-TROUBLESHOOTING, SUBAGENT-MODEL-SELECTION, agent delegation). CHANGELOG 2026-02-27 항목 추가, 릴리스 커밋 후 `git push` 수행. (1–2, 5 수행)
-- **2026-02-27**: SUBAGENT-MODEL-SELECTION concrete model names (claude-haiku-4.5, sonnet4.6), agent-collaboration/SUBAGENT-DELEGATION alignment. CHANGELOG 2026-02-27 항목 추가, 릴리스 커밋 후 `git push` 수행. (1–2, 5 수행)
-- **2026-02-27**: User permission hierarchy + permission group management (req 20250227-user-permission-hierarchy-group, bugfix-1) 반영. CHANGELOG 2026-02-27 항목 추가, 릴리스 커밋 후 `git push` 수행. (1–2, 5 수행)
-- **2026-02-27**: Release 작업 — 현재 변경(agent-collaboration, SUBAGENT-MODEL-SELECTION)에 대해 CHANGELOG·릴리스 체크리스트 갱신, 커밋 후 `git push` 수행. (1–2, 5 수행)
-- **2026-02-27**: mcp_task model constraint 반영 — model 파라미터 omit, §2.1은 사용자 보고용. CHANGELOG·릴리스 체크리스트 갱신, 커밋 후 `git push` 수행. (1–2, 5 수행)
-- **2026-02-25**: design standards·UX agent 커밋 후 `feat/cursor-commit-on-complete` 푸시 완료. CHANGELOG 2026-02-25 항목 반영. (1–2, 5 수행)
-- **2026-03-09**: 트리맵 Agents 카테고리·팀장 라벨 (에이전트 참조를 Agents/Subagents 카테고리로 표시, Step 4 팀장 라벨, cursor-tools-treemap.html 재생성). CHANGELOG·RELEASE_CHECKLIST 갱신, 커밋 후 `git push` 수행. (1–2, 5 수행)
-- **2026-03-09**: Backend 팀 리드·핸드오프·트리맵 (SUBAGENT-DELEGATION, HANDOFF-CHECKLIST, backend 서브에이전트 문서, DRYRUN-backend-team-lead-handoff, treemap). CHANGELOG 2026-03-09 항목 추가, 커밋 후 `git push` 수행. (1–2, 5 수행)
-- **2026-03-09**: 트리맵 cursor-subagents → Other Docs 복원 (generate-treemap.js에서 cursor-subagents를 agents에서 제거·other로 복귀, cursor-tools-treemap.html 재생성). CHANGELOG·RELEASE_CHECKLIST 갱신, 커밋 후 `git push` 수행. (1–2, 5 수행)
-- **2026-03-10**: 트리맵 Subagents 카테고리 항상 표시 (에이전트 상세 패널에서 agents 카테고리 빈 경우에도 "Subagents (0)" 및 힌트 표시). CHANGELOG 갱신, treemap 관련 파일만 커밋 후 `git push` 수행. (1–2, 5 수행)
+In that case, Release may:
 
-## 참고
+1. inspect `git status`
+2. stage and commit pending release-scoped changes
+3. run `git push` without force
 
-- 로컬만 commit하고 push 안 하는 일반 개발 흐름: `.cursor/commands/commit-on-complete.md` (push는 사용자 요청 시에만).
-- **릴리스**로 마무리할 때는 위 체크리스트에 따라 **원격 push까지** 수행하는 것을 권장.
+## Notes
+
+- Do not force-push unless the user explicitly requests it.
+- Do not commit secrets.
+- Do not treat this checklist as a replacement for QA verification. Release follows verification; it does not replace it.
+
+## References
+
+- Language policy: `docs/workflow/DOCUMENT-LANGUAGE-POLICY.md`
+- Release agent: `.cursor/agents/Release.mdc`
+- Release command: `.cursor/commands/release.md`
+- Collaboration flow: `docs/workflow/AGENT-COLLABORATION-ON-REQUIREMENT.md`

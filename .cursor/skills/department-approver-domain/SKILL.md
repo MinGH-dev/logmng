@@ -1,68 +1,20 @@
 ---
 name: department-approver-domain
-description: >
-  Department and decrypt approver: department hierarchy, decrypt_approver table,
-  user-permission-hierarchy, canApproveForRequester. Use when user asks about
-  department, approver designation, decrypt_approver, department tree, or
-  user-permission-hierarchy. 부서, 결재자 지정, department, decrypt_approver 관련 질문 시 사용.
+description: Department hierarchy, approver designation, and department-based approval rules.
 ---
 
-# Department & Approver Domain
+# Department / approver domain
 
-**Skill usage visibility**: When you use this skill to answer, state at the start of your response: `[Skill used: department-approver-domain]`
+Use this skill for questions about department hierarchy, `decrypt_approver`, approver assignment, and department-based approval behavior.
 
-Use for **department hierarchy and decrypt approver** in this repo. Scope: department tree, user-permission-hierarchy, decrypt_approver, canApproveForRequester.
+## Core points
 
-## Quick reference
-
-- **Department API**: `GET /api/departments` (tree/flat) — admin-only. 부서별 결재자·멤버·팀장 지정 API는 제거됨.
-- **User-permission hierarchy**: `GET /api/departments/user-permission-hierarchy` — admin-only. 부서별 사용자·권한 그룹 계층.
-- **decrypt_approver**: `user_id`, `department_code` (null=전역 결재자). 결재자 지정 API(POST/DELETE /api/users/approvers)는 410 Gone.
-- **canApproveForRequester**: 전역 결재자(department_code null) → 전체; 부서별 결재자(팀장) → 요청자 소속 부서만 승인 가능. **승인 대기**는 검색 이력과 동일: 목록(scope+canApproveForRequester)과 승인/반려 API 모두 canApproveForRequester 적용 — 해당 부서 승인자만 승인·반려 가능 (req 20250304-team-scope-default, 20260305).
-- **승인 범위**: 권한 그룹에서 선택 불가; 부서(canApproveForRequester)로 고정. scope 드롭다운은 조회(목록) 범위만 적용됨. (spec §Scope values, CONSISTENCY-STANDARDS §7.)
-- **승인 전용 권한 그룹 (approval-only)**: 승인 전용 권한 그룹(조건: `allowedScreenIds`에 `main` 없음 + `pending-approvals` 있음)에 배정된 사용자(예: 팀장)는 로그 검색 불가, 승인/반려만 수행. 예: APPROVE_USER, TEAM_APPROVER 등 — 그룹 이름과 무관하게 동일 규칙 적용. `decrypt_approver` 등록 필수. 상세: `auth-permission-domain` SKILL §Approval-only permission group.
-
-## When to use
-
-- Department tree, hierarchy, 부서 계층
-- decrypt_approver, 결재자 지정, approver designation
-- user-permission-hierarchy, 부서별 사용자·권한 그룹
-- canApproveForRequester, 결재 범위
-
-## Document references
-
-| Question type | Document | Section |
-|---------------|----------|---------|
-| Department API | Path: `docs/api-definition.md` | `## 12. 부서 계층`, `## 14.9 사용자 권한 계층 조회` |
-| decrypt_approver design | Path: `docs/requirements/20260224-decryption-approver-designation.md` | §1, §2 |
-| Department approver hierarchy | Path: `docs/requirements/20260225-department-approver-hierarchy.md` | §1, §2 |
-| Full list (전체 처리 이력) | Path: `docs/requirements/TOPIC-INDEX.md` | §department \| 부서 \| 결재자 |
-
-## Code references
-
-| Concern | Location |
-|---------|----------|
-| Department tree, user-permission-hierarchy | **backend/src/main/java/com/logmng/controller/DepartmentController.java** |
-| canApproveForRequester, isApprover | **backend/src/main/java/com/logmng/service/DecryptApproverService.java** |
-| Department service | backend/src/main/java/com/logmng/service/DepartmentService.java |
-| User-permission hierarchy | backend/src/main/java/com/logmng/service/UserPermissionHierarchyService.java |
-| decrypt_approver schema | backend/src/main/resources/db/schema.sql |
-| Frontend hierarchy | frontend/src/components/UserManagement/UserManagement.js, UserPermissionHierarchy/UserPermissionHierarchy.js |
-
-## Before answering
-
-1. Department APIs: GET /api/departments, GET /api/departments/user-permission-hierarchy — admin-only. 부서별 결재자 CRUD API는 제거됨.
-2. decrypt_approver: user_id + department_code (null=전역). 결재자 추가/해제 API는 410 Gone.
-3. **Requirement traceability**: When explaining design, cite requirement doc (path + §section). Use core refs; do not load full doc.
-
-## Related skills
-
-- `search-history-decrypt-domain`: **Depends on this skill** — canApproveForRequester determines which pending requests an approver can approve/reject.
-- `auth-permission-domain`: Permission model; decrypt_approver is one condition for approve gate.
-- `api-permission-map`: API-level permission checks for approve-gated endpoints.
-- `db-domain`: decrypt_approver table schema (`backend/src/main/resources/db/schema.sql`).
+- Department APIs and user-permission hierarchy APIs are admin-scoped where the contract says so.
+- `decrypt_approver` captures approver assignment and any department-based restriction.
+- Approval scope must stay aligned with department-based business rules where that rule is fixed.
 
 ## References
 
-- API: docs/api-definition.md §12, §14.9
-- Improvement design: docs/SKILL-DOCUMENT-IMPROVEMENT-DESIGN.md
+- `docs/api-definition.md`
+- `docs/contract.md`
+- `docs/requirements/TOPIC-INDEX.md`

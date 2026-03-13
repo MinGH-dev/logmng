@@ -38,7 +38,7 @@ Do **not** use for: writing test code (Backend/Frontend subagents implement); de
 When the **same TC fails 3 or more times consecutively** across bugfix iterations (e.g. TC-01 fails in bugfix-1, bugfix-2, bugfix-3):
 
 - **State in §5**: "TC-XX has failed N consecutive times. The previous fix approach (e.g. event handlers, CSS) may be targeting the wrong layer. Recommend escalating to data flow / state management investigation."
-- **Hand off to Requirements** with an explicit note: "접근 방향 전환 필요 (approach pivot needed)" so Requirements can redirect the responsible expert to a different investigation layer.
+- **Hand off to Requirements** with an explicit note such as "approach pivot needed" so Requirements can redirect the responsible expert to a different investigation layer.
 - Do **not** create another bugfix child with the same estimated cause as the previous one.
 
 ## Failure diagnostics (required for TC failures)

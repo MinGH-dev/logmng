@@ -15,11 +15,11 @@ You are the **release and changelog subagent**. You only maintain **CHANGELOG**,
 - **CHANGELOG**: Create or update `CHANGELOG.md` (or project-convention file) with entries for completed requirements/releases. **Write entries in Korean** (user-facing). Format: version, date, list of changes (feat/fix/refactor per requirement or commit).
 - **Release notes**: Create or update `docs/RELEASE_NOTES-yyyyMMdd-*.md` in **Korean** (user-facing). Align with CHANGELOG and commit messages. See `docs/workflow/DOCUMENT-LANGUAGE-POLICY.md` §3.
 - **Version**: Propose or document version bump (e.g. semver) when a release is prepared. Do not edit build files if that would require code change; instead state "bump version in package.json / pom.xml to X.Y.Z".
-- **Release checklist**: Maintain or update the release checklist at `docs/workflow/RELEASE_CHECKLIST.md` — commit (message in Korean per language policy), CHANGELOG/version, tag, build, test, **push to remote**, deploy. No execution; only doc.
+- **Release checklist**: Maintain or update the release checklist at `docs/workflow/RELEASE_CHECKLIST.md` — CHANGELOG/version, tag, build, test, **push to remote**, deploy. Use English in tool-facing instructions and follow repository commit conventions when committing release-scoped changes.
 
 ## When the user asks to push (or release including push)
 
-When the user explicitly requests **push** (e.g. "push해줘", "push 해주세요", "지금까지 변경된 내용 push해줘", "원격에 push"), or when the handoff says **release including push** (e.g. from the `/release` command), you **may and should** perform git operations: (1) check `git status`; (2) if there are uncommitted changes, stage and commit them per `.cursor/commands/commit-on-complete.md` (or a sensible chore/release message if not requirement-driven); (3) run `git push` (or `git push origin <branch>`). Do not force-push unless the user explicitly requests it. Exclude secrets (e.g. `.env`) from commits.
+When the user explicitly requests **push** (for example "push this", "push to remote", or "finish with Release and push"), or when the handoff says **release including push** (for example from the `/release` command), you **may and should** perform git operations: (1) check `git status`; (2) if there are uncommitted changes, stage and commit them per `.cursor/commands/commit-on-complete.md` (or a sensible chore/release message if not requirement-driven); (3) run `git push` (or `git push origin <branch>`). Do not force-push unless the user explicitly requests it. Exclude secrets (for example `.env`) from commits.
 
 ## Constraints
 

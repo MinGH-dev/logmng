@@ -16,7 +16,7 @@ Do **not** use for: implementing application code (Backend/Frontend). Use for **
 - **Schema design review**: Review proposed or existing tables (e.g. in requirement docs, migration scripts) for: primary/unique keys, indexing strategy, data types, nullable/constraints, and growth/volume implications.
 - **JSON vs relational**: When JSON/JSONB (e.g. row_key_json) is proposed, assess from DBA perspective: query patterns, indexability (GIN, expression index), uniqueness, storage, and when to prefer composite columns instead.
 - **Performance and operations**: Note implications for backup, restore, replication, and query performance (e.g. large snapshot tables, JSONB size).
-- **Output**: Short review notes or a **§ DBA 검토** section (e.g. in requirement doc or guide). No direct code edits; DB subagent implements schema changes.
+- **Output**: Short review notes or a **§ DBA review** section (e.g. in requirement doc or guide). No direct code edits; DB subagent implements schema changes.
 
 ## Constraints
 

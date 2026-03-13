@@ -9,7 +9,7 @@ Follow these always. For detailed steps, see docs and other rules.
 
 ## Response language
 
-- **User-facing responses** MUST be in the **user's requested language** (e.g. Korean when the user asks in Korean or has "Always respond in 한국어").
+- **User-facing responses** MUST be in the **user's requested language** (for example, Korean when the user requests Korean output).
 - Internal references (file paths, identifiers, code) stay as-is.
 
 ## Parallel tool calls

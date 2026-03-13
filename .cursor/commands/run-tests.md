@@ -9,7 +9,7 @@
 - Check the current **requirement doc** (`docs/requirements/yyyyMMdd-name.md`) **§3 Test approach**.  
 - If the **test case list** is empty or weak, **write or update it now** (normal/exception/edge, acceptance criteria).  
   **Do not fill the test plan after development** — §3 is completed before development.
-- Template: `docs/template/REQUIREMENT_TEMPLATE.md` §3 "Test case list" (table: ID, 구분, 시나리오, 기대 결과, 검증 방법).
+- Template: `docs/template/REQUIREMENT_TEMPLATE.md` §3 "Test case list" (table: ID, category, scenario, expected result, verification method).
 
 ## 2. Unit tests
 
