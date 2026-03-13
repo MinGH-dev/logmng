@@ -13,6 +13,7 @@ const LogGrid = ({ logType, initialSearchParams, initialSearchApprovalId, onInit
   const [loading, setLoading] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
+  const [totalCount, setTotalCount] = useState(0);
   const [pageSize, setPageSize] = useState(20);
   const [sortConfig, setSortConfig] = useState({ key: 'log_timestamp', direction: 'desc' });
 
@@ -43,6 +44,8 @@ const LogGrid = ({ logType, initialSearchParams, initialSearchApprovalId, onInit
     } else if (logType.id === 'pb_feplog' && sortConfig.key === 'insert_time') {
       setSortConfig({ key: 'log_timestamp', direction: sortConfig.direction });
     }
+    // 의도: logType 변경 시에만 정렬 키 동기화. sortConfig 의존 시 불필요 재실행·루프 가능
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [logType?.id]);
 
   // 검색 이력에서 재조회 시 저장된 조건으로 한 번 검색 실행 + 해당 이력의 승인 ID 유지
@@ -166,6 +169,7 @@ const LogGrid = ({ logType, initialSearchParams, initialSearchApprovalId, onInit
         setLogs(logData);
         setTotalPages(result.data?.pagination?.totalPages || result.pagination?.totalPages || 1);
         setCurrentPage(result.data?.pagination?.currentPage || result.pagination?.currentPage || 1);
+        setTotalCount(result.data?.pagination?.totalCount || result.pagination?.totalCount || 0);
       } else {
         logger.error('❌ API 오류:', { error: result.error });
       }
@@ -205,6 +209,7 @@ const LogGrid = ({ logType, initialSearchParams, initialSearchApprovalId, onInit
           const logData = result.data?.data || result.data || [];
           setLogs(logData);
           setTotalPages(result.data?.pagination?.totalPages || result.pagination?.totalPages || 1);
+          setTotalCount(result.data?.pagination?.totalCount || result.pagination?.totalCount || 0);
         } else {
           logger.error('API 오류:', { error: result.error });
         }
@@ -242,6 +247,7 @@ const LogGrid = ({ logType, initialSearchParams, initialSearchApprovalId, onInit
             setLogs(logData);
             setTotalPages(result.data?.pagination?.totalPages || result.pagination?.totalPages || 1);
             setCurrentPage(1);
+            setTotalCount(result.data?.pagination?.totalCount || result.pagination?.totalCount || 0);
           }
         })
         .catch((err) => logger.error('페이지 크기 변경 중 오류:', { error: err.message }))
@@ -284,6 +290,7 @@ const LogGrid = ({ logType, initialSearchParams, initialSearchApprovalId, onInit
           const logData = result.data?.data || result.data || [];
           setLogs(logData);
           setTotalPages(result.data?.pagination?.totalPages || result.pagination?.totalPages || 1);
+          setTotalCount(result.data?.pagination?.totalCount || result.pagination?.totalCount || 0);
         } else {
           logger.error('API 오류:', { error: result.error });
         }
@@ -353,6 +360,7 @@ const LogGrid = ({ logType, initialSearchParams, initialSearchApprovalId, onInit
         setLogs(logData);
         setTotalPages(result.data?.pagination?.totalPages || result.pagination?.totalPages || 1);
         setCurrentPage(result.data?.pagination?.currentPage || result.pagination?.currentPage || 1);
+        setTotalCount(result.data?.pagination?.totalCount || result.pagination?.totalCount || 0);
       } else {
         logger.error('❌ API 오류:', { error: result.error });
       }
@@ -414,6 +422,7 @@ const LogGrid = ({ logType, initialSearchParams, initialSearchApprovalId, onInit
           onSort={handleSort}
           currentPage={currentPage}
           totalPages={totalPages}
+          totalCount={totalCount}
           onPageChange={handlePageChange}
           pageSize={pageSize}
           onPageSizeChange={handlePageSizeChange}
@@ -429,6 +438,7 @@ const LogGrid = ({ logType, initialSearchParams, initialSearchApprovalId, onInit
           onSort={handleSort}
           currentPage={currentPage}
           totalPages={totalPages}
+          totalCount={totalCount}
           onPageChange={handlePageChange}
           pageSize={pageSize}
           onPageSizeChange={handlePageSizeChange}

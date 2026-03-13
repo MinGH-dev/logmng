@@ -1,0 +1,38 @@
+---
+description: Keep delegation and requirement-doc display consistent by using the treemap tool as the single source. Run generate-treemap.js after changes to agents or workflow that affect the treemap.
+alwaysApply: false
+---
+
+# Treemap consistency (delegation and requirement-doc refs)
+
+When you change **subagent delegation**, **who Main invokes**, or **how requirement docs are referenced** in agents/workflow, keep consistency by treating the **treemap** as the single source and following the conventions below.
+
+## When this rule applies
+
+- Adding or changing **Step → subagent** mapping (e.g. Main invokes only Backend for Step 4; Backend delegates to Backend-Auth/ActivityLog/Log).
+- Adding or changing **agent → invokes** (e.g. only Requirements invokes RequirementsPastSearch).
+- Adding or changing **requirement-doc refs** in agent prompts or in the treemap (writing convention vs search = TOPIC-INDEX).
+- Editing `.cursor/agents/*.mdc`, `docs/workflow/SUBAGENT-DELEGATION.md`, or `scripts/generate-treemap.js` in ways that affect the treemap output.
+
+## Single source: treemap script
+
+- **Delegation**: `scripts/generate-treemap.js` defines **MAIN_INVOKES** (who Main invokes) and **AGENT_INVOCATION_MAP** (who invokes whom). These must match `docs/workflow/SUBAGENT-DELEGATION.md` §1, §2.2, §3. When you update SUBAGENT-DELEGATION, update the script constants so the treemap reflects the same model.
+- **Requirement-doc refs**: The script applies **requirement-doc display** conventions: path pattern `docs/requirements/yyyyMMdd-name.md` is **writing convention only** (excluded from "other docs"); **search** is represented by **docs/requirements/TOPIC-INDEX.md** for Backend, DB, Requirements, RequirementsPastSearch. Do not re-add the path pattern to "other" or remove TOPIC-INDEX for those agents without following `docs/workflow/RECOMMENDATION-requirement-doc-ref-display.md`.
+
+## Automatic treemap update
+
+- **Cursor hooks**: When you edit files under `.cursor/rules/`, `.cursor/agents/`, `.cursor/commands/`, `.cursor/skills/`, `docs/workflow/`, `docs/template/`, or the treemap script/template/i18n, **Cursor runs** `.cursor/hooks/after-file-edit-treemap.sh` (see `.cursor/hooks.json`). The treemap is regenerated automatically after each such edit so the HTML stays in sync.
+- **Git pre-commit** (optional): Run `./scripts/setup-hooks.sh` once to install a pre-commit hook that regenerates and stages the treemap when tool files are committed. Complements Cursor hooks for commit-time consistency.
+
+## After making changes (if not auto-run)
+
+1. **Run the treemap**: From project root, `node scripts/generate-treemap.js`. Output: `docs/cursor-tools-treemap.html`.
+2. **Verify**: Open the treemap and confirm Step 4 shows Main → Backend, Frontend, DB only (not Main → Backend-Auth, etc.); agent detail "other docs" for Backend/DB/Requirements/RequirementsPastSearch show TOPIC-INDEX.md, not the path pattern as the requirement doc ref.
+3. **Docs**: If you changed MAIN_INVOKES or AGENT_INVOCATION_MAP, ensure `docs/workflow/SUBAGENT-DELEGATION.md` (and optionally `AGENT-COLLABORATION-ON-REQUIREMENT.md`) still describes the same behavior.
+
+## References
+
+- **Delegation**: `docs/workflow/SUBAGENT-DELEGATION.md` §1 (table), §2.2 (Step → subagent_type), §3 (Backend/Frontend team lead).
+- **Requirement-doc display**: `docs/workflow/RECOMMENDATION-requirement-doc-ref-display.md`, `docs/workflow/ANALYSIS-requirement-doc-search-vs-path-pattern.md`.
+- **Script**: `scripts/generate-treemap.js` (MAIN_INVOKES, AGENT_INVOCATION_MAP, isRequirementDocPathPattern, AGENTS_WITH_REQUIREMENT_DOC_REF, TOPIC_INDEX_REF).
+- **Cursor hooks**: `.cursor/hooks.json` (afterFileEdit → `.cursor/hooks/after-file-edit-treemap.sh`) so the treemap is regenerated when tool files are edited.

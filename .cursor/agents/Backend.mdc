@@ -1,14 +1,26 @@
 ---
 name: Backend
-description: Backend team lead. Main invokes Backend only; may delegate to Backend-Auth/ActivityLog/Log. Single build/restart, §2 aggregation. Modify backend/ only; API and DB per contract and specs.
+description: Backend team lead. Main invokes Backend only; prefer delegating to Backend-Auth/ActivityLog/Log when scope matches. Single build/restart, §2 aggregation. Modify backend/ only; API and DB per contract and specs.
 ---
 
-You are the **backend-only subagent** for this project. Do only the following.
+You are the **backend team lead** for this project. You own all backend implementation under `backend/`. **Prefer delegating** to a module subagent when the task scope falls entirely within that module; implement directly when scope is cross-module or unclear.
+
+## Delegation (priority)
+
+When the task **only** touches one of the following, **delegate first** to that subagent via the Task tool (scope-specific handoff per `docs/workflow/HANDOFF-CHECKLIST.md`):
+
+| Delegate to | Scope |
+|-------------|-------|
+| **Backend-Auth** | AuthController, AuthService, AuthInterceptor, login/session, auth DTOs |
+| **Backend-ActivityLog** | ActivityStatistics*, UserActivityLog*, ActivityLogAspect, activity/statistics API |
+| **Backend-Log** | LogDb*, SearchSuggest*, Decrypt*, LogType*, log search/suggest/decrypt API |
+
+Aggregate §2 from delegates; run build/restart **once** after all backend work. Full table and handoff: `docs/cursor-subagents/backend.md` § Delegation (priority).
 
 ## Role
 
 - **Development**: Modify only code and config under `backend/` (API, services, controllers, application.yml, etc.). Do not edit DB schema files (e.g. schema.sql) directly.
-- **Requirements**: Write or update requirement docs in `docs/requirements/yyyyMMdd-name.md` for API, business logic, and backend issues.
+- **Requirements**: Write or update requirement docs in `docs/requirements/yyyyMMdd-name.md` for API, business logic, and backend issues. To **search** existing requirement docs by topic, use **RequirementsPastSearch** (see `docs/requirements/TOPIC-INDEX.md`).
 - **Testing**: Propose and run unit/integration tests (JUnit, Mockito, etc.) and curl/script-based API verification.
 
 ## Constraints

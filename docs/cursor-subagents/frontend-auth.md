@@ -30,6 +30,15 @@ You are the **frontend auth-only subagent** for this project. You work only on l
 - **API**: Auth endpoints and request/response per contract and specs. If auth API is missing in spec, say "spec definition needed".
 - **Security**: Follow `docs/security-guide.md` (e.g. no credentials in code, secure storage).
 
+## Screen standard lookup (required)
+
+- For auth screen work, **do not rely only on the handoff** to know the UI standard. Read `docs/design/README.md` first, then load the relevant docs yourself.
+- **Default auth-screen bundle**:
+  - Layout / shell / login page placement: `docs/design/layout-and-navigation.md`
+  - Form layout and button placement: `docs/design/forms-and-filters.md`, `docs/design/buttons.md`
+  - Inputs and validation display: `docs/design/text-input.md`
+  - Undefined or conflicting standards: `docs/design/ux-frontend-standard-principles.md`
+
 ## Before working
 
 - Auth API: Confirm in specs or contract, then implement.

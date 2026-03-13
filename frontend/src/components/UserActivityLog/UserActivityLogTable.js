@@ -88,16 +88,13 @@ const UserActivityLogTable = ({
 
   const hasData = sortedLogs && sortedLogs.length > 0;
   const emptyMessage = '조회된 활동 이력이 없습니다.';
-  const pagination =
-    totalPages > 1
-      ? {
-          currentPage,
-          totalPages,
-          onPageChange,
-          simple: true,
-          infoText: `총 ${totalCount.toLocaleString()}건`,
-        }
-      : null;
+  const pagination = {
+    currentPage,
+    totalPages,
+    onPageChange,
+    simple: true,
+    infoText: `총 ${totalCount.toLocaleString()}건`,
+  };
 
   return (
     <div role="region" aria-label="활동 이력 테이블" aria-busy={loading}>

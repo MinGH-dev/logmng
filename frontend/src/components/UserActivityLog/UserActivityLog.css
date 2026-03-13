@@ -1,7 +1,7 @@
-/* 사용자 활동 이력 컴포넌트 스타일 */
+/* 사용자 활동 이력 컴포넌트 스타일 — compact variant per req 20260313-activity-log-statistics-design-standards */
 
 .activity-log-list-container {
-  padding: 20px;
+  padding: var(--sf-container-padding);
   max-width: 1400px;
   margin: 0 auto;
 }
@@ -22,12 +22,12 @@
   font-size: 14px;
 }
 
-/* 검색 폼 */
+/* 검색 폼 — compact variant (search-filter-standard.css); panel bg from standard */
 .activity-log-search-form {
-  background: #f8f9fa;
-  padding: 20px;
+  background: var(--sf-panel-bg);
+  padding: var(--sf-container-padding);
   border-radius: 8px;
-  margin-bottom: 20px;
+  margin-bottom: var(--sf-block-gap);
 }
 
 .activity-log-auth-error {
@@ -40,11 +40,128 @@
   font-size: 14px;
 }
 
+/* P12/P11: Form accessible name; Row 2 group label "검색 조건" (visually hidden) */
+.activity-log-search-form__row2-heading-sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* P2: User block same width-by-role as statistics (req 20260311); do not squeeze. */
+.search-form-row-2 .user-context-filter-block--compact {
+  min-width: var(--sf-field-user-block-min);
+  max-width: var(--sf-field-user-block-max);
+  flex: 0 1 auto;
+  margin-right: var(--sf-block-gap);
+}
+
+/* Row 1: 시작 일시, 종료 일시 only (req 20260311-activity-log-statistics-design-standards) */
+.search-form-row-1 {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: var(--sf-row-gap);
+  margin-bottom: var(--sf-block-gap);
+}
+
+.search-form-row-1 .form-group {
+  flex: 1 1 auto;
+  min-width: var(--sf-field-date-min);
+  max-width: var(--sf-field-date-max);
+}
+
+.search-form-row-1 .form-group .form-control {
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+}
+
+/* P13: Single date range error placement — full width below both inputs */
+.search-form-row-1__date-error {
+  flex-basis: 100%;
+  width: 100%;
+  margin-top: 2px;
+}
+
+/* Row 2: 부서, 사용자명, 사용자 ID, 기타 조건, 액션 타입, IP, 검색, 초기화 */
+.search-form-row-2 {
+  position: relative;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: var(--sf-row-gap);
+}
+
+.search-form-row-2 .form-group {
+  flex-shrink: 0;
+}
+
+/* 기타 조건 블록: "사용자"와 동일하게 제목을 필드 위에 배치 (블록 제목) */
+.search-form-row-2__extra {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  margin-left: var(--sf-block-gap);
+  flex: 0 1 auto;
+  min-width: 0;
+}
+
+.search-form-row-2__extra .search-form-block__heading {
+  margin-bottom: var(--sf-row-gap);
+}
+
+.search-form-row-2__extra-fields {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: var(--sf-row-gap);
+}
+
+.search-form-row-2__extra-fields .form-group {
+  flex: 1 1 auto;
+  min-width: var(--sf-field-extra-min);
+  max-width: var(--sf-field-extra-max);
+}
+
+.search-form-row-2__extra-fields .form-group .form-control {
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+}
+
+.search-form-row-2 .search-form-actions {
+  margin-top: 0;
+  margin-left: auto;
+  flex-shrink: 0;
+}
+
 .search-form-row {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 15px;
-  margin-bottom: 15px;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: var(--sf-row-gap);
+  margin-bottom: var(--sf-block-gap);
+}
+
+.search-form-row--compact {
+  margin-bottom: 0;
+}
+
+.search-form-block {
+  margin-bottom: var(--sf-block-gap);
+}
+
+.search-form-block__heading {
+  font-size: 14px;
+  font-weight: 600;
+  color: #333;
+  margin: 0 0 var(--sf-row-gap) 0;
+  padding: 0;
 }
 
 .form-group {
@@ -55,23 +172,11 @@
 .form-group label {
   font-size: 14px;
   font-weight: 500;
-  margin-bottom: 5px;
+  margin-bottom: 4px;
   color: #333;
 }
 
-.form-control {
-  padding: 8px 12px;
-  border: 1px solid #ddd;
-  border-radius: 4px;
-  font-size: 14px;
-}
-
-.form-control:focus {
-  outline: none;
-  border-color: #007bff;
-  box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.25);
-}
-
+/* Control sizing from .sf-compact-panel (search-filter-standard.css); only exception here */
 .form-control.error {
   border-color: #dc3545;
 }
@@ -82,20 +187,25 @@
   margin-top: 4px;
 }
 
+/* Filter body always visible (필터 접기 removed per req 20260313) */
+
 .search-form-actions {
   display: flex;
-  gap: 10px;
-  margin-top: 15px;
+  gap: var(--sf-row-gap);
+  margin-top: var(--sf-block-gap);
 }
 
+/* Button sizing from .sf-compact-panel .sf-btn (search-filter-standard.css); colors only below */
 .btn {
-  padding: 10px 20px;
   border: none;
-  border-radius: 4px;
-  font-size: 14px;
   font-weight: 500;
   cursor: pointer;
   transition: background-color 0.2s;
+}
+
+.btn:focus {
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.35);
 }
 
 .btn-primary {
@@ -389,7 +499,32 @@
   justify-content: flex-end;
 }
 
-/* 반응형 디자인 */
+/* P4: Narrow viewport — buttons wrap; consistent left alignment */
+@media (max-width: 1099px) {
+  .search-form-row-2 .search-form-actions {
+    margin-left: 0;
+    width: 100%;
+    justify-content: flex-start;
+  }
+}
+
+/* P9: Loading spinner next to "검색 중..." */
+.activity-log-search-form__spinner {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  margin-right: 6px;
+  vertical-align: middle;
+  border: 2px solid rgba(255, 255, 255, 0.4);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: activity-log-search-form__spinner 0.7s linear infinite;
+}
+
+@keyframes activity-log-search-form__spinner {
+  to { transform: rotate(360deg); }
+}
+
 @media (max-width: 768px) {
   .search-form-row {
     grid-template-columns: 1fr;

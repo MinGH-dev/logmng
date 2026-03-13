@@ -27,6 +27,15 @@ Apply when working on **auth UI only** (login form, auth flow, auth state). For 
 - Implement or change auth UI and auth API usage only. Follow contract and specs. Security per `docs/security-guide.md`.
 - Write or update requirement docs only for auth UI. Unit/component tests for login and auth flow.
 
+## Screen standard lookup (required)
+
+- For auth screen work, **do not rely only on the handoff** to know the UI standard. Read `docs/design/README.md` first, then load the relevant docs yourself.
+- **Default auth-screen bundle**:
+  - Layout / shell / login page placement: `docs/design/layout-and-navigation.md`
+  - Form layout and button placement: `docs/design/forms-and-filters.md`, `docs/design/buttons.md`
+  - Inputs and validation display: `docs/design/text-input.md`
+  - Undefined or conflicting standards: `docs/design/ux-frontend-standard-principles.md`
+
 ## References
 
 - Contract: `docs/contract.md`

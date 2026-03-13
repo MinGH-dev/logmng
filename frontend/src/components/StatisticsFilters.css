@@ -1,13 +1,13 @@
-/* Compact variant: row/field gap 8–12px, block 12–16px, padding 12–16px (forms-and-filters.md § Compact variant; aligned with activity log). Panel uses page container width; no statistics-only max-width. */
+/* Compact variant: search-filter-standard.css; aligned with activity log (req 20260313-activity-log-statistics-design-standards) */
 .statistics-filters {
-  margin-bottom: 14px;
-  padding: 12px 16px;
-  background-color: #f9f9f9;
+  margin-bottom: var(--sf-block-gap);
+  padding: var(--sf-container-padding);
+  background-color: var(--sf-panel-bg);
   border-radius: 8px;
 }
 
 .statistics-filters__header {
-  margin-bottom: 12px;
+  margin-bottom: var(--sf-block-gap);
 }
 
 .statistics-filters__header h3 {
@@ -20,33 +20,65 @@
   margin: 0;
 }
 
-/* Row/field gap 8–12px, block 12–16px; aligned with activity log search form */
-.statistics-filters__row-1 {
-  display: grid;
-  grid-template-columns: minmax(140px, 180px) 1fr;
-  gap: 10px;
-  align-items: end;
-  margin-bottom: 12px;
+/* Date/period block (form per mode): title above fields; req 20260313 */
+.statistics-filters__date-row {
+  margin-bottom: var(--sf-block-gap);
 }
 
-.statistics-filters__row-2 {
+.statistics-filters__date-row .statistics-filters__block-heading {
+  margin-bottom: var(--sf-row-gap);
+}
+
+.statistics-filters__date-fields {
   display: flex;
   flex-wrap: wrap;
   align-items: flex-end;
-  gap: 10px;
-  margin-top: 12px;
+  gap: var(--sf-row-gap);
 }
 
-.statistics-filters__row-2-fields {
+.statistics-filters__date-fields .form-group {
+  flex: 1 1 auto;
+  min-width: var(--sf-field-date-min);
+  max-width: var(--sf-field-date-max);
+}
+
+.statistics-filters__date-fields .form-group .form-control {
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+}
+
+/* Single row (non-date): 로그 타입 + 사용자 블록 + 기타 조건 + 검색/초기화 (forms-and-filters.md § Single row for non-date; search-fields-by-screen.md §3) */
+.statistics-filters__row-non-date {
   display: flex;
   flex-wrap: wrap;
   align-items: flex-end;
-  gap: 10px;
-  flex: 1;
+  gap: var(--sf-row-gap);
+  margin-bottom: 0;
+}
+
+.statistics-filters__row-non-date .statistics-filters__block--log-type {
+  flex: 0 0 auto;
+  min-width: 140px;
+  max-width: 180px;
+}
+
+.statistics-filters__row-non-date .user-context-filter-block {
+  flex: 0 0 auto;
+  min-width: var(--sf-field-user-block-min);
+  max-width: var(--sf-field-user-block-max);
+}
+
+.statistics-filters__row-non-date .statistics-filters__extra {
+  flex: 0 1 auto;
   min-width: 0;
 }
 
-/* 기타 조건: title above fields (block-level), aligned with activity log — forms-and-filters.md § Filter group title placement */
+.statistics-filters__row-non-date .statistics-filters__actions-row {
+  margin-left: auto;
+}
+
+/* 기타 조건: title above fields (block-level), role="group" + aria-labelledby */
 .statistics-filters__extra {
   display: flex;
   flex-direction: column;
@@ -59,7 +91,7 @@
   font-size: 14px;
   font-weight: 600;
   color: #333;
-  margin: 0 0 8px 0;
+  margin: 0 0 var(--sf-row-gap) 0;
   padding: 0;
 }
 
@@ -67,7 +99,7 @@
   display: flex;
   flex-wrap: wrap;
   align-items: flex-end;
-  gap: 10px;
+  gap: var(--sf-row-gap);
 }
 
 .statistics-filters__extra-fields .form-group {
@@ -76,10 +108,17 @@
   max-width: 200px;
 }
 
+/* Filter actions row: 검색, 초기화 in same row as 기타 조건 (row-2) */
+.statistics-filters__actions-row,
 .statistics-filters__actions {
   display: flex;
-  gap: 10px;
+  gap: var(--sf-row-gap);
+  margin-top: 0;
   margin-left: auto;
+}
+
+.statistics-filters__actions-row {
+  margin-bottom: 0;
 }
 
 .statistics-filters__block {
@@ -94,7 +133,7 @@
   font-size: 14px;
   font-weight: 600;
   color: #333;
-  margin: 0 0 8px 0;
+  margin: 0 0 var(--sf-row-gap) 0;
   padding: 0;
 }
 
@@ -111,20 +150,12 @@
   color: #333;
 }
 
-.statistics-filters .form-control {
-  height: 34px;
-  min-height: 34px;
-  padding: 6px 10px;
-  border: 1px solid #ddd;
-  border-radius: 4px;
-  font-size: 14px;
-  box-sizing: border-box;
-}
+/* Control sizing from .sf-compact-panel (search-filter-standard.css) */
 
 .filter-row {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
-  gap: 10px;
+  gap: var(--sf-row-gap);
 }
 
 .filter-row label {
@@ -134,40 +165,16 @@
   font-size: 14px;
 }
 
-.filter-row select,
-.filter-row input {
-  height: 34px;
-  min-height: 34px;
-  padding: 6px 10px;
-  border: 1px solid #ddd;
-  border-radius: 4px;
-  font-size: 14px;
-  box-sizing: border-box;
-}
-
 .filter-row input[type="text"] {
   width: 100%;
 }
 
-.statistics-filters select:focus,
-.statistics-filters input:focus {
-  outline: none;
-  border-color: #007bff;
-  box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.25);
-}
-
-/* Filter action buttons (검색, 초기화) — 44×44px min, per UX-REDESIGN */
+/* Filter action buttons: sizing from .sf-compact-panel .sf-btn; colors only below */
 .statistics-filters .btn {
-  min-width: 44px;
-  min-height: 44px;
-  padding: 8px 16px;
   border: none;
-  border-radius: 4px;
-  font-size: 14px;
   font-weight: 500;
   cursor: pointer;
   transition: background-color 0.2s;
-  box-sizing: border-box;
 }
 
 .statistics-filters .btn:focus {
@@ -199,17 +206,20 @@
 }
 
 @media (max-width: 768px) {
-  .statistics-filters__row-1 {
-    grid-template-columns: 1fr;
-    align-items: stretch;
-  }
-
-  .statistics-filters__row-2 {
+  .statistics-filters__row-non-date {
     flex-direction: column;
     align-items: stretch;
   }
 
-  .statistics-filters__actions {
+  .statistics-filters__row-non-date .statistics-filters__block--log-type,
+  .statistics-filters__row-non-date .user-context-filter-block,
+  .statistics-filters__row-non-date .statistics-filters__extra {
+    min-width: 0;
+    max-width: none;
+  }
+
+  .statistics-filters__row-non-date .statistics-filters__actions-row,
+  .statistics-filters__actions-row {
     margin-left: 0;
   }
 }

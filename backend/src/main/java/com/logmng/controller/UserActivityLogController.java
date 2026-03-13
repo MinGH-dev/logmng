@@ -65,12 +65,14 @@ public class UserActivityLogController {
             request.setUserId(userInfo.getUsername());
             request.setUsername(null);
             request.setIpAddress(null);
+            request.setDepartment(null);
         } else if ("team".equals(scope)) {
             List<String> teamUserIds = DepartmentScopeHelper.getUserIdsInSameDepartment(dataSource, userInfo.getUsername());
             request.setAllowedUserIds(teamUserIds);
             request.setUserId(null);
             request.setUsername(null);
             request.setIpAddress(null);
+            // department: keep from request when provided (apply filter within team)
         }
         
         UserActivityLogResponse response = userActivityLogService.searchActivityLogs(request);

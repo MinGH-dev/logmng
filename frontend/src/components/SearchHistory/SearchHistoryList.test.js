@@ -53,6 +53,18 @@ const listResponse = {
   },
 };
 
+const onePageListResponse = {
+  success: true,
+  data: {
+    data: listResponse.data.data,
+    pagination: {
+      currentPage: 1,
+      totalPages: 1,
+      totalCount: 7,
+    },
+  },
+};
+
 const renderAndWaitForInitialLoad = async (ui) => {
   const view = render(ui);
 
@@ -135,6 +147,38 @@ describe('SearchHistoryList', () => {
       username: '홍길',
       userId: '12345678',
     });
+  });
+
+  test('TC-02: one-page search history keeps the shared footer visible', async () => {
+    getSearchHistoryList.mockResolvedValueOnce(onePageListResponse);
+
+    const { container } = await renderAndWaitForInitialLoad(<SearchHistoryList user={baseUser} />);
+
+    const tableContainer = container.querySelector('.search-history-list .log-table-container');
+    expect(tableContainer).not.toBeNull();
+
+    const pagination = tableContainer.querySelector(':scope > .pagination');
+    expect(pagination).not.toBeNull();
+    expect(screen.getByRole('navigation', { name: '테이블 푸터' })).toBeInTheDocument();
+    expect(within(pagination).getByText('총 7건')).toBeInTheDocument();
+    expect(within(pagination).getByText('표시 건수')).toBeInTheDocument();
+    expect(within(pagination).queryByRole('button', { name: '다음 페이지' })).not.toBeInTheDocument();
+    expect(container.querySelector('.search-history-pagination')).toBeNull();
+  });
+
+  test('TC-06: multi-page search history renders shared pagination region inside the shared table container', async () => {
+    const { container } = await renderAndWaitForInitialLoad(<SearchHistoryList user={baseUser} />);
+
+    const tableContainer = container.querySelector('.search-history-list .log-table-container');
+    expect(tableContainer).not.toBeNull();
+
+    const pagination = tableContainer.querySelector(':scope > .pagination');
+    expect(pagination).not.toBeNull();
+    expect(tableContainer.querySelector(':scope > .table-wrapper')).not.toBeNull();
+    expect(screen.getByRole('navigation', { name: '테이블 푸터' })).toBeInTheDocument();
+    expect(within(pagination).getByText('총 42건')).toBeInTheDocument();
+    expect(within(pagination).getByRole('button', { name: '다음 페이지' })).toBeInTheDocument();
+    expect(container.querySelector('.search-history-pagination')).toBeNull();
   });
 
   test('TC-10: switching to self scope hides requester UI, clears local state, and omits requester params', async () => {

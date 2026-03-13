@@ -227,6 +227,20 @@ const ActivityStatistics = ({ user }) => {
       <StatisticsHeader
         statisticsType={statisticsType}
         onTypeChange={setStatisticsType}
+      />
+      
+      <StatisticsFilters
+        filters={filters}
+        onFiltersChange={setFilters}
+        onSearch={() => handleSearch()}
+        onReset={handleFiltersReset}
+        loading={loading}
+        userList={userList}
+        departmentList={departmentList}
+        ipList={ipList}
+        logTypeList={logTypeList}
+        hideUserFilters={hideUserFilters}
+        statisticsType={statisticsType}
         startDate={startDate}
         endDate={endDate}
         onStartDateChange={(v) => {
@@ -245,19 +259,6 @@ const ActivityStatistics = ({ user }) => {
         onMonthChange={setMonth}
         dateRangeInvalid={dateRangeInvalid}
         dateRangeErrorId="activity-statistics-date-range-error"
-      />
-      
-      <StatisticsFilters
-        filters={filters}
-        onFiltersChange={setFilters}
-        onSearch={() => handleSearch()}
-        onReset={handleFiltersReset}
-        loading={loading}
-        userList={userList}
-        departmentList={departmentList}
-        ipList={ipList}
-        logTypeList={logTypeList}
-        hideUserFilters={hideUserFilters}
       />
       
       {/* Error id when dateRangeInvalid: must match StatisticsHeader dateRangeErrorId for aria-describedby (date-search.md) */}

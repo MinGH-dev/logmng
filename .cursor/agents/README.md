@@ -25,7 +25,10 @@ The `.mdc` files in this folder are **local subagent definitions** that Cursor m
 | Documentation.mdc | User/ops docs (README, QUICK_START, runbooks). No requirement docs, no code. |
 | Release.mdc | CHANGELOG, version, release checklist. No user guides, no code. |
 | Consistency.mdc | Standards doc (`CONSISTENCY-STANDARDS.md`) definition. No review execution, no code. |
-| UX.mdc | Design/UX review (a11y, UI consistency). No code; Frontend implements. |
+| UX.mdc | **UX team lead.** Design/UX review; prefer delegating to UX-A11y, UX-Layout, UX-Components. No code; Frontend implements. |
+| UX-A11y.mdc | UX **accessibility only** (WCAG, ARIA, keyboard, contrast). Optional. |
+| UX-Layout.mdc | UX **layout and navigation only** (sidebar, menu, z-index, overlays). Optional. |
+| UX-Components.mdc | UX **design system / components only** (buttons, forms, grid/table). Optional. |
 
 **Role boundaries (no duplication)**: `docs/workflow/CURSOR-SUBAGENTS-DESIGN.md` §2.6.
 

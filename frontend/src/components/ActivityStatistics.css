@@ -1,6 +1,6 @@
-/* Same max-width (1400px) as .activity-log-list-container; container padding 12–16px per compact variant (forms-and-filters.md § Search form panel width) */
+/* Same max-width (1400px) as .activity-log-list-container; compact variant padding (req 20260313-activity-log-statistics-design-standards) */
 .activity-statistics {
-  padding: 16px;
+  padding: var(--sf-container-padding);
   max-width: 1400px;
   margin: 0 auto;
 }
@@ -9,9 +9,9 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 20px;
-  margin-top: 20px;
-  padding: 10px;
+  margin-bottom: var(--sf-block-gap);
+  margin-top: var(--sf-block-gap);
+  padding: var(--sf-container-padding);
   background-color: #f5f5f5;
   border-radius: 8px;
 }

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Tooltip } from '@mui/material';
 import {
   getPendingList,
@@ -43,7 +43,7 @@ const PendingApprovals = ({ user }) => {
   const [actionId, setActionId] = useState(null);
   const [rejectModal, setRejectModal] = useState(null); // { id, reason }
 
-  const loadList = async (pageNum = 1) => {
+  const loadList = useCallback(async (pageNum = 1) => {
     setLoading(true);
     setError(null);
     setMessage(null);
@@ -63,11 +63,11 @@ const PendingApprovals = ({ user }) => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [pageSize]);
 
   useEffect(() => {
     loadList(page);
-  }, [page, pageSize]);
+  }, [page, loadList]);
 
   const handleSort = (key) => {
     setSortConfig((prev) => ({
@@ -167,17 +167,13 @@ const PendingApprovals = ({ user }) => {
           emptyMessage="승인 대기 중인 요청이 없습니다."
           emptyColSpan={5}
           ariaLabel="승인 대기 목록"
-          pagination={
-            (pagination.totalPages || 1) > 1
-              ? {
-                  currentPage: page,
-                  totalPages: pagination.totalPages || 1,
-                  onPageChange: (p) => setPage(p),
-                  simple: true,
-                  infoText: `총 ${pagination.totalCount}건`,
-                }
-              : null
-          }
+          pagination={{
+            currentPage: pagination.currentPage || page,
+            totalPages: pagination.totalPages || 1,
+            onPageChange: (p) => setPage(p),
+            simple: true,
+            infoText: `총 ${pagination.totalCount}건`,
+          }}
           pageSize={pageSize}
           onPageSizeChange={handlePageSizeChange}
         >

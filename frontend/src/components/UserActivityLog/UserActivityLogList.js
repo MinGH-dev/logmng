@@ -3,6 +3,7 @@ import UserActivityLogSearchForm from './UserActivityLogSearchForm';
 import UserActivityLogTable from './UserActivityLogTable';
 import UserActivityLogDetail from './UserActivityLogDetail';
 import { searchActivityLogs } from '../../services/userActivityLogService';
+import { statisticsApi } from '../../services/api';
 import './UserActivityLog.css';
 import logger from '../../utils/logger';
 
@@ -19,9 +20,18 @@ const UserActivityLogList = ({ user }) => {
   const [searchParams, setSearchParams] = useState({});
   const [authError, setAuthError] = useState(null);
   const [serverToday, setServerToday] = useState(null);
+  const [departmentList, setDepartmentList] = useState([]);
 
-  // scope=self: hide user/username/IP filters; omit from API. req 20250303
+  // scope=self: hide user/username/department/IP filters; omit from API. req 20250303, 20260310
   const hideUserFilters = !user?.isSystemAdmin && user?.screenScopes?.['activity-log'] === 'self';
+
+  // 부서 목록 로드 (scope≠self일 때 검색 폼 드롭다운용)
+  useEffect(() => {
+    if (hideUserFilters) return;
+    statisticsApi.getDepartmentList()
+      .then((res) => { if (res.success && res.data) setDepartmentList(res.data || []); })
+      .catch(() => {});
+  }, [hideUserFilters]);
 
   // 초기 로드 - 서버 날짜(health) 기준 '오늘'로 검색 (브라우저/서버 타임존 불일치 방지)
   useEffect(() => {
@@ -75,7 +85,7 @@ const UserActivityLogList = ({ user }) => {
     try {
       let requestParams = { ...params, page: 1, pageSize };
       if (hideUserFilters) {
-        const { userId, username, ipAddress, ...rest } = requestParams;
+        const { userId, username, department, ipAddress, ...rest } = requestParams;
         requestParams = { ...rest, page: 1, pageSize };
       }
 
@@ -123,7 +133,7 @@ const UserActivityLogList = ({ user }) => {
     try {
       let requestParams = { ...searchParams, page, pageSize };
       if (hideUserFilters) {
-        const { userId, username, ipAddress, ...rest } = requestParams;
+        const { userId, username, department, ipAddress, ...rest } = requestParams;
         requestParams = { ...rest, page, pageSize };
       }
       const result = await searchActivityLogs(requestParams);
@@ -145,7 +155,7 @@ const UserActivityLogList = ({ user }) => {
     setCurrentPage(1);
     let requestParams = { ...searchParams, page: 1, pageSize: newSize };
     if (hideUserFilters) {
-      const { userId, username, ipAddress, ...rest } = requestParams;
+      const { userId, username, department, ipAddress, ...rest } = requestParams;
       requestParams = { ...rest, page: 1, pageSize: newSize };
     }
     setLoading(true);
@@ -194,6 +204,7 @@ const UserActivityLogList = ({ user }) => {
         loading={loading}
         initialServerDate={serverToday}
         hideUserFilters={hideUserFilters}
+        departmentList={departmentList}
       />
 
       {authError && (

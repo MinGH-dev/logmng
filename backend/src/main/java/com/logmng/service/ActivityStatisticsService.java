@@ -38,23 +38,23 @@ public class ActivityStatisticsService {
      * 로그타입이 비어 있으면 '전체'로 간주하고, 각 로그타입별 집계를 합산하여 반환(전체 = 합계 정합성 유지).
      */
     public Map<String, Object> getDailyStatistics(String startDate, String endDate,
-                                                   String logType, String userId, List<String> allowedUserIds, String department, String ip) {
+                                                   String logType, String userId, List<String> allowedUserIds, String department, String ip, String username) {
         if (logType == null || logType.trim().isEmpty()) {
-            return getDailyStatisticsAsSumOfLogTypes(startDate, endDate, userId, allowedUserIds, department, ip);
+            return getDailyStatisticsAsSumOfLogTypes(startDate, endDate, userId, allowedUserIds, department, ip, username);
         }
-        DailyStatisticsRaw raw = getDailyStatisticsRaw(startDate, endDate, logType, userId, allowedUserIds, department, ip);
+        DailyStatisticsRaw raw = getDailyStatisticsRaw(startDate, endDate, logType, userId, allowedUserIds, department, ip, username);
         return buildDailyResponse(raw.dailyStats, raw.totalSearches, raw.totalDecrypts, raw.totalLogins, raw.uniqueUsers.size());
     }
 
     /** 로그타입 '전체': 각 통계 로그타입별 집계를 합산하여 반환 */
     private Map<String, Object> getDailyStatisticsAsSumOfLogTypes(String startDate, String endDate,
-                                                                   String userId, List<String> allowedUserIds, String department, String ip) {
+                                                                   String userId, List<String> allowedUserIds, String department, String ip, String username) {
         Map<String, Map<String, Object>> byDate = new LinkedHashMap<>();
         long totalSearches = 0, totalDecrypts = 0, totalLogins = 0;
         Set<String> uniqueUsers = new HashSet<>();
 
         for (String typeId : STATISTICS_LOG_TYPE_IDS) {
-            DailyStatisticsRaw raw = getDailyStatisticsRaw(startDate, endDate, typeId, userId, allowedUserIds, department, ip);
+            DailyStatisticsRaw raw = getDailyStatisticsRaw(startDate, endDate, typeId, userId, allowedUserIds, department, ip, username);
             totalSearches += raw.totalSearches;
             totalDecrypts += raw.totalDecrypts;
             totalLogins += raw.totalLogins;
@@ -97,12 +97,12 @@ public class ActivityStatisticsService {
     }
 
     private DailyStatisticsRaw getDailyStatisticsRaw(String startDate, String endDate,
-                                                     String logType, String userId, List<String> allowedUserIds, String department, String ip) {
+                                                     String logType, String userId, List<String> allowedUserIds, String department, String ip, String username) {
         List<Map<String, Object>> dailyStats = new ArrayList<>();
         long totalSearches = 0, totalDecrypts = 0, totalLogins = 0;
         Set<String> uniqueUsers = new HashSet<>();
 
-        String sql = buildDailyMonthlyWhere(startDate, endDate, logType, userId, allowedUserIds, department, ip);
+        String sql = buildDailyMonthlyWhere(startDate, endDate, logType, userId, allowedUserIds, department, ip, username);
 
         String query =
                 "SELECT DATE(created_at) AS dt, " +
@@ -135,6 +135,7 @@ public class ActivityStatisticsService {
                 ps.setString(idx++, userId);
             }
             if (ip != null && !ip.isEmpty()) ps.setString(idx++, ip);
+            if (username != null && !username.isEmpty()) ps.setString(idx++, "%" + username + "%");
 
             try (ResultSet rs = ps.executeQuery()) {
                 while (rs.next()) {
@@ -185,13 +186,13 @@ public class ActivityStatisticsService {
      * 월별 통계: 해당 월의 일별 집계와 동일한 구조
      */
     public Map<String, Object> getMonthlyStatistics(int year, int month,
-                                                      String logType, String userId, List<String> allowedUserIds, String department, String ip) {
+                                                      String logType, String userId, List<String> allowedUserIds, String department, String ip, String username) {
         LocalDate start = LocalDate.of(year, month, 1);
         LocalDate end = start.withDayOfMonth(start.lengthOfMonth());
         String startStr = start.format(DATE_FORMAT);
         String endStr = end.format(DATE_FORMAT);
 
-        Map<String, Object> data = getDailyStatistics(startStr, endStr, logType, userId, allowedUserIds, department, ip);
+        Map<String, Object> data = getDailyStatistics(startStr, endStr, logType, userId, allowedUserIds, department, ip, username);
         data.put("year", year);
         data.put("month", month);
         data.put("monthLabel", year + "-" + String.format("%02d", month));
@@ -203,19 +204,19 @@ public class ActivityStatisticsService {
      * 로그타입이 비어 있으면 '전체'로 간주하고, 각 로그타입별 집계를 사용자별로 합산하여 반환.
      */
     public List<Map<String, Object>> getAllUserStatistics(String startDate, String endDate,
-                                                           String logType, String userId, List<String> allowedUserIds, String department, String ip) {
+                                                           String logType, String userId, List<String> allowedUserIds, String department, String ip, String username) {
         if (logType == null || logType.trim().isEmpty()) {
-            return getAllUserStatisticsAsSumOfLogTypes(startDate, endDate, userId, allowedUserIds, department, ip);
+            return getAllUserStatisticsAsSumOfLogTypes(startDate, endDate, userId, allowedUserIds, department, ip, username);
         }
-        return getOneLogTypeUserStatistics(startDate, endDate, logType, userId, allowedUserIds, department, ip);
+        return getOneLogTypeUserStatistics(startDate, endDate, logType, userId, allowedUserIds, department, ip, username);
     }
 
     /** 로그타입 '전체': 각 통계 로그타입별 사용자 통계를 사용자별로 합산 */
     private List<Map<String, Object>> getAllUserStatisticsAsSumOfLogTypes(String startDate, String endDate,
-                                                                            String userId, List<String> allowedUserIds, String department, String ip) {
+                                                                            String userId, List<String> allowedUserIds, String department, String ip, String username) {
         Map<String, Map<String, Object>> byUserId = new LinkedHashMap<>();
         for (String typeId : STATISTICS_LOG_TYPE_IDS) {
-            List<Map<String, Object>> list = getOneLogTypeUserStatistics(startDate, endDate, typeId, userId, allowedUserIds, department, ip);
+            List<Map<String, Object>> list = getOneLogTypeUserStatistics(startDate, endDate, typeId, userId, allowedUserIds, department, ip, username);
             for (Map<String, Object> row : list) {
                 String uId = (String) row.get("userId");
                 byUserId.computeIfAbsent(uId, id -> {
@@ -242,8 +243,8 @@ public class ActivityStatisticsService {
 
     /** 단일 로그타입에 대한 사용자별 통계 */
     private List<Map<String, Object>> getOneLogTypeUserStatistics(String startDate, String endDate,
-                                                                    String logType, String userId, List<String> allowedUserIds, String department, String ip) {
-        String where = buildDailyMonthlyWhere(startDate, endDate, logType, userId, allowedUserIds, department, ip);
+                                                                    String logType, String userId, List<String> allowedUserIds, String department, String ip, String username) {
+        String where = buildDailyMonthlyWhere(startDate, endDate, logType, userId, allowedUserIds, department, ip, username);
 
         String query =
                 "SELECT user_id AS \"userId\", username AS \"userName\", " +
@@ -268,6 +269,7 @@ public class ActivityStatisticsService {
                 for (String uid : allowedUserIds) ps.setString(idx++, uid);
             } else if (userId != null && !userId.isEmpty()) ps.setString(idx++, userId);
             if (ip != null && !ip.isEmpty()) ps.setString(idx++, ip);
+            if (username != null && !username.isEmpty()) ps.setString(idx++, "%" + username + "%");
 
             try (ResultSet rs = ps.executeQuery()) {
                 while (rs.next()) {
@@ -432,11 +434,11 @@ public class ActivityStatisticsService {
     }
 
     /**
-     * WHERE 절과 파라미터 순서: startDate, endDate, (optional) logType, [userId or allowedUserIds...], department, ip
+     * WHERE 절과 파라미터 순서: startDate, endDate, (optional) logType, [userId or allowedUserIds...], department, ip, username
      * When allowedUserIds is non-null and non-empty, user filter is user_id IN (?,?,...); else when userId set, user_id = ?.
      */
     private String buildDailyMonthlyWhere(String startDate, String endDate,
-                                           String logType, String userId, List<String> allowedUserIds, String department, String ip) {
+                                           String logType, String userId, List<String> allowedUserIds, String department, String ip, String username) {
         StringBuilder sb = new StringBuilder(" WHERE 1=1 ");
         if (startDate != null && !startDate.isEmpty()) {
             sb.append(" AND created_at >= ?::date ");
@@ -457,6 +459,7 @@ public class ActivityStatisticsService {
             sb.append(" AND user_id = ? ");
         }
         if (ip != null && !ip.isEmpty()) sb.append(" AND ip_address = ? ");
+        if (username != null && !username.isEmpty()) sb.append(" AND username LIKE ? ");
         return sb.toString();
     }
 
@@ -464,15 +467,15 @@ public class ActivityStatisticsService {
      * CSV export (일별 또는 월별)
      */
     public byte[] exportCsv(String type, String startDate, String endDate, Integer year, Integer month,
-                            String logType, String userId, List<String> allowedUserIds, String department, String ip) {
+                            String logType, String userId, List<String> allowedUserIds, String department, String ip, String username) {
         Map<String, Object> data;
         if ("daily".equalsIgnoreCase(type)) {
-            data = getDailyStatistics(startDate, endDate, logType, userId, allowedUserIds, department, ip);
+            data = getDailyStatistics(startDate, endDate, logType, userId, allowedUserIds, department, ip, username);
         } else {
             if (year == null || month == null) {
                 throw new IllegalArgumentException("월별 export 시 year, month 필요");
             }
-            data = getMonthlyStatistics(year, month, logType, userId, allowedUserIds, department, ip);
+            data = getMonthlyStatistics(year, month, logType, userId, allowedUserIds, department, ip, username);
         }
 
         @SuppressWarnings("unchecked")

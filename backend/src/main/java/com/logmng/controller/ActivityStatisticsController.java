@@ -43,8 +43,8 @@ public class ActivityStatisticsController {
         this.dataSource = dataSource;
     }
 
-    /** Apply scope: when scope='self' override userId; when scope='team' use allowedUserIds (same department); when 'all' use request params. */
-    private Object[] applyScopeForStatistics(HttpServletRequest request, String userId, String department, String ip) {
+    /** Apply scope: when scope='self' override userId and ignore department/ip/username; when scope='team' use allowedUserIds and apply request filters; when 'all' use request params. */
+    private Object[] applyScopeForStatistics(HttpServletRequest request, String userId, String department, String ip, String username) {
         LoginResponse userInfo = authService.getCurrentUserInfo(request);
         if (userInfo == null) {
             throw CustomException.unauthorized("로그인이 필요합니다.", "UNAUTHORIZED");
@@ -53,7 +53,7 @@ public class ActivityStatisticsController {
         String scope = ScopeHelper.resolveScope(ScreenConstants.STATISTICS, Boolean.TRUE.equals(userInfo.getIsSystemAdmin()),
                 scopes != null ? scopes : java.util.Collections.emptyMap());
         if ("all".equals(scope)) {
-            return new Object[]{userId, null, department, ip};
+            return new Object[]{userId, null, department, ip, username};
         }
         String currentUser = userInfo.getUsername();
         if (currentUser == null || currentUser.isBlank()) {
@@ -61,9 +61,9 @@ public class ActivityStatisticsController {
         }
         if ("team".equals(scope)) {
             List<String> teamIds = DepartmentScopeHelper.getUserIdsInSameDepartment(dataSource, currentUser);
-            return new Object[]{null, teamIds, null, null};
+            return new Object[]{null, teamIds, department, ip, username};
         }
-        return new Object[]{currentUser, null, null, null};
+        return new Object[]{currentUser, null, null, null, null};
     }
 
     @GetMapping("/activity/daily")
@@ -74,11 +74,14 @@ public class ActivityStatisticsController {
             @RequestParam(required = false) String userId,
             @RequestParam(required = false) String department,
             @RequestParam(required = false) String ip,
+            @RequestParam(required = false) String username,
+            @RequestParam(required = false, value = "name") String nameParam,
             HttpServletRequest request) {
         log.debug("일별 통계 조회: startDate={}, endDate={}", startDate, endDate);
-        Object[] applied = applyScopeForStatistics(request, userId, department, ip);
+        String nameFilter = (username != null && !username.isBlank()) ? username : nameParam;
+        Object[] applied = applyScopeForStatistics(request, userId, department, ip, nameFilter);
         Map<String, Object> data = activityStatisticsService.getDailyStatistics(
-                startDate, endDate, logType, (String) applied[0], (List<String>) applied[1], (String) applied[2], (String) applied[3]);
+                startDate, endDate, logType, (String) applied[0], (List<String>) applied[1], (String) applied[2], (String) applied[3], (String) applied[4]);
         return ResponseEntity.ok(ApiResponse.success(data));
     }
 
@@ -90,13 +93,16 @@ public class ActivityStatisticsController {
             @RequestParam(required = false) String userId,
             @RequestParam(required = false) String department,
             @RequestParam(required = false) String ip,
+            @RequestParam(required = false) String username,
+            @RequestParam(required = false, value = "name") String nameParam,
             HttpServletRequest request) {
         log.debug("월별 통계 조회: year={}, month={}", year, month);
+        String nameFilter = (username != null && !username.isBlank()) ? username : nameParam;
+        Object[] applied = applyScopeForStatistics(request, userId, department, ip, nameFilter);
         int y = year != null ? year : java.time.LocalDate.now().getYear();
         int m = month != null ? month : java.time.LocalDate.now().getMonthValue();
-        Object[] applied = applyScopeForStatistics(request, userId, department, ip);
         Map<String, Object> data = activityStatisticsService.getMonthlyStatistics(
-                y, m, logType, (String) applied[0], (List<String>) applied[1], (String) applied[2], (String) applied[3]);
+                y, m, logType, (String) applied[0], (List<String>) applied[1], (String) applied[2], (String) applied[3], (String) applied[4]);
         return ResponseEntity.ok(ApiResponse.success(data));
     }
 
@@ -108,11 +114,14 @@ public class ActivityStatisticsController {
             @RequestParam(required = false) String userId,
             @RequestParam(required = false) String department,
             @RequestParam(required = false) String ip,
+            @RequestParam(required = false) String username,
+            @RequestParam(required = false, value = "name") String nameParam,
             HttpServletRequest request) {
         log.debug("전체 사용자별 통계: startDate={}, endDate={}", startDate, endDate);
-        Object[] applied = applyScopeForStatistics(request, userId, department, ip);
+        String nameFilter = (username != null && !username.isBlank()) ? username : nameParam;
+        Object[] applied = applyScopeForStatistics(request, userId, department, ip, nameFilter);
         List<Map<String, Object>> data = activityStatisticsService.getAllUserStatistics(
-                startDate, endDate, logType, (String) applied[0], (List<String>) applied[1], (String) applied[2], (String) applied[3]);
+                startDate, endDate, logType, (String) applied[0], (List<String>) applied[1], (String) applied[2], (String) applied[3], (String) applied[4]);
         return ResponseEntity.ok(ApiResponse.success(data));
     }
 
@@ -179,11 +188,14 @@ public class ActivityStatisticsController {
             @RequestParam(required = false) String userId,
             @RequestParam(required = false) String department,
             @RequestParam(required = false) String ip,
+            @RequestParam(required = false) String username,
+            @RequestParam(required = false, value = "name") String nameParam,
             HttpServletRequest request) {
         log.debug("통계 export: type={}, startDate={}, endDate={}", type, startDate, endDate);
-        Object[] applied = applyScopeForStatistics(request, userId, department, ip);
+        String nameFilter = (username != null && !username.isBlank()) ? username : nameParam;
+        Object[] applied = applyScopeForStatistics(request, userId, department, ip, nameFilter);
         byte[] body = activityStatisticsService.exportCsv(
-                type, startDate, endDate, year, month, logType, (String) applied[0], (List<String>) applied[1], (String) applied[2], (String) applied[3]);
+                type, startDate, endDate, year, month, logType, (String) applied[0], (List<String>) applied[1], (String) applied[2], (String) applied[3], (String) applied[4]);
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.parseMediaType("text/csv; charset=UTF-8"));
         headers.setContentDispositionFormData("attachment", "activity_statistics_" + type + ".csv");

@@ -329,17 +329,13 @@ const SearchHistoryList = ({ onBackToMain, onReSearch, user }) => {
         emptyMessage="검색 이력이 없습니다. 복호화 승인 요청을 한 검색이 여기에 표시됩니다."
         emptyColSpan={7}
         ariaLabel="검색 이력 목록"
-        pagination={
-          (pagination.totalPages || 1) > 1
-            ? {
-                currentPage: page,
-                totalPages: pagination.totalPages || 1,
-                onPageChange: (p) => setPage(p),
-                simple: true,
-                infoText: `총 ${pagination.totalCount}건`,
-              }
-            : null
-        }
+        pagination={{
+          currentPage: pagination.currentPage || page,
+          totalPages: pagination.totalPages || 1,
+          onPageChange: (p) => setPage(p),
+          simple: true,
+          infoText: `총 ${pagination.totalCount}건`,
+        }}
         pageSize={pageSize}
         onPageSizeChange={handlePageSizeChange}
       >

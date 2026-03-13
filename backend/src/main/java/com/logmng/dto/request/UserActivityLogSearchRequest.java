@@ -27,6 +27,17 @@ public class UserActivityLogSearchRequest {
     @JsonProperty("ipAddress")
     private String ipAddress;
 
+    /** Optional department (or departmentCode) filter. Ignored when scope=self; applied when scope=team/all. */
+    @JsonProperty("department")
+    private String department;
+
+    @JsonProperty("departmentCode")
+    public void setDepartmentCode(String departmentCode) {
+        if (this.department == null || this.department.isBlank()) {
+            this.department = departmentCode;
+        }
+    }
+
     /** When scope=team, set by controller: only logs for these user ids are returned. Not from client. */
     private List<String> allowedUserIds;
 
@@ -82,6 +93,14 @@ public class UserActivityLogSearchRequest {
     
     public void setIpAddress(String ipAddress) {
         this.ipAddress = ipAddress;
+    }
+
+    public String getDepartment() {
+        return department;
+    }
+
+    public void setDepartment(String department) {
+        this.department = department;
     }
 
     public List<String> getAllowedUserIds() {

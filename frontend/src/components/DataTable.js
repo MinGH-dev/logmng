@@ -44,6 +44,7 @@ const DataTable = ({
 
   const effectivePageSize = Math.max(pageSizeMin, Math.min(pageSizeMax, pageSizeProp));
   const showRowsPerPage = pagination != null && typeof onPageSizeChange === 'function';
+  const showFooter = pagination != null;
 
   useEffect(() => {
     setPageSizeInput(String(effectivePageSize));
@@ -146,6 +147,8 @@ const DataTable = ({
     );
   }
 
+  const paginationButtons = renderPaginationButtons();
+
   return (
     <div className="log-table-container">
       <div className="table-wrapper">
@@ -182,11 +185,11 @@ const DataTable = ({
           </tbody>
         </table>
       </div>
-      {pagination && pagination.totalPages > 1 && (
+      {showFooter && (
         <div
           className="pagination"
           role="navigation"
-          aria-label="페이지 네비게이션"
+          aria-label="테이블 푸터"
           aria-live="polite"
           aria-atomic="true"
         >
@@ -216,9 +219,11 @@ const DataTable = ({
               <button type="button" className="page-size-btn" onClick={handlePageSizeIncrement} disabled={effectivePageSize >= pageSizeMax} aria-label="행 수 증가">+</button>
             </div>
           )}
-          <div className={pagination.simple ? 'pagination-buttons pagination-simple' : 'pagination-buttons'}>
-            {renderPaginationButtons()}
-          </div>
+          {paginationButtons ? (
+            <div className={pagination.simple ? 'pagination-buttons pagination-simple' : 'pagination-buttons'}>
+              {paginationButtons}
+            </div>
+          ) : null}
         </div>
       )}
     </div>

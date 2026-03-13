@@ -39,11 +39,6 @@
   border-radius: 4px;
 }
 
-.search-history-list .log-table-container .table-wrapper {
-  overflow: auto;
-  max-height: 70vh;
-}
-
 .search-history-summary {
   max-width: 280px;
   overflow: hidden;
@@ -76,23 +71,6 @@
 
 .search-history-btn:disabled {
   opacity: 0.6;
-  cursor: not-allowed;
-}
-
-.search-history-pagination {
-  margin-top: 1rem;
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-}
-
-.search-history-pagination button {
-  padding: 0.25rem 0.5rem;
-  cursor: pointer;
-}
-
-.search-history-pagination button:disabled {
-  opacity: 0.5;
   cursor: not-allowed;
 }
 

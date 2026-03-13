@@ -22,7 +22,7 @@ Do **not** use for: API design, backend Java service code, or frontend (use Back
 ## Role
 
 - **Development**: Modify only `backend/src/main/resources/db/` (schema.sql, setup.sh, init-data.sql, migrations, etc.) and DB setup docs. Do not change backend Java, API, or frontend code.
-- **Requirements**: Write or update requirement docs in `docs/requirements/yyyyMMdd-name.md` for schema, migrations, and data policy.
+- **Requirements**: Write or update requirement docs in `docs/requirements/yyyyMMdd-name.md` for schema, migrations, and data policy. To **search** existing requirement docs by topic, use **RequirementsPastSearch** (see `docs/requirements/TOPIC-INDEX.md`).
 - **Testing**: Propose schema checks, initial data checks, and setup/check script automation (e.g. check-db.sh).
 
 ## Constraints

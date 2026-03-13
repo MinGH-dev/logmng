@@ -1,6 +1,9 @@
-# 20260311 - Activity log statistics screen design improvement
+# 20260311 — Activity Log and Statistics design improvement
 
-**Supersedes**: `docs/requirements/20260311-statistics-screen-design-standards.md` (this doc replaces it; main agent may delete the superseded file after this doc is complete).
+## 0. Scope and supersedes
+
+- **Scope**: This document is the single requirement for aligning the **User Activity Log** (사용자 활동 이력) and **Activity Statistics** (활동로그 통계) screens with the project's design standards (layout, filter group title, panel width, spacing, user block field size, form semantics, and compact variant).
+- **Supersedes**: None. It does not supersede feature-improvement or scope docs (e.g. `docs/requirements/20260206-activity-log-statistics-improvement.md` if present); it focuses solely on design-standards alignment.
 
 ---
 
@@ -8,134 +11,115 @@
 
 ### Requirement description
 
-The user requests that the **activity log statistics screen** (활동로그 통계 화면) be reviewed and improved to match the project’s **design standards**. The target is the statistics view (ActivityStatistics and related filter/search components). Design standards are defined in `docs/design/`: forms-and-filters, search-field definitions, and the UX redesign for activity-log and statistics. Alignment with other user-context screens (e.g. activity log list) and search/filter consistency must be preserved or improved where gaps remain.
-
-This is a **UI/design improvement** requirement; no change to backend API or scope behavior is requested unless the design standards imply it.
-
-**Design doc references (mandatory for search/filter alignment):**
-
-- **Form layout, filter groups, panel width, compact variant**: `docs/design/forms-and-filters.md` (§ Filter group title placement, § Search form panel width, § Compact variant).
-- **Per-screen field definitions**: `docs/design/search-fields-by-screen.md` (§3 statistics; field-level table).
-- **Field definition schema (sizing, controlType, constraints)**: `docs/design/search-field-definition-items.md`.
+Users who use both the **User Activity Log** and **Activity Statistics** screens expect a consistent search/filter experience: same visual layout, group titles above fields, same panel width, compact spacing, and **same size for the user block fields** (부서, 사용자명, 사용자 ID) on both screens. Currently, layout, group title placement, panel width, spacing, or user block field width may diverge from the design standards or between the two screens, causing confusion and perceived inconsistency.
 
 ### User scenario
 
-1. User opens the activity log statistics screen (메뉴 → 통계 또는 해당 경로).
-2. User sees the statistics header (일별/월별, date range or year/month), the filter panel (검색 조건: 로그 타입, 사용자 block, 기타 조건, 검색/초기화), and the action bar (그래프/표, Excel 다운로드) and content.
-3. **Problem**: Some aspects of the current statistics screen may still diverge from design standards—e.g. filter group title semantics, search form panel width vs. activity log, compact spacing consistency, a11y (date validation, form landmark), and documentation of statistics-specific fields in the design docs.
-4. User expects the statistics screen to **match design standards** so that layout, group titles, panel width, spacing, and accessibility are consistent with the activity log and with the design docs above.
+1. User opens the **User Activity Log** screen and sees the filter area (date range, user block, 기타 조건, Search/Reset).
+2. User opens the **Activity Statistics** screen and sees the filter area (date/period, 로그 타입, user block, 기타 조건, Search/Reset).
+3. **Problem**: Layout, group title placement, panel width, spacing, or **user block field size** (부서, 사용자명, 사용자 ID) may differ between the two screens or from the design standards defined in `docs/design/forms-and-filters.md`, `docs/design/search-fields-by-screen.md`, and related design docs.
+4. **Expectation**: Both screens match the design standards: filter group title above fields, same panel width, compact variant spacing, **same user block field size on both screens**, Search/Reset in the filter actions row, proper form semantics, activity log row1 = dates / row2 = rest, single row for non-date blocks, and scope=self behaviour unchanged.
 
 ### Expected outcome
 
-- **Filter group title placement**: All filter groups (로그 타입, 사용자, 기타 조건) follow the rule: group title **above** the fields, not inline; semantic structure (`role="group"`, `aria-labelledby`) where applicable per `docs/design/forms-and-filters.md` § Filter group title placement.
-- **Search form panel width**: Statistics and activity log use the **same width constraints** (e.g. same page container max-width, 1400px); no statistics-only narrower/wider panel per `docs/design/forms-and-filters.md` § Search form panel width.
-- **Compact variant and spacing**: Row/field gap 8–12px, block-to-block 12–16px, container padding 12–16px, aligned with the activity log search form per `docs/design/forms-and-filters.md` § Compact variant.
-- **Buttons and form semantics**: Search (“검색”) and Reset (“초기화”) remain in the filter actions row below the filter body; form has an accessible name; focus order and a11y attributes (e.g. date validation `aria-invalid`, `aria-describedby`) applied where applicable.
-- **Scope=self**: User block and “기타 조건” (IP) remain hidden when scope=self; no behavior change.
-- **Documentation**: Statistics screen fields (로그 타입, period UI, user block, 기타 조건) are documented in `docs/design/search-fields-by-screen.md` (§3) so future changes stay consistent.
+- **Filter group title**: Group titles (e.g. "사용자", "기타 조건") are placed **above** their fields, not inline. Per `docs/design/forms-and-filters.md` § Filter group title placement.
+- **Same panel width**: Search/filter panel uses the same width constraints (e.g. page container or same max-width) on both activity-log and statistics. Per `docs/design/forms-and-filters.md` § Search form panel width and `docs/design/search-fields-by-screen.md` §3 (통계 패널 너비).
+- **Compact variant spacing**: Row/field gap 8–12px, block-to-block gap 12–16px, container padding 12–16px. Per `docs/design/forms-and-filters.md` § Compact variant.
+- **User block field size (동일 크기)**: The user block fields — **부서**, **사용자명**, **사용자 ID** — have the **same width/size** on both the activity-log and statistics screens. Per `docs/design/search-fields-by-screen.md` §3 ("활동 이력과 동일"), §4 (화면 간 공통 규칙) and `docs/design/search-field-definition-items.md` §4, §4.5 (Width by max character count). Layout must not squeeze the user block (e.g. avoid sharing a single `1fr` cell with another control).
+- **Search/Reset in filter actions row**: Primary ("검색") and secondary ("초기화") buttons appear in a dedicated filter actions row directly under the filter body on both screens. Per `docs/design/forms-and-filters.md` and `docs/design/UX-REDESIGN-activity-log-statistics-search.md`.
+- **Form semantics**: Filter area is a `<form>` with one primary (Search) and one secondary (Reset); submit and reset behave correctly. Per `docs/design/forms-and-filters.md` and `docs/design/UX-REDESIGN-activity-log-statistics-search.md`.
+- **Activity log layout**: Row1 = date fields only; row2 = user block, 기타 조건, and filter actions (single row for non-date blocks). Per `docs/design/forms-and-filters.md` § Single row for non-date.
+- **scope=self behaviour**: When scope=self, user block and related screen-specific fields remain hidden; no change to this behaviour.
+- **Optional field constraints**: Apply optional field constraints (e.g. maxLength, placeholders) only as defined in design docs or if product confirms; do not infer beyond design docs.
 
-**Note**: When aligning search/filter UIs (activity log and statistics), layout, group title placement, spacing, and **form panel width/size** are in scope. See `docs/design/forms-and-filters.md` § Search form panel width and `docs/workflow/REQUIREMENTS-CHANGE-TARGET-CHECKLIST.md` §2.4. For **field** design, §1 explicitly references `docs/design/search-fields-by-screen.md` and `docs/design/search-field-definition-items.md` so implementers apply the same field schema.
+**Design doc references**: Implementers must read and apply from `docs/design/forms-and-filters.md`, `docs/design/search-fields-by-screen.md`, `docs/design/search-field-definition-items.md`, `docs/design/css-standard-and-exceptions.md`, `frontend/src/styles/search-filter-standard.css`, and `docs/design/UX-REDESIGN-activity-log-statistics-search.md`.
 
 ---
 
 ## 2. Design
 
-### 2.1 Security review (optional; when PII / decryption / access control)
+### 2.1 Security review (optional)
 
-Not applicable. This requirement is UI/design alignment only; no change to access control, PII, or decryption scope.
+Not applicable — this requirement does not change PII, decryption scope, or access control. scope=self behaviour is unchanged.
 
 ### Technical design
 
 #### Codebase summary
 
-- **ActivityStatistics** (`frontend/src/components/ActivityStatistics.js`): Container for statistics. Renders StatisticsHeader (date/period), StatisticsFilters (filter form), error message, `.statistics-action-controls` (그래프/표, Excel 다운로드), StatisticsView, UserStatisticsTable. Uses `hideUserFilters` when `user.screenScopes.statistics === 'self'`. Filter state: logType, userId, username, department, ip; date state in header (startDate, endDate or year, month). Search and Reset are handled inside StatisticsFilters; Reset clears filters and re-runs search.
-- **StatisticsFilters** (`frontend/src/components/StatisticsFilters.js`): Filter panel with header “검색 조건”. Form wraps row1 (로그 타입 block + UserContextFilterBlock “사용자”) and row2 (기타 조건 block with “기타 조건” heading above IP, plus 검색/초기화 buttons). Uses `UserContextFilterBlock` with `blockLabel="사용자"`, `compact`, `idPrefix="statistics-filter"`. “로그 타입” uses `role="group"`, `aria-labelledby`, and h4 block heading; “기타 조건” has `role="group"` and `aria-labelledby`. Form has `aria-label="통계 검색 조건"`.
-- **StatisticsHeader** (`frontend/src/components/StatisticsHeader.js`): Renders 일별/월별 tabs and date inputs (startDate/endDate or year/month). Date validation (start ≤ end) and `dateRangeInvalid` / `dateRangeErrorId` are passed from ActivityStatistics for error message association.
-- **Activity log comparison**: `UserActivityLogSearchForm` has row1 = date only, row2 = user block + 기타 + actions; container `.activity-log-list-container` has `max-width: 1400px`. Activity statistics container `.activity-statistics` has `max-width: 1400px`; `.statistics-filters` uses compact padding (12px 16px). Both use `UserContextFilterBlock` with 부서 → 사용자명 → 사용자 ID.
+- **User Activity Log**: `UserActivityLogSearchForm.js` (form with date row, user block via `UserContextFilterBlock`, 기타 조건, Search/Reset); `UserActivityLog.css` uses `search-filter-standard.css` vars, row1 = dates, row2 = user block + 기타 조건 + actions. Container `activity-log-list-container` max-width 1400px.
+- **Activity Statistics**: `ActivityStatistics.js` (container); `StatisticsHeader.js` (date/period); `StatisticsFilters.js` (form with date/period block, 로그 타입, `UserContextFilterBlock`, 기타 조건, Search/Reset). `StatisticsFilters.css` uses `.statistics-filters__row-1` with `grid-template-columns: minmax(var(--sf-field-date-min), 180px) 1fr` — the second column `1fr` holds both 로그 타입 and `UserContextFilterBlock`, which can squeeze the user block.
+- **UserContextFilterBlock**: Shared component (`UserContextFilterBlock.js`, `UserContextFilterBlock.css`) used on both screens; order 부서 → 사용자명 → 사용자 ID. CSS uses `grid-template-columns: repeat(3, minmax(100px, 1fr))` (compact) but does **not** apply block-level width vars `--sf-field-user-block-min` / `--sf-field-user-block-max` from `search-filter-standard.css`.
+- **Shared standard**: `frontend/src/styles/search-filter-standard.css` defines `--sf-field-user-block-min`, `--sf-field-user-block-max`, `--sf-field-date-block-*`, compact variant vars, and `.sf-compact-panel` for single-application-point control sizing.
 
 #### Problem analysis
 
-1. **Group title and block semantics**: “기타 조건” and “로그 타입” already use block-level heading above fields with `role="group"` and `aria-labelledby` (StatisticsFilters.js). “사용자” is provided by UserContextFilterBlock. Verification should confirm group titles are **above** fields, not inline, per `docs/design/forms-and-filters.md`.
-2. **Panel width**: Both screens use `max-width: 1400px` on the page container. Any future or theme-specific wrapper that applies a different width to statistics only would break the rule in `docs/design/forms-and-filters.md` § Search form panel width. §2 states explicitly that both screens must keep the same width constraints.
-3. **Compact spacing**: StatisticsFilters.css uses ~10px gap, 12px margin-bottom, 12–16px padding. Activity log uses 10px gap, 12px 16px padding. Gaps should be verified to fall within 8–12px (row/field) and 12–16px (block/container) and be consistent with the activity log.
-4. **Accessibility**: Form has `aria-label`. Date validation in StatisticsHeader: if start > end, an error is shown and `dateRangeInvalid` is set; date inputs should have `aria-invalid` and `aria-describedby`. Error div uses `id="activity-statistics-date-range-error"` for association. Confirm in verification per `docs/design/date-search.md` and UX-REDESIGN §4.2.
-5. **Field definitions**: `docs/design/search-fields-by-screen.md` has a **statistics (§3)** section that lists 로그 타입, period UI (header), user block, and 기타 조건 with shared sizing rules. Implementer may review or update §3 for consistency with `docs/design/search-field-definition-items.md` and activity log field definitions.
-6. **Intentional difference**: Statistics has period (date range / year–month) in the **header**, and row1 = 로그 타입 + 사용자, row2 = 기타 + buttons. Activity log has row1 = date, row2 = user + 기타 + buttons. Only **block order, title placement, panel width, and compact spacing** are aligned, not the row content order.
-
-#### Remaining UX gaps (statistics vs design standards)
-
-- **Group title placement**: Confirm “로그 타입”, “사용자”, “기타 조건” are **above** their fields (one line above), not inline; per `docs/design/forms-and-filters.md` § Filter group title placement.
-- **Panel width**: Confirm statistics filter panel uses the same container max-width (1400px) as activity log per `docs/design/forms-and-filters.md` § Search form panel width and `docs/design/search-fields-by-screen.md` §3.
-- **Compact variant**: Row/field gap 8–12px, block gap 12–16px, container padding 12–16px, form control height 32–36px per `docs/design/forms-and-filters.md` § Compact variant.
-- **a11y**: Form has accessible name (e.g. `aria-label="통계 검색 조건"`); button labels and focus order per `docs/design/UX-REDESIGN-activity-log-statistics-search.md` §4.2; when filter is collapsible, ensure Search/Reset remain reachable when collapsed or document the chosen pattern.
-- **Cross-screen field consistency**: User block and 기타 조건 (IP) field width/height/padding match activity log per `docs/design/search-field-definition-items.md` §4.
+1. **User block field size**: On statistics, the user block shares a single `1fr` cell with 로그 타입 in `.statistics-filters__row-1`, so the user block gets less width than on activity log, where row2 gives the user block more space. UserContextFilterBlock does not use `var(--sf-field-user-block-*)` for block-level width, so the same block can render with different effective field sizes on the two screens.
+2. **Layout**: Statistics row-1 layout can squeeze the user block; activity log row1/row2 split (dates vs rest) is correct; statistics should ensure the user block has sufficient width (e.g. dedicated column or min-width) so field sizes match activity log.
+3. **Panel width / spacing**: Both screens use compact variant and similar container max-width; alignment of panel width and spacing to the same design values must be verified and any gaps closed.
+4. **Form semantics and buttons**: Statistics already uses `<form>` and Search/Reset in a filter actions row per UX-REDESIGN; activity log already has form and actions. Confirm both follow the same pattern and labels ("검색", "초기화").
 
 #### Solution approach
 
-Structure by scope. Only **Frontend** and **docs/design** are in scope; no Backend or DB change.
+**Frontend (only):** Design standards are enforced via CSS and layout; no backend or API change is required unless a design doc explicitly implies one.
 
-**Frontend:**
+- **User block field size**: Apply the **same user block field width** on both screens: use `var(--sf-field-user-block-min)`, `var(--sf-field-user-block-max)` (or the same min/max from `docs/design/search-fields-by-screen.md` and `search-field-definition-items.md` §4.5) so that 부서, 사용자명, 사용자 ID have the same min/max width and visual size on activity-log and statistics. Ensure the **layout does not squeeze the user block**: on statistics, avoid placing the user block and another control (e.g. 로그 타입) in a single `1fr` cell; give the user block its own column or sufficient min-width so it receives at least the same effective width as on activity log.
+- **UserContextFilterBlock**: Use block-level width (e.g. `var(--sf-field-user-block-max)`) or the same grid/field sizing on both screens so the block does not stretch to different widths. Component CSS may only add layout and width-by-role; control height/padding come from the standard wrapper (`.sf-compact-panel`) per `docs/design/css-standard-and-exceptions.md` §3.1.
+- **StatisticsFilters layout**: Adjust row-1 (or equivalent) so the user block is not in the same cell as 로그 타입; e.g. separate columns for date/period block, 로그 타입, and user block, or ensure user block has min-width consistent with `--sf-field-user-block-min` so field sizes match activity log.
+- **Panel width and spacing**: Verify both screens use the same container max-width (e.g. 1400px) and compact variant vars from `search-filter-standard.css`; fix any deviation.
+- **Form and buttons**: Confirm both screens use `<form>`, one primary (검색) and one secondary (초기화) in the filter actions row; no change if already correct.
+- **Design doc references**: All numeric and structural values (width, spacing, row layout) must be **sourced from** `docs/design/forms-and-filters.md`, `docs/design/search-fields-by-screen.md`, `docs/design/search-field-definition-items.md`, `docs/design/css-standard-and-exceptions.md`, and `frontend/src/styles/search-filter-standard.css`. For activity-log and statistics search UX, also apply `docs/design/UX-REDESIGN-activity-log-statistics-search.md`.
 
-- **StatisticsFilters**: (1) Keep form wrapper and “검색”/“초기화” in the filter actions row below the filter body; do not move them to `.statistics-action-controls`. (2) “로그 타입” already has group title above + `role="group"` + `aria-labelledby`; verify no inline title. (3) Ensure compact spacing: row/field gap 8–12px, block-to-block 12–16px, container padding 12–16px; match activity log values if currently different.
-- **StatisticsFilters.css**: Align spacing with activity log search form and with `docs/design/forms-and-filters.md` § Compact variant. Ensure the filter panel does not introduce a different max-width than the activity log search panel; both rely on the same page container (1400px).
-- **ActivityStatistics.css**: Confirm `.activity-statistics` uses the same max-width (1400px) as `.activity-log-list-container`; no statistics-only narrower/wider container.
-- **StatisticsHeader**: Date inputs should have `aria-invalid` and `aria-describedby` when `dateRangeInvalid` is true; confirm association with error id `activity-statistics-date-range-error` per `docs/design/date-search.md` and UX-REDESIGN §4.2.
-- **ActivityStatistics**: No structural change required beyond ensuring the filter form and action bar separation is clear (검색/초기화 in StatisticsFilters only; 그래프/표 and Excel in `.statistics-action-controls`).
-- **UserContextFilterBlock**: No change; already used with correct order and “사용자” label. If StatisticsFilters or shared CSS is updated, ensure UserContextFilterBlock compact variant spacing remains within 8–12px / 12–16px.
+**Implementation note for Frontend (verbatim from REQUIREMENTS-CHANGE-TARGET-CHECKLIST.md §2.4):**
 
-**Implementation note for Frontend (pattern §2.4):** Implementer must read and apply field-level and layout values from `docs/design/search-field-definition-items.md` and `docs/design/search-fields-by-screen.md` when changing form/filter CSS or components; requirement §2 numeric values (e.g. 8–12px) are consistent with those docs but must be verified or sourced from the docs. See `docs/workflow/REQUIREMENTS-CHANGE-TARGET-CHECKLIST.md` §2.4 and `docs/workflow/ANALYSIS-implementation-phase-design-doc-usage.md`.
+Implementer must read and apply field-level and layout values from **docs/design/search-field-definition-items.md**, **docs/design/search-fields-by-screen.md**, and **docs/design/forms-and-filters.md** when changing form/filter CSS or components; apply layout and structural rules from forms-and-filters.md (e.g. § Single row for non-date, § Form per mode, § Width by role). Requirement §2 numeric values (e.g. 8–12px) are consistent with those docs but must be verified or sourced from the docs. **If any required standard for layout, field sizing, spacing, icon usage, label placement, or control semantics is not defined or is ambiguous in the design docs, the implementer must not infer or hardcode a solution. The implementer must first inform the user of the undefined standard items, explain why each is needed, propose a recommended standard draft, and request feedback so the standard can be explicitly defined before implementation proceeds.**
 
-**Design docs (documentation only; implementer or Requirements may update):**
+**Backend:** No change unless a design doc explicitly requires an API or behavioural change.
 
-- **docs/design/search-fields-by-screen.md**: Statistics section exists (§3). Review or update for consistency with `docs/design/search-field-definition-items.md` and activity log shared fields (width/height/padding/controlType). Ensure 로그 타입 and period UI are clearly referenced for future changes.
-
-When the feature is **configurable and also displayed**: This requirement does not add a new configurable feature; it only improves the **view screen** (statistics). Configuration UI (e.g. permission group scope for statistics) is unchanged.
+**DB:** No change.
 
 ### Affected scopes and change targets (verification)
 
-**Before finalizing §2**, the Requirements author verified that every affected scope is covered and that no touchpoint is missed per `docs/workflow/REQUIREMENTS-CHANGE-TARGET-CHECKLIST.md`.
-
 | Scope | Affected? | §2 subsection and change file list complete? |
-|-------|-----------|-----------------------------------------------|
+|-------|-----------|---------------------------------------------|
 | Backend | No | N/A |
-| Frontend (config UI + view screen) | Yes (view only) | Yes |
+| Frontend (view screens) | Yes | Yes |
 | DB | No | N/A |
 | Contract / Spec | No | N/A |
 | Cursor tools (skills, specs) | No | N/A |
 
-**Pattern 2.4 (Search/filter UI consistency)** applied: layout (group title, block structure), form panel width, spacing (compact variant), and a11y are covered in §2 and in the change file list below. Design doc references: `docs/design/forms-and-filters.md`, `docs/design/search-fields-by-screen.md`, `docs/design/search-field-definition-items.md` (REQUIREMENTS-CHANGE-TARGET-CHECKLIST §2.4). Implementation note for Frontend is included above.
-
-### Change file list
-
-**(Confirmed by Step 4 Frontend implementation.)**
-
-Structure by scope to enable scope-specific excerpt extraction for handoff (see `HANDOFF-CHECKLIST.md`).
+### Planned change file list (expected change targets)
 
 #### Frontend
 
+- `frontend/src/components/UserActivityLog/UserActivityLog.css`
+  - Verify layout (row1 = dates, row2 = rest), compact variant and panel width; ensure user block uses same width-by-role as statistics (e.g. `var(--sf-field-user-block-*)` or design doc values). Must not squeeze user block.
+- `frontend/src/components/UserActivityLog/UserActivityLogSearchForm.js`
+  - Confirm form semantics, Search/Reset labels and placement; no structural change if already correct.
 - `frontend/src/components/StatisticsFilters.js`
-  - Comment added (forms-and-filters.md, UX-REDESIGN); form and 검색/초기화 in filter actions row unchanged; group titles above fields with role="group" + aria-labelledby.
+  - Confirm form semantics, Search/Reset in filter actions row; ensure date/period block, 로그 타입, and user block are structured so user block has sufficient width (not sharing a single 1fr with 로그 타입).
 - `frontend/src/components/StatisticsFilters.css`
-  - Comment updated: compact variant, no statistics-only max-width; spacing already 8–12px / 12–16px.
-- `frontend/src/components/ActivityStatistics.css`
-  - Container padding 20px → 16px (compact variant); max-width 1400px unchanged.
-- `frontend/src/components/StatisticsHeader.js`
-  - Comment for DATE_RANGE_ERROR_ID (date-search.md, UX-REDESIGN §4.2); aria-invalid and aria-describedby already on date inputs.
-- `frontend/src/components/ActivityStatistics.js`
-  - Comment for error div id and aria-describedby; filter vs. action bar unchanged.
+  - Align layout so user block has its own column or sufficient min-width (e.g. use `var(--sf-field-user-block-min)`, `var(--sf-field-user-block-max)`); avoid user block and 로그 타입 sharing one `1fr` cell. Apply same panel width and compact variant as activity log.
+- `frontend/src/components/common/UserContextFilterBlock.css`
+  - Apply same user block field width on both screens: use block-level width (e.g. `var(--sf-field-user-block-min)`, `var(--sf-field-user-block-max)`) or same grid/field sizing so 부서, 사용자명, 사용자 ID have the same min/max width on activity-log and statistics. Do not re-declare control height/padding (from .sf-compact-panel); only layout and width by role.
+- `frontend/src/components/common/UserContextFilterBlock.js`
+  - No change unless markup or structure is needed for width/layout; confirm ids and a11y.
+- `frontend/src/components/ActivityStatistics.js` / `StatisticsHeader.js`
+  - Verify filter root has `.sf-compact-panel` so control sizing is from standard; confirm date/period block and panel width.
+- `frontend/src/styles/search-filter-standard.css`
+  - Only if design docs require a new or updated variable; otherwise use existing `--sf-field-user-block-*` and compact variant vars.
 
-#### Design docs (documentation only; implementer or Requirements may update)
+### Actual change file list (implementing agent)
 
-- `docs/design/search-fields-by-screen.md`
-  - §3: added ref to search-field-definition-items.md §4 and forms-and-filters.md § Compact variant.
-
-#### Backend
-
-- None.
-
-#### DB
-
-- None.
+| File | Change |
+|------|--------|
+| `frontend/src/components/common/UserContextFilterBlock.css` | Block-level min/max width `var(--sf-field-user-block-min/max)`; compact row 3 equal columns; removed control min-width/max-width override; layout and width-by-role only. |
+| `frontend/src/components/StatisticsFilters.css` | Row-1 grid: separate columns for 로그 타입 (140px–180px) and user block `minmax(var(--sf-field-user-block-min), var(--sf-field-user-block-max))` so user block not squeezed. |
+| `frontend/src/components/UserActivityLog/UserActivityLog.css` | User block in row-2: min-width/max-width `var(--sf-field-user-block-min/max)` so same width-by-role as statistics. |
+| `frontend/src/components/StatisticsFilters.js` | Added `usernameMaxLength={5}` to UserContextFilterBlock for consistency with activity log (search-field-definition-items §4.5). |
+| `frontend/src/components/UserActivityLog/UserActivityLogSearchForm.js` | No change (form semantics, Search/Reset already correct). |
+| `frontend/src/components/common/UserContextFilterBlock.js` | No change (ids and a11y confirmed). |
+| `frontend/src/components/ActivityStatistics.js`, `StatisticsHeader.js` | No change (filter root has .sf-compact-panel; container max-width 1400px verified). |
+| `frontend/src/styles/search-filter-standard.css` | No change (existing --sf-field-user-block-* used). |
 
 ---
 
@@ -143,59 +127,45 @@ Structure by scope to enable scope-specific excerpt extraction for handoff (see 
 
 ### Test case list (required)
 
-Define test cases before unit/integration test execution. Update when the requirement or error fix changes.
-
-**Scope tag**: Tag each TC with a **Scope** (`Backend`, `Frontend`, `DB`, `Integration`) so the main agent can extract scope-specific TCs for handoff.
-
 | ID | Scope | Type | Scenario (input / condition) | Expected result | Verification (unit / integration / manual) |
-|----|-------|------|------------------------------|-----------------|--------------------------------------------|
-| TC-01 | Frontend | Normal | Open statistics screen; scope ≠ self; filter panel expanded | Filter panel shows 로그 타입, 사용자 block (부서 → 사용자명 → 사용자 ID), 기타 조건 (IP), 검색 and 초기화 in one row below body | Manual / browser |
-| TC-02 | Frontend | Normal | Same; click 초기화 | All filter fields clear; search runs with cleared values | Manual / browser |
-| TC-03 | Frontend | Normal | Compare statistics and activity log on same viewport | Same page container width (max 1400px); filter panel width consistent | Manual / browser |
-| TC-04 | Frontend | Normal | Check group titles “사용자”, “기타 조건”, “로그 타입” | Titles are above their fields, not inline; semantic group where applicable | Manual / browser |
-| TC-05 | Frontend | A11y | Tab through filter fields to 검색 and 초기화 | Search and 초기화 remain focusable | Manual / browser |
-| TC-06 | Frontend | A11y | Set 일별 start > end; focus date inputs | Error message associated; date inputs have aria-invalid and aria-describedby when invalid | Manual / browser |
-| TC-07 | Frontend | Normal | scope=self user opens statistics | User block and 기타 조건 (IP) hidden; only 로그 타입 and date in header visible in filter | Manual / browser |
+|----|-------|------|------------------------------|----------------|--------------------------------------------|
+| TC-01 | Frontend | Normal | Open User Activity Log; note filter layout: row1 = dates, row2 = user block + 기타 조건 + Search/Reset. | Group titles above fields; same panel width as design; compact spacing; Search and Reset in filter actions row. | Manual / browser |
+| TC-02 | Frontend | Normal | Open Activity Statistics; note filter layout: date/period block, 로그 타입, user block, 기타 조건, Search/Reset. | Group titles above fields; same panel width as activity log; compact spacing; Search and Reset in filter actions row; user block not squeezed. | Manual / browser |
+| TC-03 | Frontend | Normal | **User block field size**: On Activity Log, measure or capture width of 부서, 사용자명, 사용자 ID fields (or their container). On Statistics, measure the same. | Same min/max width and visual size for 부서, 사용자명, 사용자 ID on both screens. Per `docs/design/search-fields-by-screen.md` §3, §4 and search-field-definition-items.md §4, §4.5. | Manual / browser |
+| TC-04 | Frontend | Normal | scope=self: Open Activity Log and Statistics with scope=self. | User block and related screen-specific fields are hidden on both; no regression. | Manual / browser |
+| TC-05 | Frontend | Normal | Filter area on both screens is a `<form>`; Submit (검색) and Reset (초기화) work. | Form landmark present; submit runs search; reset clears fields (and optionally re-runs per product). | Manual / browser |
+| TC-06 | Frontend | a11y | Keyboard and screen reader: focus order, group labels, button labels. | Form has accessible name; group titles associated; buttons have visible or aria-label text; focus order logical. | Manual / browser |
 
 ### Test scenarios
 
-#### Scenario 1: Filter layout and buttons
+#### Scenario 1: Layout and user block size
 
-1. Open activity log statistics.
-2. Expand filter panel; confirm “검색 조건”, row1 (로그 타입 + 사용자), row2 (기타 조건 + 검색, 초기화).
-3. Confirm “그래프/표” and “Excel 다운로드” are in a separate bar, not in the filter actions row.
-4. Verification: Layout matches design standard and UX-REDESIGN.
+1. Open User Activity Log; expand filter; confirm row1 = dates only, row2 = user block + 기타 조건 + actions.
+2. Open Activity Statistics; confirm date/period block, then 로그 타입, user block, 기타 조건, and actions row.
+3. Compare width of 부서, 사용자명, 사용자 ID between the two screens (visual or dev tools).
+4. **Verification**: Same layout rules and same user block field size on both screens.
 
-#### Scenario 2: Panel width and spacing
+#### Scenario 2: Form and buttons
 
-1. Open activity log list and note container width and filter padding/gaps.
-2. Open statistics and note container width and filter padding/gaps.
-3. Verification: Same max-width; spacing within 8–12px / 12–16px per compact variant.
-
-#### Scenario 3: Accessibility
-
-1. Use keyboard only: tab through filter fields → 검색 → 초기화.
-2. If date validation exists: set start > end and check error association and aria attributes.
-3. Verification: Focus order and a11y attributes per design docs.
+1. On both screens, confirm filter is a `<form>` and Search ("검색") and Reset ("초기화") are in the filter actions row.
+2. Submit and reset on each screen; confirm behaviour.
+3. **Verification**: Same pattern and semantics on both screens.
 
 ### Test data
 
-- User with scope ≠ self (to see full filters) and user with scope=self (to see hidden user/기타 blocks).
-- No special test data required for layout/width checks.
+- User with scope=all (or team) so user block and 기타 조건 are visible on both screens.
+- User with scope=self to verify hiding (TC-04).
 
 ### Test environment
 
 - Frontend: `http://localhost:3001` (or per contract)
 - Backend: `http://localhost:9200`
-- Database: per project setup
 
 ### 3.5 Browser automation verification (optional)
 
-Applicable TCs: TC-01 through TC-07 (manual / browser).
-
-Procedure: Navigate to statistics route → login if needed → expand filter → run `browser_snapshot` to assert structure (group titles, buttons, visibility); repeat for activity log and compare container width; for TC-07 use scope=self user.
-
-Reference: `docs/workflow/BROWSER-AUTOMATION-VERIFICATION-POLICY.md`.
+- **Applicable TCs**: TC-01, TC-02, TC-03, TC-04, TC-05, TC-06.
+- **Procedure**: Navigate to activity-log and statistics; use browser snapshot to inspect filter structure and (where supported) computed width of user block fields; compare between screens. Verify form landmark and buttons.
+- **Reference**: `docs/workflow/BROWSER-AUTOMATION-VERIFICATION-POLICY.md`.
 
 ---
 
@@ -203,24 +173,23 @@ Reference: `docs/workflow/BROWSER-AUTOMATION-VERIFICATION-POLICY.md`.
 
 ### Frontend verification
 
-- [x] Filter group titles and panel width aligned with design standard
-- [x] Spacing (compact variant) matches activity log
-- [x] a11y: form name, focus order, aria-invalid/aria-describedby for date validation
-- [x] scope=self: user and 기타 blocks hidden
+- [ ] Layout (row1 = dates, row2 = rest on activity log; statistics user block not squeezed) verified
+- [ ] User block field size (부서, 사용자명, 사용자 ID) same on both screens
+- [ ] Panel width and compact variant spacing aligned with design docs
+- [ ] Form semantics and Search/Reset labels and placement correct
+- [ ] scope=self behaviour unchanged
 
 ### Backend verification
 
-- [x] N/A (no backend change)
+- [ ] N/A (no backend change)
 
 ### Integration
 
-- [x] Statistics and activity log visual alignment checked (per §2 change list)
-- [x] No regression in search/reset or export
+- [ ] Both screens tested with scope=all and scope=self
 
 ### Documentation
 
-- [x] Requirement doc completed
-- [x] docs/design/search-fields-by-screen.md statistics section added or updated (if applicable)
+- [ ] Requirement doc completed; design doc references in §1 and §2
 
 ---
 
@@ -228,52 +197,43 @@ Reference: `docs/workflow/BROWSER-AUTOMATION-VERIFICATION-POLICY.md`.
 
 ### Test run date
 
-- 2026-03-11 (QA verification after Step 4 handoff)
+- [Date and time]
 
 ### Test results
 
 #### Frontend
 
-**Pass** (build + restart + health check + browser app load; TC-01–TC-07 per build and code review)
+[Pass / Fail]
 
-- Build: `npm run build` (frontend) exit 0 — confirmed by main agent.
-- Restart: `./scripts/dev-services.sh frontend restart` — OK; frontend listening on 3001.
-- Health: `curl http://localhost:3001` → 200; `curl http://localhost:9200/api/health` → 200 OK.
-- Browser (cursor-ide-browser): Navigated to `http://localhost:3001`; snapshot confirmed app shell and login form ("로그 관리 시스템", 사용자명/비밀번호, 로그인 button). Full TC-01–TC-07 require an authenticated session (statistics route); no test credentials in handoff — TCs recorded as **Pass (build + code review)**. Manual verification with login recommended for full filter/width/a11y checks.
-
-#### Backend
-
-N/A
+- [Result description]
 
 **Commands:**
 
-- `./scripts/dev-services.sh frontend restart`
-- `curl -s -o /dev/null -w "%{http_code}" http://localhost:3001` → 200
-- `curl -s http://localhost:9200/api/health` → 200 + JSON OK
-- Browser: `browser_navigate` → `browser_snapshot` (viewId 9f958b); login page visible.
+[One executable or manual step per TC where applicable]
 
 **Outcome:**
 
-- TC-01–TC-07: Pass (build + code review). Implementation matches §2 (group titles above fields, 1400px container, compact spacing, aria-invalid/aria-describedby in StatisticsHeader, scope=self hide in ActivityStatistics). Browser verification limited to app load (login page); full filter/layout checks require manual run with authenticated user.
-- No issues found; no bugfix child.
+- [Item 1]
+- [Item 2]
 
 ### Issues found and resolution
 
-None.
+[To be filled when tests run]
 
 ### Next steps
 
-1. Commit done per `commit-on-complete.md`; no push (user did not request).
-2. Optional: manual run of TC-01–TC-07 with logged-in user (scope ≠ self and scope=self) for full browser verification.
+1. Implement Frontend changes per §2 and planned change file list.
+2. Run tests and verification; update §5.
+3. QA sign-off and commit per workflow.
 
 ---
 
 ## 6. Error remedy result (cause and action) — for error/bug fix requirements only
 
-Not applicable (design alignment requirement).
+N/A (design improvement requirement).
 
 ---
 
 **Author**: Requirements subagent  
 **Date**: 2026-03-11  
-**Status**: Done; QA verified; committed.
+**Status**: In progress

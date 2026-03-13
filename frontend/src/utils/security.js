@@ -176,7 +176,7 @@ export const getUserFriendlyErrorMessage = (context, error) => {
   return sanitizeErrorMessage(error, defaultMessage);
 };
 
-export default {
+const securityUtils = {
   setSecureStorage,
   getSecureStorage,
   removeSecureStorage,
@@ -189,6 +189,8 @@ export default {
   sanitizeErrorMessage,
   getUserFriendlyErrorMessage
 };
+
+export default securityUtils;
 
 
 

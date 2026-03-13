@@ -44,28 +44,5 @@
   transform: translateY(-1px);
 }
 
-.date-selector {
-  display: flex;
-  gap: 15px;
-  align-items: center;
-}
-
-.date-selector-group {
-  display: flex;
-  flex-direction: column;
-  gap: 5px;
-}
-
-.date-selector label,
-.date-selector .date-selector-group label {
-  font-size: 14px;
-}
-
-.date-selector input,
-.date-selector select {
-  padding: 6px 10px;
-  border: 1px solid #ddd;
-  border-radius: 4px;
-  font-size: 14px;
-}
+/* Date/period inputs moved to StatisticsFilters (form per mode, req 20260313) */
 
