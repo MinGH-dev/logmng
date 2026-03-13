@@ -1,0 +1,54 @@
+/* User-context filter block: 부서 → 사용자명 → 사용자 ID. Layout and width-by-role only; control height/padding from .sf-compact-panel (docs/design/css-standard-and-exceptions.md §3.1). Req 20260311-activity-log-statistics-design-improvement. */
+
+.user-context-filter-block {
+  border: none;
+  margin: 0 0 var(--sf-block-gap) 0;
+  padding: 0;
+}
+
+.user-context-filter-block__legend {
+  font-size: 14px;
+  font-weight: 600;
+  color: #333;
+  margin-bottom: var(--sf-row-gap);
+  padding: 0;
+}
+
+.user-context-filter-block__row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: var(--sf-row-gap);
+}
+
+.user-context-filter-block .form-group {
+  display: flex;
+  flex-direction: column;
+}
+
+.user-context-filter-block .form-group label {
+  font-size: 14px;
+  font-weight: 500;
+  margin-bottom: 4px;
+  color: #333;
+}
+
+/* Control sizing from parent .sf-compact-panel (search-filter-standard.css) */
+
+/* Compact: same user block field width on both activity-log and statistics (var(--sf-field-user-block-*)); layout and width-by-role only; do not re-declare control height/padding. */
+.user-context-filter-block--compact {
+  margin-bottom: 0;
+  margin-left: 0;
+  min-width: var(--sf-field-user-block-min);
+  max-width: var(--sf-field-user-block-max);
+}
+
+.user-context-filter-block--compact .user-context-filter-block__row {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  min-width: 0;
+}
+
+.user-context-filter-block--compact .user-context-filter-block__row .form-group .form-control {
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+}

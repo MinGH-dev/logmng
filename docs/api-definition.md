@@ -207,7 +207,7 @@
 
 **Base path**: `/api/search-history`
 
-**화면별 범위(scope)**: is_system_admin=false일 때 권한 그룹의 search-history scope 적용. scope='self' → 본인 데이터만; scope='all' → 전체. 상세: `specs/permission-group-hierarchy.spec.yaml` §4.3.
+**화면별 범위(scope)**: is_system_admin=false일 때 권한 그룹의 search-history scope 적용. scope='self' → 현재 요청자 본인 데이터만 반환하며 requester filter(`department`, `username`, `userId`)는 무시; scope='team' → 동일 부서 요청자만 반환하며 requester filter는 그 허용 집합 안에서만 추가 좁힘; scope='all' → 전체 가시 집합에 requester filter를 적용. requester filter는 scope를 넓히지 않으며, 상세 규칙은 `specs/permission-group-hierarchy.spec.yaml` §4.3을 따른다.
 
 - 검색 이력은 "복호화 승인 요청"이 발생한 검색을 저장하며, 사용자별 최근 이력 목록·재요청·재조회를 지원한다.
 - 승인 유효 기간: 요청일시 + 1일. 만료 시 재요청 가능.
@@ -228,9 +228,20 @@
 ### 6.1.2 검색 이력 목록 조회
 
 - **GET** `/api/search-history`
-- **Query**: `page` (기본 1), `pageSize` (기본 20), `sortField` (기본 requested_at), `sortDirection` (기본 desc)
+- **Query**:
+  - `department` (선택) — requester 부서 코드/값 exact match. `scope=self`에서는 무시.
+  - `username` (선택) — requester 사용자명 partial match (`LIKE`). `scope=self`에서는 무시.
+  - `userId` (선택) — requester 사용자 ID exact match. `scope=self`에서는 무시.
+  - `page` (기본 1)
+  - `pageSize` (기본 20)
+  - `sortField` (기본 requested_at)
+  - `sortDirection` (기본 desc)
+- **Filter / paging interaction**:
+  - requester filter는 `scope=self/team/all`의 기존 가시 범위를 넓히지 않고, 허용된 결과 집합만 추가로 좁힌다.
+  - 필터 변경 또는 `pageSize` 변경 시 현재 페이지는 `1`로 재설정한다.
+  - 백엔드는 목록 데이터와 `pagination.totalCount` / `pagination.totalPages`를 동일한 filter set으로 계산해야 한다.
 - **Response (data)**: `SearchHistoryListResponse`
-  - `data`: 배열. 각 항목: `seq` (목록 순번), `id`, `requestedAt`, `expiresAt`, `approvalStatus` (PENDING | APPROVED | EXPIRED | REJECTED), `searchParamsSummary` (요약 문자열 또는 키 필드만), `isExpired` (boolean, 만료 여부), 결재 이력(선택·nullable): `approvedBy` (string), `approvedAt` (string), `rejectedBy` (string), `rejectedAt` (string), `rejectionReason` (string)
+  - `data`: 배열. 각 항목: `seq` (목록 순번), `id`, `userId`, `logType`, `requestedAt`, `expiresAt`, `approvalStatus` (PENDING | APPROVED | EXPIRED | REJECTED), `searchParamsSummary` (요약 문자열 또는 키 필드만), `isExpired` (boolean, 만료 여부), 결재 이력(선택·nullable): `approvedBy` (string), `approvedAt` (string), `rejectedBy` (string), `rejectedAt` (string), `rejectionReason` (string)
   - `pagination`: `{ currentPage, totalPages, totalCount }`
 - **에러**: 비인증 401
 
@@ -319,7 +330,7 @@
 
 **Base path**: `/api/activity-log`
 
-**화면별 범위(scope)**: is_system_admin=false일 때 권한 그룹의 activity-log scope 적용. scope='self' → userId 등 파라미터 무시, 현재 사용자 데이터만 반환; scope='all' → 파라미터 그대로 적용. 상세: `specs/permission-group-hierarchy.spec.yaml` §4.3.
+**화면별 범위(scope)**: is_system_admin=false일 때 권한 그룹의 activity-log scope 적용. scope='self' → userId, username, department(또는 departmentCode), ipAddress 등 사용자·부서 관련 파라미터 무시, 현재 사용자 데이터만 반환; scope='team'/'all' → 요청의 department 등 필터 적용. 상세: `specs/permission-group-hierarchy.spec.yaml` §4.3.
 
 ### 8.1 활동 이력 검색
 
@@ -332,6 +343,7 @@
 | endDate | string | |
 | userId | string | |
 | username | string | |
+| department | string | (선택) 부서 필터. scope=self이면 무시; scope=team/all일 때만 적용. body에 departmentCode로 보내도 동일 필드로 처리. (req 20260310) |
 | actionType | string | |
 | ipAddress | string | |
 | page | integer | 기본 1 |
@@ -348,6 +360,14 @@
 - **GET** `/api/activity-log/{id}`
 - **Path**: `id` — Long
 - **Response (data)**: Map (활동 이력 한 건 상세)
+
+### 8.3 활동 로그 통계 (Activity Statistics)
+
+**Base path**: `/api/statistics/activity`
+
+- **GET** `/api/statistics/activity/daily`, **GET** `/api/statistics/activity/monthly`, **GET** `/api/statistics/activity/users/all`, **GET** `/api/statistics/activity/export`
+- **Query params** (공통 필터): `startDate`, `endDate` (일별/export), `year`, `month` (월별), `logType`, `userId`, `department`, `ip`, `username` (또는 `name`, 사용자명 LIKE 필터). (req 20260310)
+- **화면별 범위(scope)**: statistics 화면 scope 적용. scope='self'일 때 userId, username/name, department, ip 등 사용자·부서 관련 파라미터는 무시되고 현재 사용자 데이터만 반환. scope=team/all일 때는 전달된 필터 적용.
 
 ---
 
@@ -463,12 +483,12 @@
 요건: `docs/requirements/20250227-user-permission-hierarchy-group.md`, `docs/requirements/20250227-permission-group-screen-menu-access.md`, `docs/requirements/20250303-activity-statistics-self-only-scope.md`. 상세 스펙: `specs/permission-group-hierarchy.spec.yaml`.  
 모든 API는 **관리자(is_system_admin=true)** 만 호출 가능. 그 외 403, `code: "FORBIDDEN"`.  
 **화면 기반 접근**: 화면에 대응하는 API는 사용자가 해당 화면을 권한 그룹으로 허용받았거나 is_system_admin=true이어야 함. 그 외 403. 화면↔API 매핑: `specs/permission-group-hierarchy.spec.yaml` §4.3.  
-**화면별 범위(scope)**: activity-log, statistics, search-history 화면은 권한 그룹에서 화면별 scope('self'|'all') 설정 가능. scope='self' → 본인 데이터만; scope='all' → 전체. is_system_admin=false일 때만 적용. 상세: `specs/permission-group-hierarchy.spec.yaml` §4.2, §4.3.
+**화면별 범위(scope)**: activity-log, statistics, search-history, pending-approvals 화면은 권한 그룹에서 화면별 scope('self'|'team'|'all') 설정 가능. scope='self' → 본인 데이터만(또는 본인 요청만)이며 search-history requester filter는 무시; scope='team' → 동일 부서 범위; scope='all' → 전체. is_system_admin=false일 때만 적용. 상세: `specs/permission-group-hierarchy.spec.yaml` §4.2, §4.3.
 
 ### 14.1 권한 그룹 목록 조회
 
 - **GET** `/api/permission-groups`
-- **Response (data)**: 배열. 각 항목: `id` (number), `code` (string), `name` (string), `description` (string | null), `sortOrder` (number, 선택), `allowedScreens` (배열: `AllowedScreenItem[]`). `AllowedScreenItem`: `{ screenId, scope?, read?, write?, approve? }`. scope는 activity-log, statistics, search-history에만; read/write/approve는 화면별 명시적 체크박스. main은 read-only(write/approve 불가). 검증 실패 시 400 `INVALID_SCREEN_FUNCTION`. 상세: `specs/permission-group-hierarchy.spec.yaml` §1.1, §1.1.1.
+- **Response (data)**: 배열. 각 항목: `id` (number), `code` (string), `name` (string), `description` (string | null), `sortOrder` (number, 선택), `allowedScreens` (배열: `AllowedScreenItem[]`). `AllowedScreenItem`: `{ screenId, scope?, read?, write?, approve?, decrypt? }`. scope는 activity-log, statistics, search-history, pending-approvals에만 적용; read/write/approve/decrypt는 화면별 명시적 체크박스다. main은 read-only이며 optional `decrypt`만 허용한다. 검증 실패 시 400 `INVALID_SCREEN_FUNCTION`. 상세: `specs/permission-group-hierarchy.spec.yaml` §1.1, §1.1.1.
 - **에러**: 401, 403
 
 ### 14.2 권한 그룹 생성

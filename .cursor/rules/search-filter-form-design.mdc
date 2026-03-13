@@ -1,0 +1,55 @@
+---
+description: When changing search/filter form UI, follow field-level design docs; use single wrapper for control sizing; width by role; if standard undefined, inform user and do not implement first.
+globs: "frontend/**/SearchForm*,**/StatisticsFilters*,**/UserActivityLog*,**/AdvancedSearchForm*,**/ImageLogSearchForm*,**/UserContextFilterBlock*,**/StatisticsHeader*"
+alwaysApply: false
+---
+
+# Search / filter form design (검색·필터 폼 디자인)
+
+When you add or change **search/filter form** UI (검색하기, 활동 이력, 통계, 검색 이력, 승인 대기, 사용자 관리, 권한 그룹 등), follow the design definition docs so that field size, type, constraints, and data source stay consistent. **Standard-first**: see `.cursor/rules/ux-frontend-standard-first.mdc` and `docs/design/ux-frontend-standard-principles.md`. If a relevant standard is missing or unclear, do not implement; inform the user and ask for standard definition first.
+
+## Mandatory references
+
+1. **Field-level definition schema**: `docs/design/search-field-definition-items.md` (definition items: fieldId, label, controlType, width, height, constraints, dataSource, etc.)
+2. **Per-screen field definitions**: `docs/design/search-fields-by-screen.md` (검색하기, 활동 이력 필드별 정의표; 통계는 활동 이력과 사용자·기타 블록 동일 규칙)
+3. **Form/filter layout and rules**: `docs/design/forms-and-filters.md` (filter group title placement, compact variant, panel width, **single application point**, **width by role**)
+4. **CSS standard and exceptions**: `frontend/src/styles/search-filter-standard.css` (single source; **use wrapper class** so control sizing is applied in one place). For screen-specific overrides: component CSS only, with comment and `docs/design/css-standard-and-exceptions.md` §5 Exception index. See `docs/design/css-standard-and-exceptions.md`.
+
+## Single application point for control sizing
+
+- **One wrapper, one rule set**: Search/filter panels (including header date range, e.g. StatisticsHeader) must use the **standard wrapper class** (e.g. `sf-compact-panel`) on the form or filter root so that control height, padding, border, and font-size are applied **only** from `search-filter-standard.css`. See `docs/design/forms-and-filters.md` § Single application point and `docs/design/css-standard-and-exceptions.md` §3.
+- **Do not re-declare** in component CSS: Components must **not** duplicate `height`, `min-height`, `padding`, `border`, `border-radius`, or `font-size` for `input.form-control`, `select.form-control`, or filter buttons when those elements are inside the wrapper. Component CSS may only add **layout** (grid/flex, gaps, block structure) and **width by role** (min/max from vars or design doc). Exceptions only with comment + Exception index.
+- **All form-like controls**: Any control that is part of the search/filter UX (e.g. date inputs in StatisticsHeader) must be inside a root that has the wrapper class, or must use the same `var(--sf-control-height)` etc. so size is consistent across screens.
+
+## Width by role
+
+- **Same role, same min/max**: Field **width** (min-width, max-width) is defined **by role** in `docs/design/search-fields-by-screen.md` (e.g. date/single-select, user block, extra block). The same role must use the **same** min/max on all screens; use `var(--sf-field-*-min)`, `var(--sf-field-*-max)` from `search-filter-standard.css` where defined, or the numeric values from the design doc. Do not use different max-width per screen (e.g. 220px on activity-log and 180px on statistics for the same role).
+- **Shared blocks**: For blocks used on multiple screens (e.g. UserContextFilterBlock), use **block-level width** (`var(--sf-field-user-block-min)`, `var(--sf-field-user-block-max)`) or the same grid/field sizing on every screen so the block does not stretch differently and field widths stay comparable.
+- **Aligning multiple screens**: When the requirement aligns search/filter UI **across two or more screens** (e.g. activity-log and statistics), the **user block** (부서, 사용자명, 사용자 ID) must have the **same min/max width and visual size** on all aligned screens. Do not put the user block and another control (e.g. 로그 타입) in a **single** `1fr` cell — give the user block its own column or sufficient min-width so it is not squeezed. Ref: `docs/workflow/ANALYSIS-user-field-size-activity-log-vs-statistics.md`.
+
+## Same-name, different-context fields
+
+If a field exists on **multiple screens with different semantics** (e.g. **startDate** / **endDate** on 검색하기 vs 활동 이력), do **not** change or unify the definition unilaterally. Follow `docs/design/search-fields-by-screen.md` § "동일 이름·다른 성격 필드 — 피드백 요청": **ask the user** how to proceed (unify as one definition vs keep per-screen), then apply the decision.
+
+## When standard is undefined or ambiguous
+
+Before implementing, check that the following are defined and clear: **common layout**, **search/filter field placement**, **input/select/button size** (wrapper + vars), **width by role**, **label/placeholder/button order**. If any is missing or ambiguous, **do not implement**. Respond with: (1) list of undefined/ambiguous items, (2) why each is needed, (3) request to define the standard first and then proceed, (4) optional recommended standard draft. Full checklist and response format: `docs/design/ux-frontend-standard-principles.md` §2.
+
+## Required workflow before implementation
+
+1. Classify the request by **role** (e.g. date, user-context block, extra block, action buttons).
+2. Check that a **common standard exists** for that role (search-fields-by-screen.md, search-filter-standard.css, forms-and-filters.md).
+3. If yes → apply the standard; do not re-define in component CSS.
+4. If no or unclear → inform the user per `ux-frontend-standard-principles.md` §2; do not implement until the standard is defined or the user confirms.
+
+## Prohibited
+
+- Re-defining **height, padding, border, border-radius** for `.form-control` or filter buttons in component or shared block CSS when they are inside the standard wrapper.
+- Using **different min/max width** for the same role on different screens (e.g. 220px on one, 180px on another for date/single-select).
+- **Hardcoding** `height`, `padding`, `gap`, `min-width`, `max-width` in component CSS when the value exists in the standard; use `var(--sf-*)` or the wrapper.
+- **Implementing** without checking the standard or without user feedback when the standard is unclear.
+
+## Who uses this
+
+- **UX**: When reviewing or designing search/filter UI, cite the above docs and verify designs match the field tables and single-application-point rule. If a standard is missing, request definition first per `ux-frontend-standard-principles.md`.
+- **Frontend**: (1) Add the standard wrapper class to the form/filter root so control sizing comes from the standard file only. (2) Do not re-declare control height/padding in component or shared block CSS. (3) Apply width by role from search-fields-by-screen.md (same role = same min/max). (4) If the standard is undefined for the task, inform the user and do not implement until the standard is defined or confirmed.

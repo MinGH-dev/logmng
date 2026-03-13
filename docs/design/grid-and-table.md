@@ -20,13 +20,15 @@ Use a consistent order for all data-table screens:
 
 ## Table structure and class names
 
-- **Container**: `.log-table-container` (or equivalent data-table container). Full width, constrained height (e.g. `calc(100vh - 200px)`), `overflow: hidden`.
-- **Scroll wrapper**: `.table-wrapper` — `overflow: auto`, contains only the `<table>` (and scrollbar styling).
+- **Container**: `.log-table-container` (or equivalent data-table container). Full width, constrained height (e.g. `calc(100vh - 200px)`), `overflow: hidden`. In constrained-height layouts, this container owns both the scrollable table region and the visible pagination region.
+- **Scroll wrapper**: `.table-wrapper` — `overflow: auto`, contains only the `<table>` (and scrollbar styling). It must not consume the full visible height in a way that clips or pushes pagination outside `.log-table-container`.
 - **Table**: `<table class="log-table">` — `border-collapse: collapse`; `table-layout: auto` or `fixed`; column widths by `%` and `min-width`; long content: `word-break` / `text-overflow: ellipsis` as needed.
 - **Header**: `<thead>` with **sticky header** (e.g. `position: sticky; top: 0; z-index: 10`), background distinct from body.
 - **Sortable headers**: **Sorting is required** for all data tables. Use a consistent pattern (e.g. `.sortable-header` with click handler and sort icon). Same interaction across all data tables.
 - **Loading / empty state**: When loading or no data, show state inside the table container (e.g. `.loading-container` or overlay) without changing the outer page structure.
-- **Pagination**: Place directly under `.table-wrapper`, inside the table container. Show only when `totalPages > 1` (or equivalent). Use a consistent class (e.g. `.pagination`) with first/prev/page numbers/next/last.
+- **Shared footer contract**: Place the shared table footer directly under `.table-wrapper`, inside `.log-table-container`, as a visible sibling region of the scroll wrapper whenever footer metadata exists. The footer region itself must remain visible for both one-page and multi-page datasets.
+- **Footer contents**: Treat total count (for example `총 n건`) and rows-per-page control (for example `표시 건수`) as part of the always-visible shared footer contract when footer metadata exists.
+- **Navigation buttons**: Page navigation buttons are only one part of the shared footer. For one-page datasets they may be absent or disabled, but the footer region itself must not disappear. For multi-page datasets use a consistent class (e.g. `.pagination`) with first/prev/page numbers/next/last.
 
 ---
 

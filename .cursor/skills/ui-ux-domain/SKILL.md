@@ -33,6 +33,10 @@ Use for **menu, screen, view, and access visibility** in this repo. Scope: MENU_
 | Screen IDs, API mapping | Path: `specs/permission-group-hierarchy.spec.yaml` | `# 4. Screen IDs and screen-based access` (§4.1, §4.2, §4.3) |
 | allowedScreenIds, screenScopes | Path: `docs/contract.md` | `## 화면 기반 접근 제어` |
 | Full list (전체 처리 이력) | Path: `docs/requirements/TOPIC-INDEX.md` | §sidebar, §grid, §UX |
+| Search/filter consistency (user-context screens, scope=self) | Path: `docs/analysis-search-consistency-by-screen.md` | §2 (axes), §2.4 (scope=self), §3 |
+| **Search field design (per-screen, per-field)** | Path: `docs/design/search-fields-by-screen.md` | 화면별 필드 정의표; 동일 이름·다른 성격 시 피드백 요청 |
+| **Field definition items (schema)** | Path: `docs/design/search-field-definition-items.md` | 사이즈, 종류, 제한값, 데이터 소스 등 정의 항목 |
+| UX role separation (definition vs implementation, responsibility matrix) | Path: `docs/workflow/UX-ROLE-SEPARATION-DESIGN.md` | §2 (axes), §3 (matrix), §4 (agent/skill mapping) |
 
 ## Code references
 
@@ -67,7 +71,7 @@ When writing a **requirement document** that adds a new screen, changes menu str
 - [ ] **adminOnly**: If the screen is management-only, verify it is under the admin group.
 - [ ] **canAccessView**: Route guard in App.js checks allowedScreenIds (or is_system_admin).
 - [ ] **screenFunctions → buttons**: If the screen has write or approve, verify disabled state + tooltip when function is false (see table above).
-- [ ] **docs/design/ standards**: UI follows grid-and-table, buttons, forms-and-filters, layout-and-navigation standards.
+- [ ] **docs/design/ standards**: UI follows grid-and-table, buttons, forms-and-filters (including §Filter group title placement), layout-and-navigation standards. For search/filter forms, follow **docs/design/search-fields-by-screen.md** (field-level definition) and **docs/design/search-field-definition-items.md**; for same-name fields across screens, ask user direction per search-fields-by-screen.md § "동일 이름·다른 성격 필드 — 피드백 요청".
 - [ ] **a11y**: Keyboard navigation, focus ring, aria-label on icon buttons, contrast per docs/design/buttons.md.
 
 ## Before answering
@@ -81,6 +85,7 @@ When writing a **requirement document** that adds a new screen, changes menu str
 
 - `auth-permission-domain`: screenFunctions derivation rules (read/write/approve).
 - `api-permission-map`: Backend enforcement of write/approve — UI disabled state must match backend denial.
+- `search-consistency-domain`: When adding/changing search or filter UI on user-context screens (activity-log, statistics, user-management, etc.) — unified axes (부서·이름·사용자ID) and scope=self hiding.
 
 ## References
 

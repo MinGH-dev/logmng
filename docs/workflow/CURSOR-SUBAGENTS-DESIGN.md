@@ -31,7 +31,7 @@ When the backend grows, splitting by **module/feature** keeps scope clear and re
 | **Backend-ActivityLog** | Activity log, statistics, user activity | `backend-activity-log.md` | ActivityStatistics*, UserActivityLog*, ActivityLogAspect |
 | **Backend-Log** | Log DB, search, decrypt, log type | `backend-log.md` | LogDb*, SearchSuggest*, Decrypt*, LogType* |
 
-- Using **Backend** alone is fine. For work limited to one module, **Backend-Auth / Backend-ActivityLog / Backend-Log** give clearer scope.
+- **Backend (team lead)** should **prefer delegating** to these module subagents when the task scope falls **entirely** within one module (see `docs/cursor-subagents/backend.md` § Delegation (priority)). Implement directly only when scope is cross-module or unclear.
 - Reference: [moai-adk .claude/agents](https://github.com/modu-ai/moai-adk/tree/main/.claude) — expert-backend split by domain/platform skills.
 
 ### 1.2 Frontend module-specific subagents (optional, moai-adk style)
@@ -45,7 +45,7 @@ Splitting the frontend by **screen/feature** keeps scope clear. Add these **opti
 | **Frontend-ActivityLog** | Activity statistics, user activity log UI | `frontend-activity-log.md` | ActivityStatistics, UserActivityLog/*, Statistics* |
 | **Frontend-Log** | Log search, tables, image log, log type UI | `frontend-log.md` | LogGrid, LogTable, ImageLog*, SearchForm, AdvancedSearchForm, LogTypeSelector |
 
-- Using **Frontend** alone is fine. For a single screen/feature, **Frontend-Auth / Frontend-ActivityLog / Frontend-Log** give clearer scope.
+- **Frontend (team lead)** should **prefer delegating** to these module subagents when the task scope falls **entirely** within one module (see `docs/cursor-subagents/frontend.md` § Delegation (priority)). Implement directly only when scope is cross-module or unclear.
 - Reference: [moai-adk expert-frontend](https://github.com/modu-ai/moai-adk/blob/main/.claude/agents/moai/expert-frontend.md). Improvement notes: `docs/cursor-subagents/FRONTEND-IMPROVEMENT-POINTS.md`.
 
 ### 1.3 Additional subagents (review, docs, release, consistency, UX)
@@ -58,8 +58,22 @@ These 6 support collaboration and consistent deliverables. **Role boundaries** a
 | **Documentation** | User/ops docs (README, QUICK_START, deployment, runbooks). No requirement docs, API spec, or code. | `documentation.md` |
 | **Release** | CHANGELOG, version, release checklist. No user guides or code. | `release.md` |
 | **Consistency** | Standards doc (CONSISTENCY-STANDARDS.md). No review execution or code. Review applies standards. | `consistency.md` |
-| **UX** | Design/UX review (a11y, UI consistency, design system). No implementation; Frontend implements. | `ux-design.md` |
+| **UX** | **UX team lead.** Design/UX review (a11y, layout, design system). Prefer delegating to UX-A11y, UX-Layout, UX-Components when scope is single-domain. No implementation; Frontend implements. | `ux-design.md` |
 | **RequirementsPastSearch** | Search past requirement docs; summarize user-requested content so new requirements preserve it. Read-only; no doc/code edits. | `past-requirements-search.md` |
+
+### 1.4 UX module-specific subagents (optional, same pattern as Backend/Frontend)
+
+Splitting UX by **review domain** keeps scope clear. Add these **optional** subagents and paste the corresponding prompt. **Main agent invokes UX only** (Step 3d); UX (team lead) may **delegate** to these when the request touches only one domain.
+
+| Subagent name | Domain | Prompt file | When to use |
+|---------------|--------|-------------|-------------|
+| **UX** | General / cross-domain / unclear | `ux-design.md` | Full design review, or when a11y + layout + components all apply |
+| **UX-A11y** | Accessibility only | `ux-a11y.md` | WCAG, ARIA, keyboard, contrast, focus, disabled tooltips |
+| **UX-Layout** | Layout and navigation only | `ux-layout.md` | App shell, sidebar, menu, z-index, modals/overlays/drawers |
+| **UX-Components** | Design system / components only | `ux-components.md` | Buttons, forms, filters, grid/table, text input, date search |
+
+- **UX (team lead)** should **prefer delegating** to UX-A11y, UX-Layout, or UX-Components when the task scope falls **entirely** within that domain (see `docs/workflow/UX-ROLE-SEPARATION-DESIGN.md` §4.5). Do full review when scope is cross-domain or unclear.
+- All UX subagents: **review only, no code**; Frontend implements.
 
 ---
 

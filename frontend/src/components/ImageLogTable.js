@@ -1,5 +1,4 @@
 import React, { useState } from 'react';
-import { format } from 'date-fns';
 import DataTable, { EmptyTableBody } from './DataTable';
 import './ImageLogTable.css';
 import logger from '../utils/logger';
@@ -25,6 +24,7 @@ const ImageLogTable = ({
   onSort,
   currentPage,
   totalPages,
+  totalCount = 0,
   onPageChange,
   pageSize = 20,
   onPageSizeChange,
@@ -195,11 +195,6 @@ const ImageLogTable = ({
   // guid와 status를 조합한 고유 키 생성
   const getLogKey = (guid, status) => {
     return `${guid}::${status || ''}`;
-  };
-  
-  // 상세 보기 열기
-  const handleViewDetail = (log) => {
-    setSelectedLog(log);
   };
   
   // 상세 보기 닫기
@@ -374,9 +369,12 @@ const ImageLogTable = ({
   };
 
   const effectiveSortConfig = sortConfig && sortConfig.key ? sortConfig : null;
-  const pagination = totalPages > 1
-    ? { currentPage, totalPages, onPageChange }
-    : null;
+  const pagination = {
+    currentPage,
+    totalPages,
+    onPageChange,
+    infoText: `총 ${totalCount.toLocaleString()}건`,
+  };
 
   const tableBody = logs.length === 0 ? (
     <EmptyTableBody colSpan={10} message="검색 결과가 없습니다." />

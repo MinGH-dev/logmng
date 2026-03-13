@@ -1,10 +1,12 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   getSearchHistoryList,
   reRequestSearchHistory,
   getSearchHistoryDetail,
 } from '../../services/searchHistoryService';
+import { statisticsApi } from '../../services/api';
 import DataTable, { EmptyTableBody } from '../DataTable';
+import UserContextFilterBlock from '../common/UserContextFilterBlock';
 import './SearchHistory.css';
 import logger from '../../utils/logger';
 
@@ -26,6 +28,12 @@ const STATUS_LABEL = {
   EXPIRED: '만료',
   REJECTED: '반려',
 };
+
+const createEmptyRequesterFilters = () => ({
+  department: '',
+  username: '',
+  userId: '',
+});
 
 /** 결재 이력 한 줄 요약: 승인/반려 시 결재자와 일시, 없으면 "-" */
 function ApprovalHistoryCell({ row }) {
@@ -114,20 +122,32 @@ const SearchHistoryList = ({ onBackToMain, onReSearch, user }) => {
   const [pagination, setPagination] = useState({ currentPage: 1, totalPages: 1, totalCount: 0 });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [departmentList, setDepartmentList] = useState([]);
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
   const [sortConfig, setSortConfig] = useState({ key: 'requested_at', direction: 'desc' });
+  const [requesterFilters, setRequesterFilters] = useState(createEmptyRequesterFilters);
+  const [appliedRequesterFilters, setAppliedRequesterFilters] = useState(createEmptyRequesterFilters);
   const [reRequestingId, setReRequestingId] = useState(null);
   const [detailModalOpen, setDetailModalOpen] = useState(false);
   const [detailData, setDetailData] = useState(null);
   const [detailLoading, setDetailLoading] = useState(false);
   const [detailError, setDetailError] = useState(null);
 
-  const loadList = async (pageNum = 1) => {
+  const hideRequesterFilters = !user?.isSystemAdmin && user?.screenScopes?.['search-history'] === 'self';
+  const effectiveRequesterFilters = hideRequesterFilters ? null : appliedRequesterFilters;
+
+  const loadList = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      const result = await getSearchHistoryList(pageNum, pageSize, sortConfig.key, sortConfig.direction);
+      const result = await getSearchHistoryList({
+        page,
+        pageSize,
+        sortField: sortConfig.key,
+        sortDirection: sortConfig.direction,
+        ...(effectiveRequesterFilters || {}),
+      });
       if (result.success && result.data) {
         setList(result.data.data || []);
         setPagination(result.data.pagination || { currentPage: 1, totalPages: 1, totalCount: 0 });
@@ -139,11 +159,38 @@ const SearchHistoryList = ({ onBackToMain, onReSearch, user }) => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [effectiveRequesterFilters, page, pageSize, sortConfig.direction, sortConfig.key]);
 
   useEffect(() => {
-    loadList(page);
-  }, [page, pageSize, sortConfig.key, sortConfig.direction]);
+    if (hideRequesterFilters) {
+      setRequesterFilters(createEmptyRequesterFilters());
+      setAppliedRequesterFilters(createEmptyRequesterFilters());
+      setPage(1);
+      setDepartmentList([]);
+      return;
+    }
+
+    let cancelled = false;
+    statisticsApi.getDepartmentList()
+      .then((res) => {
+        if (!cancelled && res.success && Array.isArray(res.data)) {
+          setDepartmentList(res.data);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setDepartmentList([]);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [hideRequesterFilters]);
+
+  useEffect(() => {
+    loadList();
+  }, [loadList]);
 
   const handleSort = (key) => {
     setSortConfig((prev) => ({
@@ -158,11 +205,30 @@ const SearchHistoryList = ({ onBackToMain, onReSearch, user }) => {
     setPage(1);
   };
 
+  const handleRequesterFilterChange = (name, value) => {
+    setRequesterFilters((prev) => ({
+      ...prev,
+      [name]: value,
+    }));
+  };
+
+  const handleSearchSubmit = (e) => {
+    e.preventDefault();
+    setAppliedRequesterFilters({ ...requesterFilters });
+    setPage(1);
+  };
+
+  const handleReset = () => {
+    setRequesterFilters(createEmptyRequesterFilters());
+    setAppliedRequesterFilters(createEmptyRequesterFilters());
+    setPage(1);
+  };
+
   const handleReRequest = async (id) => {
     setReRequestingId(id);
     try {
       await reRequestSearchHistory(id);
-      await loadList(page);
+      await loadList();
     } catch (e) {
       logger.error('재요청 실패:', e);
       setError(e.message || '재요청에 실패했습니다.');
@@ -227,6 +293,33 @@ const SearchHistoryList = ({ onBackToMain, onReSearch, user }) => {
   return (
     <div className="search-history-list">
       <h2>검색 이력 (복호화 승인)</h2>
+      <form
+        className="search-history-toolbar sf-compact-panel"
+        role="search"
+        aria-label="검색 이력 조회 조건"
+        onSubmit={handleSearchSubmit}
+      >
+        {!hideRequesterFilters && (
+          <UserContextFilterBlock
+            blockLabel="요청자"
+            hideUserFilters={false}
+            departmentList={departmentList}
+            values={requesterFilters}
+            onChange={handleRequesterFilterChange}
+            idPrefix="search-history-requester"
+            compact
+            usernameMaxLength={5}
+          />
+        )}
+        <div className="search-history-toolbar__actions" role="group" aria-label="검색 액션">
+          <button type="submit" className="btn btn-primary sf-btn" disabled={loading} aria-busy={loading}>
+            {loading ? '검색 중...' : '검색'}
+          </button>
+          <button type="button" className="btn btn-secondary sf-btn" onClick={handleReset}>
+            초기화
+          </button>
+        </div>
+      </form>
       {error && <div className="search-history-error">{error}</div>}
       <DataTable
         columns={SEARCH_HISTORY_COLUMNS}
@@ -236,17 +329,13 @@ const SearchHistoryList = ({ onBackToMain, onReSearch, user }) => {
         emptyMessage="검색 이력이 없습니다. 복호화 승인 요청을 한 검색이 여기에 표시됩니다."
         emptyColSpan={7}
         ariaLabel="검색 이력 목록"
-        pagination={
-          (pagination.totalPages || 1) > 1
-            ? {
-                currentPage: page,
-                totalPages: pagination.totalPages || 1,
-                onPageChange: (p) => setPage(p),
-                simple: true,
-                infoText: `총 ${pagination.totalCount}건`,
-              }
-            : null
-        }
+        pagination={{
+          currentPage: pagination.currentPage || page,
+          totalPages: pagination.totalPages || 1,
+          onPageChange: (p) => setPage(p),
+          simple: true,
+          infoText: `총 ${pagination.totalCount}건`,
+        }}
         pageSize={pageSize}
         onPageSizeChange={handlePageSizeChange}
       >

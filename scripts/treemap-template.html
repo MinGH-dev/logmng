@@ -132,6 +132,42 @@ body {
   color: var(--text);
   margin-bottom: 8px;
 }
+.step-invocations {
+  margin-top: 10px;
+  padding-top: 8px;
+  border-top: 1px solid var(--border);
+  font-size: 11px;
+  color: var(--text-dim);
+}
+.step-invocation-line {
+  margin-bottom: 4px;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.step-invocation-line .from {
+  font-family: 'JetBrains Mono', monospace;
+  font-weight: 600;
+  color: var(--accent-subagent);
+}
+.step-invocation-line .arrow {
+  color: var(--text-dim);
+  margin: 0 2px;
+}
+.step-invocation-line .to-item {
+  font-family: 'JetBrains Mono', monospace;
+  padding: 1px 6px;
+  border-radius: 3px;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.step-invocation-line .to-item:hover {
+  border-color: var(--accent-subagent);
+  color: var(--accent-subagent);
+}
 .step-agents {
   display: flex;
   flex-direction: column;
@@ -187,9 +223,12 @@ body {
   transition: max-height 0.4s ease, opacity 0.3s ease, margin 0.3s ease;
 }
 .agent-detail-panel.open {
-  max-height: 600px;
+  max-height: min(70vh, 720px);
   opacity: 1;
   margin-bottom: 20px;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
 }
 .agent-detail-inner {
   background: var(--surface);
@@ -197,6 +236,9 @@ body {
   border-radius: 12px;
   padding: 20px 24px;
   box-shadow: 0 4px 24px rgba(59,130,246,0.1);
+  overflow-y: auto;
+  max-height: min(70vh, 720px);
+  min-height: 0;
 }
 .agent-detail-header {
   display: flex;
@@ -253,6 +295,7 @@ body {
   background: var(--surface2);
   border-radius: 8px;
   border: 1px solid var(--border);
+  min-width: 0;
 }
 .agent-ref-group-title {
   font-family: 'JetBrains Mono', monospace;
@@ -275,6 +318,7 @@ body {
   display: flex;
   flex-wrap: wrap;
   gap: 4px;
+  min-width: 0;
 }
 .agent-ref-item {
   font-family: 'JetBrains Mono', monospace;
@@ -282,13 +326,27 @@ body {
   padding: 2px 6px;
   border-radius: 3px;
   border: 1px solid;
+  max-width: 100%;
+  white-space: normal;
+  word-break: break-word;
+  overflow-wrap: break-word;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+.agent-ref-item .agent-ref-item-text {
+  min-width: 0;
 }
 .agent-ref-item.rules { color: var(--accent-rules); border-color: rgba(249,115,22,0.3); background: var(--glow-rules); }
 .agent-ref-item.skills { color: var(--accent-skills); border-color: rgba(6,182,212,0.3); background: var(--glow-skills); }
 .agent-ref-item.commands { color: var(--accent-commands); border-color: rgba(168,85,247,0.3); background: var(--glow-commands); }
 .agent-ref-item.workflow { color: var(--accent-workflow); border-color: rgba(16,185,129,0.3); background: var(--glow-workflow); }
 .agent-ref-item.template { color: var(--accent-template); border-color: rgba(244,63,94,0.3); background: var(--glow-template); }
+.agent-ref-item.agents { color: var(--accent-subagent); border-color: rgba(59,130,246,0.3); background: var(--glow-subagent); }
 .agent-ref-item.other { color: var(--text-dim); border-color: var(--border); background: var(--surface); }
+.agent-ref-item.invokes, .agent-ref-item.invokedBy { cursor: pointer; }
+.agent-ref-item.invokes:hover, .agent-ref-item.invokedBy:hover { border-color: var(--accent-subagent); color: var(--accent-subagent); }
 .no-refs { font-size: 11px; color: var(--text-dim); font-style: italic; }
 
 .sections {
@@ -703,7 +761,7 @@ body {
 <!-- Flow Steps (rendered by JS) -->
 <div class="flow-container">
   <div class="flow-title">▸ 협업 순서 (Collaboration Sequence)</div>
-  <div class="flow-hint">서브에이전트를 클릭하면 실행 시 참조하는 도구 목록이 표시됩니다</div>
+  <div class="flow-hint">각 스텝의 화살표(→)는 호출 관계(누가 누구를 호출하는지)를 나타냅니다. 에이전트 칩을 클릭하면 호출 관계와 참조 도구가 표시됩니다.</div>
   <div class="flow-steps" id="flowSteps"></div>
 </div>
 
@@ -784,6 +842,8 @@ const GITHUB_REPO = github.repo;
 const GITHUB_BRANCH = github.branch;
 
 const CATEGORY_CONFIG = {
+  invokedBy: { label: 'Invoked by (호출 주체)', color: '#3b82f6', dotClass: 'agents' },
+  invokes:   { label: 'Invokes (호출 대상)',   color: '#3b82f6', dotClass: 'agents' },
   rules:     { label: 'Rules',         color: '#f97316', dotClass: 'rules' },
   skills:    { label: 'Skills',        color: '#06b6d4', dotClass: 'skills' },
   commands:  { label: 'Commands',      color: '#a855f7', dotClass: 'commands' },
@@ -841,7 +901,29 @@ function resolveFilepath(name) {
   if (DOC_PATHS[trimmed]) return DOC_PATHS[trimmed];
   if (DOC_PATHS[trimmed + '.md']) return DOC_PATHS[trimmed + '.md'];
   if (DOC_PATHS[trimmed + '.mdc']) return DOC_PATHS[trimmed + '.mdc'];
+  if (DOC_PATHS['agent:' + trimmed]) return DOC_PATHS['agent:' + trimmed];
+  // 프로젝트 상대 경로(슬래시 포함): 문서 아이콘 표시용으로 그대로 경로로 사용
+  var pathLikeExtensions = ['.md', '.mdc', '.sql', '.yaml', '.yml', '.sh', '.json', '.html'];
+  if (name.indexOf('/') !== -1 && pathLikeExtensions.some(function(ext) { return name.endsWith(ext); })) return name;
+  if (name.indexOf('/') !== -1) {
+    var base = name.split('/').pop();
+    var baseNoExt = base.replace(/\.md$/, '').replace(/\.mdc$/, '');
+    if (DOC_PATHS[baseNoExt]) return DOC_PATHS[baseNoExt];
+    if (DOC_PATHS[base]) return DOC_PATHS[base];
+  }
   return null;
+}
+
+/** Resolved path의 basename(확장자 포함) 또는 항목명을 반환. 에이전트 상세 패널 표시용. */
+function getDisplayFileName(itemKey, category, resolvedPath) {
+  if (resolvedPath) {
+    var base = resolvedPath.split('/').pop();
+    if (base) return base;
+  }
+  if (category === 'agents') return itemKey + '.mdc';
+  if (['rules', 'skills', 'commands', 'workflow', 'templates'].indexOf(category) !== -1) return itemKey + '.mdc';
+  if (itemKey.indexOf('.') === -1) return itemKey + '.md';
+  return itemKey;
 }
 
 async function showDocPreview(name) {
@@ -882,32 +964,48 @@ function showAgentDetail(agentName) {
   document.getElementById('agentScope').textContent = data.scope;
   const grid = document.getElementById('agentRefsGrid');
   grid.innerHTML = '';
-  const categories = ['rules', 'skills', 'commands', 'workflow', 'templates', 'other'];
+  const categories = ['invokedBy', 'invokes', 'rules', 'skills', 'commands', 'workflow', 'templates', 'other'];
   let hasAny = false;
   for (const cat of categories) {
-    const items = data[cat];
-    if (!items || items.length === 0) continue;
+    const items = data[cat] || [];
+    var showGroup = items.length > 0;
+    if (!showGroup) continue;
     hasAny = true;
     const cfg = CATEGORY_CONFIG[cat];
     const group = document.createElement('div');
     group.className = 'agent-ref-group';
+    var listHtml;
+    if (cat === 'invokedBy' || cat === 'invokes') {
+      listHtml = items.length > 0 ? items.map(function(i) {
+        return '<span class="agent-ref-item ' + cfg.dotClass + ' ' + cat + '" data-agent="' + i + '" title="클릭: ' + i + ' 상세">' +
+          '<span class="agent-ref-item-text">' + i + '</span></span>';
+      }).join('') : '<span style="color:var(--text-dim); font-size:12px;">없음</span>';
+    } else {
+      listHtml = items.length > 0 ? items.map(function(i) {
+        var fp = resolveFilepath(i);
+        var displayName = getDisplayFileName(i, cat, fp);
+        var docBtn = fp ? '<button class="doc-btn" title="문서 보기" data-docbtn="' + i + '">📄</button>' : '';
+        return '<span class="agent-ref-item ' + cfg.dotClass + '" data-docname="' + i + '" title="' + displayName.replace(/"/g, '&quot;') + '">' +
+          '<span class="agent-ref-item-text">' + displayName + '</span>' + docBtn + '</span>';
+      }).join('') : '';
+    }
     group.innerHTML =
       '<div class="agent-ref-group-title">' +
         '<div class="dot" style="background:' + cfg.color + '"></div>' +
         '<span style="color:' + cfg.color + '">' + cfg.label + '</span>' +
         '<span style="color:var(--text-dim); font-weight:400">(' + items.length + ')</span>' +
       '</div>' +
-      '<div class="agent-ref-list">' +
-        items.map(function(i) {
-          var fp = resolveFilepath(i);
-          var docBtn = fp ? '<button class="doc-btn" title="문서 보기" data-docbtn="' + i + '">📄</button>' : '';
-          return '<span class="agent-ref-item ' + cfg.dotClass + '" data-docname="' + i + '">' + i + docBtn + '</span>';
-        }).join('') +
-      '</div>';
+      '<div class="agent-ref-list">' + listHtml + '</div>';
     grid.appendChild(group);
-    group.querySelectorAll('.doc-btn[data-docbtn]').forEach(function(btn) {
-      btn.addEventListener('click', function(e) { e.stopPropagation(); showDocPreview(btn.dataset.docbtn); });
-    });
+    if (cat === 'invokedBy' || cat === 'invokes') {
+      group.querySelectorAll('.agent-ref-item[data-agent]').forEach(function(el) {
+        el.addEventListener('click', function(e) { e.stopPropagation(); showAgentDetail(el.dataset.agent); });
+      });
+    } else {
+      group.querySelectorAll('.doc-btn[data-docbtn]').forEach(function(btn) {
+        btn.addEventListener('click', function(e) { e.stopPropagation(); showDocPreview(btn.dataset.docbtn); });
+      });
+    }
   }
   if (!hasAny) grid.innerHTML = '<div class="no-refs">참조하는 도구가 없습니다 (독립 실행)</div>';
   var panel = document.getElementById('agentDetailPanel');
@@ -966,14 +1064,29 @@ function renderFlowSteps() {
     var card = document.createElement('div');
     card.className = 'step-card';
     var agentsHtml = step.agents.map(function(a) {
+      var label = (a.displayName || a.name);
       return '<div class="agent-chip' + (a.light ? ' light' : '') +
-        '" data-agent="' + a.name + '" onclick="showAgentDetail(\'' + a.name + '\')">' +
-        a.name + '</div>';
+        '" data-agent="' + a.name + '" onclick="showAgentDetail(\'' + a.name + '\')" title="' + (a.displayName ? a.name + ' (team lead)' : '') + '">' +
+        label + '</div>';
     }).join('');
+    var invocationsHtml = '';
+    if (step.invocations && step.invocations.length) {
+      invocationsHtml = '<div class="step-invocations">';
+      step.invocations.forEach(function(inv) {
+        var toChips = (inv.to || []).map(function(t) {
+          return '<span class="to-item" data-agent="' + t + '" onclick="event.stopPropagation(); showAgentDetail(\'' + t.replace(/'/g, "\\'") + '\')">' + t + '</span>';
+        }).join('');
+        invocationsHtml += '<div class="step-invocation-line">' +
+          '<span class="from">' + inv.from + '</span>' +
+          '<span class="arrow">→</span>' + toChips + '</div>';
+      });
+      invocationsHtml += '</div>';
+    }
     card.innerHTML =
       '<div class="step-num">' + step.step + '</div>' +
       '<div class="step-name">' + step.name + '</div>' +
-      '<div class="step-agents">' + agentsHtml + '</div>';
+      '<div class="step-agents">' + agentsHtml + '</div>' +
+      invocationsHtml;
     container.appendChild(card);
   });
   container.querySelectorAll('.agent-chip[data-agent]').forEach(function(el) {

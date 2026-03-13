@@ -1,5 +1,6 @@
+/* Same max-width (1400px) as .activity-log-list-container; compact variant padding (req 20260313-activity-log-statistics-design-standards) */
 .activity-statistics {
-  padding: 20px;
+  padding: var(--sf-container-padding);
   max-width: 1400px;
   margin: 0 auto;
 }
@@ -8,9 +9,9 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 20px;
-  margin-top: 20px;
-  padding: 10px;
+  margin-bottom: var(--sf-block-gap);
+  margin-top: var(--sf-block-gap);
+  padding: var(--sf-container-padding);
   background-color: #f5f5f5;
   border-radius: 8px;
 }
@@ -61,25 +62,19 @@
   font-weight: 600;
 }
 
-/* 날짜 범위 선택 폼 */
-.statistics-filters {
-  background: #f8f9fa;
-  padding: 20px;
-  border-radius: 8px;
-  margin-bottom: 20px;
-}
+/* Filter panel styling lives in StatisticsFilters.css (same compact variant as activity log). */
 
 .filter-form {
   display: flex;
   align-items: flex-end;
-  gap: 15px;
+  gap: 10px;
   flex-wrap: wrap;
 }
 
 .date-input-group {
   display: flex;
   flex-direction: column;
-  gap: 5px;
+  gap: 4px;
 }
 
 .date-input-group label {
@@ -91,11 +86,14 @@
 .date-input-group input[type="date"],
 .date-input-group input[type="text"],
 .date-input-group select {
-  padding: 8px 12px;
+  height: 34px;
+  min-height: 34px;
+  padding: 6px 10px;
   border: 1px solid #ddd;
   border-radius: 4px;
   font-size: 14px;
   min-width: 150px;
+  box-sizing: border-box;
 }
 
 .date-input-group input[type="text"] {
@@ -106,13 +104,17 @@
   cursor: pointer;
 }
 
-.date-input-group input[type="date"]:focus {
+.date-input-group input[type="date"]:focus,
+.date-input-group input[type="text"]:focus,
+.date-input-group select:focus {
   outline: none;
   border-color: #007bff;
   box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.25);
 }
 
 .search-button {
+  min-width: 44px;
+  min-height: 44px;
   padding: 8px 24px;
   background-color: #007bff;
   color: white;
@@ -122,7 +124,12 @@
   font-weight: 500;
   cursor: pointer;
   transition: background-color 0.2s;
-  height: 38px;
+  box-sizing: border-box;
+}
+
+.search-button:focus {
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.35);
 }
 
 .search-button:hover:not(:disabled) {

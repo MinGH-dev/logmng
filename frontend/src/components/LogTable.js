@@ -25,6 +25,7 @@ const LogTable = ({
   onSort,
   currentPage,
   totalPages,
+  totalCount = 0,
   onPageChange,
   pageSize = 20,
   onPageSizeChange,
@@ -75,9 +76,12 @@ const LogTable = ({
   };
 
   const effectiveSortConfig = sortConfig && sortConfig.key ? sortConfig : null;
-  const pagination = totalPages > 1
-    ? { currentPage, totalPages, onPageChange, infoText: `총 ${logs.length}건의 데이터가 있습니다.` }
-    : null;
+  const pagination = {
+    currentPage,
+    totalPages,
+    onPageChange,
+    infoText: `총 ${totalCount.toLocaleString()}건`,
+  };
 
   return (
     <DataTable

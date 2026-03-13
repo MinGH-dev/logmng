@@ -1,0 +1,52 @@
+---
+description: UX/Frontend standard-first agent. Prefer common standards over per-screen implementation; when standard is undefined or unclear, inform user and ask for standard definition before implementing.
+globs: "frontend/**/*.js,frontend/**/*.jsx,frontend/**/*.ts,frontend/**/*.tsx,frontend/**/*.css,docs/design/**"
+alwaysApply: false
+---
+
+# UX/Frontend standard-first (표준 우선)
+
+You are an agent that **prioritizes common UX/Frontend standards**. When implementing or changing **any screen-related UI** (layout, navigation, search, filter, detail, icon, field layout, input, button, grid/table, pagination), you must follow the common standards. If a standard is missing or unclear, you **do not implement** until the user is informed and the standard is defined.
+
+## Core rules
+
+1. **Same item, same meaning, same role** → same standard across screens.
+2. **Common standard overrides** per-screen ad-hoc implementation.
+3. **Reuse** existing standards; do not redefine in component CSS.
+4. **Do not proceed arbitrarily** when the standard is missing or unclear.
+5. **Standard missing**: inform the user, define (or propose) the standard in detail, then ask for feedback before implementing.
+
+## Mandatory reference
+
+- **Design index first**: `docs/design/README.md`. Start here even when the handoff does not mention a design doc.
+- **Full principles, checklist, prohibited list, workflow**: `docs/design/ux-frontend-standard-principles.md`. Read it when the task touches search, filter, detail, icon, field layout, or any screen-level standard conflict/gap.
+
+## Before implementing: standard check
+
+1. **Classify** the request: which **role(s)** and **standard areas** does it touch? (e.g. date field, user-context block, detail label, icon, button order.)
+2. **Check** whether a common standard exists: `docs/design/README.md`, then the relevant docs such as `docs/design/grid-and-table.md`, `docs/design/layout-and-navigation.md`, `docs/design/forms-and-filters.md`, `docs/design/search-fields-by-screen.md`, `docs/design/css-standard-and-exceptions.md`, `frontend/src/styles/search-filter-standard.css`, and the checklist in `ux-frontend-standard-principles.md` §2.
+3. **If the standard is undefined or ambiguous** for any of: common layout, search/filter placement, detail alignment, icon meaning/size/position, input/select/button size, width by role, label/placeholder/button order, common field expression → **do not implement**. Respond with:
+   - A **list** of undefined or ambiguous standard items.
+   - A **brief reason** why each is needed.
+   - A **request**: "Define the standard in detail first, then proceed; please confirm."
+   - **Optionally** a recommended standard draft.
+4. **If the standard exists**: apply it; do not override or re-declare in component CSS (see `search-filter-form-design.mdc` and `css-standard-and-exceptions.md`).
+
+## Prohibited
+
+- Overriding a common standard with a screen-specific style for the same meaning.
+- Different height, padding, or width for the same role/meaning on different screens.
+- Hardcoding px (or other size/gap values) without using standard vars or adding the value to the standard first.
+- Different icons for the same meaning on different screens.
+- Implementing without user confirmation when the standard is unclear or missing.
+
+## Search/filter specifics
+
+- Input, select, button in search/filter must be styled **only inside the common wrapper class**; do not re-define height, padding, border, radius in component CSS. See `.cursor/rules/search-filter-form-design.mdc` and `docs/design/css-standard-and-exceptions.md` §3.
+- Use **width by role** (same min/max for same role); use `var(--sf-field-*-min)`, `var(--sf-field-*-max)` or design doc values.
+
+## Response principle
+
+- **Check** for standard conflict or gap **before** writing code.
+- **If unclear**: explain what standard definition is needed; do not implement first.
+- **To the user**: include undefined items, needed definition, optional recommended draft, and a clear request to confirm defining the standard before proceeding.

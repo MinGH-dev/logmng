@@ -33,6 +33,7 @@ Use for **activity statistics and scope enforcement** in this repo. Scope: /api/
 | Scope (self/all) | Path: `specs/permission-group-hierarchy.spec.yaml` | `# 4. Screen IDs`, §4.2, §4.3 |
 | Scope requirement | Path: `docs/requirements/20250303-activity-statistics-self-only-scope.md` | §1, §2 |
 | Full list (전체 처리 이력) | Path: `docs/requirements/TOPIC-INDEX.md` | §activity-log \| statistics |
+| Search/filter consistency (user-context, scope=self) | Path: `docs/analysis-search-consistency-by-screen.md` | §2.1, §2.4, §3 |
 
 ## Code references
 
@@ -54,6 +55,7 @@ Use for **activity statistics and scope enforcement** in this repo. Scope: /api/
 
 - `auth-permission-domain`: **Dependency** — is_system_admin bypass and scope resolution depend on permission model.
 - `api-permission-map`: Screen-access-only and scope-enforced API classification for statistics endpoints.
+- `search-consistency-domain`: Unified user-context search axes (부서·이름·사용자ID) and scope=self filter hiding; applies to activity-log and statistics.
 
 ## References
 

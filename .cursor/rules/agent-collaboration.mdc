@@ -40,7 +40,7 @@ When a change **spans multiple agent scopes** (e.g. Backend + DB, Frontend + Con
 4. **Review as final arbiter**: When Step 4 involves multiple implementing agents, **Review agent** (Step 4.5) checks cross-scope consistency (API shape matches frontend calls, schema matches backend entities).
 5. **Merge order**: DB schema first → Backend API → Frontend UI. Later agents adapt to earlier agents' output.
 
-Reference: `docs/workflow/SUBAGENT-DELEGATION.md`, `docs/workflow/AGENT-COLLABORATION-ON-REQUIREMENT.md`, `docs/workflow/CURSOR-SUBAGENTS-DESIGN.md` §3.
+Reference: `docs/workflow/SUBAGENT-DELEGATION.md`, `docs/workflow/AGENT-COLLABORATION-ON-REQUIREMENT.md`, `docs/workflow/CURSOR-SUBAGENTS-DESIGN.md` §3. **Treemap consistency**: When changing delegation or requirement-doc refs, follow `.cursor/rules/treemap-consistency.mdc` and run `node scripts/generate-treemap.js` so the treemap stays the single source.
 
 ## Post-commit: workflow change verification
 

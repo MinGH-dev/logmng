@@ -46,10 +46,15 @@
 - **단일 패턴**: 리스트·표 형태 데이터(로그, 활동 로그, 검색 이력 등)는 동일한 구조·클래스·정렬·페이지네이션 동작을 사용한다.
 - **공통 컴포넌트**: 통일 그리드는 하나의 공유 컴포넌트(또는 동일 규격을 따르는 래퍼)를 사용한다. 컴포넌트명은 PascalCase, 파일은 컴포넌트명과 동일 또는 kebab(§2).
 - **클래스 접두사**: 페이지 루트 `.data-grid`, 테이블 영역 `.log-table-container` → `.table-wrapper` → `<table class="log-table">`. 정렬 헤더 `.sortable-header`, 페이지네이션 `.pagination`, 로딩/빈 상태 `.loading-container`. 상세는 `docs/design/grid-and-table.md` 준수.
+- **Constrained-height contract**: In shared data-table layouts, `.table-wrapper` owns only the scrollable table region. Pagination stays visible as a sibling region inside `.log-table-container`; consumer-screen CSS must not move pagination into the scroll wrapper or clip it outside the container.
+- **Shared footer contract**: When shared footer metadata exists, the shared footer region stays visible for both one-page and multi-page datasets. Total count and rows-per-page belong to this always-visible footer contract; they are not multi-page-only elements.
+- **One-page footer behavior**: On one-page datasets, page navigation buttons may be absent or disabled, but the shared footer region itself must remain visible and stable.
 - **정렬(필수)**: 모든 그리드/테이블에는 **정렬 기능을 필수**로 제공. 동일한 정렬 UX(클릭 시 오름/내림 토글, 아이콘, `aria-sort` 노출). 상세는 `docs/design/grid-and-table.md` § "Sorting — required for all grids/tables" 준수.
 - **페이지당 표시 건수(공통 UX 규칙)**: 모든 그리드는 기본 **20건**/페이지. 페이지 크기 컨트롤은 숫자 입력란 옆에 증감(+/−) 버튼 제공; 증감 버튼으로 1건씩 변경 시 **즉시 반영**, 직접 입력 후 **엔터키** 입력 시 반영. 상세는 `docs/design/grid-and-table.md` § "Page size (rows per page)" 준수.
 - **검색 필드 지정**: 사용자가 별도로 검색 대상을 지정·수정 요청한 경우가 아니면, DB 스키마(`backend/src/main/resources/db/schema.sql` 등)를 참고해 **속성(컬럼 타입·의미)에 따라 검색 필드를 자동 부여**. 상세는 `docs/design/grid-and-table.md` § "Search field assignment" 준수.
 - **파일 위치**: 공유 그리드 컴포넌트는 `frontend/src/components/` 직하위 또는 `frontend/src/components/shared/`(프로젝트에서 공통 컴포넌트를 모을 경우).
+- **Shared primitive triage**: When a pagination, scroll-height, or shared table layout defect is first reported on one screen, verify the shared component and shared stylesheet ownership first. Treat it as a shared UI primitive issue unless screen-only ownership is explicitly confirmed.
+- **Footer suppression triage**: If a one-page dataset hides total count, rows-per-page, or the footer region itself, treat it as a shared footer-contract issue first (shared component/shared stylesheet/shared consumer contract), not as a single-screen workaround task.
 
 ---
 

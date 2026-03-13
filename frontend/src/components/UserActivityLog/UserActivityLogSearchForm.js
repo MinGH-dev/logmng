@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import UserContextFilterBlock from '../common/UserContextFilterBlock';
 import './UserActivityLog.css';
 
 /**
@@ -47,13 +48,14 @@ const toDateTimeLocal = (dateStr) => {
   return { start: `${dateStr}T00:00`, end: `${dateStr}T23:59` };
 };
 
-const UserActivityLogSearchForm = ({ onSearch, loading, initialServerDate, hideUserFilters = false }) => {
+const UserActivityLogSearchForm = ({ onSearch, loading, initialServerDate, hideUserFilters = false, departmentList = [] }) => {
   const serverRange = toDateTimeLocal(initialServerDate);
   const [formData, setFormData] = useState({
     startDate: serverRange ? serverRange.start : getTodayStart(),
     endDate: serverRange ? serverRange.end : getTodayEnd(),
     userId: '',
     username: '',
+    department: '',
     actionType: '',
     ipAddress: '',
   });
@@ -113,6 +115,7 @@ const UserActivityLogSearchForm = ({ onSearch, loading, initialServerDate, hideU
       endDate: getTodayEnd(),
       userId: '',
       username: '',
+      department: '',
       actionType: '',
       ipAddress: '',
     };
@@ -135,112 +138,123 @@ const UserActivityLogSearchForm = ({ onSearch, loading, initialServerDate, hideU
     { value: 'EXPORT', label: '내보내기' },
   ];
 
+  const dateRangeErrorId = 'user-activity-log-search-form-date-range-error';
+
   return (
-    <form className="activity-log-search-form" onSubmit={handleSubmit}>
-      <div className="search-form-row">
-        <div className="form-group">
-          <label htmlFor="startDate">시작 날짜</label>
-          <input
-            type="datetime-local"
-            id="startDate"
-            name="startDate"
-            value={formData.startDate}
-            onChange={handleInputChange}
-            className={`form-control${errors.startDate || errors.dateRange ? ' error' : ''}`}
-            aria-invalid={!!(errors.startDate || errors.dateRange)}
-            aria-describedby={[errors.startDate && 'startDate-error', errors.dateRange && 'user-activity-log-search-form-date-range-error'].filter(Boolean).join(' ') || undefined}
+    <form
+      className="activity-log-search-form sf-compact-panel"
+      onSubmit={handleSubmit}
+      aria-label="사용자 활동 이력 검색 조건"
+      aria-busy={loading}
+    >
+      {/* Filter body always visible; no collapsible "필터 접기" per req 20260313-activity-log-statistics-design-standards */}
+      <div id="activity-log-search-filters-body">
+        {/* Row 1: 시작 일시, 종료 일시 only (req 20260313) */}
+        <div className="search-form-row-1">
+          <div className="form-group">
+            <label htmlFor="startDate">시작 일시</label>
+            <input
+              type="datetime-local"
+              id="startDate"
+              name="startDate"
+              value={formData.startDate}
+              onChange={handleInputChange}
+              className={`form-control${errors.startDate || errors.dateRange ? ' error' : ''}`}
+              aria-invalid={!!(errors.startDate || errors.dateRange)}
+              aria-describedby={[errors.startDate && 'startDate-error', errors.dateRange && dateRangeErrorId].filter(Boolean).join(' ') || undefined}
+            />
+            {errors.startDate && <span id="startDate-error" className="error-message" role="alert">{errors.startDate}</span>}
+          </div>
+          <div className="form-group">
+            <label htmlFor="endDate">종료 일시</label>
+            <input
+              type="datetime-local"
+              id="endDate"
+              name="endDate"
+              value={formData.endDate}
+              onChange={handleInputChange}
+              className={`form-control${errors.endDate || errors.dateRange ? ' error' : ''}`}
+              aria-invalid={!!(errors.endDate || errors.dateRange)}
+              aria-describedby={[errors.endDate && 'endDate-error', errors.dateRange && dateRangeErrorId].filter(Boolean).join(' ') || undefined}
+            />
+            {errors.endDate && <span id="endDate-error" className="error-message" role="alert">{errors.endDate}</span>}
+          </div>
+          {errors.dateRange && (
+            <div className="search-form-row-1__date-error" aria-live="polite">
+              <span id={dateRangeErrorId} className="error-message" role="alert">{errors.dateRange}</span>
+            </div>
+          )}
+        </div>
+
+        {/* Row 2: 사용자 block + 기타 조건 (title above) + 검색/초기화 in filter actions row */}
+        <div className="search-form-row-2" role="group" aria-labelledby="activity-log-search-row2-heading">
+          <h2 id="activity-log-search-row2-heading" className="activity-log-search-form__row2-heading-sr-only">검색 조건</h2>
+          <UserContextFilterBlock
+            blockLabel="사용자"
+            hideUserFilters={hideUserFilters}
+            departmentList={departmentList}
+            values={{
+              department: formData.department,
+              username: formData.username,
+              userId: formData.userId,
+            }}
+            onChange={(name, value) => setFormData((prev) => ({ ...prev, [name]: value }))}
+            idPrefix="activity-log-search"
+            compact
+            usernameMaxLength={5}
           />
-          {errors.startDate && <span id="startDate-error" className="error-message" role="alert">{errors.startDate}</span>}
-        </div>
-
-        <div className="form-group">
-          <label htmlFor="endDate">종료 날짜</label>
-          <input
-            type="datetime-local"
-            id="endDate"
-            name="endDate"
-            value={formData.endDate}
-            onChange={handleInputChange}
-            className={`form-control${errors.endDate || errors.dateRange ? ' error' : ''}`}
-            aria-invalid={!!(errors.endDate || errors.dateRange)}
-            aria-describedby={[errors.endDate && 'endDate-error', errors.dateRange && 'user-activity-log-search-form-date-range-error'].filter(Boolean).join(' ') || undefined}
-          />
-          {errors.endDate && <span id="endDate-error" className="error-message" role="alert">{errors.endDate}</span>}
-          {errors.dateRange && <span id="user-activity-log-search-form-date-range-error" className="error-message" role="alert">{errors.dateRange}</span>}
-        </div>
-      </div>
-
-      {!hideUserFilters && (
-        <div className="search-form-row">
-          <div className="form-group">
-            <label htmlFor="userId">사용자 ID</label>
-            <input
-              type="text"
-              id="userId"
-              name="userId"
-              value={formData.userId}
-              onChange={handleInputChange}
-              className="form-control"
-              placeholder="사용자 ID"
-            />
+          {/* 기타 조건: scope=self 시 전체 숨김 (req 20260313); 제목 필드 위 배치 */}
+          {!hideUserFilters && (
+            <div className="search-form-row-2__extra" role="group" aria-labelledby="activity-log-search-extra-heading">
+              <h4 id="activity-log-search-extra-heading" className="search-form-block__heading">기타 조건</h4>
+              <div className="search-form-row-2__extra-fields">
+                <div className="form-group">
+                  <label htmlFor="actionType">액션 타입</label>
+                  <select
+                    id="actionType"
+                    name="actionType"
+                    value={formData.actionType}
+                    onChange={handleInputChange}
+                    className="form-control"
+                  >
+                    {actionTypes.map(type => (
+                      <option key={type.value} value={type.value}>
+                        {type.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div className="form-group">
+                  <label htmlFor="ipAddress">IP 주소</label>
+                  <input
+                    type="text"
+                    id="ipAddress"
+                    name="ipAddress"
+                    value={formData.ipAddress}
+                    onChange={handleInputChange}
+                    className="form-control"
+                    placeholder="IP 주소"
+                  />
+                </div>
+              </div>
+            </div>
+          )}
+          <div className="search-form-actions">
+            <button type="submit" className="btn btn-primary sf-btn" disabled={loading} aria-busy={loading}>
+              {loading ? (
+                <>
+                  <span className="activity-log-search-form__spinner" aria-hidden="true" />
+                  검색 중...
+                </>
+              ) : (
+                '검색'
+              )}
+            </button>
+            <button type="button" className="btn btn-secondary sf-btn" onClick={handleReset}>
+              초기화
+            </button>
           </div>
-
-          <div className="form-group">
-            <label htmlFor="username">사용자명</label>
-            <input
-              type="text"
-              id="username"
-              name="username"
-              value={formData.username}
-              onChange={handleInputChange}
-              className="form-control"
-              placeholder="사용자명"
-            />
-          </div>
         </div>
-      )}
-
-      <div className="search-form-row">
-        <div className="form-group">
-          <label htmlFor="actionType">액션 타입</label>
-          <select
-            id="actionType"
-            name="actionType"
-            value={formData.actionType}
-            onChange={handleInputChange}
-            className="form-control"
-          >
-            {actionTypes.map(type => (
-              <option key={type.value} value={type.value}>
-                {type.label}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        {!hideUserFilters && (
-          <div className="form-group">
-            <label htmlFor="ipAddress">IP 주소</label>
-            <input
-              type="text"
-              id="ipAddress"
-              name="ipAddress"
-              value={formData.ipAddress}
-              onChange={handleInputChange}
-              className="form-control"
-              placeholder="IP 주소"
-            />
-          </div>
-        )}
-      </div>
-
-      <div className="search-form-actions">
-        <button type="submit" className="btn btn-primary" disabled={loading}>
-          {loading ? '검색 중...' : '검색'}
-        </button>
-        <button type="button" className="btn btn-secondary" onClick={handleReset}>
-          초기화
-        </button>
       </div>
     </form>
   );

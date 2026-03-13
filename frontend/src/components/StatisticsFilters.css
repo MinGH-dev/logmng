@@ -1,39 +1,227 @@
+/* Compact variant: search-filter-standard.css; aligned with activity log (req 20260313-activity-log-statistics-design-standards) */
 .statistics-filters {
-  margin-bottom: 20px;
-  padding: 15px;
-  background-color: #f9f9f9;
+  margin-bottom: var(--sf-block-gap);
+  padding: var(--sf-container-padding);
+  background-color: var(--sf-panel-bg);
   border-radius: 8px;
 }
 
-.statistics-filters h3 {
-  margin-bottom: 15px;
+.statistics-filters__header {
+  margin-bottom: var(--sf-block-gap);
+}
+
+.statistics-filters__header h3 {
+  margin: 0;
   font-size: 16px;
   color: #333;
 }
 
+.statistics-filters__form {
+  margin: 0;
+}
+
+/* Date/period block (form per mode): title above fields; req 20260313 */
+.statistics-filters__date-row {
+  margin-bottom: var(--sf-block-gap);
+}
+
+.statistics-filters__date-row .statistics-filters__block-heading {
+  margin-bottom: var(--sf-row-gap);
+}
+
+.statistics-filters__date-fields {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: var(--sf-row-gap);
+}
+
+.statistics-filters__date-fields .form-group {
+  flex: 1 1 auto;
+  min-width: var(--sf-field-date-min);
+  max-width: var(--sf-field-date-max);
+}
+
+.statistics-filters__date-fields .form-group .form-control {
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+}
+
+/* Single row (non-date): 로그 타입 + 사용자 블록 + 기타 조건 + 검색/초기화 (forms-and-filters.md § Single row for non-date; search-fields-by-screen.md §3) */
+.statistics-filters__row-non-date {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: var(--sf-row-gap);
+  margin-bottom: 0;
+}
+
+.statistics-filters__row-non-date .statistics-filters__block--log-type {
+  flex: 0 0 auto;
+  min-width: 140px;
+  max-width: 180px;
+}
+
+.statistics-filters__row-non-date .user-context-filter-block {
+  flex: 0 0 auto;
+  min-width: var(--sf-field-user-block-min);
+  max-width: var(--sf-field-user-block-max);
+}
+
+.statistics-filters__row-non-date .statistics-filters__extra {
+  flex: 0 1 auto;
+  min-width: 0;
+}
+
+.statistics-filters__row-non-date .statistics-filters__actions-row {
+  margin-left: auto;
+}
+
+/* 기타 조건: title above fields (block-level), role="group" + aria-labelledby */
+.statistics-filters__extra {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  flex: 0 1 auto;
+  min-width: 0;
+}
+
+.statistics-filters__extra-heading {
+  font-size: 14px;
+  font-weight: 600;
+  color: #333;
+  margin: 0 0 var(--sf-row-gap) 0;
+  padding: 0;
+}
+
+.statistics-filters__extra-fields {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: var(--sf-row-gap);
+}
+
+.statistics-filters__extra-fields .form-group {
+  flex: 1 1 auto;
+  min-width: 100px;
+  max-width: 200px;
+}
+
+/* Filter actions row: 검색, 초기화 in same row as 기타 조건 (row-2) */
+.statistics-filters__actions-row,
+.statistics-filters__actions {
+  display: flex;
+  gap: var(--sf-row-gap);
+  margin-top: 0;
+  margin-left: auto;
+}
+
+.statistics-filters__actions-row {
+  margin-bottom: 0;
+}
+
+.statistics-filters__block {
+  margin-bottom: 0;
+}
+
+.statistics-filters__block:last-child {
+  margin-bottom: 0;
+}
+
+.statistics-filters__block-heading {
+  font-size: 14px;
+  font-weight: 600;
+  color: #333;
+  margin: 0 0 var(--sf-row-gap) 0;
+  padding: 0;
+}
+
+.statistics-filters__block .form-group {
+  display: flex;
+  flex-direction: column;
+  margin-bottom: 0;
+}
+
+.statistics-filters__block .form-group label {
+  font-size: 14px;
+  font-weight: 500;
+  margin-bottom: 4px;
+  color: #333;
+}
+
+/* Control sizing from .sf-compact-panel (search-filter-standard.css) */
+
 .filter-row {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 15px;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: var(--sf-row-gap);
 }
 
 .filter-row label {
   display: flex;
   flex-direction: column;
-  gap: 5px;
-  font-size: 14px;
-}
-
-.filter-row select,
-.filter-row input {
-  padding: 6px 10px;
-  border: 1px solid #ddd;
-  border-radius: 4px;
+  gap: 4px;
   font-size: 14px;
 }
 
 .filter-row input[type="text"] {
   width: 100%;
+}
+
+/* Filter action buttons: sizing from .sf-compact-panel .sf-btn; colors only below */
+.statistics-filters .btn {
+  border: none;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.statistics-filters .btn:focus {
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.35);
+}
+
+.statistics-filters .btn-primary {
+  background-color: #007bff;
+  color: white;
+}
+
+.statistics-filters .btn-primary:hover:not(:disabled) {
+  background-color: #0056b3;
+}
+
+.statistics-filters .btn-primary:disabled {
+  background-color: #6c757d;
+  cursor: not-allowed;
+}
+
+.statistics-filters .btn-secondary {
+  background-color: #6c757d;
+  color: white;
+}
+
+.statistics-filters .btn-secondary:hover {
+  background-color: #5a6268;
+}
+
+@media (max-width: 768px) {
+  .statistics-filters__row-non-date {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .statistics-filters__row-non-date .statistics-filters__block--log-type,
+  .statistics-filters__row-non-date .user-context-filter-block,
+  .statistics-filters__row-non-date .statistics-filters__extra {
+    min-width: 0;
+    max-width: none;
+  }
+
+  .statistics-filters__row-non-date .statistics-filters__actions-row,
+  .statistics-filters__actions-row {
+    margin-left: 0;
+  }
 }
 
 

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { statisticsApi, logTypeApi } from '../services/api';
-import { format, subDays } from 'date-fns';
+import { format } from 'date-fns';
 import StatisticsHeader from './StatisticsHeader';
 import StatisticsFilters from './StatisticsFilters';
 import StatisticsView from './StatisticsView';
@@ -15,6 +15,7 @@ const ActivityStatistics = ({ user }) => {
   const [filters, setFilters] = useState({
     logType: '',
     userId: '',
+    username: '',
     department: '',
     ip: ''
   });
@@ -93,14 +94,16 @@ const ActivityStatistics = ({ user }) => {
     }
   };
 
-  const handleSearch = async () => {
+  /** @param {Object} [filtersOverride] - When provided (e.g. after reset), use instead of state filters */
+  const handleSearch = async (filtersOverride) => {
+    const currentFilters = filtersOverride != null ? filtersOverride : filters;
     setLoading(true);
     setError(null);
-    
+
     try {
       let response;
       let userStatsResponse;
-      
+
       if (statisticsType === 'daily') {
         if (!startDate || !endDate) {
           setError('시작일과 종료일을 선택해주세요.');
@@ -115,8 +118,7 @@ const ActivityStatistics = ({ user }) => {
           return;
         }
         setDateRangeInvalid(false);
-        const effectiveFilters = hideUserFilters ? { logType: filters.logType } : filters;
-        // 일별 통계와 사용자별 통계를 동시에 조회
+        const effectiveFilters = hideUserFilters ? { logType: currentFilters.logType } : currentFilters;
         [response, userStatsResponse] = await Promise.all([
           statisticsApi.getDailyStatistics(startDate, endDate, effectiveFilters),
           statisticsApi.getAllUserStatistics(startDate, endDate, effectiveFilters)
@@ -128,12 +130,11 @@ const ActivityStatistics = ({ user }) => {
           setLoading(false);
           return;
         }
-        // 월별 통계의 경우 시작일/종료일 계산
         const monthStart = new Date(year, month - 1, 1);
         const monthEnd = new Date(year, month, 0);
         const monthStartDate = format(monthStart, 'yyyy-MM-dd');
         const monthEndDate = format(monthEnd, 'yyyy-MM-dd');
-        const effectiveFilters = hideUserFilters ? { logType: filters.logType } : filters;
+        const effectiveFilters = hideUserFilters ? { logType: currentFilters.logType } : currentFilters;
         [response, userStatsResponse] = await Promise.all([
           statisticsApi.getMonthlyStatistics(year, month, effectiveFilters),
           statisticsApi.getAllUserStatistics(monthStartDate, monthEndDate, effectiveFilters)
@@ -195,6 +196,14 @@ const ActivityStatistics = ({ user }) => {
     }
   };
 
+  const handleFiltersReset = () => {
+    const cleared = { logType: '', userId: '', username: '', department: '', ip: '' };
+    setFilters(cleared);
+    setError(null);
+    setDateRangeInvalid(false);
+    handleSearch(cleared);
+  };
+
   const handleSort = (key) => {
     let direction = 'asc';
     if (sortConfig.key === key && sortConfig.direction === 'asc') {
@@ -218,6 +227,20 @@ const ActivityStatistics = ({ user }) => {
       <StatisticsHeader
         statisticsType={statisticsType}
         onTypeChange={setStatisticsType}
+      />
+      
+      <StatisticsFilters
+        filters={filters}
+        onFiltersChange={setFilters}
+        onSearch={() => handleSearch()}
+        onReset={handleFiltersReset}
+        loading={loading}
+        userList={userList}
+        departmentList={departmentList}
+        ipList={ipList}
+        logTypeList={logTypeList}
+        hideUserFilters={hideUserFilters}
+        statisticsType={statisticsType}
         startDate={startDate}
         endDate={endDate}
         onStartDateChange={(v) => {
@@ -238,16 +261,7 @@ const ActivityStatistics = ({ user }) => {
         dateRangeErrorId="activity-statistics-date-range-error"
       />
       
-      <StatisticsFilters
-        filters={filters}
-        onFiltersChange={setFilters}
-        userList={userList}
-        departmentList={departmentList}
-        ipList={ipList}
-        logTypeList={logTypeList}
-        hideUserFilters={hideUserFilters}
-      />
-      
+      {/* Error id when dateRangeInvalid: must match StatisticsHeader dateRangeErrorId for aria-describedby (date-search.md) */}
       {error && (
         <div
           className="error-message"
@@ -258,7 +272,7 @@ const ActivityStatistics = ({ user }) => {
         </div>
       )}
       
-      {/* 조회 버튼과 Excel 다운로드 버튼 - 항상 표시 */}
+      {/* 그래프/표 토글 + Excel 다운로드만 (검색/초기화는 StatisticsFilters 내부) */}
       <div className="statistics-action-controls">
         <div className="view-toggle">
           <button
@@ -275,13 +289,6 @@ const ActivityStatistics = ({ user }) => {
           </button>
         </div>
         <div className="action-buttons">
-          <button
-            className="search-button"
-            onClick={handleSearch}
-            disabled={loading}
-          >
-            {loading ? '조회 중...' : '조회'}
-          </button>
           {statisticsData && (
             <button className="export-button" onClick={handleExport}>
               Excel 다운로드

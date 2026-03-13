@@ -35,6 +35,8 @@ Copy this template to create `docs/requirements/yyyyMMdd-short-name.md`. Use low
 - [Expected outcome 2]
 - [Expected outcome 3]
 
+**Note**: Numeric and structural values (e.g. max-width, spacing, row layout) must be **sourced from** design docs; the requirement doc **references** them and may quote for traceability. If a value appears only here and not in a design doc, consider adding it to the design doc so the requirement stays reference-only. If aligning two search/filter UIs (e.g. activity log and statistics), consider: layout, group title placement, spacing, **form panel width/size**, and **user block field size** (부서, 사용자명, 사용자 ID same width/size on both screens per `docs/design/search-fields-by-screen.md` §3, §4). See `docs/design/forms-and-filters.md` § Search form panel width and `docs/workflow/REQUIREMENTS-CHANGE-TARGET-CHECKLIST.md` §2.4. When the requirement defines or aligns search/filter **fields**, §1 must explicitly reference both `docs/design/search-fields-by-screen.md` and `docs/design/search-field-definition-items.md` so implementers apply the same field schema. When **pattern §2.4** applies, §2 must include an **Implementation note for Frontend** with the full text from REQUIREMENTS-CHANGE-TARGET-CHECKLIST.md §2.4 row "Implementation note for Frontend" (read and apply from design docs including forms-and-filters.md; if any required standard is undefined or ambiguous, implementer must not infer or hardcode — must inform user, explain why needed, propose recommended standard draft, request feedback before implementation). The handoff builder will include this in the Frontend handoff.
+
 ## 2. Design
 
 ### 2.1 Security review (optional; when PII / decryption / access control)
@@ -80,9 +82,13 @@ Structure by scope so each implementing agent receives only its relevant section
 
 If the requirement matches a **domain pattern** (e.g. scope-supporting screen, permission group, API change), run the pattern checklist in REQUIREMENTS-CHANGE-TARGET-CHECKLIST.md §2 and confirm all touchpoints are in §2 and in the change file list below.
 
-### Change file list
+Where applicable, separate: **Design standard** (from design docs), **Product requirement** (explicitly agreed), **Not yet confirmed** (optional/TBD; implement only if product confirms). Use labels such as "Optional field constraints (implement only if product confirms)".
 
-**(Tentative. Implementing agent (Step 4) confirms or updates with actual files changed.)**
+### Planned change file list (expected change targets)
+
+**(Planned at authoring. Implementing agent (Step 4) confirms or amends this list when implementation is complete.)**
+
+Use requirement tone in §2 and in this list: **must**, **verify**, **align**, **confirm**. Avoid implementation-complete phrasing (e.g. "No change", "already present", "confirmed by implementing agent") in the authored requirement; reserve those for §5 or post-implementation updates.
 
 Structure by scope to enable scope-specific excerpt extraction for handoff (see `HANDOFF-CHECKLIST.md`).
 

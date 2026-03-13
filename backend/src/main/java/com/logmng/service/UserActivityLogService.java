@@ -111,67 +111,80 @@ public class UserActivityLogService {
         List<Map<String, Object>> results = new ArrayList<>();
         
         try (Connection connection = dataSource.getConnection()) {
-            // SQL 쿼리 구성
+            boolean useDepartmentJoin = request.getDepartment() != null && !request.getDepartment().trim().isEmpty();
+            String tableRef = useDepartmentJoin ? "u" : "user_activity_log";
+            String prefix = useDepartmentJoin ? "u." : "";
+
             StringBuilder sql = new StringBuilder();
-            sql.append("SELECT id, user_id, username, action_type, action_detail, ip_address, ");
-            sql.append("user_agent, request_method, request_path, request_params, ");
-            sql.append("response_status, response_time_ms, success, error_message, ");
-            sql.append("created_at, updated_at ");
-            sql.append("FROM user_activity_log WHERE 1=1 ");
-            
+            sql.append("SELECT ").append(prefix).append("id, ").append(prefix).append("user_id, ").append(prefix).append("username, ").append(prefix).append("action_type, ").append(prefix).append("action_detail, ").append(prefix).append("ip_address, ");
+            sql.append(prefix).append("user_agent, ").append(prefix).append("request_method, ").append(prefix).append("request_path, ").append(prefix).append("request_params, ");
+            sql.append(prefix).append("response_status, ").append(prefix).append("response_time_ms, ").append(prefix).append("success, ").append(prefix).append("error_message, ");
+            sql.append(prefix).append("created_at, ").append(prefix).append("updated_at ");
+            if (useDepartmentJoin) {
+                sql.append("FROM user_activity_log u INNER JOIN app_user a ON u.user_id = a.username WHERE 1=1 ");
+            } else {
+                sql.append("FROM user_activity_log WHERE 1=1 ");
+            }
+
             List<Object> params = new ArrayList<>();
-            
+
             // 날짜 조건: DATE(created_at)로 비교하여 타임존/시각 경계 이슈 방지
             LocalDate startDate = request.getStartDateAsLocalDate();
             LocalDate endDate = request.getEndDateAsLocalDate();
-            
+
             if (startDate != null) {
-                sql.append("AND DATE(created_at) >= ? ");
+                sql.append("AND DATE(").append(prefix).append("created_at) >= ? ");
                 params.add(java.sql.Date.valueOf(startDate));
             }
             if (endDate != null) {
-                sql.append("AND DATE(created_at) <= ? ");
+                sql.append("AND DATE(").append(prefix).append("created_at) <= ? ");
                 params.add(java.sql.Date.valueOf(endDate));
             }
-            
+
             // 사용자 ID 조건: scope=team → allowedUserIds; scope=self → userId; else optional userId from request
             if (request.getAllowedUserIds() != null && !request.getAllowedUserIds().isEmpty()) {
                 List<String> ids = request.getAllowedUserIds();
                 if (ids.size() == 1) {
-                    sql.append("AND user_id = ? ");
+                    sql.append("AND ").append(prefix).append("user_id = ? ");
                     params.add(ids.get(0));
                 } else {
                     String placeholders = String.join(",", Collections.nCopies(ids.size(), "?"));
-                    sql.append("AND user_id IN (").append(placeholders).append(") ");
+                    sql.append("AND ").append(prefix).append("user_id IN (").append(placeholders).append(") ");
                     params.addAll(ids);
                 }
             } else if (request.getUserId() != null && !request.getUserId().trim().isEmpty()) {
-                sql.append("AND user_id = ? ");
+                sql.append("AND ").append(prefix).append("user_id = ? ");
                 params.add(request.getUserId());
             }
-            
+
+            // 부서 조건: app_user 조인 시 department_code 필터
+            if (useDepartmentJoin) {
+                sql.append("AND a.department_code = ? ");
+                params.add(request.getDepartment().trim());
+            }
+
             // 사용자명 조건
             if (request.getUsername() != null && !request.getUsername().trim().isEmpty()) {
-                sql.append("AND username LIKE ? ");
+                sql.append("AND ").append(prefix).append("username LIKE ? ");
                 params.add("%" + request.getUsername() + "%");
             }
-            
+
             // 액션 타입 조건
             if (request.getActionType() != null && !request.getActionType().trim().isEmpty()) {
-                sql.append("AND action_type = ? ");
+                sql.append("AND ").append(prefix).append("action_type = ? ");
                 params.add(request.getActionType());
             }
-            
+
             // IP 주소 조건
             if (request.getIpAddress() != null && !request.getIpAddress().trim().isEmpty()) {
-                sql.append("AND ip_address = ? ");
+                sql.append("AND ").append(prefix).append("ip_address = ? ");
                 params.add(request.getIpAddress());
             }
-            
+
             // 정렬
             String sortField = request.getSortField();
             String sortDirection = request.getSortDirection();
-            sql.append("ORDER BY ").append(sortField).append(" ").append(sortDirection);
+            sql.append("ORDER BY ").append(prefix).append(sortField).append(" ").append(sortDirection);
             
             log.debug("실행 SQL: {}", sql.toString());
             log.debug("파라미터: {}", params);

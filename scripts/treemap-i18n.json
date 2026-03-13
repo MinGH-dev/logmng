@@ -10,7 +10,8 @@
     "build-restart-handoff.mdc": "코드 변경 후 빌드·재시작·§2 갱신·QA 핸드오프.",
     "security-permissions.mdc": "읽기/실행 금지 경로, 위험 명령 확인 필수.",
     "file-reading-optimization.mdc": "파일 크기별 계층적 로딩으로 토큰 절약.",
-    "subagent-invoke.mdc": "Cursor 내장 Subagents만 사용 (미사용)."
+    "subagent-invoke.mdc": "Cursor 내장 Subagents만 사용 (미사용).",
+    "treemap-consistency.mdc": "위임·요건문서 ref 일관성: 트리맵 스크립트를 단일 소스로 유지. 에이전트/워크플로 변경 후 generate-treemap.js 실행."
   },
   "skills": {
     "dev-workflow": "요건·테스트 계획 우선 개발 순서. TDD/DDD 선택 적용.",
@@ -40,7 +41,8 @@
     "record-error-fix": "§6 에러 수정 결과 기록",
     "agent-backend": "이 채팅에서 Backend 에이전트로 동작",
     "agent-frontend": "이 채팅에서 Frontend 에이전트로 동작",
-    "agent-db": "이 채팅에서 DB 에이전트로 동작"
+    "agent-db": "이 채팅에서 DB 에이전트로 동작",
+    "release": "Release 서브에이전트: CHANGELOG·체크리스트 갱신 후 커밋 및 push"
   },
   "commands_grouped": {
     "start/stop/restart-all": "전체 서비스 시작/중지/재시작",
@@ -55,7 +57,7 @@
     "AGENT-COLLABORATION-ON-REQUIREMENT.md": "협업 순서·핸드오프 규칙 인덱스. 상세: REQUIREMENTS-AUTHORING-WORKFLOW.md, DEVELOPMENT-QUERY-EXPERTS.md.",
     "REQUIREMENTS-AUTHORING-WORKFLOW.md": "요구사항 작성 절차 (§1.1 병렬 입력·오케스트레이션, §1.2 변경 파일 목록, §1.4 Cursor 인프라 갱신).",
     "DEVELOPMENT-QUERY-EXPERTS.md": "Step 4 구현 시 전문가(UX·Contract·DBA 등) 질의 방법.",
-    "SUBAGENT-DELEGATION.md": "Step별 서브에이전트 위임. 백엔드: Main→Backend(팀장)만 호출; Backend가 Backend-Auth/ActivityLog/Log 위임·§2 집계·빌드 1회.",
+    "SUBAGENT-DELEGATION.md": "Step별 서브에이전트 위임. Backend/Frontend/UX 팀장만 Main 호출; 팀장이 모듈 에이전트(Backend-Auth·Frontend-Log·UX-A11y 등) 위임.",
     "CURSOR-SUBAGENTS-DESIGN.md": "서브에이전트 역할·범위·등록 방법 정의.",
     "WORKFLOW_CHECKLIST.md": "새 요건·버그 수정 시 순서와 게이트 체크리스트.",
     "HANDOFF-CHECKLIST.md": "Backend/Frontend/DB/Review/QA별 핸드오프 체크리스트. CONSISTENCY-STANDARDS·Doc–code sync 포함.",

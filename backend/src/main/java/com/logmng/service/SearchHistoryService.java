@@ -3,6 +3,7 @@ package com.logmng.service;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.logmng.dto.request.LogDbSearchRequest;
 import com.logmng.dto.request.SearchHistoryCreateRequest;
+import com.logmng.dto.request.SearchHistoryListRequest;
 import com.logmng.dto.response.LogDbSearchResponse;
 import com.logmng.dto.response.SearchHistoryListResponse;
 import com.logmng.dto.response.UserActivityLogResponse;
@@ -118,68 +119,41 @@ public class SearchHistoryService {
     /**
      * 사용자별 검색 이력 목록 (최신순)
      * seq = 목록 순번, isExpired = expires_at < now 또는 status EXPIRED
-     * @param scopeAll when true (scope='all'), list all users' data
-     * @param allowedUserIds when scope='team', filter by user_id IN (allowedUserIds); when null and !scopeAll, filter by userId
      */
-    public SearchHistoryListResponse list(String userId, int page, int pageSize, String sortField, String sortDirection, boolean scopeAll, List<String> allowedUserIds) {
-        if (scopeAll) {
-            // no user filter
-        } else if (allowedUserIds != null && !allowedUserIds.isEmpty()) {
-            // team scope
-        } else if (userId == null || userId.isBlank()) {
-            throw new IllegalArgumentException("userId is required when scope=self");
+    public SearchHistoryListResponse list(SearchHistoryListRequest request) {
+        if (request == null) {
+            throw new IllegalArgumentException("request is required");
         }
-        if (page < 1) page = 1;
-        if (pageSize < 1 || pageSize > 100) pageSize = 20;
-        String safeSort = "requested_at".equals(sortField) ? "requested_at" : "requested_at";
-        String safeDir = "asc".equalsIgnoreCase(sortDirection) ? "ASC" : "DESC";
+
+        int page = request.getPage() < 1 ? 1 : request.getPage();
+        int pageSize = request.getPageSize() < 1 || request.getPageSize() > 100 ? 20 : request.getPageSize();
+        String safeSort = "requested_at".equals(request.getSortField()) ? "requested_at" : "requested_at";
+        String safeDir = "asc".equalsIgnoreCase(request.getSortDirection()) ? "ASC" : "DESC";
+        SearchHistoryListQuerySpec querySpec = buildListQuerySpec(request);
 
         List<Map<String, Object>> results = new ArrayList<>();
         try (Connection conn = dataSource.getConnection()) {
-            String countSql;
-            if (scopeAll) {
-                countSql = "SELECT COUNT(*) FROM search_history";
-            } else if (allowedUserIds != null && !allowedUserIds.isEmpty()) {
-                String placeholders = String.join(",", Collections.nCopies(allowedUserIds.size(), "?"));
-                countSql = "SELECT COUNT(*) FROM search_history WHERE user_id IN (" + placeholders + ")";
-            } else {
-                countSql = "SELECT COUNT(*) FROM search_history WHERE user_id = ?";
-            }
             long totalCount = 0;
+            String countSql = "SELECT COUNT(*) " + querySpec.getFromAndWhereClause();
             try (PreparedStatement countPs = conn.prepareStatement(countSql)) {
-                int cIdx = 1;
-                if (!scopeAll && (allowedUserIds != null && !allowedUserIds.isEmpty())) {
-                    for (String uid : allowedUserIds) countPs.setString(cIdx++, uid);
-                } else if (!scopeAll) {
-                    countPs.setString(cIdx++, userId);
-                }
+                bindParams(countPs, querySpec.getParams());
                 try (ResultSet rs = countPs.executeQuery()) {
-                    if (rs.next()) totalCount = rs.getLong(1);
+                    if (rs.next()) {
+                        totalCount = rs.getLong(1);
+                    }
                 }
             }
 
             int offset = (page - 1) * pageSize;
-            String sql;
-            if (scopeAll) {
-                sql = "SELECT id, user_id, log_type, search_params, requested_at, expires_at, approval_status, approved_by, approved_at, rejected_by, rejected_at, rejection_reason " +
-                        "FROM search_history ORDER BY " + safeSort + " " + safeDir + " LIMIT ? OFFSET ?";
-            } else if (allowedUserIds != null && !allowedUserIds.isEmpty()) {
-                String placeholders = String.join(",", Collections.nCopies(allowedUserIds.size(), "?"));
-                sql = "SELECT id, user_id, log_type, search_params, requested_at, expires_at, approval_status, approved_by, approved_at, rejected_by, rejected_at, rejection_reason " +
-                        "FROM search_history WHERE user_id IN (" + placeholders + ") ORDER BY " + safeSort + " " + safeDir + " LIMIT ? OFFSET ?";
-            } else {
-                sql = "SELECT id, user_id, log_type, search_params, requested_at, expires_at, approval_status, approved_by, approved_at, rejected_by, rejected_at, rejection_reason " +
-                        "FROM search_history WHERE user_id = ? ORDER BY " + safeSort + " " + safeDir + " LIMIT ? OFFSET ?";
-            }
+            String sql = "SELECT sh.id, sh.user_id, sh.log_type, sh.search_params, sh.requested_at, sh.expires_at, " +
+                    "sh.approval_status, sh.approved_by, sh.approved_at, sh.rejected_by, sh.rejected_at, sh.rejection_reason " +
+                    querySpec.getFromAndWhereClause() +
+                    " ORDER BY sh." + safeSort + " " + safeDir + " LIMIT ? OFFSET ?";
             try (PreparedStatement ps = conn.prepareStatement(sql)) {
-                int idx = 1;
-                if (!scopeAll && (allowedUserIds != null && !allowedUserIds.isEmpty())) {
-                    for (String uid : allowedUserIds) ps.setString(idx++, uid);
-                } else if (!scopeAll) {
-                    ps.setString(idx++, userId);
-                }
-                ps.setInt(idx++, pageSize);
-                ps.setInt(idx++, offset);
+                List<Object> listParams = new ArrayList<>(querySpec.getParams());
+                listParams.add(pageSize);
+                listParams.add(offset);
+                bindParams(ps, listParams);
                 try (ResultSet rs = ps.executeQuery()) {
                     int seq = offset + 1;
                     LocalDateTime now = LocalDateTime.now();
@@ -210,7 +184,7 @@ public class SearchHistoryService {
                     new UserActivityLogResponse.PaginationInfo(page, totalPages, totalCount);
             return new SearchHistoryListResponse(results, pagination);
         } catch (SQLException e) {
-            log.error("검색 이력 목록 조회 실패: userId={}", userId, e);
+            log.error("검색 이력 목록 조회 실패: actorUserId={}", request.getActorUserId(), e);
             throw new RuntimeException("검색 이력 목록 조회 중 오류가 발생했습니다: " + e.getMessage(), e);
         }
     }
@@ -220,7 +194,7 @@ public class SearchHistoryService {
      * @param scopeAll when true, skip ownership check (allow re-request for any user's record)
      * @param allowedUserIdsForTeam when scope='team', allow if record's user_id is in this list
      */
-    public Map<String, Object> reRequest(String userId, Long id, boolean scopeAll, List<String> allowedUserIdsForTeam) {
+    public Map<String, Object> reRequest(String userId, Long id) {
         if (userId == null || userId.isBlank()) {
             throw new IllegalArgumentException("userId is required");
         }
@@ -561,7 +535,7 @@ public class SearchHistoryService {
      * 검색 이력 상세 (재조회 시 검색 조건 반환)
      * @param scopeAll when true, skip ownership check (allow viewing any user's detail)
      */
-    public Map<String, Object> getDetail(String userId, Long id, boolean scopeAll, List<String> allowedUserIdsForTeam) {
+    public Map<String, Object> getDetail(String userId, Long id) {
         if (userId == null || userId.isBlank()) {
             throw new IllegalArgumentException("userId is required");
         }
@@ -610,6 +584,50 @@ public class SearchHistoryService {
         return ts.toLocalDateTime().format(DATE_FORMATTER);
     }
 
+    private SearchHistoryListQuerySpec buildListQuerySpec(SearchHistoryListRequest request) {
+        SearchHistoryListQuerySpec querySpec = new SearchHistoryListQuerySpec();
+
+        List<String> allowedUserIds = request.getAllowedUserIds();
+        if (allowedUserIds != null) {
+            if (allowedUserIds.isEmpty()) {
+                querySpec.addCondition("1 = 0");
+            } else if (allowedUserIds.size() == 1) {
+                querySpec.addCondition("sh.user_id = ?");
+                querySpec.addParam(allowedUserIds.get(0));
+            } else {
+                querySpec.addCondition("sh.user_id IN (" + String.join(",", Collections.nCopies(allowedUserIds.size(), "?")) + ")");
+                querySpec.addParams(allowedUserIds);
+            }
+        }
+
+        if (hasText(request.getUserId())) {
+            querySpec.addCondition("sh.user_id = ?");
+            querySpec.addParam(request.getUserId().trim());
+        }
+
+        if (hasText(request.getDepartment())) {
+            querySpec.addCondition("au.department_code = ?");
+            querySpec.addParam(request.getDepartment().trim());
+        }
+
+        if (hasText(request.getUsername())) {
+            querySpec.addCondition("LOWER(au.username) LIKE ?");
+            querySpec.addParam("%" + request.getUsername().trim().toLowerCase(Locale.ROOT) + "%");
+        }
+
+        return querySpec;
+    }
+
+    private static boolean hasText(String value) {
+        return value != null && !value.trim().isEmpty();
+    }
+
+    private static void bindParams(PreparedStatement ps, List<Object> params) throws SQLException {
+        for (int i = 0; i < params.size(); i++) {
+            ps.setObject(i + 1, params.get(i));
+        }
+    }
+
     private static String formatTimestampISO(Timestamp ts) {
         if (ts == null) return null;
         return ts.toLocalDateTime().format(ISO_FORMATTER);
@@ -636,6 +654,35 @@ public class SearchHistoryService {
             return String.join(", ", parts.isEmpty() ? List.of("(조건 없음)") : parts);
         } catch (Exception e) {
             return "(요약 불가)";
+        }
+    }
+
+    private static final class SearchHistoryListQuerySpec {
+        private final List<String> conditions = new ArrayList<>();
+        private final List<Object> params = new ArrayList<>();
+
+        private void addCondition(String condition) {
+            conditions.add(condition);
+        }
+
+        private void addParam(Object param) {
+            params.add(param);
+        }
+
+        private void addParams(List<String> values) {
+            params.addAll(values);
+        }
+
+        private String getFromAndWhereClause() {
+            StringBuilder sql = new StringBuilder("FROM search_history sh LEFT JOIN app_user au ON au.username = sh.user_id");
+            if (!conditions.isEmpty()) {
+                sql.append(" WHERE ").append(String.join(" AND ", conditions));
+            }
+            return sql.toString();
+        }
+
+        private List<Object> getParams() {
+            return params;
         }
     }
 }
