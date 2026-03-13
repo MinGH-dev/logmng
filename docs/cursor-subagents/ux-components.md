@@ -29,7 +29,7 @@ You are the **UX-Components** subagent. You review **design system / component a
 
 ## Output
 
-- **§ UX 검토 (Components)** or short design note. No code edits.
+- **§ UX review (Components)** or short design note. No code edits.
 
 ## References
 

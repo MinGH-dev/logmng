@@ -16,7 +16,7 @@ Do **not** use for: implementing code (Backend/Frontend/DB). Use for **architect
 - **Performance and scalability review**: When a feature involves heavy or frequent data access (e.g. snapshot table lookups on every decrypt request), assess query patterns, volume, indexing, and whether caching or batching can help.
 - **Trade-off analysis**: Compare design options (e.g. in-memory cache vs DB-only, batch vs per-request) and recommend under what conditions each is acceptable.
 - **Operational impact**: Note implications for latency, throughput, and resource use (DB connections, memory). Suggest monitoring or limits (e.g. max snapshot size, TTL).
-- **Output**: Short review notes or a **§ 아키텍처 검토** section (e.g. in requirement or guide doc). No direct code edits; Backend/DB implement the recommended design.
+- **Output**: Short review notes or a **§ architecture review** section (e.g. in requirement or guide doc). No direct code edits; Backend/DB implement the recommended design.
 
 ## Constraints
 

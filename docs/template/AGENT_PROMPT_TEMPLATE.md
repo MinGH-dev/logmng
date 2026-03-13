@@ -1,142 +1,69 @@
-# Agent 프롬프트 템플릿
+# Agent Prompt Template
 
-## 🎯 새로운 요건 요청 시 사용할 프롬프트
+Use this template when you start a new agent session and want to request work in a way that matches this repository's workflow.
 
-새로운 Agent 세션에서 요건을 요청할 때, 아래 템플릿을 사용하세요.
+## Template A: use `@` references
 
-### 방법 1: @ 기능 사용 (권장)
+Reference the workflow docs directly:
 
-Cursor의 @ 기능을 사용하여 개발 워크플로우 문서를 참조하세요:
+```text
+Please follow the workflow in @docs/workflow/DEVELOPMENT_WORKFLOW.md.
 
-```
-@DEVELOPMENT_WORKFLOW.md 파일의 개발 워크플로우를 반드시 따라 작업해주세요.
+Important requirements:
+1. Create or update the requirement document first.
+2. Use the project templates in @docs/template/.
+3. Work on a feature branch.
+4. Implement, test, verify, and update the requirement document before finishing.
+5. Keep user-facing replies in Korean, but keep tool-facing prompts and workflow text in English.
 
-특히 다음 사항을 엄격히 준수하세요:
-
-1. ⚠️ 기존 코드를 절대 직접 수정하지 마세요
-   - 기존 파일을 복사하여 신규 파일을 만들거나
-   - 기존 코드를 주석 처리하고 신규 코드를 추가하세요
-
-2. 요건 문서를 먼저 작성하세요:
-   - 파일명: docs/requirements/yyyyMMdd-요건명.md
-   - @REQUIREMENT_TEMPLATE.md 또는 @requirements/20260206-image-log-datastring-search.md 참고
-
-3. Git 브랜치를 사용하세요: git checkout -b feat/요건명
-
-4. 개발 후 반드시 검증하세요:
-   - 프론트엔드: API 전달 파라미터를 console.log로 확인
-   - 백엔드: curl로 API 테스트 수행
-
-5. 작업 완료 후 요건 문서를 업데이트하세요.
-
-현재 요건: [여기에 요건 내용을 작성]
+Current requirement:
+[Describe the requirement here]
 ```
 
-### 방법 2: 직접 파일 경로 지정
+## Template B: direct file-path instruction
 
-@ 기능을 사용하지 않는 경우:
+Use this when you do not want to rely on `@` references:
 
-```
-다음 개발 워크플로우를 반드시 따라 작업해주세요:
+```text
+Please follow this process:
 
-1. 먼저 docs/workflow/DEVELOPMENT_WORKFLOW.md 파일을 읽고 전체 프로세스를 이해하세요.
+1. Read `docs/workflow/DEVELOPMENT_WORKFLOW.md`.
+2. Create or update the requirement document at `docs/requirements/yyyyMMdd-name.md`.
+3. If the task is complex, create or update the spec in `specs/`.
+4. Work on a feature branch such as `feat/name`.
+5. Implement the change.
+6. Run tests and verification.
+7. Update the requirement document with test results and completion notes.
 
-2. 요건 문서를 생성하세요:
-   - 파일명: docs/requirements/yyyyMMdd-요건명.md
-   - docs/requirements/20260206-image-log-datastring-search.md 파일을 참고하여 동일한 형식으로 작성하세요.
-
-3. 개발 원칙을 준수하세요:
-   - ⚠️ 기존 코드를 절대 직접 수정하지 마세요
-   - 기존 파일을 복사하여 신규 파일을 만들거나, 기존 코드를 주석 처리하고 신규 코드를 추가하세요
-   - Git 브랜치를 사용하세요: git checkout -b feat/요건명
-
-4. 개발 후 반드시 검증하세요:
-   - 프론트엔드: API 전달 파라미터를 console.log로 확인
-   - 백엔드: curl로 API 테스트 수행
-
-5. 문제 발생 시:
-   - 요건 반영 ✅, Side Effect ❌ → 즉시 롤백 후 영향도 분석 재수행
-   - 요건 반영 ❌ → 신규 코드에서 개선
-
-6. 작업 완료 후 요건 문서를 업데이트하세요:
-   - 테스트 결과 기록
-   - 체크리스트 완료 표시
-
-현재 요건: [여기에 요건 내용을 작성]
+Current requirement:
+[Describe the requirement here]
 ```
 
-## 💡 @ 기능 사용 팁
+## Tips
 
-### 효과적인 사용법
+- Reference both the workflow and the requirement template together when you want consistent output.
+- Call out any section that must be followed strictly.
+- If the task is requirement-driven, make the requirement doc path explicit in the prompt.
+- Keep copied handoff prompts in English when they are intended for tools or subagents.
 
-1. **여러 파일 동시 참조**
-   ```
-   @DEVELOPMENT_WORKFLOW.md @REQUIREMENT_TEMPLATE.md
-   
-   위 문서들을 참고하여 작업해주세요.
-   ```
+## Suggested checklist to include in prompts
 
-2. **특정 섹션 강조**
-   ```
-   @DEVELOPMENT_WORKFLOW.md
-   
-   특히 "기존 코드 보존 원칙" 섹션을 엄격히 준수하세요.
-   ```
+```text
+Please work in this order:
 
-3. **예시 파일 참조**
-   ```
-   @requirements/20260206-image-log-datastring-search.md
-   
-   이 파일과 동일한 형식으로 요건 문서를 작성하세요.
-   ```
-
-### @ 기능의 장점
-
-✅ **자동 파일 읽기**: Agent가 파일을 자동으로 읽음  
-✅ **컨텍스트 제공**: 관련 문서를 함께 참조 가능  
-✅ **간편함**: 파일 경로를 직접 입력할 필요 없음  
-
-### @ 기능의 한계
-
-⚠️ **자동 실행 아님**: 파일을 읽어도 자동으로 따라하지 않음  
-⚠️ **명시적 지시 필요**: 여전히 "반드시 따라하세요" 같은 명시적 지시 필요  
-⚠️ **중요 부분 강조 필요**: 중요한 부분은 별도로 강조해야 함  
-
-## 📋 체크리스트 (Agent가 따라야 할 순서)
-
-## 📋 체크리스트 (Agent가 따라야 할 순서)
-
-Agent에게 명시적으로 다음을 요청하세요:
-
-```
-다음 순서대로 작업해주세요:
-
-1. [ ] docs/workflow/DEVELOPMENT_WORKFLOW.md 읽기
-2. [ ] 기존 관련 코드 분석 (어떤 파일들이 관련있는지 찾기)
-3. [ ] 요건 문서 작성 (docs/requirements/yyyyMMdd-요건명.md)
-4. [ ] Git 브랜치 생성 (git checkout -b feat/요건명)
-5. [ ] 기존 코드 백업 (필요 시)
-6. [ ] 신규 코드 작성
-7. [ ] 프론트엔드 검증 (API 파라미터 확인)
-8. [ ] 백엔드 검증 (curl 테스트)
-9. [ ] 요건 문서 업데이트 (테스트 결과 기록)
+1. Read `docs/workflow/DEVELOPMENT_WORKFLOW.md`
+2. Analyze the related files
+3. Create or update the requirement document
+4. Confirm the branch
+5. Implement the change
+6. Run tests
+7. Verify the result
+8. Update the requirement document with results
 ```
 
-## ⚠️ Agent가 놓치기 쉬운 부분
+## Common mistakes to avoid
 
-Agent에게 명시적으로 다음을 상기시켜주세요:
-
-1. **기존 코드 보존**: "기존 파일을 절대 직접 수정하지 말고, 복사하거나 주석 처리하세요"
-2. **검증 필수**: "코드 작성 후 반드시 검증 단계를 수행하세요"
-3. **문서화 필수**: "요건 문서를 반드시 작성하고 업데이트하세요"
-4. **롤백 준비**: "문제 발생 시 즉시 롤백할 수 있도록 준비하세요"
-
-## 🔍 Agent가 자주 하는 실수
-
-1. 기존 코드를 직접 수정함
-2. 검증 단계를 건너뜀
-3. 요건 문서를 작성하지 않음
-4. Git 브랜치를 사용하지 않음
-
-이런 실수를 방지하기 위해 위의 프롬프트 템플릿을 사용하세요.
-
+1. Skipping the requirement document or §3 test plan
+2. Implementing before reading the workflow
+3. Forgetting to update the requirement doc after testing
+4. Writing mixed-language tool-facing prompt text

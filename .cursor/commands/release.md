@@ -19,7 +19,7 @@ User requested **release including push**. If the current changes include tool o
 
 1. **CHANGELOG / release checklist**: Update CHANGELOG.md and docs/workflow/RELEASE_CHECKLIST.md for the current changes (e.g. today's date, Korean entries). See docs/workflow/RELEASE_CHECKLIST.md and docs/workflow/DOCUMENT-LANGUAGE-POLICY.md §3–§4.
 
-2. **Commit**: If there are uncommitted changes, stage and commit **all** of them (including tool/treemap files above) per .cursor/commands/commit-on-complete.md. Use a release/chore message in Korean if the change is not requirement-driven (e.g. "chore: CHANGELOG·릴리스 체크리스트 갱신 (release)" or "chore: 도구 수정 및 트리맵·릴리스 워크플로 (release)"). Include requirement doc ref in the message when the commit closes a requirement.
+2. **Commit**: If there are uncommitted changes, stage and commit **all** of them (including tool/treemap files above) per `.cursor/commands/commit-on-complete.md`. Use a clear release/chore message in English when the change is not requirement-driven (e.g. `chore: update changelog and release checklist (release)` or `chore: align tooling workflow language and release flow (release)`). Include the requirement doc reference when the commit closes a requirement.
 
 3. **Push**: Run `git push` (or `git push origin <current-branch>`). Do not force-push. Report success or any error.
 

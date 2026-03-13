@@ -4,14 +4,14 @@ globs: "frontend/**/SearchForm*,**/StatisticsFilters*,**/UserActivityLog*,**/Adv
 alwaysApply: false
 ---
 
-# Search / filter form design (검색·필터 폼 디자인)
+# Search / filter form design
 
-When you add or change **search/filter form** UI (검색하기, 활동 이력, 통계, 검색 이력, 승인 대기, 사용자 관리, 권한 그룹 등), follow the design definition docs so that field size, type, constraints, and data source stay consistent. **Standard-first**: see `.cursor/rules/ux-frontend-standard-first.mdc` and `docs/design/ux-frontend-standard-principles.md`. If a relevant standard is missing or unclear, do not implement; inform the user and ask for standard definition first.
+When you add or change **search/filter form** UI (for example main search, activity log, statistics, search history, pending approvals, user management, or permission groups), follow the design definition docs so that field size, type, constraints, and data source stay consistent. **Standard-first**: see `.cursor/rules/ux-frontend-standard-first.mdc` and `docs/design/ux-frontend-standard-principles.md`. If a relevant standard is missing or unclear, do not implement; inform the user and ask for standard definition first.
 
 ## Mandatory references
 
 1. **Field-level definition schema**: `docs/design/search-field-definition-items.md` (definition items: fieldId, label, controlType, width, height, constraints, dataSource, etc.)
-2. **Per-screen field definitions**: `docs/design/search-fields-by-screen.md` (검색하기, 활동 이력 필드별 정의표; 통계는 활동 이력과 사용자·기타 블록 동일 규칙)
+2. **Per-screen field definitions**: `docs/design/search-fields-by-screen.md` (per-screen field definitions; statistics follows the same user and extra-block rules as activity log)
 3. **Form/filter layout and rules**: `docs/design/forms-and-filters.md` (filter group title placement, compact variant, panel width, **single application point**, **width by role**)
 4. **CSS standard and exceptions**: `frontend/src/styles/search-filter-standard.css` (single source; **use wrapper class** so control sizing is applied in one place). For screen-specific overrides: component CSS only, with comment and `docs/design/css-standard-and-exceptions.md` §5 Exception index. See `docs/design/css-standard-and-exceptions.md`.
 
@@ -25,11 +25,11 @@ When you add or change **search/filter form** UI (검색하기, 활동 이력, �
 
 - **Same role, same min/max**: Field **width** (min-width, max-width) is defined **by role** in `docs/design/search-fields-by-screen.md` (e.g. date/single-select, user block, extra block). The same role must use the **same** min/max on all screens; use `var(--sf-field-*-min)`, `var(--sf-field-*-max)` from `search-filter-standard.css` where defined, or the numeric values from the design doc. Do not use different max-width per screen (e.g. 220px on activity-log and 180px on statistics for the same role).
 - **Shared blocks**: For blocks used on multiple screens (e.g. UserContextFilterBlock), use **block-level width** (`var(--sf-field-user-block-min)`, `var(--sf-field-user-block-max)`) or the same grid/field sizing on every screen so the block does not stretch differently and field widths stay comparable.
-- **Aligning multiple screens**: When the requirement aligns search/filter UI **across two or more screens** (e.g. activity-log and statistics), the **user block** (부서, 사용자명, 사용자 ID) must have the **same min/max width and visual size** on all aligned screens. Do not put the user block and another control (e.g. 로그 타입) in a **single** `1fr` cell — give the user block its own column or sufficient min-width so it is not squeezed. Ref: `docs/workflow/ANALYSIS-user-field-size-activity-log-vs-statistics.md`.
+- **Aligning multiple screens**: When the requirement aligns search/filter UI **across two or more screens** (for example activity log and statistics), the **user block** (department, user name, user ID) must have the **same min/max width and visual size** on all aligned screens. Do not put the user block and another control (for example log type) in a **single** `1fr` cell. Give the user block its own column or sufficient min-width so it is not squeezed. Ref: `docs/workflow/ANALYSIS-user-field-size-activity-log-vs-statistics.md`.
 
 ## Same-name, different-context fields
 
-If a field exists on **multiple screens with different semantics** (e.g. **startDate** / **endDate** on 검색하기 vs 활동 이력), do **not** change or unify the definition unilaterally. Follow `docs/design/search-fields-by-screen.md` § "동일 이름·다른 성격 필드 — 피드백 요청": **ask the user** how to proceed (unify as one definition vs keep per-screen), then apply the decision.
+If a field exists on **multiple screens with different semantics** (for example **startDate** / **endDate** on main search vs activity log), do **not** change or unify the definition unilaterally. Follow `docs/design/search-fields-by-screen.md` § "Same-name, different-semantics field - request feedback": **ask the user** how to proceed (unify as one definition vs keep per-screen), then apply the decision.
 
 ## When standard is undefined or ambiguous
 

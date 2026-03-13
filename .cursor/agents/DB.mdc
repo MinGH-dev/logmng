@@ -44,7 +44,7 @@ Do **not** use for: API design, backend Java service code, or frontend (use Back
 
 ## Collaboration
 
-- On requirement-driven work: **Step 4** in `docs/workflow/AGENT-COLLABORATION-ON-REQUIREMENT.md`. Input: requirement doc (§1–§3), contract/spec, DBA review if any. Output: schema, migrations, scripts in `backend/.../db/`; **confirm or update** requirement doc §2 **"변경 파일 목록"** with actual files changed; hand off to QA for §5 and verification. Backend may need to follow for API/code. See `docs/workflow/REQUIREMENTS-AUTHORING-WORKFLOW.md` §1.2.
+- On requirement-driven work: **Step 4** in `docs/workflow/AGENT-COLLABORATION-ON-REQUIREMENT.md`. Input: requirement doc (§1–§3), contract/spec, DBA review if any. Output: schema, migrations, scripts in `backend/.../db/`; **confirm or update** requirement doc §2 **"Planned change file list"** with the actual files changed; hand off to QA for §5 and verification. Backend may need to follow for API/code. See `docs/workflow/REQUIREMENTS-AUTHORING-WORKFLOW.md` §1.2.
 
 ### When detail is missing — query expert subagents
 

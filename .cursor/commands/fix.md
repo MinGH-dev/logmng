@@ -20,4 +20,4 @@ When the user reports an error or asks for a bugfix, follow this order.
 
 Do not jump to "implement API" or "change api.js" from the error alone; do 1→2→3 first, then 4.
 
-**Example prompts for requesting error fixes**: `docs/workflow/오류-개선-프롬프팅-예시.md`
+**Example prompts for requesting error fixes**: `docs/workflow/error-fix-prompting-examples.md`

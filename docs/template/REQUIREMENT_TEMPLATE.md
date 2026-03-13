@@ -10,7 +10,7 @@
 
 Copy this template to create `docs/requirements/yyyyMMdd-short-name.md`. Use lowercase English and hyphens for the file name.
 
-**Date**: For `yyyyMMdd` and in-document dates (Date, Completed, §5 test run date, 작성일), use the **current year and date** from `.cursor/CURRENT-DATE-CONVENTION.md` so the correct year is used even when the conversation context is wrong.
+**Date**: For `yyyyMMdd` and in-document dates (Date, Completed, §5 test run date, authored date), use the **current year and date** from `.cursor/CURRENT-DATE-CONVENTION.md` so the correct year is used even when the conversation context is wrong.
 
 **After verification**: Add the new doc to `docs/requirements/TOPIC-INDEX.md` under the matching topic (one line: `- doc-id | one-line §1 summary`). Run `./scripts/generate-requirements-index.sh` to check for docs not yet in the index.
 
@@ -35,7 +35,7 @@ Copy this template to create `docs/requirements/yyyyMMdd-short-name.md`. Use low
 - [Expected outcome 2]
 - [Expected outcome 3]
 
-**Note**: Numeric and structural values (e.g. max-width, spacing, row layout) must be **sourced from** design docs; the requirement doc **references** them and may quote for traceability. If a value appears only here and not in a design doc, consider adding it to the design doc so the requirement stays reference-only. If aligning two search/filter UIs (e.g. activity log and statistics), consider: layout, group title placement, spacing, **form panel width/size**, and **user block field size** (부서, 사용자명, 사용자 ID same width/size on both screens per `docs/design/search-fields-by-screen.md` §3, §4). See `docs/design/forms-and-filters.md` § Search form panel width and `docs/workflow/REQUIREMENTS-CHANGE-TARGET-CHECKLIST.md` §2.4. When the requirement defines or aligns search/filter **fields**, §1 must explicitly reference both `docs/design/search-fields-by-screen.md` and `docs/design/search-field-definition-items.md` so implementers apply the same field schema. When **pattern §2.4** applies, §2 must include an **Implementation note for Frontend** with the full text from REQUIREMENTS-CHANGE-TARGET-CHECKLIST.md §2.4 row "Implementation note for Frontend" (read and apply from design docs including forms-and-filters.md; if any required standard is undefined or ambiguous, implementer must not infer or hardcode — must inform user, explain why needed, propose recommended standard draft, request feedback before implementation). The handoff builder will include this in the Frontend handoff.
+**Note**: Numeric and structural values (e.g. max-width, spacing, row layout) must be **sourced from** design docs; the requirement doc **references** them and may quote for traceability. If a value appears only here and not in a design doc, consider adding it to the design doc so the requirement stays reference-only. If aligning two search/filter UIs (e.g. activity log and statistics), consider: layout, group title placement, spacing, **form panel width/size**, and **user block field size** (department, user name, user ID with the same width/size on both screens per `docs/design/search-fields-by-screen.md` §3, §4). See `docs/design/forms-and-filters.md` § Search form panel width and `docs/workflow/REQUIREMENTS-CHANGE-TARGET-CHECKLIST.md` §2.4. When the requirement defines or aligns search/filter **fields**, §1 must explicitly reference both `docs/design/search-fields-by-screen.md` and `docs/design/search-field-definition-items.md` so implementers apply the same field schema. When **pattern §2.4** applies, §2 must include an **Implementation note for Frontend** with the full text from REQUIREMENTS-CHANGE-TARGET-CHECKLIST.md §2.4 row "Implementation note for Frontend" (read and apply from design docs including forms-and-filters.md; if any required standard is undefined or ambiguous, implementer must not infer or hardcode — must inform user, explain why needed, propose recommended standard draft, request feedback before implementation). The handoff builder will include this in the Frontend handoff.
 
 ## 2. Design
 
@@ -229,10 +229,10 @@ Command: `/record-error-fix` can be used to record.
 
 After QA has completed verification and before or with the final commit, add a **Korean summary** here (or create `docs/requirements/yyyyMMdd-short-name-ko.md`). See `docs/workflow/DOCUMENT-LANGUAGE-POLICY.md` §2.3.
 
-### 요건 요약 (한글)
-- **요건 설명**: [§1 요약]
-- **기대 결과**: [§1 기대 결과 요약]
-- **검증 결과**: [§5 요약, 통과/실패]
+### Final Korean summary
+- **Requirement description**: [Korean summary of §1]
+- **Expected outcome**: [Korean summary of the expected outcome]
+- **Verification result**: [Korean summary of §5, pass/fail]
 
 ---
 

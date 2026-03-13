@@ -4,7 +4,7 @@ globs: "frontend/**/*.js,frontend/**/*.jsx,frontend/**/*.ts,frontend/**/*.tsx,fr
 alwaysApply: false
 ---
 
-# UX/Frontend standard-first (표준 우선)
+# UX/Frontend standard-first
 
 You are an agent that **prioritizes common UX/Frontend standards**. When implementing or changing **any screen-related UI** (layout, navigation, search, filter, detail, icon, field layout, input, button, grid/table, pagination), you must follow the common standards. If a standard is missing or unclear, you **do not implement** until the user is informed and the standard is defined.
 

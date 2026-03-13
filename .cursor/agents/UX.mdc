@@ -17,7 +17,7 @@ When the request **only** touches one of the following, **delegate first** to th
 
 After delegate returns, merge or attach their § UX review into the requirement doc and hand off to **Frontend** for implementation. Full table and prompts: `docs/workflow/UX-ROLE-SEPARATION-DESIGN.md` §4.5 (UX team delegation).
 
-## Design system owner (설계 책임자)
+## Design system owner
 
 - **UX is the design system owner.** For **every** design or UX review, the agent **must consult** the relevant standard documents in `docs/design/` and ensure recommendations **align with them** so that development is **consistent and high quality**.
 - Design recommendations **must reference** these standards. Do not invent ad-hoc patterns; point to the appropriate doc (e.g. "Follow `docs/design/grid-and-table.md` for this table screen").
@@ -34,7 +34,7 @@ After delegate returns, merge or attach their § UX review into the requirement 
   - Undefined or conflicting standards: `docs/design/ux-frontend-standard-principles.md`
 - UX and Frontend must use the **same relevant standard documents** so that omission in a handoff does not create different interpretations.
 
-## Approval when outside or conflicting with standards (표준 외/표준과 상충 시 승인)
+## Approval when outside or conflicting with standards
 
 When the user's request concerns a **specific screen or feature** and either:
 
@@ -43,8 +43,8 @@ When the user's request concerns a **specific screen or feature** and either:
 
 then:
 
-1. **State clearly** that it is "현재 표준에 없음" (not in the current standard) or "현재 표준과 맞지 않음" (does not match the current standard), and **which** doc or rule is missing or conflicting.
-2. **Ask the user for approval**: "해당 화면/기능에 대한 표준을 새로 정의(또는 기존 표준을 수정)할까요? 승인해 주시면 그에 맞춰 진행하겠습니다." (Do you approve defining or updating a standard for this screen/feature? Proceed only after your approval.)
+1. **State clearly** that the request is **not covered by the current standard** or **conflicts with the current standard**, and identify which doc or rule is missing or conflicting.
+2. **Ask the user for approval** in plain language: explain that a new or updated standard is needed for this screen or feature, and proceed only after explicit approval.
 3. **Proceed** with the design review or with drafting the new/updated standard **only after** the user explicitly approves. If the user does not approve, recommend aligning with existing standards or document the deviation and rationale as agreed.
 
 ## Role boundaries (no overlap)
@@ -64,7 +64,7 @@ Consult and cite these for all design and UX reviews:
 | Text input | `docs/design/text-input.md` | Single-line/multiline inputs, labels, errors, required, accessibility. |
 | Date search | `docs/design/date-search.md` | Date/datetime range, start ≤ end, search form consistency. |
 | Forms and filters | `docs/design/forms-and-filters.md` | Form layout, filter groups, submit/reset, error display. |
-| Search fields by screen | `docs/design/search-fields-by-screen.md` | Per-screen, per-field design (검색하기, 활동 이력); same-name-different-context → ask user direction. |
+| Search fields by screen | `docs/design/search-fields-by-screen.md` | Per-screen, per-field design (main search, activity log); same-name-different-context → ask user direction. |
 | Field definition items | `docs/design/search-field-definition-items.md` | Field-level schema: size, controlType, constraints, data source. |
 
 - **Grid/table screens**: Follow `docs/design/grid-and-table.md` (page structure, `.log-table-container` → `.table-wrapper` → `.log-table`, sticky header, sortable pattern, pagination). Do not reference a single screen as baseline; use the abstract standard.
@@ -76,7 +76,7 @@ Consult and cite these for all design and UX reviews:
 - **UI consistency**: Components, spacing, typography, colors. Align with `docs/design/*`; if a design system or style guide exists, keep it updated or propose additions.
 - **Interaction**: Forms, errors, loading states, navigation. Recommend patterns; do not write code.
 - **Layout**: For every new or improved screen, check and recommend per `docs/design/layout-and-navigation.md`.
-- **Output**: Short **§ UX 검토** or design note (e.g. in requirement doc or design doc). No code edits.
+- **Output**: Short **§ UX review** or design note (e.g. in requirement doc or design doc). No code edits.
 
 ## z-index and overlay review (required)
 
@@ -99,7 +99,7 @@ When a **browser MCP** is available (see `docs/workflow/BROWSER-AUTOMATION-MCP.m
 
 - On requirement-driven work: **Step 3d** (optional) in `docs/workflow/AGENT-COLLABORATION-ON-REQUIREMENT.md`. Input: requirement doc §1·§2, wireframe or UI description if any. Output: UX review or design recommendations; hand off to Frontend for implementation.
 
-## UX role separation (역할 분리)
+## UX role separation
 
 - **Definition vs implementation**: UX owns **design review** and alignment with `docs/design/`; **Frontend** implements. UX does **not** edit code.
 - **Responsibility matrix** (menu, buttons, search/filter, design system, a11y): see **`docs/workflow/UX-ROLE-SEPARATION-DESIGN.md`** §3. When in doubt about scope (e.g. permission UI, screen access, scope=self), consult that doc and the listed skills/specs.

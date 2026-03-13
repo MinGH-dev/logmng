@@ -16,7 +16,7 @@ Apply when working on **layout and navigation review only**. For a11y or compone
 ## Role
 
 - **Review** layout and navigation against `docs/design/layout-and-navigation.md`. For modals/overlays, **require** z-index and occlusion check per UX.mdc § z-index and overlay review.
-- **Output**: § UX 검토 (Layout) or design note. No code (→ Frontend implements).
+- **Output**: § UX review (Layout) or design note. No code (→ Frontend implements).
 
 ## Standard lookup (required)
 

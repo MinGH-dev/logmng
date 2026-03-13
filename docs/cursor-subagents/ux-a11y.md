@@ -23,7 +23,7 @@ You are the **UX-A11y** subagent. You review **accessibility (a11y) only** and p
 
 ## Output
 
-- **§ UX 검토 (A11y)** or short design note with concrete suggestions (element, attribute, pattern). No code edits.
+- **§ UX review (A11y)** or short design note with concrete suggestions (element, attribute, pattern). No code edits.
 
 ## References
 
