@@ -33,7 +33,7 @@ const LoginForm = ({ onLogin }) => {
     
     // 필수 필드 검증
     const newErrors = {};
-    if (!formData.username) newErrors.username = '사용자명을 입력해주세요.';
+    if (!formData.username) newErrors.username = '사용자 ID를 입력해주세요.';
     if (!formData.password) newErrors.password = '비밀번호를 입력해주세요.';
 
     if (Object.keys(newErrors).length > 0) {
@@ -120,7 +120,7 @@ const LoginForm = ({ onLogin }) => {
         <form onSubmit={handleSubmit} className="login-form">
           <div className="form-group">
             <label htmlFor="username">
-              사용자명 <span className="required">*</span>
+              사용자 ID <span className="required">*</span>
             </label>
             <input
               type="text"
@@ -129,7 +129,7 @@ const LoginForm = ({ onLogin }) => {
               value={formData.username}
               onChange={handleInputChange}
               className={errors.username ? 'error' : ''}
-              placeholder="사용자명을 입력하세요"
+              placeholder="사용자 ID를 입력하세요"
               disabled={loading}
             />
             {errors.username && <span className="error-message">{errors.username}</span>}

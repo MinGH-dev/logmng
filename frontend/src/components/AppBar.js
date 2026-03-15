@@ -4,8 +4,11 @@ import MenuIcon from '@mui/icons-material/Menu';
 import LogoutIcon from '@mui/icons-material/Logout';
 import { DRAWER_WIDTH_OPEN, DRAWER_WIDTH_COLLAPSED } from './AppSidebar';
 
-function AppBar({ sidebarOpen, onToggleSidebar, username, onLogout }) {
+function AppBar({ sidebarOpen, onToggleSidebar, teamName, userName, onLogout }) {
   const drawerWidth = sidebarOpen ? DRAWER_WIDTH_OPEN : DRAWER_WIDTH_COLLAPSED;
+  const displayName = (userName && String(userName).trim()) ? String(userName).trim() : '사용자';
+  const teamPart = (teamName && String(teamName).trim()) ? `[${String(teamName).trim()}] ` : '';
+  const greeting = `${teamPart}${displayName}`.trim() || '사용자';
   return (
     <MuiAppBar
       position="fixed"
@@ -35,7 +38,7 @@ function AppBar({ sidebarOpen, onToggleSidebar, username, onLogout }) {
           로그 관리 시스템
         </Typography>
         <Typography variant="body2" component="span" sx={{ mr: 1 }}>
-          환영합니다, {username || ''}님
+          {greeting}
         </Typography>
         <Button
           color="inherit"

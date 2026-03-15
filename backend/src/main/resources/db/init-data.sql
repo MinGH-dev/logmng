@@ -22,13 +22,17 @@ ON CONFLICT (code) DO NOTHING;
 -- is_system_admin: 요건 20250303-permission-group-delete-system-admin-protection (시스템 관리자 보호)
 -- Dev only: password_hash에 평문 저장. 운영 환경에서는 BCrypt 등 해시 사용.
 -- 테스트 비밀번호: admin=admin123, user1/user2/user3=user123
-INSERT INTO app_user (username, password_hash, role, department_code, position, rank, is_system_admin)
+-- id: admin=20269999, 나머지 사용자=20260001부터 1씩 증가 (user1=20260001, user2=20260002, user3=20260003)
+-- name: 사용자명(표시명). 요건 20260316-login-id-user-name-display. NULL이면 username으로 fallback.
+INSERT INTO app_user (id, username, password_hash, role, department_code, position, rank, name, is_system_admin)
 VALUES
-    ('admin', 'admin123', 'ADMIN', NULL, NULL, NULL, true),
-    ('user1', 'user123', 'USER', 'TEAM_SALES_A1', '팀장', '부장', false),
-    ('user2', 'user123', 'USER', 'TEAM_SALES_A1', '대리', '대리', false),
-    ('user3', 'user123', 'USER', 'TEAM_RESEARCH_1', NULL, '사원', false)
+    (20269999, 'admin', 'admin123', 'ADMIN', NULL, NULL, NULL, NULL, true),
+    (20260001, 'user1', 'user123', 'USER', 'TEAM_SALES_A1', '팀장', '부장', '홍길동', false),
+    (20260002, 'user2', 'user123', 'USER', 'TEAM_SALES_A1', '대리', '대리', NULL, false),
+    (20260003, 'user3', 'user123', 'USER', 'TEAM_RESEARCH_1', NULL, '사원', NULL, false)
 ON CONFLICT (username) DO NOTHING;
+-- Sync sequence so next INSERT gets 20260004+
+SELECT setval(pg_get_serial_sequence('app_user', 'id'), (SELECT COALESCE(MAX(id), 20260001) FROM app_user));
 
 -- Ensure admin is system admin (idempotent; for re-run or migration backfill)
 UPDATE app_user SET is_system_admin = true WHERE username = 'admin';
@@ -45,6 +49,9 @@ UPDATE app_user SET position = '대리' WHERE username = 'user2';
 UPDATE app_user SET rank = '부장' WHERE username = 'user1';
 UPDATE app_user SET rank = '대리' WHERE username = 'user2';
 UPDATE app_user SET rank = '사원' WHERE username = 'user3';
+
+-- 기존 사용자 name 샘플 (요건 20260316-login-id-user-name-display; 검증용)
+UPDATE app_user SET name = '홍길동' WHERE username = 'user1';
 
 -- 결재자: user1 = 전역 결재자(department_code NULL). app_user 삽입 후 실행. 재실행 시 idempotent.
 -- Remove stale approvers not in init-data (req 20250227-user2-approver-display-bugfix)

@@ -14,6 +14,7 @@ import java.util.List;
 public class UserPermissionSummary {
 
     private String userId;
+    private String userName;
     private String role;
     private String position;
     private String rank;
@@ -33,7 +34,15 @@ public class UserPermissionSummary {
     }
 
     public UserPermissionSummary(String userId, String role, String position, String rank, List<PermissionGroupSummary> permissionGroups, boolean isSystemAdmin) {
+        this(userId, (String) null, role, position, rank, permissionGroups, isSystemAdmin);
+    }
+
+    /**
+     * Full constructor including display name (userName). userName = app_user.name when not blank, else userId.
+     */
+    public UserPermissionSummary(String userId, String userName, String role, String position, String rank, List<PermissionGroupSummary> permissionGroups, boolean isSystemAdmin) {
         this.userId = userId;
+        this.userName = (userName != null && !userName.isBlank()) ? userName : userId;
         this.role = role;
         this.position = position;
         this.rank = rank;
@@ -47,6 +56,14 @@ public class UserPermissionSummary {
 
     public void setUserId(String userId) {
         this.userId = userId;
+    }
+
+    public String getUserName() {
+        return userName;
+    }
+
+    public void setUserName(String userName) {
+        this.userName = userName;
     }
 
     @JsonIgnore

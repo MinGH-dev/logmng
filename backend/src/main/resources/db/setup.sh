@@ -56,10 +56,20 @@ psql -U "$DB_SUPERUSER" -h $DB_HOST -p $DB_PORT -d $DB_NAME -f "$(dirname "$0")/
 psql -U "$DB_SUPERUSER" -h $DB_HOST -p $DB_PORT -d $DB_NAME -f "$(dirname "$0")/schema_user_activity_log.sql"
 echo "   ✅ 스키마 생성 완료"
 
+# app_user.name 컬럼 추가 (요건 20260316-login-id-user-name-display). 기존 DB에만 적용; idempotent.
+echo "4b. app_user name 컬럼 마이그레이션 적용 중..."
+psql -U "$DB_SUPERUSER" -h $DB_HOST -p $DB_PORT -d $DB_NAME -f "$(dirname "$0")/migrate-app-user-name-2026.sql"
+echo "   ✅ app_user name 마이그레이션 완료"
+
 # 초기 데이터 삽입
 echo "5. 초기 샘플 데이터 삽입 중..."
 psql -U "$DB_SUPERUSER" -h $DB_HOST -p $DB_PORT -d $DB_NAME -f "$(dirname "$0")/init-data.sql"
 echo "   ✅ 초기 데이터 삽입 완료"
+
+# app_user.id 부여: admin=20269999, 나머지=20260001부터 (기존 DB 재설정 시 또는 마이그레이션)
+echo "6. app_user id 마이그레이션 (admin=20269999, 기타=20260001~) 적용 중..."
+psql -U "$DB_SUPERUSER" -h $DB_HOST -p $DB_PORT -d $DB_NAME -f "$(dirname "$0")/migrate-app-user-id-2026.sql"
+echo "   ✅ app_user id 마이그레이션 완료"
 
 echo ""
 echo "=== 설정 완료 ==="

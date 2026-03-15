@@ -38,7 +38,7 @@ class AuthServiceTest {
         try (Connection conn = java.sql.DriverManager.getConnection(H2_URL);
              Statement stmt = conn.createStatement()) {
             stmt.execute("CREATE TABLE IF NOT EXISTS app_user (" +
-                    "username VARCHAR(100) PRIMARY KEY, password_hash VARCHAR(255), is_system_admin BOOLEAN, department_code VARCHAR(50))");
+                    "username VARCHAR(100) PRIMARY KEY, password_hash VARCHAR(255), is_system_admin BOOLEAN, department_code VARCHAR(50), name VARCHAR(200))");
             stmt.execute("CREATE TABLE IF NOT EXISTS permission_group_screen (" +
                     "permission_group_id BIGINT, screen_id VARCHAR(100), scope VARCHAR(20), read BOOLEAN, write BOOLEAN, approve BOOLEAN, decrypt BOOLEAN)");
             stmt.execute("CREATE TABLE IF NOT EXISTS app_user_permission_group (" +
@@ -65,13 +65,18 @@ class AuthServiceTest {
     }
 
     private void insertUser(String username, String passwordHash, boolean isSystemAdmin, String departmentCode) throws Exception {
+        insertUser(username, passwordHash, isSystemAdmin, departmentCode, null);
+    }
+
+    private void insertUser(String username, String passwordHash, boolean isSystemAdmin, String departmentCode, String name) throws Exception {
         try (Connection conn = dataSource.getConnection();
              PreparedStatement ps = conn.prepareStatement(
-                     "INSERT INTO app_user (username, password_hash, is_system_admin, department_code) VALUES (?, ?, ?, ?)")) {
+                     "INSERT INTO app_user (username, password_hash, is_system_admin, department_code, name) VALUES (?, ?, ?, ?, ?)")) {
             ps.setString(1, username);
             ps.setString(2, passwordHash);
             ps.setBoolean(3, isSystemAdmin);
             ps.setString(4, departmentCode);
+            ps.setString(5, name);
             ps.executeUpdate();
         }
     }
@@ -89,6 +94,21 @@ class AuthServiceTest {
         assertThat(response.getSelfContext().getDepartment()).isEqualTo("D01");
         assertThat(response.getSelfContext().getUsername()).isEqualTo("self-user");
         assertThat(response.getSelfContext().getUserId()).isEqualTo("self-user");
+    }
+
+    @Test
+    void login_whenAppUserNameSet_selfContextUsernameIsDisplayName() throws Exception {
+        insertUser("display-user", "pw", false, "D01", "홍길동");
+
+        MockHttpServletRequest request = new MockHttpServletRequest();
+        request.setRemoteAddr("127.0.0.1");
+
+        LoginResponse response = authService.login(new LoginRequest("display-user", "pw"), request);
+
+        assertThat(response.getSelfContext()).isNotNull();
+        assertThat(response.getSelfContext().getUserId()).isEqualTo("display-user");
+        assertThat(response.getSelfContext().getUsername()).isEqualTo("홍길동");
+        assertThat(response.getSelfContext().getDepartment()).isEqualTo("D01");
     }
 
     @Test
@@ -110,5 +130,24 @@ class AuthServiceTest {
         assertThat(response.getSelfContext().getDepartment()).isEqualTo("OPS");
         assertThat(response.getSelfContext().getUsername()).isEqualTo("session-user");
         assertThat(response.getSelfContext().getUserId()).isEqualTo("session-user");
+    }
+
+    @Test
+    void getCurrentUserInfo_whenAppUserNameSet_returnsDisplayNameInSelfContext() throws Exception {
+        insertUser("me-user", "pw", false, "OPS", "Display Name");
+
+        MockHttpServletRequest request = new MockHttpServletRequest();
+        MockHttpSession session = new MockHttpSession();
+        request.setSession(session);
+        session.setAttribute("userId", "me-user");
+        session.setAttribute("username", "me-user");
+        session.setAttribute("isSystemAdmin", false);
+
+        LoginResponse response = authService.getCurrentUserInfo(request);
+
+        assertThat(response).isNotNull();
+        assertThat(response.getSelfContext()).isNotNull();
+        assertThat(response.getSelfContext().getUserId()).isEqualTo("me-user");
+        assertThat(response.getSelfContext().getUsername()).isEqualTo("Display Name");
     }
 }

@@ -166,8 +166,8 @@ public class AuthService {
 
     /**
      * Resolves the authoritative current-user self-context for self-scoped filter display.
-     * `userId` remains the canonical `app_user.username`, and `username` display reuses the
-     * authenticated username until a separate profile/display-name field exists.
+     * Department is the display name from department.name when available, else department_code.
+     * `userId` remains the canonical `app_user.username`.
      */
     protected LoginResponse.SelfContext resolveSelfContext(String username) {
         if (username == null || username.isBlank()) {
@@ -176,13 +176,20 @@ public class AuthService {
 
         String normalizedUsername = username.trim();
         String department = null;
+        String displayName = normalizedUsername;
         try (Connection conn = dataSource.getConnection()) {
-            String sql = "SELECT department_code FROM app_user WHERE username = ? LIMIT 1";
+            String sql = "SELECT u.department_code, d.name AS department_name, u.name AS user_name " +
+                    "FROM app_user u LEFT JOIN department d ON u.department_code = d.code " +
+                    "WHERE u.username = ? LIMIT 1";
             try (PreparedStatement ps = conn.prepareStatement(sql)) {
                 ps.setString(1, normalizedUsername);
                 try (ResultSet rs = ps.executeQuery()) {
                     if (rs.next()) {
-                        department = rs.getString("department_code");
+                        String code = rs.getString("department_code");
+                        String deptName = rs.getString("department_name");
+                        department = (deptName != null && !deptName.isBlank()) ? deptName : (code != null ? code : "");
+                        String appUserName = rs.getString("user_name");
+                        displayName = (appUserName != null && !appUserName.isBlank()) ? appUserName : normalizedUsername;
                     }
                 }
             }
@@ -190,7 +197,7 @@ public class AuthService {
             log.warn("selfContext 조회 실패: username={}", normalizedUsername, e);
         }
 
-        return new LoginResponse.SelfContext(department, normalizedUsername, normalizedUsername);
+        return new LoginResponse.SelfContext(department != null ? department : "", displayName, normalizedUsername);
     }
 
     /**

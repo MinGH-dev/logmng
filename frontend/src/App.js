@@ -277,7 +277,8 @@ function App() {
           <AppBar
             sidebarOpen={sidebarOpen}
             onToggleSidebar={() => setSidebarOpen((o) => !o)}
-            username={user?.username}
+            teamName={user?.selfContext?.department ?? ''}
+            userName={user?.selfContext?.username ?? user?.username ?? ''}
             onLogout={handleLogout}
           />
           <Box sx={{ flex: 1, p: 2, mt: 7, overflowY: 'auto', minHeight: 0 }}>
