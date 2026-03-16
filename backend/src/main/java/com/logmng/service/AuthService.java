@@ -37,28 +37,31 @@ public class AuthService {
     private final DataSource dataSource;
     private final PermissionGroupService permissionGroupService;
     private final DecryptApproverService decryptApproverService;
+    private final AppUserResolver appUserResolver;
 
     @Value("${app.security.authorized-ips:127.0.0.1,localhost,0:0:0:0:0:0:0:1}")
     private String authorizedIPs;
 
     public AuthService(IpUtil ipUtil, DataSource dataSource, PermissionGroupService permissionGroupService,
-                      DecryptApproverService decryptApproverService) {
+                      DecryptApproverService decryptApproverService, AppUserResolver appUserResolver) {
         this.ipUtil = ipUtil;
         this.dataSource = dataSource;
         this.permissionGroupService = permissionGroupService;
         this.decryptApproverService = decryptApproverService;
+        this.appUserResolver = appUserResolver;
     }
 
     /**
-     * 로그인 처리. app_user에서 username/password_hash/role 조회 후 비밀번호 검증.
+     * 로그인 처리. app_user에서 id로 조회 후 비밀번호 검증.
+     * 계약: 요청은 userId (app_user.id)와 password만 사용.
      * (개발 환경: password_hash에 평문 저장 시 그대로 비교)
      */
     public LoginResponse login(LoginRequest request, HttpServletRequest httpRequest) {
-        String username = request.getUsername();
+        Long userId = request.getUserId();
         String password = request.getPassword();
 
         String clientIP = ipUtil.getClientIP(httpRequest);
-        log.info("로그인 시도 - IP: {}, 사용자명: {}", clientIP, username);
+        log.info("로그인 시도 - IP: {}, 사용자 ID: {}", clientIP, userId);
 
         if (!ipUtil.isAuthorizedIP(clientIP, authorizedIPs)) {
             log.warn("인가되지 않은 IP에서 로그인 시도: {}", clientIP);
@@ -68,48 +71,57 @@ public class AuthService {
             );
         }
 
+        if (userId == null) {
+            throw CustomException.unauthorized(
+                    "사용자 ID와 비밀번호를 확인해주세요.",
+                    "INVALID_CREDENTIALS"
+            );
+        }
+
+        String username = null;
         String passwordHash = null;
         boolean isSystemAdmin = false;
         try (Connection conn = dataSource.getConnection()) {
-            String sql = "SELECT username, password_hash, is_system_admin FROM app_user WHERE username = ?";
+            String sql = "SELECT id, username, password_hash, is_system_admin FROM app_user WHERE id = ?";
             try (PreparedStatement ps = conn.prepareStatement(sql)) {
-                ps.setString(1, username);
+                ps.setLong(1, userId);
                 try (ResultSet rs = ps.executeQuery()) {
                     if (!rs.next()) {
-                        log.warn("로그인 실패: 사용자 없음 ({})", username);
+                        log.warn("로그인 실패: 사용자 없음 (id={})", userId);
                         throw CustomException.unauthorized(
-                                "인증 정보가 올바르지 않습니다. 사용자명과 비밀번호를 다시 확인해주세요.",
+                                "사용자 ID와 비밀번호를 확인해주세요.",
                                 "INVALID_CREDENTIALS"
                         );
                     }
+                    username = rs.getString("username");
                     passwordHash = rs.getString("password_hash");
                     isSystemAdmin = Boolean.TRUE.equals(rs.getObject("is_system_admin", Boolean.class));
                 }
             }
         } catch (SQLException e) {
-            log.error("로그인 조회 실패: username={}", username, e);
+            log.error("로그인 조회 실패: userId={}", userId, e);
             throw CustomException.unauthorized(
-                    "인증 정보가 올바르지 않습니다. 사용자명과 비밀번호를 다시 확인해주세요.",
+                    "사용자 ID와 비밀번호를 확인해주세요.",
                     "INVALID_CREDENTIALS"
             );
         }
-        if (passwordHash == null) {
+        if (passwordHash == null || username == null) {
             throw CustomException.unauthorized(
-                    "인증 정보가 올바르지 않습니다. 사용자명과 비밀번호를 다시 확인해주세요.",
+                    "사용자 ID와 비밀번호를 확인해주세요.",
                     "INVALID_CREDENTIALS"
             );
         }
 
         // 개발: password_hash에 평문 저장 시 비교. 추후 BCrypt 등으로 교체 가능.
         if (!password.equals(passwordHash)) {
-            log.warn("로그인 실패: 비밀번호 불일치 ({})", username);
+            log.warn("로그인 실패: 비밀번호 불일치 (id={})", userId);
             throw CustomException.unauthorized(
-                    "인증 정보가 올바르지 않습니다. 사용자명과 비밀번호를 다시 확인해주세요.",
+                    "사용자 ID와 비밀번호를 확인해주세요.",
                     "INVALID_CREDENTIALS"
             );
         }
 
-        log.info("로그인 성공: {} isSystemAdmin={} (IP: {})", username, isSystemAdmin, clientIP);
+        log.info("로그인 성공: 사용자 ID: {} isSystemAdmin={} (IP: {})", userId, isSystemAdmin, clientIP);
 
         LoginResponse response = new LoginResponse();
         response.setUsername(username);
@@ -203,7 +215,8 @@ public class AuthService {
     }
 
     /**
-     * Returns current user info (username, isSystemAdmin, allowedScreenIds) from session. For GET /api/auth/me.
+     * Returns current user info from session. For GET /api/auth/me.
+     * Session stores userId (Long); resolves to username via AppUserResolver for permission/selfContext.
      */
     public LoginResponse getCurrentUserInfo(HttpServletRequest request) {
         if (!checkAuth(request)) {
@@ -211,11 +224,32 @@ public class AuthService {
         }
         jakarta.servlet.http.HttpSession session = request.getSession(false);
         if (session == null) return null;
-        Object username = session.getAttribute("username");
-        Object isSystemAdmin = session.getAttribute("isSystemAdmin");
-        if (username == null || username.toString().isBlank()) return null;
-        String uname = username.toString();
-        boolean sysAdmin = Boolean.TRUE.equals(isSystemAdmin);
+        Object sid = session.getAttribute("userId");
+        Long sessionUserId = null;
+        if (sid instanceof Long) {
+            sessionUserId = (Long) sid;
+        } else if (sid instanceof Number) {
+            sessionUserId = ((Number) sid).longValue();
+        }
+        if (sessionUserId == null) {
+            Object username = session.getAttribute("username");
+            if (username != null && !username.toString().isBlank()) {
+                String uname = username.toString();
+                boolean sysAdmin = Boolean.TRUE.equals(session.getAttribute("isSystemAdmin"));
+                LoginResponse resp = new LoginResponse();
+                resp.setUsername(uname);
+                resp.setIsSystemAdmin(sysAdmin);
+                resp.setAllowedScreenIds(resolveAllowedScreenIds(uname, sysAdmin));
+                resp.setScreenScopes(resolveScreenScopes(uname, sysAdmin));
+                resp.setScreenFunctions(resolveScreenFunctions(uname, sysAdmin));
+                resp.setSelfContext(resolveSelfContext(uname));
+                return resp;
+            }
+            return null;
+        }
+        String uname = appUserResolver.getUsernameById(sessionUserId);
+        if (uname == null || uname.isBlank()) return null;
+        boolean sysAdmin = Boolean.TRUE.equals(session.getAttribute("isSystemAdmin"));
         LoginResponse resp = new LoginResponse();
         resp.setUsername(uname);
         resp.setIsSystemAdmin(sysAdmin);
@@ -373,7 +407,7 @@ public class AuthService {
      * 인증 상태 확인 (세션 기반)
      *
      * @param request HTTP 요청 (세션 확인용, null이면 false)
-     * @return 인증 여부 (세션에 userId 또는 username이 있으면 true)
+     * @return 인증 여부 (세션에 userId(Long) 또는 username이 있으면 true)
      */
     public boolean checkAuth(HttpServletRequest request) {
         if (request == null) {

@@ -369,6 +369,15 @@ curl -s -b c.txt "http://localhost:9200/api/search-history?userId=20260002&page=
 - **TC-05 integration 500**: Caused by negative OFFSET in activity-log search (pagination), not by userId. Left as pre-existing; no bugfix child for this requirement.
 - **Browser TC-09/TC-10**: Sidebar menu click intercepted; no failure of userId display logic. Manual or different browser tool can re-check "사용자 ID" numeric display on user management / activity log / statistics / search-history screens.
 
+### Login by app_user.id only (follow-up)
+
+Contract and api-definition were updated so login uses **userId (number)** and **password** only; username is no longer accepted. Verification (2026-03-16):
+
+- **Backend**: `mvn test` — 92 passed. Backend JAR rebuilt (`mvn package -DskipTests`), restart done.
+- **Frontend**: `npm test -- --watchAll=false` — 12 suites, 42 passed, 1 failed (ScreenSelectionTree.test.js act deprecation; unrelated to login).
+- **Health**: backend 9200 → 200, frontend 3001 → 200.
+- **API**: `POST /api/auth/login` with `{"userId": 20260001, "password": "user123"}` → 200, `user.selfContext.userId` = 20260001. With `{"username": "user1", "password": "user123"}` → 400 (사용자 ID는 필수입니다). **Pass.**
+
 ### Next steps
 
 - None; requirement verified. Commit per commit-on-complete.md.

@@ -2,6 +2,8 @@ package com.logmng.aspect;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.logmng.annotation.ActivityLog;
+import com.logmng.dto.response.LoginResponse;
+import com.logmng.service.AuthService;
 import com.logmng.service.UserActivityLogService;
 import jakarta.servlet.http.HttpServletRequest;
 import org.aspectj.lang.ProceedingJoinPoint;
@@ -28,10 +30,12 @@ public class ActivityLogAspect {
     private static final Logger log = LoggerFactory.getLogger(ActivityLogAspect.class);
     
     private final UserActivityLogService userActivityLogService;
+    private final AuthService authService;
     private final ObjectMapper objectMapper;
     
-    public ActivityLogAspect(UserActivityLogService userActivityLogService) {
+    public ActivityLogAspect(UserActivityLogService userActivityLogService, AuthService authService) {
         this.userActivityLogService = userActivityLogService;
+        this.authService = authService;
         this.objectMapper = new ObjectMapper();
     }
     
@@ -90,7 +94,7 @@ public class ActivityLogAspect {
             
             HttpServletRequest request = attributes.getRequest();
             
-            // 사용자 정보 가져오기 (세션 또는 헤더에서)
+            // 사용자 정보 (AuthService가 세션 userId(Long)를 username으로 해석; user_activity_log.user_id = app_user.username)
             String userId = getUserId(request);
             String username = getUsername(request);
             
@@ -346,93 +350,37 @@ public class ActivityLogAspect {
     }
     
     /**
-     * 사용자 ID 가져오기 (세션 또는 헤더에서)
+     * 활동 이력용 user_id (app_user.username). 세션 userId(Long)는 AuthService에서 username으로 해석.
      */
     private String getUserId(HttpServletRequest request) {
-        try {
-            // 세션에서 사용자 정보 가져오기
-            jakarta.servlet.http.HttpSession session = request.getSession(false);
-            if (session != null) {
-                Object userId = session.getAttribute("userId");
-                if (userId != null) {
-                    log.info("✅ 세션에서 사용자 ID 가져옴: {}, 세션 ID: {}", userId, session.getId());
-                    return userId.toString();
-                } else {
-                    log.warn("⚠️ 세션에 userId 속성이 없음. 세션 ID: {}", session.getId());
-                    // 세션의 모든 속성 로깅 (디버깅용)
-                    java.util.Enumeration<String> attrNames = session.getAttributeNames();
-                    java.util.List<String> attributes = new java.util.ArrayList<>();
-                    while (attrNames.hasMoreElements()) {
-                        String attrName = attrNames.nextElement();
-                        attributes.add(attrName);
-                        log.debug("세션 속성: {} = {}", attrName, session.getAttribute(attrName));
-                    }
-                    if (attributes.isEmpty()) {
-                        log.warn("⚠️ 세션에 속성이 전혀 없음");
-                    }
-                }
-            } else {
-                // 세션이 없으면 쿠키 확인
-                jakarta.servlet.http.Cookie[] cookies = request.getCookies();
-                if (cookies != null) {
-                    for (jakarta.servlet.http.Cookie cookie : cookies) {
-                        if ("JSESSIONID".equals(cookie.getName())) {
-                            log.warn("⚠️ JSESSIONID 쿠키는 있지만 세션이 존재하지 않음. 쿠키 값: {}", cookie.getValue());
-                            break;
-                        }
-                    }
-                } else {
-                    log.warn("⚠️ 세션이 존재하지 않음 (쿠키도 없음)");
-                }
-            }
-            
-            // 헤더에서 가져오기
-            String userIdHeader = request.getHeader("X-User-Id");
-            if (userIdHeader != null && !userIdHeader.isEmpty()) {
-                log.info("✅ 헤더에서 사용자 ID 가져옴: {}", userIdHeader);
-                return userIdHeader;
-            }
-            
-            log.warn("⚠️ 사용자 ID를 찾을 수 없음 (세션: {}, 헤더: {})", 
-                    session != null ? "존재" : "없음", userIdHeader);
-        } catch (Exception e) {
-            log.error("사용자 ID 가져오기 실패: {}", e.getMessage(), e);
+        LoginResponse user = authService.getCurrentUserInfo(request);
+        if (user != null && user.getUsername() != null && !user.getUsername().isBlank()) {
+            return user.getUsername();
         }
-        
+        if (request != null) {
+            String header = request.getHeader("X-User-Id");
+            if (header != null && !header.isEmpty()) return header;
+        }
         return null;
     }
     
     /**
-     * 사용자명 가져오기 (세션 또는 헤더에서)
+     * 활동 이력용 표시 이름 (selfContext.username = app_user.name or app_user.username).
      */
     private String getUsername(HttpServletRequest request) {
-        try {
-            // 세션에서 사용자 정보 가져오기 (세션이 없으면 생성하지 않음)
-            jakarta.servlet.http.HttpSession session = request.getSession(false);
-            if (session != null) {
-                Object username = session.getAttribute("username");
-                if (username != null) {
-                    log.info("✅ 세션에서 사용자명 가져옴: {}", username);
-                    return username.toString();
-                } else {
-                    log.warn("⚠️ 세션에 username 속성이 없음");
-                }
-            } else {
-                log.warn("⚠️ 세션이 존재하지 않음");
+        LoginResponse user = authService.getCurrentUserInfo(request);
+        if (user != null) {
+            if (user.getSelfContext() != null && user.getSelfContext().getUsername() != null) {
+                return user.getSelfContext().getUsername();
             }
-            
-            // 헤더에서 가져오기
-            String usernameHeader = request.getHeader("X-Username");
-            if (usernameHeader != null && !usernameHeader.isEmpty()) {
-                log.info("✅ 헤더에서 사용자명 가져옴: {}", usernameHeader);
-                return usernameHeader;
+            if (user.getUsername() != null && !user.getUsername().isBlank()) {
+                return user.getUsername();
             }
-            
-            log.warn("⚠️ 사용자명을 찾을 수 없음");
-        } catch (Exception e) {
-            log.error("사용자명 가져오기 실패: {}", e.getMessage(), e);
         }
-        
+        if (request != null) {
+            String header = request.getHeader("X-Username");
+            if (header != null && !header.isEmpty()) return header;
+        }
         return null;
     }
     

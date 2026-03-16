@@ -32,7 +32,7 @@ class AuthControllerTest {
     void login_returnsSelfContextInUserPayload() throws Exception {
         mockMvc.perform(post("/api/auth/login")
                         .contentType("application/json")
-                        .content("{\"username\":\"self-user\",\"password\":\"pw\"}"))
+                        .content("{\"userId\":20260001,\"password\":\"user123\"}"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success").value(true))
                 .andExpect(jsonPath("$.data.user.selfContext.department").value("D01"))
@@ -64,7 +64,7 @@ class AuthControllerTest {
     private static final class StubAuthService extends AuthService {
 
         private StubAuthService() {
-            super(null, null, null, null);
+            super(null, null, null, null, null);
         }
 
         @Override

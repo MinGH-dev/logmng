@@ -3,7 +3,7 @@
 현재 백엔드에 구현된 API 목록 및 요청/응답 규격이다.  
 **베이스 URL**: `http://localhost:9200/api` (환경·포트는 `docs/contract.md` 참고).
 
-**User ID (userId)**: 요청/응답/경로/쿼리에서 **`userId`**는 **numeric** **`app_user.id`**(JSON type: number, 예: 20269999, 20260001)이다. 로그인 식별자는 `app_user.username`이며, 로그인 요청 body 필드명은 `username`으로 유지한다. **Breaking change**: 동일 릴리즈부터 클라이언트는 모든 API의 userId를 숫자 타입으로 처리해야 하며, 문자열(username) 기반 userId는 지원하지 않는다.
+**User ID (userId)**: 요청/응답/경로/쿼리에서 **`userId`**는 **numeric** **`app_user.id`**(JSON type: number, 예: 20269999, 20260001)이다. 로그인 시 사용자 식별은 **userId (numeric)** 만 사용하며, username(문자열)으로는 로그인할 수 없다. **Breaking change**: 동일 릴리즈부터 클라이언트는 모든 API의 userId를 숫자 타입으로 처리해야 하며, 문자열(username) 기반 userId는 지원하지 않는다.
 
 ---
 
@@ -31,11 +31,12 @@
 ### 2.1 로그인
 
 - **POST** `/api/auth/login`
+- 로그인 시 사용자 식별은 **userId (numeric)** 만 사용하며, username(문자열)으로는 로그인할 수 없다.
 - **Request body** (JSON)
 
 | 필드 | 타입 | 필수 | 설명 |
 |------|------|------|------|
-| username | string | O | **사용자 ID**(로그인 ID, `app_user.username`). API 호환을 위해 필드명은 `username` 유지. |
+| userId | number | O | **사용자 ID** (numeric `app_user.id`, 예: 20269999, 20260001). 로그인은 이 숫자 ID로만 가능. |
 | password | string | O | 비밀번호 |
 
 - **Response (data)**: `{ "user": LoginResponse }`

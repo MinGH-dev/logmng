@@ -30,7 +30,8 @@ class AuthServiceTest {
                 new IpUtil(),
                 dataSource,
                 new PermissionGroupService(dataSource, new AppUserResolver(dataSource)),
-                new DecryptApproverService(dataSource, new DepartmentService(dataSource)));
+                new DecryptApproverService(dataSource, new DepartmentService(dataSource)),
+                new AppUserResolver(dataSource));
     }
 
     private static DataSource createH2DataSource() throws Exception {
@@ -94,7 +95,7 @@ class AuthServiceTest {
         MockHttpServletRequest request = new MockHttpServletRequest();
         request.setRemoteAddr("127.0.0.1");
 
-        LoginResponse response = authService.login(new LoginRequest("self-user", "pw"), request);
+        LoginResponse response = authService.login(new LoginRequest(20260001L, "pw"), request);
 
         assertThat(response.getSelfContext()).isNotNull();
         assertThat(response.getSelfContext().getDepartment()).isEqualTo("D01");
@@ -109,7 +110,7 @@ class AuthServiceTest {
         MockHttpServletRequest request = new MockHttpServletRequest();
         request.setRemoteAddr("127.0.0.1");
 
-        LoginResponse response = authService.login(new LoginRequest("display-user", "pw"), request);
+        LoginResponse response = authService.login(new LoginRequest(20260002L, "pw"), request);
 
         assertThat(response.getSelfContext()).isNotNull();
         assertThat(response.getSelfContext().getUserId()).isEqualTo(20260002L);
@@ -124,8 +125,7 @@ class AuthServiceTest {
         MockHttpServletRequest request = new MockHttpServletRequest();
         MockHttpSession session = new MockHttpSession();
         request.setSession(session);
-        session.setAttribute("userId", "session-user");
-        session.setAttribute("username", "session-user");
+        session.setAttribute("userId", 20260003L);
         session.setAttribute("isSystemAdmin", false);
 
         LoginResponse response = authService.getCurrentUserInfo(request);
@@ -145,8 +145,7 @@ class AuthServiceTest {
         MockHttpServletRequest request = new MockHttpServletRequest();
         MockHttpSession session = new MockHttpSession();
         request.setSession(session);
-        session.setAttribute("userId", "me-user");
-        session.setAttribute("username", "me-user");
+        session.setAttribute("userId", 20260004L);
         session.setAttribute("isSystemAdmin", false);
 
         LoginResponse response = authService.getCurrentUserInfo(request);
@@ -155,5 +154,31 @@ class AuthServiceTest {
         assertThat(response.getSelfContext()).isNotNull();
         assertThat(response.getSelfContext().getUserId()).isEqualTo(20260004L);
         assertThat(response.getSelfContext().getUsername()).isEqualTo("Display Name");
+    }
+
+    @Test
+    void login_withWrongUserId_throwsInvalidCredentials() throws Exception {
+        insertUser(20260001L, "self-user", "pw", false, "D01", null);
+
+        MockHttpServletRequest request = new MockHttpServletRequest();
+        request.setRemoteAddr("127.0.0.1");
+
+        com.logmng.exception.CustomException ex = org.junit.jupiter.api.Assertions.assertThrows(
+                com.logmng.exception.CustomException.class,
+                () -> authService.login(new LoginRequest(999L, "pw"), request));
+        assertThat(ex.getErrorCode()).isEqualTo("INVALID_CREDENTIALS");
+    }
+
+    @Test
+    void login_withWrongPassword_throwsInvalidCredentials() throws Exception {
+        insertUser(20260001L, "self-user", "pw", false, "D01", null);
+
+        MockHttpServletRequest request = new MockHttpServletRequest();
+        request.setRemoteAddr("127.0.0.1");
+
+        com.logmng.exception.CustomException ex = org.junit.jupiter.api.Assertions.assertThrows(
+                com.logmng.exception.CustomException.class,
+                () -> authService.login(new LoginRequest(20260001L, "wrong"), request));
+        assertThat(ex.getErrorCode()).isEqualTo("INVALID_CREDENTIALS");
     }
 }

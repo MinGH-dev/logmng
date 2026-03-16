@@ -40,20 +40,22 @@ public class AuthController {
             @Valid @RequestBody LoginRequest request,
             HttpServletRequest httpRequest) {
         
-        log.debug("로그인 요청: 사용자명={}", request.getUsername());
+        log.debug("로그인 요청: 사용자 ID={}", request.getUserId());
         
         LoginResponse loginResponse = authService.login(request, httpRequest);
         
-        // 세션에 사용자 정보 및 isSystemAdmin 저장 (관리자 권한 판단용, req 20250303)
+        // 세션에 userId (Long, app_user.id) 및 권한 정보 저장 (req 20250303, 계약: 로그인은 id만 사용)
         jakarta.servlet.http.HttpSession session = httpRequest.getSession(true);
-        session.setAttribute("userId", loginResponse.getUsername());
-        session.setAttribute("username", loginResponse.getUsername());
+        Long numericUserId = loginResponse.getSelfContext() != null ? loginResponse.getSelfContext().getUserId() : null;
+        if (numericUserId != null) {
+            session.setAttribute("userId", numericUserId);
+        }
         session.setAttribute("isSystemAdmin", Boolean.TRUE.equals(loginResponse.getIsSystemAdmin()));
         session.setAttribute("allowedScreenIds", loginResponse.getAllowedScreenIds());
         session.setAttribute("screenScopes", loginResponse.getScreenScopes());
         session.setAttribute("screenFunctions", loginResponse.getScreenFunctions());
         log.info("세션 저장 완료: userId={}, isSystemAdmin={}, sessionId={}",
-                loginResponse.getUsername(), loginResponse.getIsSystemAdmin(), session.getId());
+                numericUserId, loginResponse.getIsSystemAdmin(), session.getId());
         
         Map<String, LoginResponse> data = new HashMap<>();
         data.put("user", loginResponse);

@@ -4,7 +4,7 @@ import logger from '../utils/logger';
 
 const LoginForm = ({ onLogin }) => {
   const [formData, setFormData] = useState({
-    username: '',
+    userId: '',
     password: ''
   });
   const [errors, setErrors] = useState({});
@@ -30,10 +30,18 @@ const LoginForm = ({ onLogin }) => {
   // 로그인 처리
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
-    // 필수 필드 검증
+
+    // 필수 필드 및 userId 숫자 검증
     const newErrors = {};
-    if (!formData.username) newErrors.username = '사용자 ID를 입력해주세요.';
+    const userIdTrimmed = (formData.userId || '').trim();
+    if (!userIdTrimmed) {
+      newErrors.userId = '사용자 ID를 입력해주세요.';
+    } else {
+      const userIdNum = Number(userIdTrimmed);
+      if (Number.isNaN(userIdNum) || !Number.isInteger(userIdNum) || userIdNum < 0) {
+        newErrors.userId = '사용자 ID는 숫자여야 합니다.';
+      }
+    }
     if (!formData.password) newErrors.password = '비밀번호를 입력해주세요.';
 
     if (Object.keys(newErrors).length > 0) {
@@ -50,13 +58,17 @@ const LoginForm = ({ onLogin }) => {
 
     try {
       const apiBaseUrl = process.env.REACT_APP_API_BASE_URL || 'http://localhost:9200/api';
+      const requestBody = {
+        userId: Number(formData.userId),
+        password: formData.password
+      };
       const response = await fetch(`${apiBaseUrl}/auth/login`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         credentials: 'include',
-        body: JSON.stringify(formData),
+        body: JSON.stringify(requestBody),
         signal: controller.signal,
       });
       clearTimeout(timeoutId);
@@ -119,20 +131,22 @@ const LoginForm = ({ onLogin }) => {
         
         <form onSubmit={handleSubmit} className="login-form">
           <div className="form-group">
-            <label htmlFor="username">
+            <label htmlFor="userId">
               사용자 ID <span className="required">*</span>
             </label>
             <input
-              type="text"
-              id="username"
-              name="username"
-              value={formData.username}
+              type="number"
+              id="userId"
+              name="userId"
+              value={formData.userId}
               onChange={handleInputChange}
-              className={errors.username ? 'error' : ''}
-              placeholder="사용자 ID를 입력하세요"
+              className={errors.userId ? 'error' : ''}
+              placeholder="사용자 ID를 입력하세요 (예: 20260001)"
               disabled={loading}
+              inputMode="numeric"
+              step="1"
             />
-            {errors.username && <span className="error-message">{errors.username}</span>}
+            {errors.userId && <span className="error-message">{errors.userId}</span>}
           </div>
 
           <div className="form-group">
