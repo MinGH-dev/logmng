@@ -106,12 +106,12 @@ export const listUsersInGroup = async (groupId) => {
 /**
  * 그룹에 사용자 배정
  * @param {number} groupId
- * @param {string} userId - username
+ * @param {number} userId - app_user.id (numeric)
  */
 export const addUserToGroup = async (groupId, userId) => {
   const response = await fetchWithCreds(`${API_BASE_URL}/permission-groups/${groupId}/users`, {
     method: 'POST',
-    body: JSON.stringify({ userId }),
+    body: JSON.stringify({ userId: Number(userId) }),
   });
   return parseResponse(response);
 };
@@ -119,11 +119,11 @@ export const addUserToGroup = async (groupId, userId) => {
 /**
  * 그룹에서 사용자 제거
  * @param {number} groupId
- * @param {string} userId - username
+ * @param {number} userId - app_user.id (numeric)
  */
 export const removeUserFromGroup = async (groupId, userId) => {
   const response = await fetchWithCreds(
-    `${API_BASE_URL}/permission-groups/${groupId}/users/${encodeURIComponent(userId)}`,
+    `${API_BASE_URL}/permission-groups/${groupId}/users/${encodeURIComponent(String(userId))}`,
     { method: 'DELETE' }
   );
   return parseResponse(response);

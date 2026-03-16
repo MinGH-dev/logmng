@@ -133,6 +133,7 @@ CREATE INDEX IF NOT EXISTS idx_department_parent_sort ON department(parent_code,
 -- 앱 사용자 (복호화 결재자 지정 요건: 20260224-decryption-approver-designation)
 -- position: 요건 20250227-department-approver-position (직책, 팀장 지정 등)
 -- rank: 요건 20250227-remove-department-approver-screen-user-mgmt-improvements (직급)
+-- API/UI canonical user ID = app_user.id (numeric); req 20260316-user-id-numeric-userid-naming.
 CREATE TABLE IF NOT EXISTS app_user (
     id BIGSERIAL PRIMARY KEY,
     username VARCHAR(100) NOT NULL UNIQUE,

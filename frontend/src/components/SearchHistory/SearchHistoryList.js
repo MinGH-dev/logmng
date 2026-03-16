@@ -157,13 +157,21 @@ const SearchHistoryList = ({ onBackToMain, onReSearch, user }) => {
     setLoading(true);
     setError(null);
     try {
-      const result = await getSearchHistoryList({
+      const params = {
         page,
         pageSize,
         sortField: sortConfig.key,
         sortDirection: sortConfig.direction,
-        ...(effectiveRequesterFilters || {}),
-      });
+      };
+      if (effectiveRequesterFilters) {
+        const filters = effectiveRequesterFilters;
+        params.department = filters.department ?? '';
+        params.username = filters.username ?? '';
+        const uid = filters.userId;
+        const userIdNum = (uid !== '' && uid != null && uid !== undefined) ? (typeof uid === 'number' ? uid : Number(uid)) : undefined;
+        params.userId = (userIdNum !== undefined && !Number.isNaN(userIdNum)) ? userIdNum : (filters.userId ?? '');
+      }
+      const result = await getSearchHistoryList(params);
       if (result.success && result.data) {
         setList(result.data.data || []);
         setPagination(result.data.pagination || { currentPage: 1, totalPages: 1, totalCount: 0 });

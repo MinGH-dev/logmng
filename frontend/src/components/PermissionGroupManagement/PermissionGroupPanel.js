@@ -291,11 +291,12 @@ const PermissionGroupPanel = ({ user, onRefreshHierarchy }) => {
 
   const handleAddUserToGroup = async () => {
     if (!usersDialogGroup || !addUserId?.trim()) return;
-    const userId = addUserId.trim();
-    setUsersDialogActionId(userId);
+    const userIdNum = Number(addUserId.trim());
+    if (Number.isNaN(userIdNum)) return;
+    setUsersDialogActionId(String(userIdNum));
     setUsersDialogError(null);
     try {
-      await addUserToGroup(usersDialogGroup.id, userId);
+      await addUserToGroup(usersDialogGroup.id, userIdNum);
       setAddUserId('');
       const list = await listUsersInGroup(usersDialogGroup.id);
       setUsersInGroup(Array.isArray(list) ? list : []);
@@ -310,7 +311,7 @@ const PermissionGroupPanel = ({ user, onRefreshHierarchy }) => {
 
   const handleRemoveUserFromGroup = async (userId) => {
     if (!usersDialogGroup) return;
-    setUsersDialogActionId(userId);
+    setUsersDialogActionId(String(userId));
     setUsersDialogError(null);
     try {
       await removeUserFromGroup(usersDialogGroup.id, userId);
@@ -346,10 +347,10 @@ const PermissionGroupPanel = ({ user, onRefreshHierarchy }) => {
     setUsersDialogError(null);
   }, []);
 
-  const alreadyInGroup = (userId) => usersInGroup.some((u) => (u.userId || u.username) === userId);
+  const alreadyInGroup = (userId) => usersInGroup.some((u) => String(u.userId ?? u.username) === String(userId));
   const addableUsers = userList.filter((u) => {
     const id = u.userId ?? u.username;
-    return id && !alreadyInGroup(id);
+    return id != null && id !== '' && !alreadyInGroup(id);
   });
 
   return (
@@ -557,7 +558,7 @@ const PermissionGroupPanel = ({ user, onRefreshHierarchy }) => {
                   {addableUsers.map((u) => {
                     const id = u.userId ?? u.username;
                     return (
-                      <option key={id} value={id}>
+                      <option key={id} value={String(id)}>
                         {id} {u.departmentCode ? `(${u.departmentCode})` : ''}
                       </option>
                     );
@@ -595,8 +596,8 @@ const PermissionGroupPanel = ({ user, onRefreshHierarchy }) => {
                               <tr key={uid}>
                                 <td>{uid}</td>
                                 <td>
-                                  <button type="button" className="user-management-btn remove" onClick={() => handleRemoveUserFromGroup(uid)} disabled={usersDialogActionId === uid} aria-label={`제거, ${uid}`}>
-                                    {usersDialogActionId === uid ? '처리 중...' : '제거'}
+                                  <button type="button" className="user-management-btn remove" onClick={() => handleRemoveUserFromGroup(uid)} disabled={usersDialogActionId === String(uid)} aria-label={`제거, ${uid}`}>
+                                    {usersDialogActionId === String(uid) ? '처리 중...' : '제거'}
                                   </button>
                                 </td>
                               </tr>

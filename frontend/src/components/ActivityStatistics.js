@@ -9,7 +9,7 @@ import {
   FILTER_OPTION_SCREEN_IDS,
   getDepartmentFilterOptions,
 } from '../services/filterOptionsService';
-import { getSelfContext } from '../utils/security';
+import { getSelfContextForDisplay } from '../utils/security';
 import './ActivityStatistics.css';
 
 const getLockedSelfFilters = (selfContext) => ({
@@ -20,7 +20,7 @@ const getLockedSelfFilters = (selfContext) => ({
 
 const ActivityStatistics = ({ user }) => {
   const isSelfScope = !user?.isSystemAdmin && user?.screenScopes?.statistics === 'self';
-  const selfContext = useMemo(() => getSelfContext(user), [user]);
+  const selfContext = useMemo(() => getSelfContextForDisplay(user), [user]);
   const lockedSelfFilters = getLockedSelfFilters(selfContext);
 
   // 통계 타입: 'daily' 또는 'monthly'

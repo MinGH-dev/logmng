@@ -167,7 +167,7 @@ public class AuthService {
     /**
      * Resolves the authoritative current-user self-context for self-scoped filter display.
      * Department is the display name from department.name when available, else department_code.
-     * `userId` remains the canonical `app_user.username`.
+     * userId = numeric app_user.id (req 20260316-user-id-numeric-userid-naming).
      */
     protected LoginResponse.SelfContext resolveSelfContext(String username) {
         if (username == null || username.isBlank()) {
@@ -177,14 +177,16 @@ public class AuthService {
         String normalizedUsername = username.trim();
         String department = null;
         String displayName = normalizedUsername;
+        Long userId = null;
         try (Connection conn = dataSource.getConnection()) {
-            String sql = "SELECT u.department_code, d.name AS department_name, u.name AS user_name " +
+            String sql = "SELECT u.id, u.department_code, d.name AS department_name, u.name AS user_name " +
                     "FROM app_user u LEFT JOIN department d ON u.department_code = d.code " +
                     "WHERE u.username = ? LIMIT 1";
             try (PreparedStatement ps = conn.prepareStatement(sql)) {
                 ps.setString(1, normalizedUsername);
                 try (ResultSet rs = ps.executeQuery()) {
                     if (rs.next()) {
+                        userId = rs.getObject("id", Long.class);
                         String code = rs.getString("department_code");
                         String deptName = rs.getString("department_name");
                         department = (deptName != null && !deptName.isBlank()) ? deptName : (code != null ? code : "");
@@ -197,7 +199,7 @@ public class AuthService {
             log.warn("selfContext 조회 실패: username={}", normalizedUsername, e);
         }
 
-        return new LoginResponse.SelfContext(department != null ? department : "", displayName, normalizedUsername);
+        return new LoginResponse.SelfContext(department != null ? department : "", displayName, userId);
     }
 
     /**

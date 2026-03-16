@@ -13,7 +13,7 @@ Use this skill when the task changes search/filter UI on user-context screens su
 - Keep user-block ordering consistent across aligned screens.
 - Group titles belong above their fields, not inline.
 - When `scope=self` on an applicable user-context or requester-context screen, keep the block visible and use the wording **visible, fixed to current user, not editable**.
-- Preserve locked self ordering as `department -> username -> userId`.
+- Preserve locked self ordering as `department -> username -> userId`. In API/UI, userId is numeric `app_user.id` (req 20260316-user-id-numeric-userid-naming).
 - Use the authenticated current-user payload or equivalent auth-owned current-user context as the authoritative source for locked self display values.
 - For `activity-log` with `scope=self`, keep frontend request/reset behavior aligned with backend enforcement: visible locked self fields must stay fixed to current-user values, and any client identity values that could widen scope must be cleared, ignored, or normalized consistently with backend enforcement.
 - When aligning activity-log and statistics, keep user-block field size visually consistent across screens.

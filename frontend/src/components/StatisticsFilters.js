@@ -176,25 +176,24 @@ const StatisticsFilters = ({
               compact
               usernameMaxLength={5}
             />
-            {!isSelfScope && (
-              <div className="statistics-filters__extra" role="group" aria-labelledby="statistics-filter-extra-heading">
-                <h4 id="statistics-filter-extra-heading" className="statistics-filters__extra-heading">기타 조건</h4>
-                <div className="statistics-filters__extra-fields">
-                  <div className="form-group">
-                    <label htmlFor="statistics-filter-ip">IP 주소</label>
-                    <input
-                      type="text"
-                      id="statistics-filter-ip"
-                      value={filters.ip || ''}
-                      onChange={(e) => handleFilterChange('ip', e.target.value)}
-                      className="form-control"
-                      placeholder="IP 주소"
-                      aria-label="IP 주소"
-                    />
-                  </div>
+            {/* 기타 조건: scope=self에서도 표시 (req 20260316) */}
+            <div className="statistics-filters__extra" role="group" aria-labelledby="statistics-filter-extra-heading">
+              <h4 id="statistics-filter-extra-heading" className="statistics-filters__extra-heading">기타 조건</h4>
+              <div className="statistics-filters__extra-fields">
+                <div className="form-group">
+                  <label htmlFor="statistics-filter-ip">IP 주소</label>
+                  <input
+                    type="text"
+                    id="statistics-filter-ip"
+                    value={filters.ip || ''}
+                    onChange={(e) => handleFilterChange('ip', e.target.value)}
+                    className="form-control"
+                    placeholder="IP 주소"
+                    aria-label="IP 주소"
+                  />
                 </div>
               </div>
-            )}
+            </div>
             <div className="statistics-filters__actions-row" role="group" aria-label="필터 액션">
               <button type="submit" className="btn btn-primary sf-btn" disabled={loading}>
                 {loading ? '검색 중...' : '검색'}

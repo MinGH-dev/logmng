@@ -37,7 +37,7 @@ describe('UserActivityLogList', () => {
     selfContext: {
       department: '개발부',
       username: '홍길동',
-      userId: '10000001',
+      userId: 20260001,
     },
   });
 
@@ -91,9 +91,10 @@ describe('UserActivityLogList', () => {
     expect(getDepartmentFilterOptions).not.toHaveBeenCalled();
     expect(screen.getByDisplayValue('개발부')).toHaveAttribute('readonly');
     expect(screen.getByDisplayValue('홍길동')).toHaveAttribute('readonly');
-    expect(screen.getByDisplayValue('10000001')).toHaveAttribute('readonly');
-    expect(screen.queryByLabelText('액션 타입')).not.toBeInTheDocument();
-    expect(screen.queryByLabelText('IP 주소')).not.toBeInTheDocument();
+    expect(screen.getByDisplayValue('20260001')).toHaveAttribute('readonly');
+    // req 20260316: 기타 조건(액션 타입, IP 주소) visible when scope=self
+    expect(screen.getByLabelText('액션 타입')).toBeInTheDocument();
+    expect(screen.getByLabelText('IP 주소')).toBeInTheDocument();
 
     expectSanitizedSelfRequest(searchActivityLogs.mock.calls[0][0]);
   });
@@ -145,7 +146,7 @@ describe('UserActivityLogList', () => {
         endDate: '2026-03-13 23:59:59',
         department: '개발부',
         username: 'user2',
-        userId: '12345678',
+        userId: 12345678,
         actionType: 'LOGIN',
         ipAddress: '10.0.0.7',
         page: 1,
@@ -178,7 +179,7 @@ describe('UserActivityLogList', () => {
       expect(searchActivityLogs).toHaveBeenLastCalledWith(expect.objectContaining({
         department: '운영부',
         username: 'other',
-        userId: '87654321',
+        userId: 87654321,
         ipAddress: '192.168.0.10',
       })),
     );
@@ -192,8 +193,9 @@ describe('UserActivityLogList', () => {
     await waitFor(() => {
       expect(screen.getByDisplayValue('개발부')).toHaveAttribute('readonly');
       expect(screen.getByDisplayValue('홍길동')).toHaveAttribute('readonly');
-      expect(screen.getByDisplayValue('10000001')).toHaveAttribute('readonly');
-      expect(screen.queryByLabelText('IP 주소')).not.toBeInTheDocument();
+      expect(screen.getByDisplayValue('20260001')).toHaveAttribute('readonly');
+      // req 20260316: 기타 조건 visible when scope=self
+      expect(screen.getByLabelText('IP 주소')).toBeInTheDocument();
     });
 
     await userEvent.click(screen.getByRole('button', { name: '검색' }));

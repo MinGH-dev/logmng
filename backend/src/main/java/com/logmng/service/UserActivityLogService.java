@@ -106,7 +106,7 @@ public class UserActivityLogService {
      * 사용자 활동 이력 검색
      */
     public UserActivityLogResponse searchActivityLogs(UserActivityLogSearchRequest request) {
-        String normalizedUserId = ScopeHelper.normalizeOptionalParam(request.getUserId());
+        String normalizedUserId = ScopeHelper.normalizeOptionalParam(request.getUserIdForFilter());
         String normalizedUsername = ScopeHelper.normalizeOptionalParam(request.getUsername());
         String normalizedDepartment = ScopeHelper.normalizeDepartmentFilter(request.getDepartment());
         String normalizedIpAddress = ScopeHelper.normalizeOptionalParam(request.getIpAddress());
@@ -119,18 +119,16 @@ public class UserActivityLogService {
         
         try (Connection connection = dataSource.getConnection()) {
             boolean useDepartmentJoin = normalizedDepartment != null;
-            String prefix = useDepartmentJoin ? "u." : "";
+            String prefix = "u.";
 
             StringBuilder sql = new StringBuilder();
-            sql.append("SELECT ").append(prefix).append("id, ").append(prefix).append("user_id, ").append(prefix).append("username, ").append(prefix).append("action_type, ").append(prefix).append("action_detail, ").append(prefix).append("ip_address, ");
+            sql.append("SELECT ").append(prefix).append("id, ").append(prefix).append("user_id, ").append(prefix).append("username, ");
+            sql.append("a.id AS \"userId\", ");
+            sql.append(prefix).append("action_type, ").append(prefix).append("action_detail, ").append(prefix).append("ip_address, ");
             sql.append(prefix).append("user_agent, ").append(prefix).append("request_method, ").append(prefix).append("request_path, ").append(prefix).append("request_params, ");
             sql.append(prefix).append("response_status, ").append(prefix).append("response_time_ms, ").append(prefix).append("success, ").append(prefix).append("error_message, ");
             sql.append(prefix).append("created_at, ").append(prefix).append("updated_at ");
-            if (useDepartmentJoin) {
-                sql.append("FROM user_activity_log u INNER JOIN app_user a ON u.user_id = a.username WHERE 1=1 ");
-            } else {
-                sql.append("FROM user_activity_log WHERE 1=1 ");
-            }
+            sql.append("FROM user_activity_log u LEFT JOIN app_user a ON u.user_id = a.username WHERE 1=1 ");
 
             List<Object> params = new ArrayList<>();
 
@@ -293,11 +291,11 @@ public class UserActivityLogService {
         log.info("🔍 사용자 활동 이력 상세 조회: id={}", id);
         
         try (Connection connection = dataSource.getConnection()) {
-            String sql = "SELECT id, user_id, username, action_type, action_detail, ip_address, " +
-                        "user_agent, request_method, request_path, request_params, " +
-                        "response_status, response_time_ms, success, error_message, " +
-                        "created_at, updated_at " +
-                        "FROM user_activity_log WHERE id = ?";
+            String sql = "SELECT u.id, u.user_id, u.username, a.id AS \"userId\", u.action_type, u.action_detail, u.ip_address, " +
+                        "u.user_agent, u.request_method, u.request_path, u.request_params, " +
+                        "u.response_status, u.response_time_ms, u.success, u.error_message, " +
+                        "u.created_at, u.updated_at " +
+                        "FROM user_activity_log u LEFT JOIN app_user a ON u.user_id = a.username WHERE u.id = ?";
             
             try (PreparedStatement stmt = connection.prepareStatement(sql)) {
                 stmt.setLong(1, id);

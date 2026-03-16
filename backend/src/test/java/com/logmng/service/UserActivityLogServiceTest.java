@@ -44,7 +44,7 @@ class UserActivityLogServiceTest {
         try (Connection conn = java.sql.DriverManager.getConnection(H2_URL);
              Statement stmt = conn.createStatement()) {
             stmt.execute("CREATE TABLE IF NOT EXISTS app_user (" +
-                    "username VARCHAR(100) PRIMARY KEY, department_code VARCHAR(50))");
+                    "id BIGINT, username VARCHAR(100) PRIMARY KEY, department_code VARCHAR(50))");
             stmt.execute("CREATE TABLE IF NOT EXISTS user_activity_log (" +
                     "id BIGINT PRIMARY KEY, user_id VARCHAR(100), username VARCHAR(100), action_type VARCHAR(50), " +
                     "action_detail CLOB, ip_address VARCHAR(100), user_agent VARCHAR(255), request_method VARCHAR(10), " +
@@ -67,9 +67,10 @@ class UserActivityLogServiceTest {
     private void insertAppUser(String username, String departmentCode) throws Exception {
         try (Connection conn = dataSource.getConnection();
              PreparedStatement ps = conn.prepareStatement(
-                     "INSERT INTO app_user (username, department_code) VALUES (?, ?)")) {
-            ps.setString(1, username);
-            ps.setString(2, departmentCode);
+                     "INSERT INTO app_user (id, username, department_code) VALUES (?, ?, ?)")) {
+            ps.setLong(1, 20260001L);
+            ps.setString(2, username);
+            ps.setString(3, departmentCode);
             ps.executeUpdate();
         }
     }
@@ -113,7 +114,7 @@ class UserActivityLogServiceTest {
     @Test
     void searchActivityLogs_scopeSelf_combinedWideningInputsStillReturnsOnlyCurrentUser() {
         UserActivityLogSearchRequest request = newRequest();
-        request.setUserId("outsideUser");
+        request.setUserIdForFilter("outsideUser");
         request.setUsername("Outside User");
         request.setDepartment("전체");
         request.setIpAddress("10.0.0.3");
@@ -129,7 +130,7 @@ class UserActivityLogServiceTest {
     @Test
     void searchActivityLogs_scopeTeam_outOfTeamUserFiltersDoNotWidenResults() {
         UserActivityLogSearchRequest request = newRequest();
-        request.setUserId("outsideUser");
+        request.setUserIdForFilter("outsideUser");
         request.setUsername("Outside User");
         request.setDepartment("all");
 
@@ -143,7 +144,7 @@ class UserActivityLogServiceTest {
     @Test
     void searchActivityLogs_scopeTeam_validSameDepartmentUserIdNarrowsWithinAllowedSet() {
         UserActivityLogSearchRequest request = newRequest();
-        request.setUserId("teamMate");
+        request.setUserIdForFilter("teamMate");
 
         ScopeHelper.applyActivityLogSearchScope(request, "team", "currentUser", List.of("currentUser", "teamMate"));
         UserActivityLogResponse response = userActivityLogService.searchActivityLogs(request);
@@ -155,7 +156,7 @@ class UserActivityLogServiceTest {
     @Test
     void searchActivityLogs_scopeAll_legitimateCrossUserSearchStillWorks() {
         UserActivityLogSearchRequest request = newRequest();
-        request.setUserId("outsideUser");
+        request.setUserIdForFilter("outsideUser");
         request.setUsername("Outside User");
 
         ScopeHelper.applyActivityLogSearchScope(request, "all", "currentUser", null);

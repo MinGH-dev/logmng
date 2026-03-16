@@ -7,13 +7,13 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * User with permission groups for hierarchy node (§14.9). userId, position, rank, permissionGroups, isSystemAdmin
- * role is internal only, not exposed in JSON (req 20250303).
+ * User with permission groups for hierarchy node (§14.9). userId (numeric app_user.id), position, rank, permissionGroups, isSystemAdmin.
+ * role is internal only, not exposed in JSON (req 20250303). Req 20260316: userId = Long.
  */
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public class UserPermissionSummary {
 
-    private String userId;
+    private Long userId;
     private String userName;
     private String role;
     private String position;
@@ -25,24 +25,24 @@ public class UserPermissionSummary {
         this.permissionGroups = new ArrayList<>();
     }
 
-    public UserPermissionSummary(String userId, String role, List<PermissionGroupSummary> permissionGroups) {
-        this(userId, role, null, null, permissionGroups, false);
+    public UserPermissionSummary(Long userId, String role, List<PermissionGroupSummary> permissionGroups) {
+        this(userId, null, role, null, null, permissionGroups, false);
     }
 
-    public UserPermissionSummary(String userId, String role, String position, String rank, List<PermissionGroupSummary> permissionGroups) {
-        this(userId, role, position, rank, permissionGroups, false);
+    public UserPermissionSummary(Long userId, String role, String position, String rank, List<PermissionGroupSummary> permissionGroups) {
+        this(userId, null, role, position, rank, permissionGroups, false);
     }
 
-    public UserPermissionSummary(String userId, String role, String position, String rank, List<PermissionGroupSummary> permissionGroups, boolean isSystemAdmin) {
-        this(userId, (String) null, role, position, rank, permissionGroups, isSystemAdmin);
+    public UserPermissionSummary(Long userId, String role, String position, String rank, List<PermissionGroupSummary> permissionGroups, boolean isSystemAdmin) {
+        this(userId, null, role, position, rank, permissionGroups, isSystemAdmin);
     }
 
     /**
-     * Full constructor including display name (userName). userName = app_user.name when not blank, else userId.
+     * Full constructor including display name (userName). userName = app_user.name when not blank, else username.
      */
-    public UserPermissionSummary(String userId, String userName, String role, String position, String rank, List<PermissionGroupSummary> permissionGroups, boolean isSystemAdmin) {
+    public UserPermissionSummary(Long userId, String userName, String role, String position, String rank, List<PermissionGroupSummary> permissionGroups, boolean isSystemAdmin) {
         this.userId = userId;
-        this.userName = (userName != null && !userName.isBlank()) ? userName : userId;
+        this.userName = (userName != null && !userName.isBlank()) ? userName : (userId != null ? String.valueOf(userId) : null);
         this.role = role;
         this.position = position;
         this.rank = rank;
@@ -50,11 +50,11 @@ public class UserPermissionSummary {
         this.isSystemAdmin = isSystemAdmin;
     }
 
-    public String getUserId() {
+    public Long getUserId() {
         return userId;
     }
 
-    public void setUserId(String userId) {
+    public void setUserId(Long userId) {
         this.userId = userId;
     }
 

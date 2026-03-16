@@ -3,9 +3,11 @@ package com.logmng.controller;
 import com.logmng.dto.request.SearchHistoryListRequest;
 import com.logmng.dto.response.SearchHistoryListResponse;
 import com.logmng.dto.response.UserActivityLogResponse;
+import com.logmng.service.AppUserResolver;
 import com.logmng.service.AuthService;
 import com.logmng.service.DecryptApproverService;
 import com.logmng.service.SearchHistoryService;
+import com.logmng.service.StubAppUserResolver;
 import com.logmng.service.StubDecryptApproverService;
 import com.logmng.util.StubDataSource;
 import org.junit.jupiter.api.BeforeEach;
@@ -31,11 +33,14 @@ class SearchHistoryControllerTest {
         stubService = new CapturingSearchHistoryService();
         DecryptApproverService decryptApproverService = new StubDecryptApproverService();
         AuthService authService = new NoopAuthService();
+        StubAppUserResolver resolver = new StubAppUserResolver(new StubDataSource());
+        resolver.map(20260001L, "requester-1");
         SearchHistoryController controller = new SearchHistoryController(
                 stubService,
                 decryptApproverService,
                 authService,
-                new StubDataSource());
+                new StubDataSource(),
+                resolver);
         mockMvc = MockMvcBuilders.standaloneSetup(controller)
                 .setControllerAdvice(new com.logmng.exception.GlobalExceptionHandler())
                 .build();
@@ -46,7 +51,7 @@ class SearchHistoryControllerTest {
         mockMvc.perform(get("/api/search-history")
                         .param("department", "D01")
                         .param("username", "other name")
-                        .param("userId", "other-user")
+                        .param("userId", "20260002")
                         .param("page", "3")
                         .param("pageSize", "10")
                         .param("sortDirection", "asc")
@@ -73,7 +78,7 @@ class SearchHistoryControllerTest {
         mockMvc.perform(get("/api/search-history")
                         .param("department", " D01 ")
                         .param("username", " alice ")
-                        .param("userId", " requester-1 ")
+                        .param("userId", "20260001")
                         .sessionAttr("userId", "currentUser")
                         .sessionAttr("screenScopes", Map.of("search-history", "all")))
                 .andExpect(status().isOk())

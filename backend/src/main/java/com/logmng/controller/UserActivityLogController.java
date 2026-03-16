@@ -6,6 +6,7 @@ import com.logmng.dto.response.ApiResponse;
 import com.logmng.dto.response.LoginResponse;
 import com.logmng.dto.response.UserActivityLogResponse;
 import com.logmng.exception.CustomException;
+import com.logmng.service.AppUserResolver;
 import com.logmng.service.AuthService;
 import com.logmng.service.UserActivityLogService;
 import com.logmng.util.DepartmentScopeHelper;
@@ -34,11 +35,13 @@ public class UserActivityLogController {
     private final UserActivityLogService userActivityLogService;
     private final AuthService authService;
     private final DataSource dataSource;
+    private final AppUserResolver appUserResolver;
 
-    public UserActivityLogController(UserActivityLogService userActivityLogService, AuthService authService, DataSource dataSource) {
+    public UserActivityLogController(UserActivityLogService userActivityLogService, AuthService authService, DataSource dataSource, AppUserResolver appUserResolver) {
         this.userActivityLogService = userActivityLogService;
         this.authService = authService;
         this.dataSource = dataSource;
+        this.appUserResolver = appUserResolver;
     }
     
     /**
@@ -56,6 +59,13 @@ public class UserActivityLogController {
         LoginResponse userInfo = authService.getCurrentUserInfo(httpRequest);
         if (userInfo == null) {
             throw CustomException.unauthorized("로그인이 필요합니다.", "UNAUTHORIZED");
+        }
+        if (request.getUserId() != null) {
+            String username = appUserResolver.getUsernameById(request.getUserId());
+            if (username == null) {
+                throw CustomException.badRequest("유효하지 않은 userId입니다.", "INVALID_INPUT");
+            }
+            request.setUserIdForFilter(username);
         }
         Map<String, String> scopes = userInfo.getScreenScopes();
         String scope = ScopeHelper.resolveScope(ScreenConstants.ACTIVITY_LOG, Boolean.TRUE.equals(userInfo.getIsSystemAdmin()),

@@ -92,7 +92,7 @@ public final class ScopeHelper {
 
     /**
      * Applies server-side scope enforcement for activity-log search requests.
-     * This keeps controller and query logic aligned around one normalization rule.
+     * Uses userIdForFilter (username for DB); when scope=self overrides to currentUserId.
      */
     public static void applyActivityLogSearchScope(UserActivityLogSearchRequest request,
                                                    String scope,
@@ -102,14 +102,14 @@ public final class ScopeHelper {
             return;
         }
 
-        request.setUserId(normalizeOptionalParam(request.getUserId()));
+        request.setUserIdForFilter(normalizeOptionalParam(request.getUserIdForFilter()));
         request.setUsername(normalizeOptionalParam(request.getUsername()));
         request.setIpAddress(normalizeOptionalParam(request.getIpAddress()));
         request.setDepartment(normalizeDepartmentFilter(request.getDepartment()));
         request.setAllowedUserIds(null);
 
         if ("self".equals(scope)) {
-            request.setUserId(normalizeOptionalParam(currentUserId));
+            request.setUserIdForFilter(normalizeOptionalParam(currentUserId));
             request.setUsername(null);
             request.setIpAddress(null);
             request.setDepartment(null);

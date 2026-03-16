@@ -64,7 +64,7 @@ class SearchHistoryServiceTest {
                     "requested_at TIMESTAMP, expires_at TIMESTAMP, approval_status VARCHAR(20), approved_by VARCHAR(100), approved_at TIMESTAMP, " +
                     "rejected_by VARCHAR(100), rejected_at TIMESTAMP, rejection_reason VARCHAR(500), created_at TIMESTAMP, updated_at TIMESTAMP)");
             stmt.execute("CREATE TABLE IF NOT EXISTS app_user (" +
-                    "username VARCHAR(100) PRIMARY KEY, department_code VARCHAR(50))");
+                    "id BIGINT, username VARCHAR(100) PRIMARY KEY, department_code VARCHAR(50))");
         }
         org.h2.jdbcx.JdbcDataSource ds = new org.h2.jdbcx.JdbcDataSource();
         ds.setURL(H2_URL);
@@ -217,9 +217,10 @@ class SearchHistoryServiceTest {
 
     private static void insertAppUser(DataSource ds, String username, String departmentCode) throws Exception {
         try (Connection conn = ds.getConnection();
-             PreparedStatement ps = conn.prepareStatement("INSERT INTO app_user (username, department_code) VALUES (?, ?)")) {
-            ps.setString(1, username);
-            ps.setString(2, departmentCode);
+             PreparedStatement ps = conn.prepareStatement("INSERT INTO app_user (id, username, department_code) VALUES (?, ?, ?)")) {
+            ps.setLong(1, 20260001L);
+            ps.setString(2, username);
+            ps.setString(3, departmentCode);
             ps.executeUpdate();
         }
     }
@@ -249,7 +250,7 @@ class SearchHistoryServiceTest {
         SearchHistoryListResponse resp = searchHistoryService.list(request);
 
         assertThat(resp.getData()).hasSize(2);
-        assertThat(resp.getData()).allMatch(row -> "alpha-user".equals(row.get("userId")));
+        assertThat(resp.getData()).allMatch(row -> Long.valueOf(20260001L).equals(row.get("userId")));
         assertThat(resp.getPagination().getTotalCount()).isEqualTo(2);
         assertThat(resp.getPagination().getTotalPages()).isEqualTo(1);
     }
@@ -269,7 +270,7 @@ class SearchHistoryServiceTest {
 
         assertThat(resp.getData()).hasSize(2);
         assertThat(resp.getData()).extracting(row -> row.get("userId"))
-                .containsExactlyInAnyOrder("alice-admin", "alice-viewer");
+                .containsExactlyInAnyOrder(20260001L, 20260001L);
         assertThat(resp.getPagination().getTotalCount()).isEqualTo(2);
     }
 
@@ -285,7 +286,7 @@ class SearchHistoryServiceTest {
         SearchHistoryListResponse resp = searchHistoryService.list(request);
 
         assertThat(resp.getData()).hasSize(1);
-        assertThat(resp.getData().get(0).get("userId")).isEqualTo("sales-user");
+        assertThat(resp.getData().get(0).get("userId")).isEqualTo(20260001L);
         assertThat(resp.getPagination().getTotalCount()).isEqualTo(1);
     }
 
@@ -311,7 +312,7 @@ class SearchHistoryServiceTest {
         SearchHistoryListResponse teamResp = searchHistoryService.list(request);
 
         assertThat(teamResp.getData()).hasSize(1);
-        assertThat(teamResp.getData().get(0).get("userId")).isEqualTo("team-mate");
+        assertThat(teamResp.getData().get(0).get("userId")).isEqualTo(20260001L);
         assertThat(teamResp.getPagination().getTotalCount()).isEqualTo(1);
     }
 

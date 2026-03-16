@@ -86,7 +86,7 @@ describe('ActivityStatistics', () => {
           selfContext: {
             department: '개발부',
             username: '홍길동',
-            userId: '10000001',
+            userId: 20260001,
           },
         }}
       />,
@@ -106,13 +106,13 @@ describe('ActivityStatistics', () => {
       expect(JSON.parse(filters.getAttribute('data-self-context'))).toEqual({
         department: '개발부',
         username: '홍길동',
-        userId: '10000001',
+        userId: 20260001,
       });
       expect(JSON.parse(filters.getAttribute('data-filters'))).toEqual({
         logType: '',
         department: '개발부',
         username: '홍길동',
-        userId: '10000001',
+        userId: 20260001,
         ip: '',
       });
     });

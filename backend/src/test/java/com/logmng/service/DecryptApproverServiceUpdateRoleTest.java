@@ -66,7 +66,8 @@ class DecryptApproverServiceUpdateRoleTest {
     void updateUserRole_whenValid_changesRoleAndReturnsUpdatedUser() {
         UserListItemResponse result = decryptApproverService.updateUserRole("admin1", "user1", "ADMIN");
 
-        assertThat(result.getUserId()).isEqualTo("user1");
+        assertThat(result.getUserId()).isNotNull();
+        assertThat(result.getUsername()).isEqualTo("user1");
         assertThat(result.getRole()).isEqualTo("ADMIN");
 
         UserListItemResponse after = decryptApproverService.updateUserRole("admin2", "user1", "USER");

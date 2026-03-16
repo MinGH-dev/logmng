@@ -30,7 +30,7 @@ class PermissionGroupServiceTest {
     @BeforeEach
     void setUp() throws Exception {
         dataSource = createH2DataSource();
-        service = new PermissionGroupService(dataSource);
+        service = new PermissionGroupService(dataSource, new AppUserResolver(dataSource));
     }
 
     private static DataSource createH2DataSource() throws Exception {

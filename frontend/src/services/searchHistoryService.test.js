@@ -12,7 +12,7 @@ describe('searchHistoryService', () => {
     jest.resetAllMocks();
   });
 
-  test('includes requester query params when provided', async () => {
+  test('includes requester query params when provided (userId numeric)', async () => {
     await getSearchHistoryList({
       page: 2,
       pageSize: 30,
@@ -20,7 +20,7 @@ describe('searchHistoryService', () => {
       sortDirection: 'asc',
       department: '개발부',
       username: '홍길동',
-      userId: '12345678',
+      userId: 12345678,
     });
 
     const requestUrl = new URL(global.fetch.mock.calls[0][0], 'http://localhost');

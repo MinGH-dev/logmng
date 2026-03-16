@@ -5,6 +5,7 @@ import com.logmng.dto.response.ApiResponse;
 import com.logmng.dto.response.LoginResponse;
 import com.logmng.exception.CustomException;
 import com.logmng.service.ActivityStatisticsService;
+import com.logmng.service.AppUserResolver;
 import com.logmng.service.AuthService;
 import com.logmng.service.FilterOptionsService;
 import com.logmng.util.DepartmentScopeHelper;
@@ -37,15 +38,25 @@ public class ActivityStatisticsController {
     private final AuthService authService;
     private final FilterOptionsService filterOptionsService;
     private final DataSource dataSource;
+    private final AppUserResolver appUserResolver;
 
     public ActivityStatisticsController(ActivityStatisticsService activityStatisticsService,
                                         AuthService authService,
                                         FilterOptionsService filterOptionsService,
-                                        DataSource dataSource) {
+                                        DataSource dataSource,
+                                        AppUserResolver appUserResolver) {
         this.activityStatisticsService = activityStatisticsService;
         this.authService = authService;
         this.filterOptionsService = filterOptionsService;
         this.dataSource = dataSource;
+        this.appUserResolver = appUserResolver;
+    }
+
+    /** Resolve numeric userId to username for service; when null pass through. */
+    private String resolveUserIdParam(Long userId) {
+        if (userId == null) return null;
+        String username = appUserResolver.getUsernameById(userId);
+        return username;
     }
 
     /** Apply scope: when scope='self' override userId and ignore department/ip/username; when scope='team' use allowedUserIds and apply request filters; when 'all' use request params. */
@@ -76,7 +87,7 @@ public class ActivityStatisticsController {
             @RequestParam(required = false) String startDate,
             @RequestParam(required = false) String endDate,
             @RequestParam(required = false) String logType,
-            @RequestParam(required = false) String userId,
+            @RequestParam(required = false) Long userId,
             @RequestParam(required = false) String department,
             @RequestParam(required = false) String ip,
             @RequestParam(required = false) String username,
@@ -84,7 +95,7 @@ public class ActivityStatisticsController {
             HttpServletRequest request) {
         log.debug("일별 통계 조회: startDate={}, endDate={}", startDate, endDate);
         String nameFilter = (username != null && !username.isBlank()) ? username : nameParam;
-        Object[] applied = applyScopeForStatistics(request, userId, department, ip, nameFilter);
+        Object[] applied = applyScopeForStatistics(request, resolveUserIdParam(userId), department, ip, nameFilter);
         Map<String, Object> data = activityStatisticsService.getDailyStatistics(
                 startDate, endDate, logType, (String) applied[0], (List<String>) applied[1], (String) applied[2], (String) applied[3], (String) applied[4]);
         return ResponseEntity.ok(ApiResponse.success(data));
@@ -95,7 +106,7 @@ public class ActivityStatisticsController {
             @RequestParam(required = false) Integer year,
             @RequestParam(required = false) Integer month,
             @RequestParam(required = false) String logType,
-            @RequestParam(required = false) String userId,
+            @RequestParam(required = false) Long userId,
             @RequestParam(required = false) String department,
             @RequestParam(required = false) String ip,
             @RequestParam(required = false) String username,
@@ -103,7 +114,7 @@ public class ActivityStatisticsController {
             HttpServletRequest request) {
         log.debug("월별 통계 조회: year={}, month={}", year, month);
         String nameFilter = (username != null && !username.isBlank()) ? username : nameParam;
-        Object[] applied = applyScopeForStatistics(request, userId, department, ip, nameFilter);
+        Object[] applied = applyScopeForStatistics(request, resolveUserIdParam(userId), department, ip, nameFilter);
         int y = year != null ? year : java.time.LocalDate.now().getYear();
         int m = month != null ? month : java.time.LocalDate.now().getMonthValue();
         Map<String, Object> data = activityStatisticsService.getMonthlyStatistics(
@@ -116,7 +127,7 @@ public class ActivityStatisticsController {
             @RequestParam(required = false) String startDate,
             @RequestParam(required = false) String endDate,
             @RequestParam(required = false) String logType,
-            @RequestParam(required = false) String userId,
+            @RequestParam(required = false) Long userId,
             @RequestParam(required = false) String department,
             @RequestParam(required = false) String ip,
             @RequestParam(required = false) String username,
@@ -124,14 +135,14 @@ public class ActivityStatisticsController {
             HttpServletRequest request) {
         log.debug("전체 사용자별 통계: startDate={}, endDate={}", startDate, endDate);
         String nameFilter = (username != null && !username.isBlank()) ? username : nameParam;
-        Object[] applied = applyScopeForStatistics(request, userId, department, ip, nameFilter);
+        Object[] applied = applyScopeForStatistics(request, resolveUserIdParam(userId), department, ip, nameFilter);
         List<Map<String, Object>> data = activityStatisticsService.getAllUserStatistics(
                 startDate, endDate, logType, (String) applied[0], (List<String>) applied[1], (String) applied[2], (String) applied[3], (String) applied[4]);
         return ResponseEntity.ok(ApiResponse.success(data));
     }
 
     @GetMapping("/users")
-    public ResponseEntity<ApiResponse<List<Map<String, String>>>> getUsers(HttpServletRequest request) {
+    public ResponseEntity<ApiResponse<List<Map<String, Object>>>> getUsers(HttpServletRequest request) {
         LoginResponse userInfo = authService.getCurrentUserInfo(request);
         if (userInfo == null) {
             throw CustomException.unauthorized("로그인이 필요합니다.", "UNAUTHORIZED");
@@ -149,7 +160,7 @@ public class ActivityStatisticsController {
         } else if ("team".equals(scope)) {
             allowedUserIds = DepartmentScopeHelper.getUserIdsInSameDepartment(dataSource, userInfo.getUsername());
         }
-        List<Map<String, String>> data = activityStatisticsService.getUsers(userIdFilter, allowedUserIds);
+        List<Map<String, Object>> data = activityStatisticsService.getUsers(userIdFilter, allowedUserIds);
         return ResponseEntity.ok(ApiResponse.success(data));
     }
 
@@ -196,7 +207,7 @@ public class ActivityStatisticsController {
             @RequestParam(required = false) Integer year,
             @RequestParam(required = false) Integer month,
             @RequestParam(required = false) String logType,
-            @RequestParam(required = false) String userId,
+            @RequestParam(required = false) Long userId,
             @RequestParam(required = false) String department,
             @RequestParam(required = false) String ip,
             @RequestParam(required = false) String username,
@@ -204,7 +215,7 @@ public class ActivityStatisticsController {
             HttpServletRequest request) {
         log.debug("통계 export: type={}, startDate={}, endDate={}", type, startDate, endDate);
         String nameFilter = (username != null && !username.isBlank()) ? username : nameParam;
-        Object[] applied = applyScopeForStatistics(request, userId, department, ip, nameFilter);
+        Object[] applied = applyScopeForStatistics(request, resolveUserIdParam(userId), department, ip, nameFilter);
         byte[] body = activityStatisticsService.exportCsv(
                 type, startDate, endDate, year, month, logType, (String) applied[0], (List<String>) applied[1], (String) applied[2], (String) applied[3], (String) applied[4]);
         HttpHeaders headers = new HttpHeaders();

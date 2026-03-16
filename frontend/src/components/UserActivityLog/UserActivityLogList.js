@@ -7,7 +7,7 @@ import {
   FILTER_OPTION_SCREEN_IDS,
   getDepartmentFilterOptions,
 } from '../../services/filterOptionsService';
-import { getSelfContext } from '../../utils/security';
+import { getSelfContextForDisplay } from '../../utils/security';
 import './UserActivityLog.css';
 import logger from '../../utils/logger';
 
@@ -42,7 +42,7 @@ const UserActivityLogList = ({ user }) => {
   const [departmentList, setDepartmentList] = useState([]);
 
   const isSelfScope = !user?.isSystemAdmin && user?.screenScopes?.['activity-log'] === 'self';
-  const selfContext = getSelfContext(user);
+  const selfContext = getSelfContextForDisplay(user);
 
   // 부서 목록 로드 (scope≠self일 때 검색 폼 드롭다운용)
   useEffect(() => {

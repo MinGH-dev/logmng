@@ -7,6 +7,7 @@ import com.logmng.dto.request.SearchHistoryListRequest;
 import com.logmng.dto.response.ApiResponse;
 import com.logmng.dto.response.SearchHistoryListResponse;
 import com.logmng.exception.CustomException;
+import com.logmng.service.AppUserResolver;
 import com.logmng.service.AuthService;
 import com.logmng.service.DecryptApproverService;
 import com.logmng.service.SearchHistoryService;
@@ -39,15 +40,18 @@ public class SearchHistoryController {
     private final DecryptApproverService decryptApproverService;
     private final AuthService authService;
     private final DataSource dataSource;
+    private final AppUserResolver appUserResolver;
 
     public SearchHistoryController(SearchHistoryService searchHistoryService,
                                    DecryptApproverService decryptApproverService,
                                    AuthService authService,
-                                   DataSource dataSource) {
+                                   DataSource dataSource,
+                                   AppUserResolver appUserResolver) {
         this.searchHistoryService = searchHistoryService;
         this.decryptApproverService = decryptApproverService;
         this.authService = authService;
         this.dataSource = dataSource;
+        this.appUserResolver = appUserResolver;
     }
 
     private static String getUserId(HttpServletRequest request) {
@@ -146,7 +150,7 @@ public class SearchHistoryController {
     public ResponseEntity<ApiResponse<SearchHistoryListResponse>> list(
             @RequestParam(required = false) String department,
             @RequestParam(required = false) String username,
-            @RequestParam(name = "userId", required = false) String requesterUserId,
+            @RequestParam(name = "userId", required = false) Long requesterUserIdNum,
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "20") int pageSize,
             @RequestParam(defaultValue = "requested_at") String sortField,
@@ -170,7 +174,14 @@ public class SearchHistoryController {
         } else {
             listRequest.setDepartment(normalizeOptionalParam(department));
             listRequest.setUsername(normalizeOptionalParam(username));
-            listRequest.setUserId(normalizeOptionalParam(requesterUserId));
+            String requesterUsername = null;
+            if (requesterUserIdNum != null) {
+                requesterUsername = appUserResolver.getUsernameById(requesterUserIdNum);
+                if (requesterUsername == null) {
+                    return ResponseEntity.badRequest().body(ApiResponse.failure("유효하지 않은 userId입니다.", "INVALID_INPUT"));
+                }
+            }
+            listRequest.setUserId(normalizeOptionalParam(requesterUsername));
             if ("team".equals(scope)) {
                 listRequest.setAllowedUserIds(DepartmentScopeHelper.getUserIdsInSameDepartment(dataSource, userId));
             }

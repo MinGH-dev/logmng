@@ -128,23 +128,23 @@ On POST/PUT permission-groups, validate each `allowedScreens` item against per-s
 - **DELETE** `/api/permission-groups/{id}/users/{userId}` — remove user from group.
 - **GET** `/api/permission-groups/{id}/users` — list users in group (optional).
 
-**Contract choice**: Option A for consistency with department approvers (`/api/departments/{code}/approvers`). userId = `app_user.username` (string).
+**Contract choice**: Option A for consistency with department approvers (`/api/departments/{code}/approvers`). **API userId** = numeric `app_user.id` (JSON number). DB column `app_user_permission_group.user_id` may remain username for FK; backend maps id↔username.
 
 ### POST /api/permission-groups/{id}/users
 - **Path**: `id` — permission group ID (Long).
-- **Request body** (JSON): `{ "userId": string }` — username (app_user.username).
-- **Response (data)**: e.g. `{ "userId", "permissionGroupId", "permissionGroupCode" }` or success message.
+- **Request body** (JSON): `{ "userId": number }` — numeric `app_user.id`.
+- **Response (data)**: e.g. `{ "userId", "permissionGroupId", "permissionGroupCode" }` (userId number) or success message.
 - **Status**: 201 or 200.
 - **Behavior**: If the user is already assigned to a **different** group, the old assignment is removed first (auto-replace). DB UNIQUE constraint on `user_id` enforces at most one group per user.
 - **Errors**: 400 (userId empty), 401, 403, 404 group → "PERMISSION_GROUP_NOT_FOUND", 404 user → "USER_NOT_FOUND", 400 same group → "USER_ALREADY_IN_GROUP"
 
 ### DELETE /api/permission-groups/{id}/users/{userId}
-- **Path**: `id` — group ID (Long); `userId` — username (string).
+- **Path**: `id` — group ID (Long); `userId` — numeric `app_user.id`.
 - **Response (data)**: null or success message. **Status**: 200 or 204.
 - **Errors**: 401, 403, 404
 
 ### GET /api/permission-groups/{id}/users (optional)
-- **Response (data)**: array of user summary objects, e.g. `{ "userId", "username", "departmentCode", "isSystemAdmin" }` (role 제외, req 20250303).
+- **Response (data)**: array of user summary objects, e.g. `{ "userId" (number), "username", "departmentCode", "isSystemAdmin" }` (role 제외, req 20250303).
 - **Errors**: 401, 403, 404
 
 ## 1.3 User-permission hierarchy
@@ -160,7 +160,7 @@ Single endpoint that returns department tree with users and their permission gro
   - `code`, `parentCode`, `name`, `sortOrder` (per existing department)
   - `children`: array (recursive same structure)
   - `users`: array of user-permission objects:
-    - `userId` (username): string
+    - `userId` (numeric app_user.id): number
     - `isSystemAdmin`: boolean — system administrator flag (immutable; req 20250303)
     - `permissionGroups`: array of `{ "id", "code", "name" }` (0 or 1 element; single group per user, req 20250304)
 - **Flat format**: array of department nodes with `code`, `parentCode`, `name`, `sortOrder`, `users` (same shape as above). No `children`.
@@ -196,7 +196,7 @@ Single endpoint that returns department tree with users and their permission gro
   - FK to permission_group(id) ON DELETE CASCADE (or RESTRICT)
 - **Indexes**: index on permission_group_id for "users in group" queries.
 
-**Note**: app_user PK is `id` (BIGSERIAL); `username` is UNIQUE. Using username in app_user_permission_group aligns with existing decrypt_approver convention (user_id = username).
+**Note**: app_user PK is `id` (BIGSERIAL); `username` is UNIQUE. Using username in app_user_permission_group aligns with existing decrypt_approver convention (user_id = username). API/UI canonical userId is numeric app_user.id (req 20260316); DB user_id may remain username for FK; backend maps id↔username when reading/writing API.
 
 ### permission_group_screen
 - **Definition**: `backend/src/main/resources/db/schema.sql`
@@ -272,7 +272,7 @@ Validation: PUT/POST permission-groups with `allowedScreens` must have each valu
 **POST /api/auth/login** and **GET /api/auth/me** (or equivalent) response (user object) includes:
 - `allowedScreenIds`: string[] — allowed screens from the user's permission group (single group per user, req 20250304). If user is system admin (is_system_admin=true), return all screen IDs.
 - `screenScopes`: Record<string, 'self'|'team'|'all'> — per-screen **list/read scope** (조회 범위) for screens that support it (activity-log, statistics, search-history, pending-approvals). Key = screen_id, value = 'self' (본인), 'team' (부서), or 'all' (전체). **Purpose**: Controls which data is listed (self → own only; team → same department; all → all). Approval (승인) is always department-scoped and not configurable; this field does not change who can approve.
-- `selfContext`: `{ department: string | null, username: string, userId: string }` — authoritative display payload for **visible locked self-context** on applicable shared-pattern screens when effective scope is `self`. `userId` is the canonical `app_user.username` value.
+- `selfContext`: `{ department: string | null, username: string, userId: number }` — authoritative display payload for **visible locked self-context** on applicable shared-pattern screens when effective scope is `self`. **`userId`** is **numeric** **`app_user.id`** (JSON number). Login identifier remains `app_user.username`; only the exposed "userId" in API/UI is numeric id.
 
 ## 4.3 Screen-based API access enforcement
 

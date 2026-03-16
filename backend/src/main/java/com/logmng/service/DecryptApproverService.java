@@ -111,15 +111,16 @@ public class DecryptApproverService {
     }
 
     /**
-     * app_user 목록 + 각 사용자별 isApprover, position, rank, isSystemAdmin. §7.1
+     * app_user 목록 + 각 사용자별 isApprover, position, rank, isSystemAdmin. §7.1. userId = numeric app_user.id (req 20260316).
      */
     public List<UserListItemResponse> listUsers() {
         List<UserListItemResponse> list = new ArrayList<>();
         try (Connection conn = dataSource.getConnection()) {
-            String sql = "SELECT username, role, department_code, position, rank, is_system_admin FROM app_user ORDER BY username";
+            String sql = "SELECT id, username, role, department_code, position, rank, is_system_admin FROM app_user ORDER BY username";
             try (PreparedStatement ps = conn.prepareStatement(sql)) {
                 try (ResultSet rs = ps.executeQuery()) {
                     while (rs.next()) {
+                        Long id = rs.getObject("id", Long.class);
                         String username = rs.getString("username");
                         String role = rs.getString("role");
                         String departmentCode = rs.getString("department_code");
@@ -127,7 +128,7 @@ public class DecryptApproverService {
                         String rank = rs.getString("rank");
                         boolean isSystemAdmin = Boolean.TRUE.equals(rs.getObject("is_system_admin", Boolean.class));
                         boolean isApprover = isApprover(username);
-                        list.add(new UserListItemResponse(username, role, departmentCode, isApprover, position, rank, isSystemAdmin));
+                        list.add(new UserListItemResponse(id, username, role, departmentCode, isApprover, position, rank, isSystemAdmin));
                     }
                 }
             }
@@ -218,29 +219,30 @@ public class DecryptApproverService {
         }
     }
 
-    private UserListItemResponse getUserSummary(String userId) {
+    private UserListItemResponse getUserSummary(String username) {
         try (Connection conn = dataSource.getConnection()) {
-            String sql = "SELECT username, role, department_code, position, rank, is_system_admin FROM app_user WHERE username = ? LIMIT 1";
+            String sql = "SELECT id, username, role, department_code, position, rank, is_system_admin FROM app_user WHERE username = ? LIMIT 1";
             try (PreparedStatement ps = conn.prepareStatement(sql)) {
-                ps.setString(1, userId);
+                ps.setString(1, username);
                 try (ResultSet rs = ps.executeQuery()) {
                     if (rs.next()) {
-                        String username = rs.getString("username");
+                        Long id = rs.getObject("id", Long.class);
+                        String uname = rs.getString("username");
                         String role = rs.getString("role");
                         String departmentCode = rs.getString("department_code");
                         String position = rs.getString("position");
                         String rank = rs.getString("rank");
                         boolean isSystemAdmin = Boolean.TRUE.equals(rs.getObject("is_system_admin", Boolean.class));
-                        boolean isApprover = isApprover(username);
-                        return new UserListItemResponse(username, role, departmentCode, isApprover, position, rank, isSystemAdmin);
+                        boolean isApprover = isApprover(uname);
+                        return new UserListItemResponse(id, uname, role, departmentCode, isApprover, position, rank, isSystemAdmin);
                     }
                 }
             }
         } catch (SQLException e) {
-            log.error("사용자 요약 조회 실패: userId={}", userId, e);
+            log.error("사용자 요약 조회 실패: username={}", username, e);
             throw new RuntimeException("사용자 조회 중 오류가 발생했습니다: " + e.getMessage(), e);
         }
-        throw CustomException.notFound("해당 사용자를 찾을 수 없습니다: " + userId, "USER_NOT_FOUND");
+        throw CustomException.notFound("해당 사용자를 찾을 수 없습니다: " + username, "USER_NOT_FOUND");
     }
 
     private void ensureUserExists(String userId) {

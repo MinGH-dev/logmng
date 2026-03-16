@@ -123,11 +123,16 @@ const UserActivityLogSearchForm = ({
       return;
     }
     setErrors({});
+    const uid = formData.userId;
+    const n = typeof uid === 'number' ? uid : Number(uid);
+    const userIdForApi = (uid !== '' && uid != null && uid !== undefined && !Number.isNaN(n)) ? n : undefined;
     const searchParams = {
       ...formData,
       startDate: formatDateForAPI(formData.startDate),
       endDate: formatDateForAPI(formData.endDate),
     };
+    if (userIdForApi !== undefined) searchParams.userId = userIdForApi;
+    else delete searchParams.userId;
     onSearch(searchParams);
   };
 
@@ -141,10 +146,13 @@ const UserActivityLogSearchForm = ({
     };
     setFormData(resetData);
     setErrors({});
+    const uid = resetData.userId;
+    const n = typeof uid === 'number' ? uid : Number(uid);
+    const userIdForApi = (uid !== '' && uid != null && uid !== undefined && !Number.isNaN(n)) ? n : undefined;
     onSearch({
       department: resetData.department,
       username: resetData.username,
-      userId: resetData.userId,
+      ...(userIdForApi !== undefined ? { userId: userIdForApi } : {}),
       startDate: formatDateForAPI(resetData.startDate),
       endDate: formatDateForAPI(resetData.endDate),
     });
@@ -227,42 +235,40 @@ const UserActivityLogSearchForm = ({
             compact
             usernameMaxLength={5}
           />
-          {/* 기타 조건: scope=self 시 전체 숨김 (req 20260313); 제목 필드 위 배치 */}
-          {!isSelfScope && (
-            <div className="search-form-row-2__extra" role="group" aria-labelledby="activity-log-search-extra-heading">
-              <h4 id="activity-log-search-extra-heading" className="search-form-block__heading">기타 조건</h4>
-              <div className="search-form-row-2__extra-fields">
-                <div className="form-group">
-                  <label htmlFor="actionType">액션 타입</label>
-                  <select
-                    id="actionType"
-                    name="actionType"
-                    value={formData.actionType}
-                    onChange={handleInputChange}
-                    className="form-control"
-                  >
-                    {actionTypes.map(type => (
-                      <option key={type.value} value={type.value}>
-                        {type.label}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <div className="form-group">
-                  <label htmlFor="ipAddress">IP 주소</label>
-                  <input
-                    type="text"
-                    id="ipAddress"
-                    name="ipAddress"
-                    value={formData.ipAddress}
-                    onChange={handleInputChange}
-                    className="form-control"
-                    placeholder="IP 주소"
-                  />
-                </div>
+          {/* 기타 조건: scope=self에서도 표시 (req 20260316); 제목 필드 위 배치 */}
+          <div className="search-form-row-2__extra" role="group" aria-labelledby="activity-log-search-extra-heading">
+            <h4 id="activity-log-search-extra-heading" className="search-form-block__heading">기타 조건</h4>
+            <div className="search-form-row-2__extra-fields">
+              <div className="form-group">
+                <label htmlFor="actionType">액션 타입</label>
+                <select
+                  id="actionType"
+                  name="actionType"
+                  value={formData.actionType}
+                  onChange={handleInputChange}
+                  className="form-control"
+                >
+                  {actionTypes.map(type => (
+                    <option key={type.value} value={type.value}>
+                      {type.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="form-group">
+                <label htmlFor="ipAddress">IP 주소</label>
+                <input
+                  type="text"
+                  id="ipAddress"
+                  name="ipAddress"
+                  value={formData.ipAddress}
+                  onChange={handleInputChange}
+                  className="form-control"
+                  placeholder="IP 주소"
+                />
               </div>
             </div>
-          )}
+          </div>
           <div className="search-form-actions">
             <button type="submit" className="btn btn-primary sf-btn" disabled={loading} aria-busy={loading}>
               {loading ? (

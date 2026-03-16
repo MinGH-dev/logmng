@@ -36,7 +36,7 @@ describe('UserContextFilterBlock', () => {
         lockedValues={{
           department: '개발부',
           username: '홍길동',
-          userId: '10000001',
+          userId: 20260001,
         }}
         values={{ department: '', username: '', userId: '' }}
         onChange={jest.fn()}
@@ -47,7 +47,7 @@ describe('UserContextFilterBlock', () => {
 
     expect(screen.getByDisplayValue('개발부')).toHaveAttribute('readonly');
     expect(screen.getByDisplayValue('홍길동')).toHaveAttribute('readonly');
-    expect(screen.getByDisplayValue('10000001')).toHaveAttribute('readonly');
+    expect(screen.getByDisplayValue('20260001')).toHaveAttribute('readonly');
     expect(screen.queryByRole('option', { name: '전체' })).not.toBeInTheDocument();
     expect(screen.queryByLabelText('사용자명 (최대 5자)')).not.toBeInTheDocument();
     expect(screen.getByLabelText('사용자명')).toBeInTheDocument();

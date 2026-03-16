@@ -88,10 +88,11 @@ public class UserPermissionHierarchyService {
         Map<String, List<UserPermissionSummary>> usersByDept = new LinkedHashMap<>();
         Map<String, List<PermissionGroupSummary>> groupsByUser = loadPermissionGroupsByUser();
         try (Connection conn = dataSource.getConnection()) {
-            String sql = "SELECT username, name, role, department_code, position, rank, is_system_admin FROM app_user ORDER BY username";
+            String sql = "SELECT id, username, name, role, department_code, position, rank, is_system_admin FROM app_user ORDER BY username";
             try (PreparedStatement ps = conn.prepareStatement(sql);
                  ResultSet rs = ps.executeQuery()) {
                 while (rs.next()) {
+                    Long id = rs.getObject("id", Long.class);
                     String username = rs.getString("username");
                     String name = rs.getString("name");
                     String role = rs.getString("role");
@@ -105,7 +106,7 @@ public class UserPermissionHierarchyService {
                     }
                     String userName = (name != null && !name.isBlank()) ? name : username;
                     List<PermissionGroupSummary> groups = groupsByUser.getOrDefault(username, new ArrayList<>());
-                    UserPermissionSummary u = new UserPermissionSummary(username, userName, role, position, rank, groups, isSystemAdmin);
+                    UserPermissionSummary u = new UserPermissionSummary(id, userName, role, position, rank, groups, isSystemAdmin);
                     usersByDept.computeIfAbsent(dept, k -> new ArrayList<>()).add(u);
                 }
             }

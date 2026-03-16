@@ -36,7 +36,7 @@ const baseUser = {
   selfContext: {
     department: '개발부',
     username: '홍길동',
-    userId: '10000001',
+    userId: 20260001,
   },
 };
 
@@ -49,10 +49,10 @@ const listResponse = {
         seq: 1,
         requestedAt: '2026-03-13 10:00:00',
         requested_at: '2026-03-13 10:00:00',
-        searchParamsSummary: '요청자=10000001',
+        searchParamsSummary: '요청자=20260001',
         approvalStatus: 'PENDING',
         expiresAt: '2026-03-20 10:00:00',
-        userId: '10000001',
+        userId: 20260001,
         isExpired: false,
       },
     ],
@@ -80,7 +80,7 @@ const renderAndWaitForInitialLoad = async (ui) => {
   const view = render(ui);
 
   await waitFor(() => expect(getSearchHistoryList).toHaveBeenCalledTimes(1));
-  await screen.findByText('요청자=10000001');
+  await screen.findByText('요청자=20260001');
   await waitFor(() => expect(screen.getByRole('button', { name: '검색' })).toBeEnabled());
   await waitFor(() => expect(screen.queryByText('데이터를 불러오는 중...')).not.toBeInTheDocument());
 
@@ -149,7 +149,7 @@ describe('SearchHistoryList', () => {
       sortDirection: 'desc',
       department: '개발부',
       username: '홍길',
-      userId: '12345678',
+      userId: 12345678,
     });
 
     await userEvent.click(screen.getByRole('button', { name: '행 수 증가' }));
@@ -163,7 +163,7 @@ describe('SearchHistoryList', () => {
       sortDirection: 'desc',
       department: '개발부',
       username: '홍길',
-      userId: '12345678',
+      userId: 12345678,
     });
   });
 
@@ -227,7 +227,7 @@ describe('SearchHistoryList', () => {
     expect(screen.getByText('요청자')).toBeInTheDocument();
     expect(screen.getByDisplayValue('개발부')).toHaveAttribute('readonly');
     expect(screen.getByDisplayValue('홍길동')).toHaveAttribute('readonly');
-    expect(screen.getByDisplayValue('10000001')).toHaveAttribute('readonly');
+    expect(screen.getByDisplayValue('20260001')).toHaveAttribute('readonly');
     expect(getSearchHistoryList).toHaveBeenLastCalledWith({
       page: 1,
       pageSize: 20,

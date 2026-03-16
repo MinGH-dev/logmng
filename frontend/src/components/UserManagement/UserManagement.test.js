@@ -27,7 +27,7 @@ describe('UserManagement', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
-    getUsers.mockResolvedValue({ data: [{ userId: 'user1', isApprover: false }] });
+    getUsers.mockResolvedValue({ data: [{ userId: 20260001, isApprover: false }] });
     listPermissionGroups.mockResolvedValue([]);
   });
 
@@ -40,8 +40,8 @@ describe('UserManagement', () => {
             name: '개발1팀',
             children: [],
             users: [
-              { userId: 'user1', userName: '홍길동', rank: '대리', position: '개발', permissionGroups: [] },
-              { userId: 'user2', userName: null, rank: '-', position: '-', permissionGroups: [] },
+              { userId: 20260001, userName: '홍길동', rank: '대리', position: '개발', permissionGroups: [] },
+              { userId: 20260002, userName: null, rank: '-', position: '-', permissionGroups: [] },
             ],
           },
         ],
@@ -62,8 +62,8 @@ describe('UserManagement', () => {
       });
 
       expect(screen.getByText('홍길동')).toBeInTheDocument();
-      expect(screen.getByText('user1')).toBeInTheDocument();
-      expect(screen.getAllByText('user2').length).toBeGreaterThanOrEqual(1);
+      expect(screen.getByText('20260001')).toBeInTheDocument();
+      expect(screen.getAllByText('20260002').length).toBeGreaterThanOrEqual(1);
     });
   });
 });

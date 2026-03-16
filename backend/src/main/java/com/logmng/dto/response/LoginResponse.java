@@ -120,16 +120,18 @@ public class LoginResponse {
         this.selfContext = selfContext;
     }
 
+    /** Self-context for locked user/requester display. userId = numeric app_user.id (req 20260316). */
     public static class SelfContext {
 
         private String department;
         private String username;
-        private String userId;
+        /** Numeric app_user.id; JSON serializes as number. */
+        private Long userId;
 
         public SelfContext() {
         }
 
-        public SelfContext(String department, String username, String userId) {
+        public SelfContext(String department, String username, Long userId) {
             this.department = department;
             this.username = username;
             this.userId = userId;
@@ -151,11 +153,11 @@ public class LoginResponse {
             this.username = username;
         }
 
-        public String getUserId() {
+        public Long getUserId() {
             return userId;
         }
 
-        public void setUserId(String userId) {
+        public void setUserId(Long userId) {
             this.userId = userId;
         }
     }

@@ -37,7 +37,7 @@ class AuthControllerTest {
                 .andExpect(jsonPath("$.success").value(true))
                 .andExpect(jsonPath("$.data.user.selfContext.department").value("D01"))
                 .andExpect(jsonPath("$.data.user.selfContext.username").value("self-user"))
-                .andExpect(jsonPath("$.data.user.selfContext.userId").value("self-user"));
+                .andExpect(jsonPath("$.data.user.selfContext.userId").value(20260001));
     }
 
     @Test
@@ -48,7 +48,7 @@ class AuthControllerTest {
                 .andExpect(jsonPath("$.data.authenticated").value(true))
                 .andExpect(jsonPath("$.data.selfContext.department").value("D01"))
                 .andExpect(jsonPath("$.data.selfContext.username").value("self-user"))
-                .andExpect(jsonPath("$.data.selfContext.userId").value("self-user"));
+                .andExpect(jsonPath("$.data.selfContext.userId").value(20260001));
     }
 
     @Test
@@ -58,7 +58,7 @@ class AuthControllerTest {
                 .andExpect(jsonPath("$.success").value(true))
                 .andExpect(jsonPath("$.data.user.selfContext.department").value("D01"))
                 .andExpect(jsonPath("$.data.user.selfContext.username").value("self-user"))
-                .andExpect(jsonPath("$.data.user.selfContext.userId").value("self-user"));
+                .andExpect(jsonPath("$.data.user.selfContext.userId").value(20260001));
     }
 
     private static final class StubAuthService extends AuthService {
@@ -88,7 +88,7 @@ class AuthControllerTest {
             response.setLoginTime(LocalDateTime.of(2026, 3, 13, 12, 0, 0));
             response.setClientIP("127.0.0.1");
             response.setIsSystemAdmin(false);
-            response.setSelfContext(new LoginResponse.SelfContext("D01", "self-user", "self-user"));
+            response.setSelfContext(new LoginResponse.SelfContext("D01", "self-user", 20260001L));
             return response;
         }
     }

@@ -54,11 +54,11 @@ public class UserController {
     }
 
     /**
-     * PUT /api/users/{userId} — 410 Gone. 역할 변경 엔드포인트 제거됨 (req 20250303).
+     * PUT /api/users/{userId} — 410 Gone. 역할 변경 엔드포인트 제거됨 (req 20250303). Path userId = numeric app_user.id (req 20260316).
      */
     @PutMapping("/{userId}")
     public ResponseEntity<ApiResponse<?>> updateUserRole(
-            @PathVariable String userId,
+            @PathVariable Long userId,
             HttpServletRequest request) {
         requireUserManagementAccess(request);
         return ResponseEntity.status(HttpStatus.GONE)

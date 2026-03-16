@@ -34,6 +34,8 @@ export const createSearchHistory = async (logType, searchParams) => {
 
 /**
  * 검색 이력 목록 조회
+ * @param {object} opts
+ * @param {number|string} [opts.userId] - Requester user ID (numeric app_user.id)
  */
 export const getSearchHistoryList = async ({
   page = 1,
@@ -54,11 +56,11 @@ export const getSearchHistoryList = async ({
   if (department) {
     params.set('department', department);
   }
-  if (username && username.trim()) {
-    params.set('username', username.trim());
+  if (username && String(username).trim()) {
+    params.set('username', String(username).trim());
   }
-  if (userId && userId.trim()) {
-    params.set('userId', userId.trim());
+  if (userId !== '' && userId != null && userId !== undefined) {
+    params.set('userId', String(userId));
   }
 
   const response = await fetch(`${API_BASE_URL}/search-history?${params}`, {

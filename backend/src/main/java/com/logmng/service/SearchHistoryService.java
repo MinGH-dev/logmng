@@ -145,7 +145,7 @@ public class SearchHistoryService {
             }
 
             int offset = (page - 1) * pageSize;
-            String sql = "SELECT sh.id, sh.user_id, sh.log_type, sh.search_params, sh.requested_at, sh.expires_at, " +
+            String sql = "SELECT sh.id, au.id AS \"userId\", sh.log_type, sh.search_params, sh.requested_at, sh.expires_at, " +
                     "sh.approval_status, sh.approved_by, sh.approved_at, sh.rejected_by, sh.rejected_at, sh.rejection_reason " +
                     querySpec.getFromAndWhereClause() +
                     " ORDER BY sh." + safeSort + " " + safeDir + " LIMIT ? OFFSET ?";
@@ -162,7 +162,7 @@ public class SearchHistoryService {
                         long id = rs.getLong("id");
                         row.put("seq", seq++);
                         row.put("id", id);
-                        row.put("userId", rs.getString("user_id"));
+                        row.put("userId", rs.getObject("userId", Long.class));
                         row.put("logType", rs.getString("log_type"));
                         Timestamp reqAt = rs.getTimestamp("requested_at");
                         Timestamp expAt = rs.getTimestamp("expires_at");

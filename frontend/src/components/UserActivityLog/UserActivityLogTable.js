@@ -4,7 +4,7 @@ import './UserActivityLog.css';
 
 const ACTIVITY_LOG_COLUMNS = [
   { key: 'id', label: 'ID', sortable: true },
-  { key: 'user_id', label: '사용자 ID', sortable: true },
+  { key: 'userId', label: '사용자 ID', sortable: true },
   { key: 'username', label: '사용자명', sortable: true },
   { key: 'action_type', label: '액션 타입', sortable: true },
   { key: 'ip_address', label: 'IP 주소', sortable: true },
@@ -40,8 +40,8 @@ const UserActivityLogTable = ({
     const key = sortConfig.key;
     const dir = sortConfig.direction === 'asc' ? 1 : -1;
     return [...logs].sort((a, b) => {
-      let va = a[key];
-      let vb = b[key];
+      let va = key === 'userId' ? (a.userId ?? a.user_id) : a[key];
+      let vb = key === 'userId' ? (b.userId ?? b.user_id) : b[key];
       if (key === 'response_time') {
         va = a.response_time_ms ?? va;
         vb = b.response_time_ms ?? vb;
@@ -120,7 +120,7 @@ const UserActivityLogTable = ({
               className="activity-log-table-row"
             >
               <td>{log.id}</td>
-              <td>{log.user_id || '-'}</td>
+              <td>{log.userId ?? log.user_id ?? '-'}</td>
               <td>{log.username || '-'}</td>
               <td>{getActionTypeLabel(log.action_type)}</td>
               <td>{log.ip_address || '-'}</td>

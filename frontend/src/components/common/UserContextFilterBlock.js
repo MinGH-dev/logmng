@@ -8,10 +8,10 @@ import './UserContextFilterBlock.css';
  * @param {string} blockLabel - Group label for screen readers (e.g. "사용자", "요청자")
  * @param {'editable'|'locked'} [mode='editable'] - Editable for team/all, locked for self
  * @param {string[]} departmentList - Options for department select
- * @param {Array<{userId: string, ...}>} [userList] - If provided, userId is a select; otherwise text input
- * @param {{ department: string, username: string, userId: string }} values
- * @param {{ department: string, username: string, userId: string }} [lockedValues]
- * @param {(name: 'department'|'username'|'userId', value: string) => void} onChange
+ * @param {Array<{userId: number, ...}>} [userList] - If provided, userId is a select (numeric app_user.id); otherwise text input
+ * @param {{ department: string, username: string, userId: number|string }} values
+ * @param {{ department: string, username: string, userId: number|string }} [lockedValues]
+ * @param {(name: 'department'|'username'|'userId', value: string|number) => void} onChange
  * @param {string} [idPrefix='user-ctx'] - Prefix for input ids (for a11y in same page)
  * @param {boolean} [compact] - When true, reduce margin for single-row inline layout (1–2 row UX)
  * @param {number} [usernameMaxLength=5] - Max length for 사용자명 (한글 기준); req 20260313
@@ -34,7 +34,7 @@ const UserContextFilterBlock = ({
     ? {
         department: lockedValues.department ?? '',
         username: lockedValues.username ?? '',
-        userId: lockedValues.userId ?? '',
+        userId: lockedValues.userId != null && lockedValues.userId !== '' ? lockedValues.userId : '',
       }
     : values;
 
@@ -101,14 +101,17 @@ const UserContextFilterBlock = ({
           {isLocked ? renderLockedControl('userId', '사용자 ID') : Array.isArray(userList) ? (
             <select
               id={id('userId')}
-              value={displayValues.userId || ''}
-              onChange={(e) => onChange('userId', e.target.value)}
+              value={displayValues.userId != null && displayValues.userId !== '' ? String(displayValues.userId) : ''}
+              onChange={(e) => {
+                const v = e.target.value;
+                onChange('userId', v === '' ? '' : (Number(v) || v));
+              }}
               className="form-control"
               aria-label="사용자 ID"
             >
               <option value="">전체</option>
               {(userList || []).map((user) => (
-                <option key={user.userId} value={user.userId}>
+                <option key={user.userId} value={String(user.userId)}>
                   {user.userId}
                 </option>
               ))}
