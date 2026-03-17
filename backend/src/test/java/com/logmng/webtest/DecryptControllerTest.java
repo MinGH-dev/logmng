@@ -8,6 +8,7 @@ import com.logmng.service.StubLogDbService;
 import com.logmng.service.StubSearchHistoryService;
 import com.logmng.util.CryptoUtil;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.MediaType;
 import org.springframework.test.util.ReflectionTestUtils;
@@ -31,6 +32,7 @@ class DecryptControllerTest {
     private MockMvc mockMvc;
     private StubSearchHistoryService searchHistoryService;
     private StubLogDbService logDbService;
+    private StubAuthServiceDecryptAllowed authServiceStub;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     @BeforeEach
@@ -42,8 +44,10 @@ class DecryptControllerTest {
         logDbService = new StubLogDbService(dataSource, cryptoUtil);
         DecryptApproverService decryptApproverService = new com.logmng.service.StubDecryptApproverService();
         searchHistoryService = new StubSearchHistoryService(dataSource, logDbService, decryptApproverService);
-        AuthService authService = new StubAuthServiceDecryptAllowed();
-        DecryptController controller = new DecryptController(logDbService, searchHistoryService, authService);
+        authServiceStub = new StubAuthServiceDecryptAllowed();
+        authServiceStub.setCurrentUserId(20260001L);
+        authServiceStub.setCurrentUsername("user1");
+        DecryptController controller = new DecryptController(logDbService, searchHistoryService, authServiceStub);
         mockMvc = MockMvcBuilders.standaloneSetup(controller).build();
     }
 
@@ -55,6 +59,7 @@ class DecryptControllerTest {
     }
 
     @Test
+    @DisplayName("TC-02: approver executes decrypt → 403 DECRYPTION_NOT_APPROVED")
     void decryptRow_whenValidApprovalFalse_returns403DecryptionNotApproved() throws Exception {
         searchHistoryService.setValidApprovalForUser(false);
         searchHistoryService.setRowInApprovedSnapshot(true);
@@ -74,6 +79,7 @@ class DecryptControllerTest {
     }
 
     @Test
+    @DisplayName("TC-05: guid not in search_history_approved_row → 403 ROW_NOT_IN_APPROVED_SNAPSHOT")
     void decryptRow_whenRowNotInApprovedSnapshot_returns403WithCode() throws Exception {
         searchHistoryService.setValidApprovalForUser(true);
         searchHistoryService.setRowInApprovedSnapshot(false);
@@ -93,7 +99,8 @@ class DecryptControllerTest {
     }
 
     @Test
-    void decryptRow_whenRowInApprovedSnapshot_proceedsToDecrypt() throws Exception {
+    @DisplayName("TC-01: requester executes decrypt with valid approval and row in snapshot → 200")
+    void decryptRow_requesterExecutesWithValidApproval_returns200() throws Exception {
         searchHistoryService.setValidApprovalForUser(true);
         searchHistoryService.setRowInApprovedSnapshot(true);
         logDbService.setDecryptRowResult(Map.of("decrypted", "data"));
@@ -112,10 +119,42 @@ class DecryptControllerTest {
                 .andExpect(jsonPath("$.data.decrypted").value("data"));
     }
 
-    /** Stub AuthService that allows decrypt (hasDecryptForMain returns true). Avoids Mockito on concrete AuthService. */
+    @Test
+    @DisplayName("TC-04: search_history.user_id wrong type or value → 403 DECRYPTION_NOT_APPROVED, no 500")
+    void decryptRow_whenUserIdMismatchOrWrongType_returns403DecryptionNotApproved() throws Exception {
+        authServiceStub.setCurrentUserId(20260002L);
+        authServiceStub.setCurrentUsername("user2");
+        searchHistoryService.setValidApprovalForUser(false);
+        searchHistoryService.setRowInApprovedSnapshot(true);
+
+        Map<String, String> body = Map.of(
+                "searchHistoryId", "100",
+                "guid", "guid-any"
+        );
+
+        mockMvc.perform(post("/api/logs/decrypt/java_fw_imglog")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(body)))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.code").value("DECRYPTION_NOT_APPROVED"));
+    }
+
+    /** Stub AuthService that allows decrypt (hasDecryptForMain returns true). Configurable current user for TC-01/TC-02/TC-04. */
     private static class StubAuthServiceDecryptAllowed extends AuthService {
+        private long currentUserId = 20260001L;
+        private String currentUsername = "user1";
+
         StubAuthServiceDecryptAllowed() {
             super(null, null, null, null, null);
+        }
+
+        void setCurrentUserId(long userId) {
+            this.currentUserId = userId;
+        }
+
+        void setCurrentUsername(String username) {
+            this.currentUsername = username;
         }
 
         @Override
@@ -126,9 +165,9 @@ class DecryptControllerTest {
         @Override
         public com.logmng.dto.response.LoginResponse getCurrentUserInfo(HttpServletRequest request) {
             com.logmng.dto.response.LoginResponse r = new com.logmng.dto.response.LoginResponse();
-            r.setUsername("user1");
-            r.setUserId(20260001L);
-            r.setSelfContext(new com.logmng.dto.response.LoginResponse.SelfContext(null, "user1", 20260001L));
+            r.setUsername(currentUsername);
+            r.setUserId(currentUserId);
+            r.setSelfContext(new com.logmng.dto.response.LoginResponse.SelfContext(null, currentUsername, currentUserId));
             return r;
         }
 

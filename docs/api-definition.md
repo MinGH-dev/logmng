@@ -450,7 +450,7 @@
 - **POST** `/api/logs/decrypt/{logType}`
 - **권한 (req 20260306)**: **검색하기(main) 화면 접근 + screenFunctions.main.decrypt === true** (또는 is_system_admin). 권한 없으면 403 `code: "FUNCTION_NOT_ALLOWED"`. 권한관리 화면에서 검색하기 화면에 대해 "복호화" 권한을 부여/해제할 수 있음.
 - **Path**: `logType` — 현재 **java_fw_imglog** 만 지원
-- **Request body** (JSON): `{ "guid": string (필수), "status"?: string, "searchHistoryId": number (필수) }` — searchHistoryId는 이번 검색에 대한 승인된 검색 이력 ID. 해당 건이 본인 소유·APPROVED·미만료일 때만 복호화 허용. **소유·승인 검사 (req 20260317)**: 숫자 **user_id**(search_history.user_id 및 현재 사용자 id)만 사용; username은 이 경로에서 사용하지 않음.
+- **Request body** (JSON): `{ "guid": string (필수), "status"?: string, "searchHistoryId": number (필수) }` — searchHistoryId는 이번 검색에 대한 승인된 검색 이력 ID. 해당 건이 본인 소유·APPROVED·미만료일 때만 복호화 허용. **실행 가능 사용자 (req 20260317)**: 복호화 실행은 **요청자**(search_history.user_id = 현재 사용자 id)만 허용; 승인자(approver)가 같은 searchHistoryId로 실행하면 403 DECRYPTION_NOT_APPROVED. **소유·승인 검사**: 숫자 **user_id**(search_history.user_id 및 현재 사용자 id)만 사용; username은 이 경로에서 사용하지 않음.
 - **Response (data)**: Map (복호화된 필드)
 - **에러**:
   - 401 미로그인: `code: "UNAUTHORIZED"`

@@ -5,12 +5,12 @@ import com.logmng.dto.response.ApiResponse;
 import com.logmng.dto.response.LoginResponse;
 import com.logmng.service.AuthService;
 import com.logmng.service.StubUserActivityLogServiceSaveCapture;
-import com.logmng.service.UserActivityLogService;
 import jakarta.servlet.http.HttpServletRequest;
 import org.aspectj.lang.ProceedingJoinPoint;
 import org.aspectj.lang.reflect.MethodSignature;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
@@ -20,11 +20,13 @@ import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
 
+import jakarta.servlet.http.Part;
 import java.lang.reflect.Method;
+import java.util.Collection;
+import java.util.HashMap;
 import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.when;
 
@@ -85,6 +87,7 @@ class ActivityLogAspectTest {
     }
 
     @Test
+    @DisplayName("TC-03: decryptRow args (logType, request Map, httpRequest) → no 500; activity log has placeholders for Servlet param")
     void logActivity_doesNotSerializeHttpServletRequest_putsPlaceholderInRequestParams() throws Throwable {
         aspect.logActivity(joinPoint);
 
@@ -96,6 +99,78 @@ class ActivityLogAspectTest {
         assertThat(requestParams.get("httpRequest")).isEqualTo("<HttpServletRequest>");
         assertThat(requestParams.get("request")).isNotNull();
         assertThat(requestParams).containsKey("logType");
+    }
+
+    /**
+     * When the controller has HttpServletRequest and the request would throw on getParts() (e.g. Tomcat
+     * for application/json), the aspect must never pass it to ObjectMapper so no exception is thrown.
+     */
+    @Test
+    void logActivity_withRequestThatThrowsOnGetParts_doesNotThrow_applicationJson() throws Throwable {
+        HttpServletRequest requestThatThrowsOnGetParts = new MockHttpServletRequest() {
+            @Override
+            public Collection<Part> getParts() {
+                throw new IllegalStateException(
+                    "the request doesn't contain a multipart/form-data or multipart/mixed stream, content type header is application/json");
+            }
+        };
+        ((MockHttpServletRequest) requestThatThrowsOnGetParts).setContentType("application/json");
+        ((MockHttpServletRequest) requestThatThrowsOnGetParts).setMethod("POST");
+        ((MockHttpServletRequest) requestThatThrowsOnGetParts).setRequestURI("/api/logs/decrypt/java_fw_imglog");
+        RequestContextHolder.setRequestAttributes(new ServletRequestAttributes(requestThatThrowsOnGetParts));
+
+        when(joinPoint.getArgs()).thenReturn(new Object[]{
+                "java_fw_imglog",
+                Map.of("searchHistoryId", "1", "guid", "g"),
+                requestThatThrowsOnGetParts
+        });
+
+        aspect.logActivity(joinPoint);
+
+        @SuppressWarnings("unchecked")
+        Map<String, Object> requestParams = (Map<String, Object>) userActivityLogService.getLastActionDetail().get("requestParams");
+        assertThat(requestParams.get("httpRequest")).isEqualTo("<HttpServletRequest>");
+    }
+
+    /**
+     * When a parameter is a Map that contains HttpServletRequest (e.g. body with "httpRequest" key),
+     * the aspect must not pass it to ObjectMapper; deepSanitize replaces Servlet with placeholder so no
+     * NamesEnumerator/serialization error occurs.
+     */
+    @Test
+    void logActivity_withMapContainingHttpServletRequest_doesNotThrow_placeholderInParams() throws Throwable {
+        MockHttpServletRequest request = new MockHttpServletRequest();
+        request.setMethod("POST");
+        request.setRequestURI("/api/logs/decrypt/java_fw_imglog");
+        RequestContextHolder.setRequestAttributes(new ServletRequestAttributes(request));
+
+        // Simulate a controller that receives a map (e.g. request body) that contains the request object
+        Map<String, Object> bodyWithRequest = new HashMap<>();
+        bodyWithRequest.put("searchHistoryId", "1");
+        bodyWithRequest.put("guid", "g");
+        bodyWithRequest.put("httpRequest", request);
+
+        when(methodSignature.getParameterNames()).thenReturn(new String[]{"logType", "request", "httpRequest"});
+        when(joinPoint.getArgs()).thenReturn(new Object[]{
+                "java_fw_imglog",
+                bodyWithRequest,
+                request
+        });
+
+        aspect.logActivity(joinPoint);
+
+        Map<String, Object> actionDetail = userActivityLogService.getLastActionDetail();
+        assertThat(actionDetail).isNotNull();
+        @SuppressWarnings("unchecked")
+        Map<String, Object> requestParams = (Map<String, Object>) actionDetail.get("requestParams");
+        assertThat(requestParams).isNotNull();
+        assertThat(requestParams.get("httpRequest")).isEqualTo("<HttpServletRequest>");
+        // "request" param was a Map containing HttpServletRequest; stored value must contain placeholder, not raw request
+        Object requestParam = requestParams.get("request");
+        assertThat(requestParam).isNotNull();
+        String requestParamStr = requestParam.toString();
+        assertThat(requestParamStr).contains("<HttpServletRequest>");
+        assertThat(requestParamStr).doesNotContain("NamesEnumerator");
     }
 
     private static class StubAuthServiceForAspect extends AuthService {
