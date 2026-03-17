@@ -27,7 +27,7 @@ public class StubSearchHistoryService extends SearchHistoryService {
     }
 
     @Override
-    public boolean isValidApprovalForUser(Long searchHistoryId, String userId) {
+    public boolean isValidApprovalForUser(Long searchHistoryId, Long userId) {
         return validApprovalForUser;
     }
 

@@ -218,10 +218,11 @@ public class ActivityStatisticsService {
         for (String typeId : STATISTICS_LOG_TYPE_IDS) {
             List<Map<String, Object>> list = getOneLogTypeUserStatistics(startDate, endDate, typeId, userId, allowedUserIds, department, ip, username);
             for (Map<String, Object> row : list) {
-                String uId = (String) row.get("userId");
+                // Key is string for grouping; map stores Long for contract (userId from DB is Long).
+                String uId = String.valueOf(row.get("userId"));
                 byUserId.computeIfAbsent(uId, id -> {
                     Map<String, Object> m = new LinkedHashMap<>();
-                    m.put("userId", id);
+                    m.put("userId", row.get("userId"));
                     m.put("userName", row.get("userName"));
                     m.put("totalCount", 0L);
                     m.put("loginCount", 0L);
@@ -294,8 +295,11 @@ public class ActivityStatisticsService {
         return getUsers(null, null);
     }
 
-    /** When userIdFilter is not null, return only that user (scope=self). When allowedUserIds is set, filter by IN list (scope=team). userId = numeric app_user.id (req 20260316). */
+    /** When userIdFilter is not null, return only that user (scope=self). When allowedUserIds is set, filter by IN list (scope=team). Empty allowedUserIds = no users (req 20260317). */
     public List<Map<String, Object>> getUsers(String userIdFilter, List<String> allowedUserIds) {
+        if (allowedUserIds != null && allowedUserIds.isEmpty()) {
+            return Collections.emptyList();
+        }
         String sql;
         List<Object> params = new ArrayList<>();
         if (allowedUserIds != null && !allowedUserIds.isEmpty()) {
@@ -347,8 +351,11 @@ public class ActivityStatisticsService {
         return getIps(null, null);
     }
 
-    /** When userIdFilter or allowedUserIds is set, filter IPs by that user or user list (scope=self or team). */
+    /** When userIdFilter or allowedUserIds is set, filter IPs by that user or user list (scope=self or team). Empty allowedUserIds = no IPs (req 20260317). */
     public List<String> getIps(String userIdFilter, List<String> allowedUserIds) {
+        if (allowedUserIds != null && allowedUserIds.isEmpty()) {
+            return Collections.emptyList();
+        }
         if (allowedUserIds != null && !allowedUserIds.isEmpty()) {
             String placeholders = String.join(",", Collections.nCopies(allowedUserIds.size(), "?"));
             String sql = "SELECT DISTINCT ip_address FROM user_activity_log WHERE user_id IN (" + placeholders + ") AND ip_address IS NOT NULL AND ip_address != '' ORDER BY ip_address";
@@ -489,6 +496,9 @@ public class ActivityStatisticsService {
         }
         if (allowedUserIds != null && !allowedUserIds.isEmpty()) {
             sb.append(" AND ").append(tablePrefix).append("user_id IN (").append(String.join(",", Collections.nCopies(allowedUserIds.size(), "?"))).append(") ");
+        } else if (allowedUserIds != null && allowedUserIds.isEmpty()) {
+            /* scope=team with no department or null username: allow no rows (req 20260317) */
+            sb.append(" AND 1=0 ");
         } else if (userId != null && !userId.isEmpty()) {
             sb.append(" AND ").append(tablePrefix).append("user_id = ? ");
         }

@@ -46,9 +46,13 @@ public class AuthController {
         
         // 세션에 userId (Long, app_user.id) 및 권한 정보 저장 (req 20250303, 계약: 로그인은 id만 사용)
         jakarta.servlet.http.HttpSession session = httpRequest.getSession(true);
-        Long numericUserId = loginResponse.getSelfContext() != null ? loginResponse.getSelfContext().getUserId() : null;
+        Long numericUserId = loginResponse.getUserId() != null ? loginResponse.getUserId()
+                : (loginResponse.getSelfContext() != null ? loginResponse.getSelfContext().getUserId() : null);
         if (numericUserId != null) {
             session.setAttribute("userId", numericUserId);
+        }
+        if (loginResponse.getUsername() != null) {
+            session.setAttribute("username", loginResponse.getUsername());
         }
         session.setAttribute("isSystemAdmin", Boolean.TRUE.equals(loginResponse.getIsSystemAdmin()));
         session.setAttribute("allowedScreenIds", loginResponse.getAllowedScreenIds());
@@ -83,29 +87,48 @@ public class AuthController {
     /**
      * 인증 상태 확인
      * GET /api/auth/check
+     * Req 20260316: Defensive null checks and try-catch so response build/serialization never cause 500.
      */
     @GetMapping("/check")
     public ResponseEntity<ApiResponse<Map<String, Object>>> checkAuth(HttpServletRequest httpRequest) {
         log.debug("인증 상태 확인 요청");
-        boolean authenticated = authService.checkAuth(httpRequest);
-        
-        Map<String, Object> data = new HashMap<>();
-        data.put("authenticated", authenticated);
-        data.put("message", authenticated ? "인증되었습니다." : "인증되지 않았습니다.");
-        if (authenticated) {
-            LoginResponse userInfo = authService.getCurrentUserInfo(httpRequest);
-            if (userInfo != null) {
-                data.put("username", userInfo.getUsername());
-                data.put("isSystemAdmin", userInfo.getIsSystemAdmin());
-                data.put("allowedScreenIds", userInfo.getAllowedScreenIds());
-                data.put("screenScopes", userInfo.getScreenScopes());
-                data.put("screenFunctions", userInfo.getScreenFunctions());
-                data.put("selfContext", userInfo.getSelfContext());
+        try {
+            boolean authenticated = authService.checkAuth(httpRequest);
+            Map<String, Object> data = new HashMap<>();
+            data.put("authenticated", authenticated);
+            data.put("message", authenticated ? "인증되었습니다." : "인증되지 않았습니다.");
+            if (authenticated) {
+                LoginResponse userInfo = authService.getCurrentUserInfo(httpRequest);
+                if (userInfo != null) {
+                    if (userInfo.getUsername() != null) {
+                        data.put("username", userInfo.getUsername());
+                    }
+                    if (userInfo.getIsSystemAdmin() != null) {
+                        data.put("isSystemAdmin", userInfo.getIsSystemAdmin());
+                    }
+                    if (userInfo.getAllowedScreenIds() != null) {
+                        data.put("allowedScreenIds", userInfo.getAllowedScreenIds());
+                    }
+                    if (userInfo.getScreenScopes() != null) {
+                        data.put("screenScopes", userInfo.getScreenScopes());
+                    }
+                    if (userInfo.getScreenFunctions() != null) {
+                        data.put("screenFunctions", userInfo.getScreenFunctions());
+                    }
+                    if (userInfo.getSelfContext() != null) {
+                        data.put("selfContext", userInfo.getSelfContext());
+                    }
+                }
             }
+            ApiResponse<Map<String, Object>> response = ApiResponse.success(data);
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            log.warn("인증 상태 확인 중 예외 발생, authenticated=false 반환", e);
+            Map<String, Object> data = new HashMap<>();
+            data.put("authenticated", false);
+            data.put("message", "인증되지 않았습니다.");
+            return ResponseEntity.ok(ApiResponse.success(data));
         }
-        
-        ApiResponse<Map<String, Object>> response = ApiResponse.success(data);
-        return ResponseEntity.ok(response);
     }
     
     /**

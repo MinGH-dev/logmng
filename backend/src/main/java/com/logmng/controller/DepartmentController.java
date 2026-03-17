@@ -60,13 +60,6 @@ public class DepartmentController {
         }
     }
 
-    private static String getUserId(HttpServletRequest request) {
-        jakarta.servlet.http.HttpSession session = request.getSession(false);
-        if (session == null) return null;
-        Object v = session.getAttribute("userId");
-        return v != null ? v.toString() : null;
-    }
-
     private static boolean isSystemAdmin(HttpServletRequest request) {
         jakarta.servlet.http.HttpSession session = request.getSession(false);
         if (session == null) return false;
@@ -75,8 +68,7 @@ public class DepartmentController {
     }
 
     private void requireAdmin(HttpServletRequest request) {
-        String userId = getUserId(request);
-        if (userId == null || userId.isBlank()) {
+        if (authService.getCurrentUserInfo(request) == null) {
             throw CustomException.unauthorized("로그인이 필요합니다.", "UNAUTHORIZED");
         }
         if (!decryptApproverService.isAdmin(isSystemAdmin(request))) {

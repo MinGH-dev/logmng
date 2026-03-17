@@ -60,8 +60,27 @@
   padding: 12px 20px;
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: 12px;
   border-bottom: 1px solid #eee;
+}
+
+.log-grid-request-reason {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.log-grid-request-reason label {
+  flex-shrink: 0;
+  font-size: 14px;
+  color: #495057;
+}
+
+.log-grid-request-reason input.form-control {
+  min-width: 200px;
+  max-width: 400px;
+  width: 100%;
 }
 
 .decrypt-approval-request-btn {

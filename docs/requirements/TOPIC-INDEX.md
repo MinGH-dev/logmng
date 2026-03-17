@@ -50,6 +50,7 @@ For **RequirementsPastSearch** token optimization. Read this file first to find 
 - 20250303-activity-statistics-self-only-scope | 비관리자 scope=self|all (activity-log, statistics, search-history)
 - 20250303-activity-statistics-self-only-scope-bugfix-1 | scope 적용 미적용 (session/scope resolution)
 - 20250303-activity-statistics-self-only-scope-bugfix-2 | TC-02, TC-06, TC-08 재검증
+- 20260317-activity-statistics-department-approver-error | Fix error when activity statistics is queried by approver group/department (scope=team); align user_id vs user_name to user_id where wrong; implementer must check backend logs for root cause.
 
 ## sidebar | layout | 사이드바 | 레이아웃
 
@@ -95,6 +96,16 @@ For **RequirementsPastSearch** token optimization. Read this file first to find 
 - 20260224-decryption-snapshot-final-design-en | (English)
 - 20260224-decryption-snapshot-qa-test-scenarios | 복호화 스냅샷 QA 시나리오
 - 20260224-decryption-approval-snapshot-guide | 복호화 승인 스냅샷 가이드
+- 20260316-search-history-grid-requester-and-modal | On the **search history** screen (검색 이력), the following changes are requested:
+- 20260316-search-history-grid-department-and-username | On the **search history** (검색 이력) result grid, the user requests that **department and user name** (부서와 사용자명) be shown clearly.
+- 20260316-search-history-grid-requester-columns-empty-data | Bugfix: search history grid shows 부서, 사용자ID, 사용자명 column headers but cell data is empty; analysis and fix delegated to Backend and Frontend.
+- 20260316-bugfix-search-history-screen-server-error | Bugfix: server error on search history screen entry; list API or current-user resolution suspected; implementer to identify root cause and fix.
+- 20260316-search-history-auth-500-fix | Fix 500 on GET /api/auth/check and GET /api/search-history; uncaught exceptions in controller path (getCurrentUserId, resolveScope, getScreenScopes, DepartmentScopeHelper); return 200 or 401 instead of 500.
+- 20260316-decrypt-approve-cross-user-server-error | When user1 (approver) approves user2's (requester's) decryption request, server returns 500; fix so approval succeeds or returns clear 4xx (no 500).
+- 20260316-decrypt-approval-use-user-id-everywhere | Decrypt approval: use user_id (numeric) everywhere in approval flow; clarify current approver check; eliminate username-based permission/storage to avoid 500.
+- 20260317-search-history-labels-layout-decrypt-dropdown | Search History: label 요청일시→검색일시 (form and grid); two-row layout (row1 date only, row2 requester|approval|request reason); 복호화 승인 여부 as dropdown with checkboxes.
+- 20260317-search-history-screen-improvements | Search History screen: default date range d−7/d+0; 7d/15d/30d presets; 복호화 label; approval filter same background as editable fields; narrow seq/복호화 columns; paging aligned with other list screens.
+- 20260317-search-history-grid-columns-filter-fix | Search History: grid column sizing (User ID 8-digit, Search condition button-only); ensure/fix filtering by 검색일시, 복호화, 요청 사유 (expected behavior and diagnosis guidance for frontend vs backend).
 
 ## image-log | imagelog | datastring
 
@@ -134,3 +145,5 @@ For **RequirementsPastSearch** token optimization. Read this file first to find 
 Auto-managed fallback section for requirement docs whose topic does not clearly match another section.
 
 - 20260206-pretty-mode-highlighting-fix | Pretty 모드 하이라이팅 표시 문제 수정
+- 20260316-login-id-user-name-display | 1. **Login**: Users must log in using their **user ID** (the canonical identifier, i.e. `app_user.username`). The login UI and documentation must present this as "user ID" rather than "user name".
+- 20260316-user-id-numeric-userid-naming | Define canonical **user ID** values for the sample users and unify the naming of variables and fields that represent user ID across the system.

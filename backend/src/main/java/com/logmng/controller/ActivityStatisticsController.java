@@ -158,7 +158,10 @@ public class ActivityStatisticsController {
                 throw CustomException.unauthorized("로그인이 필요합니다.", "UNAUTHORIZED");
             }
         } else if ("team".equals(scope)) {
-            allowedUserIds = DepartmentScopeHelper.getUserIdsInSameDepartment(dataSource, userInfo.getUsername());
+            String currentUser = userInfo.getUsername();
+            allowedUserIds = (currentUser == null || currentUser.isBlank())
+                    ? java.util.Collections.emptyList()
+                    : DepartmentScopeHelper.getUserIdsInSameDepartment(dataSource, currentUser);
         }
         List<Map<String, Object>> data = activityStatisticsService.getUsers(userIdFilter, allowedUserIds);
         return ResponseEntity.ok(ApiResponse.success(data));
@@ -193,7 +196,10 @@ public class ActivityStatisticsController {
                 throw CustomException.unauthorized("로그인이 필요합니다.", "UNAUTHORIZED");
             }
         } else if ("team".equals(scope)) {
-            allowedUserIds = DepartmentScopeHelper.getUserIdsInSameDepartment(dataSource, userInfo.getUsername());
+            String currentUser = userInfo.getUsername();
+            allowedUserIds = (currentUser == null || currentUser.isBlank())
+                    ? java.util.Collections.emptyList()
+                    : DepartmentScopeHelper.getUserIdsInSameDepartment(dataSource, currentUser);
         }
         List<String> data = activityStatisticsService.getIps(userIdFilter, allowedUserIds);
         return ResponseEntity.ok(ApiResponse.success(data));

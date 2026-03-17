@@ -39,6 +39,9 @@ public class LoginResponse {
     /** Authoritative locked self-context for visible self-scoped user/requester fields. */
     private SelfContext selfContext;
 
+    /** Numeric app_user.id for current user (req 20260316). Convenience for APIs that need Long. */
+    private Long userId;
+
     public LoginResponse() {
     }
     
@@ -118,6 +121,14 @@ public class LoginResponse {
 
     public void setSelfContext(SelfContext selfContext) {
         this.selfContext = selfContext;
+    }
+
+    public Long getUserId() {
+        return userId;
+    }
+
+    public void setUserId(Long userId) {
+        this.userId = userId;
     }
 
     /** Self-context for locked user/requester display. userId = numeric app_user.id (req 20260316). */

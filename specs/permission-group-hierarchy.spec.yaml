@@ -218,6 +218,11 @@ Single endpoint that returns department tree with users and their permission gro
 - **department**: code, parent_code, name, sort_order — unchanged.
 - **app_user**: id, username, role, department_code, ... — unchanged.
 
+## 2.3 search_history (join and storage semantics)
+
+- **search_history.user_id** stores numeric **app_user.id** (requester). Join condition everywhere: **app_user.id = search_history.user_id**. Do not store username in `search_history.user_id`; do not join on `app_user.username = search_history.user_id`.
+- API list requester filter `userId` and response `userId` are numeric `app_user.id`. See docs/contract.md, docs/api-definition.md §6.1.
+
 ---
 # 3. Error codes (api-definition §11)
 

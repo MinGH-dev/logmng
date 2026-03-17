@@ -6,6 +6,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### 2026-03-17 (검색 이력·복호화·활동 통계 배치 동기화)
+
+- **feat (search-history)**: 검색 이력 그리드 컬럼 순서·부서/사용자명·요청자 컬럼 및 모달, 요청 사유 검색 필드, 라벨/레이아웃·복호화 드롭다운 개선; 서버 오류·auth 500 버그 수정; 사용자 ID 쿼리 및 네이밍(user_id 일원화). (req 20260316-*, 20260317-search-history-*)
+- **fix (decrypt)**: 복호화 승인·실행 전반 user_id 사용 통일; 타 사용자 승인 시 서버 오류 수정; 실행 시 user_id 버그 수정. (req 20260316-decrypt-approval-use-user-id-everywhere, 20260316-decrypt-approve-cross-user-server-error, 20260317-decrypt-execution-user-id-fix*)
+- **fix (activity-statistics)**: 통계 조회 시 결재자/부서(scope=team) 조건에서 발생하던 오류 수정; user_id vs user_name 정렬. (req 20260317-activity-statistics-department-approver-error)
+- **fix (self-scope)**: scope=self 사용자 블록 가시성 및 검색 조건 정합성. (req 20260316-self-scope-user-block-visible-and-search-conditions)
+
 ### 2026-03-13 (사용자/권한그룹 관리 서버 오류 복구)
 
 - **fix (management/db)**: 런타임 PostgreSQL 스키마 드리프트로 `permission_group_screen.decrypt` 컬럼이 누락되어 `GET /api/permission-groups`가 `500`으로 실패하던 원인을 요구사항 문서에 정리하고, 기존 마이그레이션 `backend/src/main/resources/db/migrate-permission-group-screen-decrypt.sql` 적용 후 **User Management**와 **Permission Group Management** 화면이 다시 정상 로드됨을 검증 결과와 함께 반영. (req `20260313-user-management-permission-group-server-error`)

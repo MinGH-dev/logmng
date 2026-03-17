@@ -6,7 +6,6 @@ import javax.sql.DataSource;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
-import java.sql.SQLException;
 
 /**
  * Resolves app_user.id (numeric) ↔ app_user.username for API/DB mapping.
@@ -22,7 +21,7 @@ public class AppUserResolver {
     }
 
     /**
-     * @return username for the given app_user.id, or null if not found
+     * @return username for the given app_user.id, or null if not found or any exception (req 20260316: never throw to callers)
      */
     public String getUsernameById(Long id) {
         if (id == null) {
@@ -36,13 +35,13 @@ public class AppUserResolver {
                     return rs.next() ? rs.getString("username") : null;
                 }
             }
-        } catch (SQLException e) {
+        } catch (Exception e) {
             return null;
         }
     }
 
     /**
-     * @return app_user.id for the given username, or null if not found
+     * @return app_user.id for the given username, or null if not found or any exception (req 20260316: never throw to callers)
      */
     public Long getIdByUsername(String username) {
         if (username == null || username.isBlank()) {
@@ -56,7 +55,7 @@ public class AppUserResolver {
                     return rs.next() ? rs.getLong("id") : null;
                 }
             }
-        } catch (SQLException e) {
+        } catch (Exception e) {
             return null;
         }
     }

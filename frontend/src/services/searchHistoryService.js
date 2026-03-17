@@ -6,13 +6,20 @@ const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || 'http://localhost:920
 
 /**
  * 검색 이력 저장
+ * @param {string} logType - 로그 타입 ID
+ * @param {object} searchParams - 검색 조건
+ * @param {string} [requestReason] - 요청 사유 (optional or required per product; max 500)
  */
-export const createSearchHistory = async (logType, searchParams) => {
+export const createSearchHistory = async (logType, searchParams, requestReason) => {
+  const body = { logType, searchParams };
+  if (requestReason != null && String(requestReason).trim() !== '') {
+    body.requestReason = String(requestReason).trim();
+  }
   const response = await fetch(`${API_BASE_URL}/search-history`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     credentials: 'include',
-    body: JSON.stringify({ logType, searchParams }),
+    body: JSON.stringify(body),
   });
   let result;
   try {
@@ -36,6 +43,10 @@ export const createSearchHistory = async (logType, searchParams) => {
  * 검색 이력 목록 조회
  * @param {object} opts
  * @param {number|string} [opts.userId] - Requester user ID (numeric app_user.id)
+ * @param {string} [opts.requestedAtFrom] - 요청일시 범위 시작 (yyyy-MM-dd HH:mm:ss)
+ * @param {string} [opts.requestedAtTo] - 요청일시 범위 종료 (yyyy-MM-dd HH:mm:ss)
+ * @param {string[]} [opts.approvalStatuses] - 복호화 승인 여부 (PENDING, APPROVED, REJECTED, EXPIRED); repeated param
+ * @param {string} [opts.requestReason] - 요청사유 부분 검색
  */
 export const getSearchHistoryList = async ({
   page = 1,
@@ -45,6 +56,10 @@ export const getSearchHistoryList = async ({
   department = '',
   username = '',
   userId = '',
+  requestedAtFrom = '',
+  requestedAtTo = '',
+  approvalStatuses = [],
+  requestReason = '',
 } = {}) => {
   const params = new URLSearchParams({
     page: String(page),
@@ -61,6 +76,20 @@ export const getSearchHistoryList = async ({
   }
   if (userId !== '' && userId != null && userId !== undefined) {
     params.set('userId', String(userId));
+  }
+  if (requestedAtFrom && String(requestedAtFrom).trim()) {
+    params.set('requestedAtFrom', String(requestedAtFrom).trim());
+  }
+  if (requestedAtTo && String(requestedAtTo).trim()) {
+    params.set('requestedAtTo', String(requestedAtTo).trim());
+  }
+  if (Array.isArray(approvalStatuses) && approvalStatuses.length > 0) {
+    approvalStatuses.forEach((s) => {
+      if (s && String(s).trim()) params.append('approvalStatus', String(s).trim());
+    });
+  }
+  if (requestReason != null && String(requestReason).trim() !== '') {
+    params.set('requestReason', String(requestReason).trim());
   }
 
   const response = await fetch(`${API_BASE_URL}/search-history?${params}`, {

@@ -67,7 +67,7 @@ Per-field design definition for **검색하기 (main)**, **활동 이력 (activi
 
 ## 2. 활동 이력 (activity-log) — 필드 정의
 
-**참조**: `UserActivityLogSearchForm.js`, `UserContextFilterBlock.js`. 사용자 맥락 화면이므로 scope=self 시 사용자·기타 조건 블록 숨김.
+**참조**: `UserActivityLogSearchForm.js`, `UserContextFilterBlock.js`. 사용자 맥락 화면. scope=self 시 사용자 블록은 **visible, fixed to current user, read-only**; 기타 조건 블록은 **visible** (req 20260316).
 
 ### 2.1 활동 이력 — 전체 필드
 
@@ -81,7 +81,7 @@ Per-field design definition for **검색하기 (main)**, **활동 이력 (activi
 | actionType | 액션 타입 | select | extra | min 100px, max 200px | 34px | 6px 8–10px | — | — | '' | — | Static: 전체, 로그인, 로그아웃, 검색, 조회, 복호화, 고급 검색, 내보내기 |
 | ipAddress | IP 주소 | text | extra | min 100px, max 200px | 34px | 6px 8–10px | — | — | '' | IP 주소 | — (직접 입력) |
 
-- **scopeWhenSelf**: user 블록 + extra 블록(actionType, ipAddress) = **hidden**.  
+- **scopeWhenSelf**: user 블록 = **visible, fixed to current user, read-only** (auth `selfContext` 표시); extra 블록(actionType, ipAddress) = **visible**.  
 - **API 날짜 형식**: `yyyy-MM-dd HH:mm:ss`.  
 - **사용자 블록 순서**: 부서 → 사용자명 → 사용자 ID (고정).
 
@@ -89,7 +89,7 @@ Per-field design definition for **검색하기 (main)**, **활동 이력 (activi
 
 ## 3. 통계 (statistics) — 필드 정의
 
-**참조**: `StatisticsFilters.js`, `StatisticsHeader.js`, `UserContextFilterBlock.js`. 사용자 맥락 화면이므로 scope=self 시 사용자·기타 조건 블록 숨김. 필터 패널은 항상 펼침(접기 없음). 컨테이너 너비·간격은 활동 이력과 동일(§4 화면 간 공통 규칙). 필드별 control 크기·제한값은 `docs/design/search-field-definition-items.md` 및 §4 화면 간 공통 규칙 참조.
+**참조**: `StatisticsFilters.js`, `StatisticsHeader.js`, `UserContextFilterBlock.js`. 사용자 맥락 화면. scope=self 시 사용자 블록은 **visible, fixed to current user, read-only**; 기타 조건 블록 및 로그 타입 = **visible** (req 20260316). 필터 패널은 항상 펼침(접기 없음). 컨테이너 너비·간격은 활동 이력과 동일(§4 화면 간 공통 규칙). 필드별 control 크기·제한값은 `docs/design/search-field-definition-items.md` 및 §4 화면 간 공통 규칙 참조.
 
 ### 3.1 통계 — 필드 목록 및 블록
 
@@ -98,8 +98,8 @@ Per-field design definition for **검색하기 (main)**, **활동 이력 (activi
 | logType | 로그 타입 | select | 단일 행(날짜 제외) | min 140px, max 180px | 34px | 6px 8–10px | 전체, 로그인, API 목록; role="group" + aria-labelledby |
 | startDate / endDate (일별) | 시작일, 종료일 | date | header | min 150px | 34px | 6px 10px | start ≤ end; aria-invalid, aria-describedby (오류 시) |
 | year / month (월별) | 연도, 월 | select | header | — | 34px | 6px 8–10px | 연도/월 선택 |
-| department, username, userId | 부서, 사용자명, 사용자 ID | user block | 단일 행(날짜 제외) | 활동 이력과 동일 | 34px | 6px 8–10px | UserContextFilterBlock; scope=self 시 숨김 |
-| ipAddress | IP 주소 | text | 단일 행(날짜 제외) 기타 조건 | min 100px, max 200px | 34px | 6px 8–10px | 활동 이력 §2.1과 동일(라벨·controlType·placeholder). scope=self 시 기타 조건 블록 전체 숨김 |
+| department, username, userId | 부서, 사용자명, 사용자 ID | user block | 단일 행(날짜 제외) | 활동 이력과 동일 | 34px | 6px 8–10px | UserContextFilterBlock; scope=self 시 visible, fixed to current user, read-only (auth selfContext) |
+| ipAddress | IP 주소 | text | 단일 행(날짜 제외) 기타 조건 | min 100px, max 200px | 34px | 6px 8–10px | 활동 이력 §2.1과 동일(라벨·controlType·placeholder). scope=self 시에도 기타 조건 블록 visible |
 
 - **블록 순서 (단일 행)**: 날짜·기간은 헤더에 두고, **날짜 제외 단일 행**에 로그 타입 + 사용자 블록 + 기타 조건(IP 주소) + 검색/초기화 버튼을 한 행에 배치. Per `docs/design/forms-and-filters.md` § Single row for non-date. 블록 단위 너비는 `var(--sf-field-user-block-max)` 등 적용. See § Filter block tiers.
 - **날짜·기간 블록 (동일 계층)**: 일별(시작일/종료일)·월별(연도/월)은 **날짜·기간 블록**으로 사용자·기타 조건과 같은 계층. 일별/월별 선택 시 **모드별 폼 로드**(일별용 폼 vs 월별용 폼) 방식으로 구현 가능; 각 폼에서 날짜 블록만 교체하고 나머지 블록은 동일. See `docs/design/forms-and-filters.md` § Form per mode.
@@ -111,7 +111,7 @@ Per-field design definition for **검색하기 (main)**, **활동 이력 (activi
 
 ## 4. 검색 이력 (search-history) — 필드 정의
 
-**참조**: `SearchHistoryList.js`, `UserContextFilterBlock.js`. 검색 이력은 **requester-context** 화면이며, 툴바는 **단일 compact 행**에 **요청자 블록 + 검색/초기화 버튼만** 둔다. `scope=self` 시 요청자 블록은 숨기고 로컬 state와 API requester params를 모두 비운다.
+**참조**: `SearchHistoryList.js`, `UserContextFilterBlock.js`. 검색 이력은 **requester-context** 화면이며, 툴바는 **두 행**으로 구성한다 (req 20260317). **Row 1**: 검색일시 (시작), 검색일시 (종료) + 기간 프리셋 (7d | 15d | 30d). **Row 2**: 요청자 블록 | 복호화(dropdown with checkboxes) | 요청 사유 + 검색/초기화 버튼. `scope=self` 시 요청자 블록은 숨기고 로컬 state와 API requester params를 모두 비운다.
 
 ### 4.1 검색 이력 — 요청자 블록
 
@@ -128,9 +128,27 @@ Per-field design definition for **검색하기 (main)**, **활동 이력 (activi
   - `department`: exact
   - `username`: partial
   - `userId`: exact
-- **toolbar structure**: requester block + 검색 + 초기화 only (single compact row)
+- **toolbar structure**: Row 1 — 검색일시 (시작), 검색일시 (종료) only. Row 2 — 요청자 block | 복호화 승인 여부 (dropdown with checkboxes) | 요청 사유 + 검색 + 초기화. Compact variant (row/field gap 8–12px, block 12–16px). (req 20260317)
 - **panel width**: `activity-log` / `statistics`와 동일한 fixed panel-width family (`max-width: 1400px`)
 - **paging interaction**: 필터 변경(Search/Reset) 또는 rows-per-page 변경 시 `page=1`로 reset
+- **그리드 요청자 컬럼**: 그리드는 **세 개의 개별 컬럼**으로 요청자 정보를 표시하며, 순서는 **부서**, **사용자ID**, **사용자명**. 데이터: 부서 = `requesterDepartmentName`(있고 비어 있지 않으면) 또는 `requesterDepartmentCode`, 사용자ID = `requesterUsername`, 사용자명 = `requesterDisplayName`(있고 비어 있지 않으면) 또는 `requesterUsername`.
+
+### 4.2 검색 이력 — 검색일시·승인 여부·요청 사유 블록 (req 20260317, 20260317-search-history-screen-improvements)
+
+| fieldId | label | controlType | block | width | height | padding | constraints | validation | defaultValue | placeholder | dataSource (select만) |
+|---------|-------|-------------|-------|-------|--------|---------|--------------|------------|--------------|-------------|------------------------|
+| requestedAtFrom | 검색일시 (시작) | datetime-local | extra (row 1) | min 140px, max 220px | 34px | 6px 8–10px | start ≤ end | requestedAtFrom ≤ requestedAtTo | d−7 00:00:00 | — | — |
+| requestedAtTo | 검색일시 (종료) | datetime-local | extra (row 1) | min 140px, max 220px | 34px | 6px 8–10px | start ≤ end | requestedAtFrom ≤ requestedAtTo | d+0 23:59:59 | — | — |
+| approvalStatuses | 복호화 | dropdown with checkboxes (multi) | extra (row 2) | trigger min 100px | 34px touch | 6px 8–10px | PENDING, APPROVED, REJECTED, EXPIRED | — | [] | trigger shows "전체" or selected labels | Static: 대기, 승인, 반려, 만료; dropdown 내 "모두선택" 시 전체 선택 또는 필터 생략 |
+| requestReason | 요청 사유 | text | extra (row 2) | min 100px, max 200px | 34px | 6px 8–10px | — | like/partial | '' | 요청사유 부분 검색 | — |
+
+- **Layout**: Row 1 = 검색일시 (시작), 검색일시 (종료) + **기간 프리셋 (7d | 15d | 30d)** to the right. Row 2 = 요청자 | 복호화 dropdown | 요청 사유 + 검색/초기화.
+- **Default date**: On mount and on Reset, requestedAtFrom = (today − 7 days) 00:00:00, requestedAtTo = today 23:59:59 (datetime-local and API format `yyyy-MM-dd HH:mm:ss`).
+- **7d / 15d / 30d preset**: Control (select) to the right of the date row. On select: set start to d−7, d−15, or d−30; end = d+0; apply and refresh list (same as Search) without changing requester, approval statuses, or request reason.
+- **복호화 dropdown**: Label "복호화" (filter and grid column). Trigger shows selection summary (e.g. "전체", "대기, 승인"). Dropdown content: four options (대기, 승인, 반려, 만료) as checkboxes; multi-select and "모두선택" preserved. Keyboard: Enter/Space open/close, Arrow keys move, Space toggle, Escape close; focus to list when open, back to trigger when closed. ARIA: trigger `aria-expanded`, `aria-haspopup="listbox"`, `aria-controls`, `aria-label="복호화"`; dropdown `role="listbox"`, options `role="option"` with `aria-selected`.
+- **Grid column**: Timestamp column (`requested_at`) header label **"검색일시"**; approval status column label **"복호화"**.
+- **API semantics**: requestedAtFrom/To → `requested_at` 범위 (yyyy-MM-dd HH:mm:ss); approvalStatuses → `approval_status IN (...)` (repeated query param); requestReason → `request_reason ILIKE %value%`.
+- **Control sizing**: `docs/design/search-field-definition-items.md` §1, §4, §4.5; date min 140px max 220px, text min 100px max 200px, height 34px, padding 6px 8–10px. CSS: `var(--sf-field-date-min/max)`, `var(--sf-field-extra-min/max)` from `search-filter-standard.css`.
 
 ---
 

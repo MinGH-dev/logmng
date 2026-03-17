@@ -33,6 +33,8 @@ const LogGrid = ({ logType, initialSearchParams, initialSearchApprovalId, onInit
   const [saveHistoryPending, setSaveHistoryPending] = useState(false);
   const [saveHistoryError, setSaveHistoryError] = useState(null);
   const [saveHistorySuccess, setSaveHistorySuccess] = useState(null);
+  /** 요청 사유 (복호화 승인 요청 시 필수, 최대 500자) */
+  const [requestReason, setRequestReason] = useState('');
   /** 이번 검색에 대한 복호화 승인 이력 ID. 복호화 API 호출 시 전달하여 "현재 검색에 대한 승인"만 허용 */
   const [currentApprovalId, setCurrentApprovalId] = useState(null);
   
@@ -300,8 +302,13 @@ const LogGrid = ({ logType, initialSearchParams, initialSearchApprovalId, onInit
     }
   };
 
-  // 복호화 승인 요청 (현재 검색을 이력에 저장)
+  // 복호화 승인 요청 (현재 검색을 이력에 저장). 요청 사유 필수.
   const handleRequestDecryptionApproval = async () => {
+    const reason = requestReason != null ? String(requestReason).trim() : '';
+    if (!reason) {
+      setSaveHistoryError('요청 사유를 입력해 주세요.');
+      return;
+    }
     setSaveHistoryError(null);
     setSaveHistorySuccess(null);
     setSaveHistoryPending(true);
@@ -309,7 +316,7 @@ const LogGrid = ({ logType, initialSearchParams, initialSearchApprovalId, onInit
       const toSave = searchMode === 'advanced' && lastAdvancedRequest
         ? lastAdvancedRequest
         : { ...searchParams, logType: logType.id };
-      const result = await createSearchHistory(logType.id, toSave);
+      const result = await createSearchHistory(logType.id, toSave, reason);
       const id = result?.data?.id ?? result?.id;
       if (id != null) setCurrentApprovalId(id);
       logger.info('검색 이력에 복호화 승인 요청 저장됨', { id });
@@ -403,6 +410,20 @@ const LogGrid = ({ logType, initialSearchParams, initialSearchApprovalId, onInit
         <SearchForm onSearch={handleSearch} />
       )}
       <div className="log-grid-actions">
+        <div className="log-grid-request-reason">
+          <label htmlFor="log-grid-request-reason">요청 사유 (필수)</label>
+          <input
+            id="log-grid-request-reason"
+            type="text"
+            className="form-control"
+            value={requestReason}
+            onChange={(e) => setRequestReason(e.target.value)}
+            placeholder="복호화 승인 요청 사유를 입력하세요"
+            maxLength={500}
+            aria-required="true"
+            aria-invalid={!!(saveHistoryError && !requestReason?.trim())}
+          />
+        </div>
         <button
           type="button"
           className="decrypt-approval-request-btn"

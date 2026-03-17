@@ -17,7 +17,7 @@ For **every** search/filter field, define the following where applicable:
 | **controlType** | 종류 | Input type or control: `text`, `datetime-local`, `select`. | `datetime-local`, `select` |
 | **screens** | 적용 화면 | Which screens show this field. | activity-log, statistics |
 | **block** | 소속 블록 | Group: `date-period` \| `user` \| `extra` \| `log-type`. Legacy: `row1-date` = date-period (날짜·기간 블록). All are the same tier for layout. | extra |
-| **scopeWhenSelf** | scope=self 시 | `hidden` = do not show when scope=self; `visible` = always show. | hidden |
+| **scopeWhenSelf** | scope=self 시 | `hidden` = do not show when scope=self; `visible` = always show. For activity-log and statistics **user block**: visible, **fixed to current user, read-only** (auth `selfContext`); **extra block**: visible (req 20260316). | hidden / visible |
 | **width** | 너비 | CSS width: min-width, max-width (px or em). Same on all screens in scope. | min 140px, max 220px |
 | **height** | 높이 | Control height (px). Prefer compact variant 32–36px. | 34px |
 | **padding** | 패딩 | Horizontal / vertical padding of control. | 8–10px / 6–8px |

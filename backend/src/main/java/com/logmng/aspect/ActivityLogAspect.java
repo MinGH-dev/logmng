@@ -6,6 +6,7 @@ import com.logmng.dto.response.LoginResponse;
 import com.logmng.service.AuthService;
 import com.logmng.service.UserActivityLogService;
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import org.aspectj.lang.ProceedingJoinPoint;
 import org.aspectj.lang.annotation.Around;
 import org.aspectj.lang.annotation.Aspect;
@@ -119,8 +120,10 @@ public class ActivityLogAspect {
                         try {
                             // 객체를 JSON으로 변환 시도
                             if (args[i] != null) {
-                                // LogDbSearchRequest인 경우 구조화하여 저장
-                                if (args[i] instanceof com.logmng.dto.request.LogDbSearchRequest) {
+                                // Servlet API 객체는 직렬화하지 않음 (RequestFacade 등은 asyncContext 접근 시 비동기 모드가 아니면 예외 발생)
+                                if (isNonSerializableServletParam(args[i])) {
+                                    params.put(paramNames[i], getPlaceholderForServletParam(args[i]));
+                                } else if (args[i] instanceof com.logmng.dto.request.LogDbSearchRequest) {
                                     com.logmng.dto.request.LogDbSearchRequest searchRequest = 
                                         (com.logmng.dto.request.LogDbSearchRequest) args[i];
                                     Map<String, Object> searchConditions = new HashMap<>();
@@ -204,6 +207,8 @@ public class ActivityLogAspect {
                                         params.put(paramNames[i], null);
                                     }
                                 }
+                            } else if (isNonSerializableServletParam(args[i])) {
+                                params.put(paramNames[i], getPlaceholderForServletParam(args[i]));
                             } else {
                                 // 다른 타입은 ObjectMapper로 변환 시도
                                 try {
@@ -554,6 +559,20 @@ public class ActivityLogAspect {
         }
     }
     
+    /**
+     * Servlet API 파라미터 여부. 이 타입들은 Jackson으로 직렬화하면 안 됨
+     * (예: RequestFacade의 asyncContext 접근 시 비동기 모드가 아니면 IllegalStateException).
+     */
+    private static boolean isNonSerializableServletParam(Object arg) {
+        return arg instanceof HttpServletRequest || arg instanceof HttpServletResponse;
+    }
+
+    private static String getPlaceholderForServletParam(Object arg) {
+        if (arg instanceof HttpServletRequest) return "<HttpServletRequest>";
+        if (arg instanceof HttpServletResponse) return "<HttpServletResponse>";
+        return "<Servlet>";
+    }
+
     /**
      * 민감한 필드인지 확인
      */

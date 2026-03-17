@@ -15,6 +15,9 @@ public class SearchHistoryCreateRequest {
     @NotNull(message = "searchParams is required")
     private Map<String, Object> searchParams;
 
+    /** 요청 사유 (optional). Max 500 chars; overlength → 400. Req 20260317. */
+    private String requestReason;
+
     public String getLogType() {
         return logType;
     }
@@ -29,5 +32,13 @@ public class SearchHistoryCreateRequest {
 
     public void setSearchParams(Map<String, Object> searchParams) {
         this.searchParams = searchParams;
+    }
+
+    public String getRequestReason() {
+        return requestReason;
+    }
+
+    public void setRequestReason(String requestReason) {
+        this.requestReason = requestReason;
     }
 }

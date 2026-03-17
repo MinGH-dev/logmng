@@ -6,32 +6,38 @@ import java.util.List;
 /**
  * 검색 이력 목록 조회용 정규화 DTO.
  * 컨트롤러에서 scope를 해석한 뒤 서비스에 전달한다.
+ * userId/actorUserId/allowedUserIds are numeric app_user.id (req 20260316).
+ * requestedAtFrom/To: yyyy-MM-dd HH:mm:ss. approvalStatuses: multi. requestReason: ILIKE. Req 20260317.
  */
 public class SearchHistoryListRequest {
 
-    private String actorUserId;
-    private List<String> allowedUserIds;
+    private Long actorUserId;
+    private List<Long> allowedUserIds;
     private String department;
     private String username;
-    private String userId;
+    private Long userId;
+    private String requestedAtFrom;
+    private String requestedAtTo;
+    private List<String> approvalStatuses;
+    private String requestReason;
     private int page = 1;
     private int pageSize = 20;
     private String sortField = "requested_at";
     private String sortDirection = "desc";
 
-    public String getActorUserId() {
+    public Long getActorUserId() {
         return actorUserId;
     }
 
-    public void setActorUserId(String actorUserId) {
+    public void setActorUserId(Long actorUserId) {
         this.actorUserId = actorUserId;
     }
 
-    public List<String> getAllowedUserIds() {
+    public List<Long> getAllowedUserIds() {
         return allowedUserIds;
     }
 
-    public void setAllowedUserIds(List<String> allowedUserIds) {
+    public void setAllowedUserIds(List<Long> allowedUserIds) {
         this.allowedUserIds = allowedUserIds == null ? null : new ArrayList<>(allowedUserIds);
     }
 
@@ -51,12 +57,44 @@ public class SearchHistoryListRequest {
         this.username = username;
     }
 
-    public String getUserId() {
+    public Long getUserId() {
         return userId;
     }
 
-    public void setUserId(String userId) {
+    public void setUserId(Long userId) {
         this.userId = userId;
+    }
+
+    public String getRequestedAtFrom() {
+        return requestedAtFrom;
+    }
+
+    public void setRequestedAtFrom(String requestedAtFrom) {
+        this.requestedAtFrom = requestedAtFrom;
+    }
+
+    public String getRequestedAtTo() {
+        return requestedAtTo;
+    }
+
+    public void setRequestedAtTo(String requestedAtTo) {
+        this.requestedAtTo = requestedAtTo;
+    }
+
+    public List<String> getApprovalStatuses() {
+        return approvalStatuses;
+    }
+
+    public void setApprovalStatuses(List<String> approvalStatuses) {
+        this.approvalStatuses = approvalStatuses == null ? null : new ArrayList<>(approvalStatuses);
+    }
+
+    public String getRequestReason() {
+        return requestReason;
+    }
+
+    public void setRequestReason(String requestReason) {
+        this.requestReason = requestReason;
     }
 
     public int getPage() {

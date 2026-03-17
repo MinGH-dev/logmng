@@ -89,9 +89,11 @@ CREATE TRIGGER update_pb_recv_updated_at
     EXECUTE FUNCTION update_updated_at_column();
 
 -- 검색 이력 (복호화 승인 부가 기능)
+-- user_id: requester's user id (numeric). app_user.id = search_history.user_id. Do not store username. Req: 20260316-search-history-user-id-query-and-naming.
+-- approved_by_user_id: approver's app_user.id (numeric). Req: 20260316-decrypt-approval-use-user-id-everywhere. Backfill from approved_by (username) via migrate-decrypt-approval-use-user-id.sql.
 CREATE TABLE IF NOT EXISTS search_history (
     id BIGSERIAL PRIMARY KEY,
-    user_id VARCHAR(100) NOT NULL,
+    user_id BIGINT NOT NULL,
     log_type VARCHAR(50) NOT NULL,
     search_params TEXT NOT NULL,
     requested_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -100,10 +102,12 @@ CREATE TABLE IF NOT EXISTS search_history (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     approved_by VARCHAR(100) NULL,
+    approved_by_user_id BIGINT NULL REFERENCES app_user(id),
     approved_at TIMESTAMP NULL,
     rejected_by VARCHAR(100) NULL,
     rejected_at TIMESTAMP NULL,
-    rejection_reason TEXT NULL
+    rejection_reason TEXT NULL,
+    request_reason TEXT NULL
 );
 
 CREATE INDEX IF NOT EXISTS idx_search_history_user_id ON search_history(user_id);
@@ -157,7 +161,18 @@ CREATE TRIGGER update_app_user_updated_at
     FOR EACH ROW
     EXECUTE FUNCTION update_updated_at_column();
 
--- 복호화 결재자 지정 (user_id = app_user.username). 부서별 지정: department_code NULL = 전역 결재자 (20260225)
+-- search_history.user_id FK (app_user created after search_history). Fresh install only; existing DBs use migrate-search-history-user-id-to-bigint.sql.
+DO $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'search_history' AND column_name = 'user_id' AND data_type = 'bigint') THEN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'fk_search_history_app_user') THEN
+      ALTER TABLE search_history ADD CONSTRAINT fk_search_history_app_user FOREIGN KEY (user_id) REFERENCES app_user(id);
+    END IF;
+  END IF;
+END $$;
+
+-- 복호화 결재자 지정. user_id = app_user.username (legacy); app_user_id = app_user.id (canonical). 부서별 지정: department_code NULL = 전역 결재자 (20260225).
+-- Req 20260316-decrypt-approval-use-user-id-everywhere: permission checks use app_user_id; user_id kept for backward compat. Backfill: migrate-decrypt-approval-use-user-id.sql.
 -- 마이그레이션: 기존 단일 PK 구조에서 확장. 신규 설치 시 아래 CREATE만 실행됨.
 -- 주의: DROP TABLE로 인해 기존 decrypt_approver 데이터가 삭제됨. 이미 데이터가 있는 배포 환경에서는
 -- 대안: decrypt_approver 백업 후 ALTER TABLE로 id/department_code 추가, 기존 행 backfill, partial unique 인덱스 추가 후
@@ -166,12 +181,14 @@ DROP TABLE IF EXISTS decrypt_approver;
 CREATE TABLE decrypt_approver (
     id BIGSERIAL PRIMARY KEY,
     user_id VARCHAR(100) NOT NULL,
+    app_user_id BIGINT NULL REFERENCES app_user(id),
     department_code VARCHAR(50) NULL,
     CONSTRAINT fk_decrypt_approver_department FOREIGN KEY (department_code) REFERENCES department(code) ON DELETE SET NULL
 );
 CREATE UNIQUE INDEX IF NOT EXISTS idx_decrypt_approver_global ON decrypt_approver (user_id) WHERE department_code IS NULL;
 CREATE UNIQUE INDEX IF NOT EXISTS idx_decrypt_approver_dept ON decrypt_approver (user_id, department_code) WHERE department_code IS NOT NULL;
 CREATE INDEX IF NOT EXISTS idx_decrypt_approver_user ON decrypt_approver(user_id);
+CREATE INDEX IF NOT EXISTS idx_decrypt_approver_app_user ON decrypt_approver(app_user_id);
 CREATE INDEX IF NOT EXISTS idx_decrypt_approver_department ON decrypt_approver(department_code);
 
 -- 권한 그룹 (요건: 20250227-user-permission-hierarchy-group). DBA 검토 반영.
