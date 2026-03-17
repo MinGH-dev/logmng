@@ -51,6 +51,7 @@ echo "   ✅ 권한 부여 완료"
 # For existing DBs, run migrations as needed (once each):
 #   psql -U "$DB_SUPERUSER" -h $DB_HOST -p $DB_PORT -d $DB_NAME -f "$(dirname "$0")/migrate-search-history-approved-row.sql"
 #   psql -U "$DB_SUPERUSER" -h $DB_HOST -p $DB_PORT -d $DB_NAME -f "$(dirname "$0")/migrate-app-user-position.sql"
+#   psql -U "$DB_SUPERUSER" -h $DB_HOST -p $DB_PORT -d $DB_NAME -f "$(dirname "$0")/migrate-search-history-request-reason.sql"
 echo "4. 테이블 및 인덱스 생성 중..."
 psql -U "$DB_SUPERUSER" -h $DB_HOST -p $DB_PORT -d $DB_NAME -f "$(dirname "$0")/schema.sql"
 psql -U "$DB_SUPERUSER" -h $DB_HOST -p $DB_PORT -d $DB_NAME -f "$(dirname "$0")/schema_user_activity_log.sql"
@@ -60,6 +61,17 @@ echo "   ✅ 스키마 생성 완료"
 echo "4b. app_user name 컬럼 마이그레이션 적용 중..."
 psql -U "$DB_SUPERUSER" -h $DB_HOST -p $DB_PORT -d $DB_NAME -f "$(dirname "$0")/migrate-app-user-name-2026.sql"
 echo "   ✅ app_user name 마이그레이션 완료"
+
+# search_history.user_id VARCHAR -> BIGINT NOT NULL FK to app_user(id). Req 20260316-search-history-user-id-query-and-naming. Idempotent.
+# Must be applied before relying on decrypt execution path (POST /api/logs/decrypt); req 20260317-decrypt-execution-user-id-fix.
+echo "4c. search_history user_id 마이그레이션 (BIGINT, FK) 적용 중..."
+psql -U "$DB_SUPERUSER" -h $DB_HOST -p $DB_PORT -d $DB_NAME -f "$(dirname "$0")/migrate-search-history-user-id-to-bigint.sql"
+echo "   ✅ search_history user_id 마이그레이션 완료"
+
+# search_history.request_reason (TEXT NULL). Req 20260317-request-reason-and-search-history-search-fields. Idempotent.
+echo "4d. search_history request_reason 컬럼 마이그레이션 적용 중..."
+psql -U "$DB_SUPERUSER" -h $DB_HOST -p $DB_PORT -d $DB_NAME -f "$(dirname "$0")/migrate-search-history-request-reason.sql"
+echo "   ✅ search_history request_reason 마이그레이션 완료"
 
 # 초기 데이터 삽입
 echo "5. 초기 샘플 데이터 삽입 중..."

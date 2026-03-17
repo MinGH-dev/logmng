@@ -55,6 +55,25 @@ class DecryptControllerTest {
     }
 
     @Test
+    void decryptRow_whenValidApprovalFalse_returns403DecryptionNotApproved() throws Exception {
+        searchHistoryService.setValidApprovalForUser(false);
+        searchHistoryService.setRowInApprovedSnapshot(true);
+
+        Map<String, String> body = Map.of(
+                "searchHistoryId", "100",
+                "guid", "guid-any"
+        );
+
+        mockMvc.perform(post("/api/logs/decrypt/java_fw_imglog")
+                        .sessionAttr("userId", 20260001L)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(body)))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.code").value("DECRYPTION_NOT_APPROVED"));
+    }
+
+    @Test
     void decryptRow_whenRowNotInApprovedSnapshot_returns403WithCode() throws Exception {
         searchHistoryService.setValidApprovalForUser(true);
         searchHistoryService.setRowInApprovedSnapshot(false);
@@ -65,7 +84,7 @@ class DecryptControllerTest {
         );
 
         mockMvc.perform(post("/api/logs/decrypt/java_fw_imglog")
-                        .sessionAttr("userId", "user1")
+                        .sessionAttr("userId", 20260001L)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(body)))
                 .andExpect(status().isForbidden())
@@ -85,7 +104,7 @@ class DecryptControllerTest {
         );
 
         mockMvc.perform(post("/api/logs/decrypt/java_fw_imglog")
-                        .sessionAttr("userId", "user1")
+                        .sessionAttr("userId", 20260001L)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(body)))
                 .andExpect(status().isOk())
@@ -96,11 +115,25 @@ class DecryptControllerTest {
     /** Stub AuthService that allows decrypt (hasDecryptForMain returns true). Avoids Mockito on concrete AuthService. */
     private static class StubAuthServiceDecryptAllowed extends AuthService {
         StubAuthServiceDecryptAllowed() {
-            super(null, null, null, null);
+            super(null, null, null, null, null);
         }
 
         @Override
         public boolean hasDecryptForMain(HttpServletRequest request) {
+            return true;
+        }
+
+        @Override
+        public com.logmng.dto.response.LoginResponse getCurrentUserInfo(HttpServletRequest request) {
+            com.logmng.dto.response.LoginResponse r = new com.logmng.dto.response.LoginResponse();
+            r.setUsername("user1");
+            r.setUserId(20260001L);
+            r.setSelfContext(new com.logmng.dto.response.LoginResponse.SelfContext(null, "user1", 20260001L));
+            return r;
+        }
+
+        @Override
+        public boolean checkAuth(HttpServletRequest request) {
             return true;
         }
     }

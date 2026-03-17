@@ -125,13 +125,18 @@ public class AuthService {
 
         LoginResponse response = new LoginResponse();
         response.setUsername(username);
+        response.setUserId(userId);
         response.setLoginTime(LocalDateTime.now());
         response.setClientIP(clientIP);
         response.setIsSystemAdmin(isSystemAdmin);
         response.setAllowedScreenIds(resolveAllowedScreenIds(username, isSystemAdmin));
         response.setScreenScopes(resolveScreenScopes(username, isSystemAdmin));
         response.setScreenFunctions(resolveScreenFunctions(username, isSystemAdmin));
-        response.setSelfContext(resolveSelfContext(username));
+        com.logmng.dto.response.LoginResponse.SelfContext selfContext = resolveSelfContext(username);
+        response.setSelfContext(selfContext);
+        if (response.getUserId() == null && selfContext != null && selfContext.getUserId() != null) {
+            response.setUserId(selfContext.getUserId());
+        }
         return response;
     }
     
@@ -217,8 +222,18 @@ public class AuthService {
     /**
      * Returns current user info from session. For GET /api/auth/me.
      * Session stores userId (Long); resolves to username via AppUserResolver for permission/selfContext.
+     * Never throws: any exception is logged and null is returned to avoid 500 from interceptors/controllers.
      */
     public LoginResponse getCurrentUserInfo(HttpServletRequest request) {
+        try {
+            return getCurrentUserInfoInternal(request);
+        } catch (Exception e) {
+            log.warn("getCurrentUserInfo failed, returning null: {}", e.getMessage(), e);
+            return null;
+        }
+    }
+
+    private LoginResponse getCurrentUserInfoInternal(HttpServletRequest request) {
         if (!checkAuth(request)) {
             return null;
         }
@@ -230,6 +245,12 @@ public class AuthService {
             sessionUserId = (Long) sid;
         } else if (sid instanceof Number) {
             sessionUserId = ((Number) sid).longValue();
+        } else if (sid != null && !sid.toString().trim().isEmpty()) {
+            try {
+                sessionUserId = Long.parseLong(sid.toString().trim());
+            } catch (NumberFormatException e) {
+                log.trace("Session userId not numeric: {}", sid);
+            }
         }
         if (sessionUserId == null) {
             Object username = session.getAttribute("username");
@@ -242,7 +263,16 @@ public class AuthService {
                 resp.setAllowedScreenIds(resolveAllowedScreenIds(uname, sysAdmin));
                 resp.setScreenScopes(resolveScreenScopes(uname, sysAdmin));
                 resp.setScreenFunctions(resolveScreenFunctions(uname, sysAdmin));
-                resp.setSelfContext(resolveSelfContext(uname));
+                LoginResponse.SelfContext selfContext = resolveSelfContext(uname);
+                resp.setSelfContext(selfContext);
+                Long uid = (selfContext != null && selfContext.getUserId() != null)
+                        ? selfContext.getUserId()
+                        : appUserResolver.getIdByUsername(uname);
+                if (uid != null) {
+                    resp.setUserId(uid);
+                } else {
+                    log.warn("getCurrentUserInfo: session has username but userId resolution returned null (username present); decrypt/ownership checks may require userId");
+                }
                 return resp;
             }
             return null;
@@ -251,6 +281,7 @@ public class AuthService {
         if (uname == null || uname.isBlank()) return null;
         boolean sysAdmin = Boolean.TRUE.equals(session.getAttribute("isSystemAdmin"));
         LoginResponse resp = new LoginResponse();
+        resp.setUserId(sessionUserId);
         resp.setUsername(uname);
         resp.setIsSystemAdmin(sysAdmin);
         resp.setAllowedScreenIds(resolveAllowedScreenIds(uname, sysAdmin));
@@ -274,7 +305,8 @@ public class AuthService {
         if (allowed == null || allowed.isEmpty()) {
             return result;
         }
-        boolean isApprover = decryptApproverService.isApprover(username);
+        Long userId = appUserResolver.getIdByUsername(username);
+        boolean isApprover = userId != null && decryptApproverService.isApprover(userId);
         Map<String, PermissionGroupService.ScreenFunctionFromDb> pgsMap = permissionGroupService.getScreenFunctionsForUser(username);
         for (String screenId : allowed) {
             if (screenId == null || screenId.isBlank()) continue;

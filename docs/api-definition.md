@@ -211,6 +211,8 @@
 
 **Base path**: `/api/search-history`
 
+**Storage and join**: `search_history.user_id` stores numeric **`app_user.id`**. List and all search-history operations use join **app_user ON app_user.id = search_history.user_id**. Requester display (requesterUsername, requesterDisplayName, department) is resolved via this join from app_user/department. API `userId` (query params and response) is numeric `app_user.id`.
+
 **화면별 범위(scope)**: is_system_admin=false일 때 권한 그룹의 search-history scope 적용. scope='self' → 현재 요청자 본인 데이터만 반환하며 requester filter(`department`, `username`, `userId`)는 무시한다. 이때 requester block은 숨기지 않고 `department -> username -> userId` 순서의 visible locked self-context를 표시하며, 표시값은 auth/current-user payload의 `selfContext`를 기준으로 한다. scope='team' → 동일 부서 요청자만 반환하며 requester filter는 그 허용 집합 안에서만 추가 좁힘; scope='all' → 전체 가시 집합에 requester filter를 적용. requester filter는 scope를 넓히지 않으며, 상세 규칙은 `specs/permission-group-hierarchy.spec.yaml` §4.3을 따른다.
 
 - 검색 이력은 "복호화 승인 요청"이 발생한 검색을 저장하며, 사용자별 최근 이력 목록·재요청·재조회를 지원한다.
@@ -219,23 +221,30 @@
 ### 6.1.1 검색 이력 저장
 
 - **POST** `/api/search-history`
+- **Current user**: Resolved from auth/session as numeric `app_user.id`; stored in `search_history.user_id`. Join semantics: **app_user.id = search_history.user_id** (req 20260316).
 - **Request body** (JSON):
 
 | 필드 | 타입 | 필수 | 설명 |
 |------|------|------|------|
 | logType | string | O | 로그 타입 (pb_feplog, java_fw_imglog 등) |
 | searchParams | object | O | 검색 조건 (LogDbSearchRequest 또는 AdvancedSearchRequest와 동일한 구조의 JSON) |
+| requestReason | string | X 또는 O (제품 결정) | 요청 사유. 최대 길이 500자(제품에서 조정 가능). 초과 시 400. (req 20260317) |
 
 - **Response (data)**: `{ "id": number, "requestedAt": string (yyyy-MM-dd'T'HH:mm:ss), "expiresAt": string, "approvalStatus": "PENDING" }`
-- **에러**: 비인증 401, logType/searchParams 누락 400
+- **에러**: 비인증 401, logType/searchParams 누락 400, requestReason 길이 초과 400
 
 ### 6.1.2 검색 이력 목록 조회
 
 - **GET** `/api/search-history`
+- **List join**: **app_user.id = search_history.user_id**. Requester filter `userId` is exact match on `search_history.user_id` (numeric). Response `userId` is numeric `app_user.id`.
 - **Query**:
   - `department` (선택) — requester 부서 코드/값 exact match. `scope=self`에서는 무시.
   - `username` (선택) — requester 사용자명 partial match (`LIKE`). `scope=self`에서는 무시.
-  - `userId` (선택) — requester 사용자 ID exact match (numeric `app_user.id`, JSON number). `scope=self`에서는 무시.
+  - `userId` (선택) — requester 사용자 ID exact match (numeric `app_user.id`, JSON number); filters by `search_history.user_id`. `scope=self`에서는 무시.
+  - `requestedAtFrom` (선택) — 요청일시 범위 시작. 형식: **yyyy-MM-dd HH:mm:ss**. `requested_at >= requestedAtFrom`. (req 20260317)
+  - `requestedAtTo` (선택) — 요청일시 범위 종료. 형식: **yyyy-MM-dd HH:mm:ss**. `requested_at <= requestedAtTo` (또는 end-of-day 해석). (req 20260317)
+  - `approvalStatus` (선택, **다중값**) — 복호화 승인 여부. **동일 이름 반복**으로 전달: `approvalStatus=PENDING&approvalStatus=APPROVED`. 값: PENDING, APPROVED, REJECTED, EXPIRED. 비어 있으면 해당 조건 없음. (req 20260317)
+  - `requestReason` (선택) — 요청사유 부분 검색. 백엔드 `request_reason ILIKE '%value%'`. (req 20260317)
   - `page` (기본 1)
   - `pageSize` (기본 20)
   - `sortField` (기본 requested_at)
@@ -245,9 +254,10 @@
   - 필터 변경 또는 `pageSize` 변경 시 현재 페이지는 `1`로 재설정한다.
   - 백엔드는 목록 데이터와 `pagination.totalCount` / `pagination.totalPages`를 동일한 filter set으로 계산해야 한다.
 - **Response (data)**: `SearchHistoryListResponse`
-  - `data`: 배열. 각 항목: `seq` (목록 순번), `id`, `userId` (number, `app_user.id`), `logType`, `requestedAt`, `expiresAt`, `approvalStatus` (PENDING | APPROVED | EXPIRED | REJECTED), `searchParamsSummary` (요약 문자열 또는 키 필드만), `isExpired` (boolean, 만료 여부), 결재 이력(선택·nullable): `approvedBy` (string), `approvedAt` (string), `rejectedBy` (string), `rejectedAt` (string), `rejectionReason` (string)
+  - `data`: 배열. 각 항목: `seq` (목록 순번), `id`, `userId` (number, `app_user.id`), `requesterDepartmentCode` (string | null, 검색한 사용자 부서 코드), `requesterDepartmentName` (string | null, 검색한 사용자 부서 표시명; `department.name`, 없으면 null), `requesterDisplayName` (string | null, 검색한 사용자 표시명; `app_user.name` 없으면 `username`), `requesterUsername` (string | null, 검색한 사용자 로그인 ID), `logType`, `requestedAt`, `expiresAt`, `approvalStatus` (PENDING | APPROVED | EXPIRED | REJECTED), `requestReason` (string | null, 요청 사유; req 20260317), `searchParamsSummary` (요약 문자열; 그리드에서는 미표시·모달에서만 사용), `isExpired` (boolean, 만료 여부), 결재 이력(선택·nullable): `approvedBy` (string, 표시용; req 20260316: `approved_by_user_id`로 username 해석, 없으면 `approved_by`), `approvedAt` (string), `rejectedBy` (string), `rejectedAt` (string), `rejectionReason` (string)
+  - UI 그리드: 요청자 정보는 **부서**, **사용자ID**, **사용자명** 세 개 컬럼으로 표시.
   - `pagination`: `{ currentPage, totalPages, totalCount }`
-- **에러**: 비인증 401
+- **에러**: 비인증 401, requestedAtFrom/requestedAtTo 형식 오류 시 400 BAD_REQUEST (형식: yyyy-MM-dd HH:mm:ss, req 20260317)
 
 ### 6.1.3 검색 이력 재요청 (만료 건)
 
@@ -260,7 +270,7 @@
 
 - **GET** `/api/search-history/{id}`
 - **Path**: `id` — 검색 이력 ID (Long)
-- **Response (data)**: `id`, `logType`, `searchParams` (object, 전체 검색 조건), `requestedAt`, `expiresAt`, `approvalStatus`, 결재 이력(선택·nullable): `approvedBy`, `approvedAt`, `rejectedBy`, `rejectedAt`, `rejectionReason`
+- **Response (data)**: `id`, `logType`, `searchParams` (object, 전체 검색 조건), `requestedAt`, `expiresAt`, `approvalStatus`, `requestReason` (string | null, 요청 사유; req 20260317), 결재 이력(선택·nullable): `approvedBy` (표시용; req 20260316: `approved_by_user_id`→username, 없으면 `approved_by`), `approvedAt`, `rejectedBy`, `rejectedAt`, `rejectionReason`
 - **에러**: 403(타 사용자 소유), 404(없음)
 
 ### 6.1.5 승인 대기 목록 조회 (결재자·관리자 전용)
@@ -281,8 +291,8 @@
 - **권한**: 결재자 또는 관리자(is_system_admin=true)만 호출 가능. 그 외 403.
 - **부서별 승인 제한 (검색 이력과 동일)**: 서비스 레이어에서 `canApproveForRequester(승인자, 요청자)` 검사. 부서별 결재자는 **해당 요청자(requester)의 부서에 대한 결재자**일 때만 승인 가능; 전역 결재자(department_code NULL)·관리자는 전체 건 승인 가능. 미충족 시 403 `FUNCTION_NOT_ALLOWED`.
 - **Request body**: 없음
-- **Response (data)**: `{ "id": number, "approvalStatus": "APPROVED", "approvedBy": string, "approvedAt": string (yyyy-MM-dd'T'HH:mm:ss) }`
-- **에러**: 401 비인증, 403 결재자/관리자 아님 → `code: "FORBIDDEN_NOT_APPROVER"` 또는 `"NOT_APPROVER"`, 403 해당 건에 대한 승인 권한 없음 → `code: "FUNCTION_NOT_ALLOWED"`, 404 해당 이력 없음
+- **Response (data)**: `{ "id": number, "approvalStatus": "APPROVED", "approvedBy": string (표시용; req 20260316: approved_by_user_id→username), "approvedAt": string (yyyy-MM-dd'T'HH:mm:ss) }`. 내부 저장: `approved_by_user_id` (numeric), `approved_by` (표시 보조).
+- **에러**: 401 비인증, 403 결재자/관리자 아님 → `code: "FORBIDDEN_NOT_APPROVER"` 또는 `"NOT_APPROVER"`, 403 해당 건에 대한 승인 권한 없음 → `code: "FUNCTION_NOT_ALLOWED"`, 404 해당 이력 없음. 400: search_params 파싱 실패 → `code: "INVALID_SEARCH_PARAMS"`; 기타 승인 처리 중 예외 → `code: "APPROVAL_ERROR"` (req 20260316-decrypt-approve-cross-user-server-error, cross-user 승인 시 500 미발생).
 
 ### 6.1.7 검색 이력 반려 (결재자·관리자 전용)
 
@@ -440,7 +450,7 @@
 - **POST** `/api/logs/decrypt/{logType}`
 - **권한 (req 20260306)**: **검색하기(main) 화면 접근 + screenFunctions.main.decrypt === true** (또는 is_system_admin). 권한 없으면 403 `code: "FUNCTION_NOT_ALLOWED"`. 권한관리 화면에서 검색하기 화면에 대해 "복호화" 권한을 부여/해제할 수 있음.
 - **Path**: `logType` — 현재 **java_fw_imglog** 만 지원
-- **Request body** (JSON): `{ "guid": string (필수), "status"?: string, "searchHistoryId": number (필수) }` — searchHistoryId는 이번 검색에 대한 승인된 검색 이력 ID. 해당 건이 본인 소유·APPROVED·미만료일 때만 복호화 허용.
+- **Request body** (JSON): `{ "guid": string (필수), "status"?: string, "searchHistoryId": number (필수) }` — searchHistoryId는 이번 검색에 대한 승인된 검색 이력 ID. 해당 건이 본인 소유·APPROVED·미만료일 때만 복호화 허용. **소유·승인 검사 (req 20260317)**: 숫자 **user_id**(search_history.user_id 및 현재 사용자 id)만 사용; username은 이 경로에서 사용하지 않음.
 - **Response (data)**: Map (복호화된 필드)
 - **에러**:
   - 401 미로그인: `code: "UNAUTHORIZED"`

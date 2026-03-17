@@ -179,6 +179,16 @@ ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON SEQUENCES TO logmng;
 - 사용자 이름은 `logmng`입니다.
 - 포트는 기본값 `5432`를 사용합니다.
 
+### search_history.user_id 규칙 및 마이그레이션
+
+- `search_history.user_id`는 요청자의 **사용자 ID (numeric `app_user.id`)** 입니다. 조인 조건은 **app_user.id = search_history.user_id** 입니다. username을 저장하지 않습니다. (요건: 20260316-search-history-user-id-query-and-naming)
+- **신규 설치**: schema.sql 적용 후 init-data.sql에서 search_history 시드는 app_user.id(숫자)를 사용합니다.
+- **기존 DB (VARCHAR user_id)** : 사용자 승인 후 아래 마이그레이션을 한 번 실행하세요. 혼합 의미 검출, username→id·id::text→id 백필, 고아 행 처리(정책: 삭제 후 문서화), cutover·FK·인덱스 적용. idempotent.
+- **실행 예 (프로젝트 루트 기준):**  
+  `psql -U postgres -h localhost -p 5432 -d logmng -f backend/src/main/resources/db/migrate-search-history-user-id-to-bigint.sql`
+- **복호화 실행 경로 (req 20260317-decrypt-execution-user-id-fix)**: POST /api/logs/decrypt 의 소유·승인 검사는 `search_history.user_id`(BIGINT)와 현재 사용자 id만 사용합니다. 이 경로를 사용하기 전에 **반드시** `migrate-search-history-user-id-to-bigint` 를 적용해 `search_history.user_id` 가 BIGINT인 상태로 두세요.
+- 이전 스크립트 `migrate-search-history-user-id-to-username.sql`은 **legacy** 로 두지 않고 새 스키마로 정렬한 환경에서는 실행하지 마세요.
+
 
 
 
