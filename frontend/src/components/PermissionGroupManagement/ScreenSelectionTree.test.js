@@ -95,12 +95,12 @@ describe('ScreenSelectionTree — scope for pending-approvals (req 20260305)', (
   const noop = () => {};
 
   // TC-07: pending-approvals selected → scope dropdown visible; changing scope is sent on save
-  test('TC-07: when "승인 대기" is selected, scope dropdown is visible and value is included in onChange', () => {
+  test('TC-07: when "복호화 승인 관리" is selected, scope dropdown is visible and value is included in onChange', () => {
     const handleChange = jest.fn();
     const selected = [{ screenId: 'pending-approvals', scope: 'team', approve: false }];
     render(<ScreenSelectionTree selectedScreens={selected} onChange={handleChange} />);
 
-    const scopeSelect = screen.getByRole('combobox', { name: /승인 대기 조회 범위/ });
+    const scopeSelect = screen.getByRole('combobox', { name: /복호화 승인 관리 조회 범위/ });
     expect(scopeSelect).toBeInTheDocument();
     expect(scopeSelect).toHaveValue('team');
     expect(scopeSelect).not.toBeDisabled();
@@ -139,7 +139,7 @@ describe('ScreenSelectionTree — approval scope fixed to department (req 202603
     const selected = [{ screenId: 'pending-approvals', approve: true }];
     render(<ScreenSelectionTree selectedScreens={selected} onChange={noop} />);
 
-    const scopeSelect = screen.getByRole('combobox', { name: /승인 대기 조회 범위/ });
+    const scopeSelect = screen.getByRole('combobox', { name: /복호화 승인 관리 조회 범위/ });
     expect(scopeSelect).toBeInTheDocument();
     expect(scopeSelect).toHaveValue('team');
     expect(scopeSelect).toBeDisabled();

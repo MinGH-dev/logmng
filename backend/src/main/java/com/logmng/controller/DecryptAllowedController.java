@@ -33,8 +33,8 @@ public class DecryptAllowedController {
     }
 
     /**
-     * GET /api/decrypt/allowed?screen=main
-     * Returns { screen, validUntil, guids } for the current user. Requires main decrypt permission.
+     * GET /api/decrypt/allowed?screen=pb-feplog | java-fw-imagelog (or main for backward compat)
+     * Returns { screen, validUntil, guids } for the current user. Requires that screen and decrypt permission for it.
      */
     @GetMapping("/allowed")
     public ResponseEntity<ApiResponse<Map<String, Object>>> getAllowed(
@@ -46,20 +46,25 @@ public class DecryptAllowedController {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                     .body(ApiResponse.failure("로그인이 필요합니다.", "UNAUTHORIZED"));
         }
-        if (!authService.hasDecryptForMain(httpRequest)) {
-            return ResponseEntity.status(HttpStatus.FORBIDDEN)
-                    .body(ApiResponse.failure("복호화 기능 권한이 없습니다.", "FUNCTION_NOT_ALLOWED"));
-        }
         if (screen == null || screen.isBlank()) {
             return ResponseEntity.badRequest()
                     .body(ApiResponse.failure("screen 쿼리는 필수입니다.", "INVALID_SCREEN_ID"));
         }
-        if (!ScreenConstants.isValid(screen)) {
+        String screenTrim = screen.trim();
+        if (!ScreenConstants.isValid(screenTrim)) {
             return ResponseEntity.badRequest()
                     .body(ApiResponse.failure("지원하지 않는 화면 ID입니다.", "INVALID_SCREEN_ID"));
         }
+        if (!ScreenConstants.supportsDecrypt(screenTrim)) {
+            return ResponseEntity.badRequest()
+                    .body(ApiResponse.failure("해당 화면은 복호화 허용 목록을 지원하지 않습니다.", "INVALID_SCREEN_ID"));
+        }
+        if (!authService.hasDecryptForScreen(httpRequest, screenTrim)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body(ApiResponse.failure("해당 화면에 대한 복호화 권한이 없습니다.", "FUNCTION_NOT_ALLOWED"));
+        }
 
-        Map<String, Object> data = decryptionAllowedService.getAllowed(currentUser.getUserId(), screen.trim());
+        Map<String, Object> data = decryptionAllowedService.getAllowed(currentUser.getUserId(), screenTrim);
         return ResponseEntity.ok(ApiResponse.success(data));
     }
 }

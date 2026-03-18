@@ -420,19 +420,29 @@ public class AuthService {
     }
 
     /**
-     * Returns true if the current user may request decryption (decrypt API).
-     * Per spec §4.4, req 20260306: is_system_admin OR (main in allowedScreenIds AND screenFunctions.main.decrypt === true).
+     * Returns true if the current user may request decryption for the given screen.
+     * Per spec §4.4, req 20260318: is_system_admin OR (screenId in allowedScreenIds AND screenFunctions[screenId].decrypt === true).
+     * Use for pb-feplog, java-fw-imagelog (and main for backward compat).
      */
-    public boolean hasDecryptForMain(HttpServletRequest request) {
+    public boolean hasDecryptForScreen(HttpServletRequest request, String screenId) {
+        if (screenId == null || screenId.isBlank()) return false;
         LoginResponse user = getCurrentUserInfo(request);
         if (user == null) return false;
         if (Boolean.TRUE.equals(user.getIsSystemAdmin())) return true;
         List<String> allowed = user.getAllowedScreenIds();
-        if (allowed == null || !allowed.contains(ScreenConstants.MAIN)) return false;
+        if (allowed == null || !allowed.contains(screenId.trim())) return false;
         Map<String, ScreenFunctionCapability> sf = user.getScreenFunctions();
         if (sf == null) return false;
-        ScreenFunctionCapability mainCap = sf.get(ScreenConstants.MAIN);
-        return mainCap != null && Boolean.TRUE.equals(mainCap.getDecrypt());
+        ScreenFunctionCapability cap = sf.get(screenId.trim());
+        return cap != null && Boolean.TRUE.equals(cap.getDecrypt());
+    }
+
+    /**
+     * Returns true if the current user may request decryption (decrypt API) for the main screen.
+     * @deprecated Prefer hasDecryptForScreen(request, screenId) with pb-feplog/java-fw-imagelog. Kept for backward compat.
+     */
+    public boolean hasDecryptForMain(HttpServletRequest request) {
+        return hasDecryptForScreen(request, ScreenConstants.MAIN);
     }
 
     /**

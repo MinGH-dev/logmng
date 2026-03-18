@@ -541,12 +541,14 @@ public class PermissionGroupService {
     }
 
     /**
-     * Validates read/write/approve/decrypt per screen per §1.1.1. main: read + optional decrypt; write/approve only on supported screens; decrypt only for main (req 20260306).
+     * Validates read/write/approve/decrypt per screen per §1.1.1. main, pb-feplog, java-fw-imagelog: read + optional decrypt; write/approve not allowed (req 20260318).
      */
     private void validateScreenFunctions(String screenId, Boolean read, Boolean write, Boolean approve, Boolean decrypt) {
-        if (ScreenConstants.MAIN.equals(screenId)) {
+        if (ScreenConstants.MAIN.equals(screenId)
+                || ScreenConstants.PB_FEPLOG.equals(screenId)
+                || ScreenConstants.JAVA_FW_IMAGELOG.equals(screenId)) {
             if (Boolean.TRUE.equals(write) || Boolean.TRUE.equals(approve)) {
-                throw CustomException.badRequest("main 화면은 조회만 지원합니다. write 또는 approve를 지정할 수 없습니다.", "INVALID_SCREEN_FUNCTION");
+                throw CustomException.badRequest("해당 화면은 조회 및 복호화만 지원합니다. write 또는 approve를 지정할 수 없습니다: " + screenId, "INVALID_SCREEN_FUNCTION");
             }
         }
         if (Boolean.TRUE.equals(write) && !ScreenConstants.supportsWrite(screenId)) {
@@ -556,7 +558,7 @@ public class PermissionGroupService {
             throw CustomException.badRequest("해당 화면은 approve를 지원하지 않습니다: " + screenId, "INVALID_SCREEN_FUNCTION");
         }
         if (Boolean.TRUE.equals(decrypt) && !ScreenConstants.supportsDecrypt(screenId)) {
-            throw CustomException.badRequest("해당 화면은 decrypt(복호화)를 지원하지 않습니다: " + screenId + ". decrypt는 main(검색하기) 전용입니다.", "INVALID_SCREEN_FUNCTION");
+            throw CustomException.badRequest("해당 화면은 decrypt(복호화)를 지원하지 않습니다: " + screenId, "INVALID_SCREEN_FUNCTION");
         }
     }
 

@@ -33,6 +33,7 @@ const ImageLogTable = ({
   searchHistoryId = null,
   hasDecryptPermission = true,
   decryptionAllowed = null,
+  screenId = null,
 }) => {
   // decryptionAllowed: { validUntil: string | null, guids: string[] } from GET /api/decrypt/allowed (req 20260318)
   const allowedGuids = decryptionAllowed && Array.isArray(decryptionAllowed.guids) ? decryptionAllowed.guids : [];
@@ -256,10 +257,13 @@ const ImageLogTable = ({
     
     try {
       const apiBaseUrl = process.env.REACT_APP_API_BASE_URL || 'http://localhost:9200/api';
-      logger.debug('🔓 복호화 API 호출:', { apiUrl: `${apiBaseUrl}/logs/decrypt/java_fw_imglog`, guid, status });
+      const decryptUrl = screenId
+        ? `${apiBaseUrl}/logs/decrypt/java_fw_imglog?screen=${encodeURIComponent(screenId)}`
+        : `${apiBaseUrl}/logs/decrypt/java_fw_imglog`;
+      logger.debug('🔓 복호화 API 호출:', { apiUrl: decryptUrl, guid, status, screenId });
       const body = { guid, status };
       if (searchHistoryId != null) body.searchHistoryId = searchHistoryId;
-      const response = await fetch(`${apiBaseUrl}/logs/decrypt/java_fw_imglog`, {
+      const response = await fetch(decryptUrl, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

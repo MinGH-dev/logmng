@@ -46,7 +46,7 @@
   - `user.isSystemAdmin`: boolean — 시스템 관리자 여부 (req 20250303). true면 전체 화면 접근.
   - `user.allowedScreenIds`: string[] (요건 20250227-permission-group-screen-menu-access) — 사용자 권한 그룹들의 접근 가능 화면 합집합.
   - `user.screenScopes`: Record<string, 'self'|'team'|'all'> (요건 20250303, 20260305) — 화면별 **조회(목록) 범위**. key=screen_id (activity-log, statistics, search-history, pending-approvals), value='self'(본인)|'team'(부서)|'all'(전체). is_system_admin=true이면 생략 가능(프론트는 전체로 처리). **용도**: 목록/조회에만 적용; scope=self → 본인; scope=team → 동일 부서; scope=all → 전체. **승인 범위는 부서로 고정**이며 변경 불가(권한 설정에서 선택하는 scope는 조회 범위만 해당).
-  - `user.screenFunctions`: Record<string, { read: boolean, write?: boolean, approve?: boolean, decrypt?: boolean }> (요건 20250303, 20260306) — 화면별 기능 가능 여부. key=screen_id, value=read(필수), write(수정 지원 화면만), approve(search-history·pending-approvals만), decrypt(main 전용, 복호화 요청 권한). main은 read + optional decrypt; decrypt는 권한관리에서 부여/해제. **용도**: 버튼/액션 enable·disable, 비활성 시 툴팁 표시.
+  - `user.screenFunctions`: Record<string, { read: boolean, write?: boolean, approve?: boolean, decrypt?: boolean }> (요건 20250303, 20260318) — 화면별 기능 가능 여부. key=screen_id (pb-feplog, java-fw-imagelog, search-history, pending-approvals 등), value=read(필수), write(수정 지원 화면만), approve(search-history·pending-approvals만), decrypt(로그 검색 화면 pb-feplog·java-fw-imagelog 전용, 복호화 요청 권한). pb-feplog·java-fw-imagelog는 read + optional decrypt; decrypt는 권한관리에서 부여/해제. **용도**: 버튼/액션 enable·disable, 비활성 시 툴팁 표시.
   - `user.selfContext`: `{ department: string | null, username: string, userId: number }` — self-scoped user/requester block의 **visible locked self-context** 표시값. `scope=self` 화면에서 Department, Username, User ID를 고정 표시할 때 사용하는 권위 소스다. **`userId`**는 **numeric** **`app_user.id`**(JSON number, 예: 20269999, 20260001)이다. **`username`**은 **표시 이름(사용자명)**: `app_user.name`이 존재하고 비어 있지 않으면 그 값, 그렇지 않으면 `app_user.username`을 사용한다.
 
 ### 2.2 로그아웃
@@ -115,6 +115,7 @@
 ### 5.1 로그 검색
 
 - **POST** `/api/logs/db-refactored/search`
+- **권한**: 요청한 `logType`에 대응하는 화면(pb_feplog→pb-feplog, java_fw_imglog→java-fw-imagelog) 접근 필요. 해당 화면 없으면 403 `LOG_TYPE_NOT_ALLOWED` (req 20260318).
 - **Request body** (JSON): `LogDbSearchRequest`
 
 | 필드 | 타입 | 필수 | 설명 |
@@ -452,9 +453,9 @@
 ### 10.1 복호화 허용 목록 조회 (GET)
 
 - **GET** `/api/decrypt/allowed`
-- **권한**: 인증 필요. main 화면 접근 + screenFunctions.main.decrypt (또는 is_system_admin) 있는 사용자만 호출. 그 외 403 `FUNCTION_NOT_ALLOWED`.
+- **권한**: 인증 필요. 요청한 `screen`에 대한 접근 + screenFunctions[screen].decrypt (또는 is_system_admin) 필요. 그 외 403 `FUNCTION_NOT_ALLOWED`.
 - **Query**:
-  - `screen` (필수) — 화면 ID. 예: `main`. 해당 사용자·화면에 대한 허용 GUID 목록과 유효기간 반환.
+  - `screen` (필수) — 화면 ID. `pb-feplog` 또는 `java-fw-imagelog` (main은 이전 호환용). 해당 사용자·화면에 대한 허용 GUID 목록과 유효기간 반환.
 - **Response (data)**: `{ "screen": string, "validUntil": string (yyyy-MM-dd'T'HH:mm:ss 또는 ISO-8601), "guids": string[] }`
   - `screen`: 요청한 screen 값.
   - `validUntil`: 현재 사용자·화면에 대한 복호화 허용 유효 종료 시각. 이 시각 이전에만 해당 guids에 대한 복호화 가능.
@@ -467,18 +468,18 @@
 ### 10.2 단일 로우 복호화 (POST)
 
 - **POST** `/api/logs/decrypt/{logType}`
-- **권한 (req 20260306)**: **검색하기(main) 화면 접근 + screenFunctions.main.decrypt === true** (또는 is_system_admin). 권한 없으면 403 `code: "FUNCTION_NOT_ALLOWED"`. 권한관리 화면에서 검색하기 화면에 대해 "복호화" 권한을 부여/해제할 수 있음.
+- **권한 (req 20260318)**: **logType에 대응하는 화면**(java_fw_imglog→java-fw-imagelog) 접근 + screenFunctions[screen].decrypt === true (또는 is_system_admin). 권한 없으면 403 `code: "FUNCTION_NOT_ALLOWED"`. 권한관리에서 pb-feplog·java-fw-imagelog에 대해 "복호화" 권한 부여/해제 가능.
 - **Path**: `logType` — 현재 **java_fw_imglog** 만 지원
 - **Request body** (JSON): `{ "guid": string (필수), "status"?: string, "searchHistoryId"?: number (선택, 감사용) }`
   - **guid**: 필수. 복호화 대상 row의 GUID.
   - **status**: 선택. 복호화 상태 등.
   - **searchHistoryId**: 선택. **승인 판단에는 사용하지 않음.** 감사·추적용으로만 전달 가능. 생략 가능.
-  - **승인 판단 (req 20260318)**: 백엔드는 현재 사용자·화면(main)에 대한 **decryption-allowed store**를 확인한다. guid가 해당 store의 허용 목록에 있고 valid_until > now 일 때만 복호화 허용.
+  - **승인 판단 (req 20260318)**: 백엔드는 logType→screen 매핑 후, 현재 사용자·해당 screen에 대한 **decryption-allowed store**를 확인한다. guid가 해당 store의 허용 목록에 있고 valid_until > now 일 때만 복호화 허용.
 - **Response (data)**: Map (복호화된 필드)
 - **에러**:
   - 401 미로그인: `code: "UNAUTHORIZED"`
-  - 403 복호화 권한 없음: `code: "FUNCTION_NOT_ALLOWED"` — main 화면의 복호화(decrypt) 권한이 없음. 권한 그룹에서 검색하기 화면에 복호화 권한 부여 필요. **검색 화면 UI (req 20260317-search-decrypt-permission-ui)**: 권한 없을 때 검색 화면에서 복호화 액션(승인 요청·행별 복호화)을 비활성/숨기고 "복호화 권한이 없습니다." 표시.
-  - 403 복호화 미허용: `code: "DECRYPTION_NOT_APPROVED"` (또는 단일 "not allowed" 코드) — guid가 decryption-allowed store에 없거나 valid_until이 만료된 경우. 제품에서 기존 코드 유지 또는 단일 코드로 통일 가능. ROW_NOT_IN_APPROVED_SNAPSHOT 은 동일 의미로 사용 가능.
+  - 403 복호화 권한 없음: `code: "FUNCTION_NOT_ALLOWED"` — 해당 로그 타입 화면의 복호화(decrypt) 권한이 없음. 권한 그룹에서 해당 화면에 복호화 권한 부여 필요. **검색 화면 UI (req 20260317-search-decrypt-permission-ui)**: 권한 없을 때 복호화 액션 비활성/숨기고 "복호화 권한이 없습니다." 표시.
+  - 403 복호화 미허용: `code: "DECRYPTION_NOT_APPROVED"` — guid가 decryption-allowed store에 없거나 valid_until이 만료된 경우.
   - java_fw_imglog 외: `code: "UNSUPPORTED_LOG_TYPE"`
   - guid 누락: `code: "MISSING_GUID"`
   - 복호화 실패: `code: "DECRYPTION_FAILED"`
@@ -513,6 +514,7 @@
 | SYSTEM_ADMIN_IMMUTABLE | 대상이 시스템 관리자(수정·삭제 불가) (400) |
 | LAST_SYSTEM_ADMIN_BLOCKED | 강등 시 시스템 관리자가 0명이 됨 (400) |
 | FUNCTION_NOT_ALLOWED | 해당 기능(approve/write 등) 권한 없음. 403 반환 시 사용. 내부 구조·리소스 존재 여부 노출 금지 (403) |
+| LOG_TYPE_NOT_ALLOWED | 요청한 logType에 해당하는 화면(pb-feplog/java-fw-imagelog) 접근 권한 없음. 로그 검색·상세·복호화 API에서 403 (req 20260318). |
 
 ---
 

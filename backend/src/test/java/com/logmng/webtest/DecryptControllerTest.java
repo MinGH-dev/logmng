@@ -123,7 +123,7 @@ class DecryptControllerTest {
                 .andExpect(jsonPath("$.code").value("DECRYPTION_NOT_APPROVED"));
     }
 
-    /** Stub AuthService that allows decrypt (hasDecryptForMain returns true). Configurable current user for TC-01/TC-02/TC-04. */
+    /** Stub AuthService that allows decrypt for any screen (hasDecryptForScreen returns true). Configurable current user for TC-01/TC-02/TC-04. Req 20260318: per-screen decrypt. */
     private static class StubAuthServiceDecryptAllowed extends AuthService {
         private long currentUserId = 20260001L;
         private String currentUsername = "user1";
@@ -138,6 +138,11 @@ class DecryptControllerTest {
 
         void setCurrentUsername(String username) {
             this.currentUsername = username;
+        }
+
+        @Override
+        public boolean hasDecryptForScreen(HttpServletRequest request, String screenId) {
+            return true;
         }
 
         @Override

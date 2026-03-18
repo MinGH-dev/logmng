@@ -42,7 +42,7 @@ Restructure the sidebar menu and permission model as follows:
 
 ### 2.1 Security review (optional; when PII / decryption / access control)
 
-- **Log-type vs screen**: Every search and decrypt API must validate the requested `logType` against the caller’s allowed screens (e.g. `pb_feplog` → `pb-feplog`, `java_fw_imglog` → `java-fw-imagelog`). Reject with 403 (e.g. `FUNCTION_NOT_ALLOWED` or `LOG_TYPE_NOT_ALLOWED`) when the log type is not allowed.  
+- **Log-type vs screen**: Every search and decrypt API must validate the requested `logType` against the caller’s allowed screens (e.g. `pb_feplog` → `pb-feplog`, `java_fw_imglog` → `java-fw-imagelog`). Reject with 403 (e.g. `FUNCTION_NOT_ALLOWED` or `LOG_TYPE_NOT_ALLOWED`) when the log type is not allowed. If `LOG_TYPE_NOT_ALLOWED` is used, document it in `docs/api-definition.md` and error-response specs.  
 - **Decrypt scope**: Decrypt permission remains per screen (per log type). Decrypt-allowed store and `GET /api/decrypt/allowed` must use the same screen IDs (`pb-feplog`, `java-fw-imagelog`) so a user with only one screen cannot decrypt the other log type.  
 - **Audit**: Activity/audit logs should record which screen (or log type) was used for search/decrypt so access can be reviewed per log type.  
 - **Backward compatibility**: Document whether existing `main` is migrated to both new screens or removed; if `main` is dropped, document re-configuration or a DB migration for `permission_group_screen`.
@@ -77,16 +77,17 @@ Structure by scope for handoff.
 **Backend**
 
 - **ScreenConstants**: Add `PB_FEPLOG = "pb-feplog"`, `JAVA_FW_IMAGELOG = "java-fw-imagelog"`. Remove `MAIN` from `ALL_ALLOWED_SCREENS` or retain only for migration/deprecation. Add both new IDs to `SCREENS_WITH_DECRYPT`.  
-- **ScreenAccessInterceptor**: Path rules for `/api/logs/db-refactored/*`, `/api/logs/decrypt/*`, `/api/search/*` must require the screen that corresponds to the request’s log type (e.g. logType=pb_feplog → `pb-feplog`, logType=java_fw_imglog → `java-fw-imagelog`). Reject with 403 when the user does not have that screen.  
-- **AuthService**: `getAllAllowedScreens()` and screen function derivation must include `pb-feplog` and `java-fw-imagelog` (read + optional decrypt); remove or map `main` per migration strategy.  
+- **ScreenAccessInterceptor**: Path rules for `/api/logs/db-refactored/*`, `/api/logs/decrypt/*`, `/api/search/*` may allow either `pb-feplog` or `java-fw-imagelog` for those paths (interceptor cannot read request body/path for logType). The exact **logType↔screen match** and 403 when the user lacks the corresponding screen must be enforced in **controller or service** (e.g. LogDbController, DecryptController).  
+- **AuthService**: `getAllAllowedScreens()` and screen function derivation must include `pb-feplog` and `java-fw-imagelog` (read + optional decrypt); remove or map `main` per migration strategy. Add **hasDecryptForScreen(request, screenId)** or equivalent per-screen decrypt check; remove or generalize `hasDecryptForMain`.  
 - **DecryptAllowedController / DecryptController**: Accept `screen=pb-feplog` or `screen=java-fw-imagelog`; validate that the user has that screen and decrypt for it.  
 - **PermissionGroupService**: Validate allowedScreens: `pb-feplog` and `java-fw-imagelog` allow read + optional decrypt; no write/approve. If migrating `main` → both, add migration or one-time script to duplicate main to both new screens in `permission_group_screen`.  
-- **SearchHistoryService**: Decryption-allowed store must use the same screen IDs (e.g. `pb-feplog`, `java-fw-imagelog`) when recording or checking allowed GUIDs.
+- **SearchHistoryService**: Decryption-allowed store must use the same screen IDs (e.g. `pb-feplog`, `java-fw-imagelog`) when recording or checking allowed GUIDs. **On approve**, map `search_history.log_type` to `screen_id` (e.g. `java_fw_imglog` → `java-fw-imagelog`; `pb_feplog` → `pb-feplog` or skip decrypt store per spec).
 
 **DB**
 
-- **permission_group_screen**: New rows use `screen_id` in (`pb-feplog`, `java-fw-imagelog`). Optional migration: for each row with `screen_id = 'main'`, insert two rows with `pb-feplog` and `java-fw-imagelog` with same read/decrypt and then remove or leave `main` deprecated.  
+- **permission_group_screen**: New rows use `screen_id` in (`pb-feplog`, `java-fw-imagelog`). Optional migration: for each row with `screen_id = 'main'`, insert two rows with `pb-feplog` and `java-fw-imagelog` copying **all columns** (scope, read, write, approve, decrypt); then remove or leave `main` deprecated.
 - No schema change to columns; only allowed values for `screen_id` expand.
+- **init-data.sql**: If new installs use only the new screen set, update `init-data.sql` to grant `pb-feplog` and `java-fw-imagelog` (e.g. for GENERAL_USER) instead of `main`; document policy in requirement or runbook.
 
 **Contract / Spec**
 
@@ -104,7 +105,8 @@ Per `docs/workflow/REQUIREMENTS-CHANGE-TARGET-CHECKLIST.md`:
 | Frontend (config UI + view screen) | Yes | Yes |
 | DB | Yes (migration optional) | Yes |
 | Contract / Spec | Yes | Yes |
-| Cursor tools (skills, specs) | Yes | Yes |
+| Documentation (design, workflow, export) | Yes | Yes |
+| Cursor tools (skills, rules) | Yes | Yes |
 
 Pattern **3.2 Permission or screen-access change** applies: backend access checks and auth response, frontend menu/sidebar and permission configuration UI, contract/spec permission mapping, auth/permission-related skills.
 
@@ -112,11 +114,13 @@ Pattern **3.2 Permission or screen-access change** applies: backend access check
 
 - `.cursor/skills/auth-permission-domain/SKILL.md`: Update screen access and permission model (main → pb-feplog / java-fw-imagelog).  
 - `.cursor/skills/ui-ux-domain/SKILL.md`: Update menu tree and screen IDs (MENU_TREE, allowedScreenIds).  
-- `.cursor/skills/api-permission-map/SKILL.md`: Update API → screen mapping for log search and decrypt (per log type).
+- `.cursor/skills/api-permission-map/SKILL.md`: Update API → screen mapping for log search and decrypt (per log type).  
+- `.cursor/skills/search-consistency-domain/SKILL.md`: Update search/filter consistency screen list to include pb-feplog and java-fw-imagelog (log search is now two screens).  
+- `.cursor/rules/search-filter-form-design.mdc` (optional): If listing log-search screens, use pb-feplog, java-fw-imagelog.
 
 ### Planned change file list (expected change targets)
 
-**(Planned at authoring. Implementing agent (Step 4) confirms or amends this list when implementation is complete.)**
+**(Planned at authoring; expanded with Backend, Frontend, DB, Contract, Documentation, and Explore agent validation. Implementing agent (Step 4) confirms or amends this list when implementation is complete. Optional items may be updated per team policy.)**
 
 #### Frontend
 
@@ -136,38 +140,76 @@ Pattern **3.2 Permission or screen-access change** applies: backend access check
   - Pass or derive screen for decrypt/allowed API (pb-feplog vs java-fw-imagelog) from logType.
 - `frontend/src/utils/security.js`  
   - Derive screenFunctions for pb-feplog and java-fw-imagelog when deriving from allowedScreenIds (if still used).
+- `frontend/src/components/PendingApprovals/PendingApprovals.js`  
+  - Update page title and aria label from "승인 대기" to "복호화 승인 관리" (menu label is in menuTree.js; this file holds the screen/panel label and a11y).
 
-#### Backend
+#### Backend (implemented)
 
 - `backend/src/main/java/com/logmng/constants/ScreenConstants.java`  
-  - Add pb-feplog, java-fw-imagelog; remove or deprecate MAIN in ALL_ALLOWED_SCREENS; add both to SCREENS_WITH_DECRYPT.
+  - Add pb-feplog, java-fw-imagelog; MAIN kept in ALL_ALLOWED_SCREENS for migration; add both to SCREENS_WITH_DECRYPT; getLogSearchScreenIds().
+- `backend/src/main/java/com/logmng/util/LogTypeScreenHelper.java` (new)  
+  - logType↔screen_id mapping: pb_feplog→pb-feplog, java_fw_imglog→java-fw-imagelog.
 - `backend/src/main/java/com/logmng/config/ScreenAccessInterceptor.java`  
-  - Map log search and decrypt paths to screen by logType (pb_feplog → pb-feplog, java_fw_imglog → java-fw-imagelog); require that screen for the request.
+  - Allow pb-feplog or java-fw-imagelog for log search/decrypt paths; exact logType↔screen enforced in LogDbController/DecryptController.
 - `backend/src/main/java/com/logmng/service/AuthService.java`  
-  - Include new screen IDs in getAllowedScreens and screen function derivation; handle main migration or removal.
+  - hasDecryptForScreen(request, screenId); hasDecryptForMain delegates to hasDecryptForScreen(MAIN).
 - `backend/src/main/java/com/logmng/controller/DecryptAllowedController.java`  
-  - Accept screen=pb-feplog and screen=java-fw-imagelog; validate and return allowed for that screen.
+  - Accept screen=pb-feplog | java-fw-imagelog; validate with hasDecryptForScreen; require supportsDecrypt(screen).
 - `backend/src/main/java/com/logmng/controller/DecryptController.java`  
-  - Validate decrypt permission for the screen corresponding to the log type being decrypted.
+  - Resolve screen from logType via LogTypeScreenHelper; validate hasDecryptForScreen; isAllowed(userId, screenId, guid).
+- `backend/src/main/java/com/logmng/controller/LogDbController.java`  
+  - requireLogTypeAccess(request, logType); 403 LOG_TYPE_NOT_ALLOWED when user lacks screen for log type.
 - `backend/src/main/java/com/logmng/service/PermissionGroupService.java`  
-  - Validate read/decrypt for pb-feplog and java-fw-imagelog; support migration of main to both if chosen.
+  - validateScreenFunctions: pb-feplog, java-fw-imagelog same as main (read+optional decrypt, no write/approve).
 - `backend/src/main/java/com/logmng/service/SearchHistoryService.java`  
-  - Use pb-feplog / java-fw-imagelog when calling decryption-allowed store (by log type or screen).
-- Backend unit tests for ScreenConstants, AuthService, PermissionGroupService, DecryptController, DecryptAllowedController, ScreenAccessInterceptor (path → screen by logType).
+  - On approve: map logType to screenId (LogTypeScreenHelper); addOrReplaceAllowed only for java-fw-imagelog (java_fw_imglog).
+- Unit tests: LogTypeScreenHelperTest, PermissionGroupServiceTest (create with pb-feplog/java-fw-imagelog), DecryptControllerTest (stub hasDecryptForScreen).
 
 #### DB
 
 - Optional: `backend/src/main/resources/db/migrate-main-to-pb-feplog-java-fw-imagelog.sql` (or equivalent)  
-  - For each permission_group_screen row with screen_id = 'main', insert rows for pb-feplog and java-fw-imagelog with same read/decrypt; optionally delete main rows. Document in requirement or runbook.
+  - For each permission_group_screen row with screen_id = 'main', insert rows for pb-feplog and java-fw-imagelog copying all columns (scope, read, write, approve, decrypt); optionally delete main rows. Document in requirement or runbook.
+- `backend/src/main/resources/db/init-data.sql` (when new-install policy uses new screen set only)  
+  - If new installs grant only pb-feplog and java-fw-imagelog (e.g. for GENERAL_USER), update init-data.sql to use those screen_ids instead of main; document policy in requirement or runbook.
+
+**DB scope implemented (Step 4):** `migrate-main-to-pb-feplog-java-fw-imagelog.sql` created (idempotent; main rows not deleted by default; ops may run and optionally run `DELETE FROM permission_group_screen WHERE screen_id = 'main'`). `init-data.sql` updated: GENERAL_USER now gets `pb-feplog` and `java-fw-imagelog` instead of `main`; policy comment added in init-data.
 
 #### Contract / Spec
 
 - `docs/contract.md`  
   - Update screen ID list, screen-based access, decrypt and approval-only wording to pb-feplog / java-fw-imagelog.
 - `docs/api-definition.md`  
-  - Update auth response and decrypt/allowed API to new screen set; path→screen by log type.
+  - Update auth response and decrypt/allowed API to new screen set; path→screen by log type. If using `LOG_TYPE_NOT_ALLOWED`, add to error codes.
 - `specs/permission-group-hierarchy.spec.yaml`  
   - §4.1, §1.1.1, §4.3, §4.4, §5 as described in §2 Contract/Spec.
+- `docs/design/search-fields-by-screen.md`  
+  - Replace "검색하기 (main)" with pb-feplog and java-fw-imagelog per-screen field definitions (or shared set); update label "승인 대기" → "복호화 승인 관리".
+- `docs/design/layout-improvement-ux-spec.md`  
+  - Update menu tree table and currentView: 로그 검색 → PB FEP Log, Java FW Image Log only; 이력·승인 → 활동 이력, 검색 이력, 복호화 승인 관리; remove 검색하기; view IDs pb-feplog, java-fw-imagelog.
+
+#### Documentation (design, workflow, export)
+
+- `docs/design/search-field-definition-items.md` — Include pb-feplog, java-fw-imagelog and "복호화 승인 관리" where screen lists are given.
+- `docs/design/forms-and-filters.md` — Rename "승인 대기" → "복호화 승인 관리"; add pb-feplog, java-fw-imagelog if form rules apply to log search screens.
+- `docs/design/README.md` — Update references from "검색하기, 활동 이력" to "로그 검색 (pb-feplog, java-fw-imagelog), 활동 이력" where applicable.
+- `docs/analysis-search-consistency-by-screen.md` — main → pb-feplog / java-fw-imagelog or "로그 검색 (pb-feplog, java-fw-imagelog)"; label "승인 대기" → "복호화 승인 관리"; 이력·승인 order.
+- `export/design/permission-by-screen.md` — Add pb-feplog, java-fw-imagelog; remove or deprecate main; rename "승인 대기" → "복호화 승인 관리".
+- `export/design/screen-api-mapping.md` — Add pb-feplog, java-fw-imagelog; remove/deprecate main; rename pending-approvals label; path→screen by log type.
+- `export/design/screen-user-actions.md` — Same as screen-api-mapping: new screen IDs, label rename, scope/decrypt per log type.
+- `export/design/db-definition.md` — Update allowed screen_id list (pb-feplog, java-fw-imagelog; main removed or deprecated).
+- `export/design/api-db-mapping.md` — Update wording for "DB logs (검색하기 main)" to log-type screens where relevant.
+- `export/design/README.md` — Optional: note that screen set changed (see contract).
+- `docs/workflow/HANDOFF-CHECKLIST.md` — Add pb-feplog, java-fw-imagelog to Frontend search/filter bullet if applicable; use "복호화 승인 관리" where user-facing.
+- `docs/workflow/REQUIREMENTS-CHANGE-TARGET-CHECKLIST.md` — Optional: add one-line example "(e.g. pb-feplog, java-fw-imagelog, search-history under 이력·승인)".
+- `docs/workflow/DOC-CODE-SYNC.md` — Remind to update after screen ID/menu restructure (e.g. menu restructure 20260318).
+- `docs/workflow/DRYRUN-user-search-fields-improvement.md` — main → pb-feplog/java-fw-imagelog or "로그 검색 (타입별)"; label "승인 대기" → "복호화 승인 관리".
+- `docs/workflow/PLAN-approval-only-group-tool-generalization.md` — Approval-only condition: "pb-feplog/java-fw-imagelog 없음 + pending-approvals 있음" (or document if main deprecated).
+- `docs/workflow/ANALYSIS-pending-approvals-scope-frontend-incomplete.md` — Label "승인 대기" → "복호화 승인 관리".
+- `docs/workflow/DRYRUN-search-ui-unify-handoff.md` — pb-feplog/java-fw-imagelog and label "복호화 승인 관리" where relevant.
+- `docs/workflow/REVIEW-agent-role-common-rules.md` — Add pb-feplog, java-fw-imagelog to user-context/search set if Review checks log-search screens.
+- `docs/requirements/TOPIC-INDEX.md` — Update topic summaries that reference "검색하기" or "main" to "로그 검색 (pb-feplog, java-fw-imagelog)" after restructure.
+- `README.md` (root) — Optional: add "복호화 승인 관리" if renaming in UI is reflected in feature list.
+- `CHANGELOG.md` — Optional: add entry for 20260318 restructure (menu/screen ID and label changes).
 
 #### Cursor skills
 
@@ -177,6 +219,10 @@ Pattern **3.2 Permission or screen-access change** applies: backend access check
   - Menu tree and screen IDs.
 - `.cursor/skills/api-permission-map/SKILL.md`  
   - API → screen mapping for log search and decrypt.
+- `.cursor/skills/search-consistency-domain/SKILL.md`  
+  - Search/filter consistency screen list: include pb-feplog, java-fw-imagelog.
+- `.cursor/rules/search-filter-form-design.mdc` (optional)  
+  - If listing log-search screens, use pb-feplog, java-fw-imagelog.
 
 ---
 
@@ -261,7 +307,11 @@ Pattern **3.2 Permission or screen-access change** applies: backend access check
 ### Documentation
 
 - [ ] Requirement doc completed.  
-- [ ] Contract, api-definition, permission-group-hierarchy.spec.yaml and skills updated.
+- [ ] Contract, api-definition, permission-group-hierarchy.spec.yaml and skills updated.  
+- [ ] Design docs updated (search-fields-by-screen, layout-improvement-ux-spec, forms-and-filters, search-field-definition-items, design/README).  
+- [ ] docs/analysis-search-consistency-by-screen.md and export/design (permission-by-screen, screen-api-mapping, screen-user-actions, db-definition, api-db-mapping) updated.  
+- [ ] Workflow docs updated (HANDOFF-CHECKLIST, DOC-CODE-SYNC, DRYRUN/PLAN/ANALYSIS/REVIEW as listed in §2).  
+- [ ] docs/requirements/TOPIC-INDEX.md updated; optional: README.md, CHANGELOG.md.
 
 ---
 

@@ -46,9 +46,9 @@ public class ScreenAccessInterceptor implements HandlerInterceptor {
             new PathScreenRule("^/api/activity-log.*", List.of(ScreenConstants.ACTIVITY_LOG)),
             new PathScreenRule("^/api/statistics.*", List.of(ScreenConstants.STATISTICS)),
             new PathScreenRule("^/api/users.*", List.of(ScreenConstants.USER_MANAGEMENT)),
-            new PathScreenRule("^/api/logs/db-refactored.*", List.of(ScreenConstants.MAIN)),
-            new PathScreenRule("^/api/logs/decrypt.*", List.of(ScreenConstants.MAIN)),
-            new PathScreenRule("^/api/search.*", List.of(ScreenConstants.MAIN))
+            new PathScreenRule("^/api/logs/db-refactored.*", List.of(ScreenConstants.PB_FEPLOG, ScreenConstants.JAVA_FW_IMAGELOG)),
+            new PathScreenRule("^/api/logs/decrypt.*", List.of(ScreenConstants.PB_FEPLOG, ScreenConstants.JAVA_FW_IMAGELOG)),
+            new PathScreenRule("^/api/search.*", List.of(ScreenConstants.PB_FEPLOG, ScreenConstants.JAVA_FW_IMAGELOG))
     );
 
     private final AuthService authService;

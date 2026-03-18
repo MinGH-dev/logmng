@@ -2,6 +2,7 @@ package com.logmng.service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.logmng.constants.ScreenConstants;
+import com.logmng.util.LogTypeScreenHelper;
 import com.logmng.dto.request.LogDbSearchRequest;
 import com.logmng.dto.request.SearchHistoryCreateRequest;
 import com.logmng.dto.request.SearchHistoryListRequest;
@@ -631,10 +632,14 @@ public class SearchHistoryService {
             throw CustomException.badRequest("승인 처리 중 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.", "APPROVAL_ERROR");
         }
 
-        // Req 20260318: refresh requester's decryption-allowed set and delete expired rows for that user
-        if (decryptionAllowedService != null) {
-            decryptionAllowedService.deleteExpiredForUser(requesterUserIdLong);
-            decryptionAllowedService.addOrReplaceAllowed(requesterUserIdLong, ScreenConstants.MAIN, rowIds);
+        // Req 20260318: refresh requester's decryption-allowed set by screen (logType→screen_id). java_fw_imglog→java-fw-imagelog; pb_feplog has no decrypt support, skip.
+        if (decryptionAllowedService != null && logType != null && !rowIds.isEmpty()) {
+            String screenId = LogTypeScreenHelper.screenIdForLogType(logType);
+            if (ScreenConstants.JAVA_FW_IMAGELOG.equals(screenId)) {
+                decryptionAllowedService.deleteExpiredForUser(requesterUserIdLong);
+                decryptionAllowedService.addOrReplaceAllowed(requesterUserIdLong, screenId, rowIds);
+            }
+            // pb_feplog: no decryption support, skip addOrReplaceAllowed
         }
 
         try (Connection conn = dataSource.getConnection()) {

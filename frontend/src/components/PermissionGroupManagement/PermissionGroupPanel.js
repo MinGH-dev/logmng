@@ -129,7 +129,7 @@ const PermissionGroupPanel = ({ user, onRefreshHierarchy }) => {
    * Preserves explicit false for write/approve/decrypt when API returns partial data. When approve=true for approval-fixed screens, scope is set to 'team'. req 20250303, 20260306, 20260306-search-screen-decrypt-permission */
   const normalizeAllowedScreens = (arr) => {
     const scopeScreens = ['activity-log', 'statistics', 'search-history', 'pending-approvals'];
-    const decryptScreens = ['main'];
+    const decryptScreens = ['pb-feplog', 'java-fw-imagelog'];
     if (!Array.isArray(arr)) return [];
     return arr.map((s) => {
       const base = typeof s === 'string'

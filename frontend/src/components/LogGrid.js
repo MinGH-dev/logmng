@@ -8,7 +8,15 @@ import { createSearchHistory } from '../services/searchHistoryService';
 import './LogGrid.css';
 import logger from '../utils/logger';
 
+/** Map logType.id to screen ID for decrypt/allowed API. req 20260318. */
+const logTypeIdToScreenId = (logTypeId) => {
+  if (logTypeId === 'pb_feplog') return 'pb-feplog';
+  if (logTypeId === 'java_fw_imglog') return 'java-fw-imagelog';
+  return null;
+};
+
 const LogGrid = ({ logType, initialSearchParams, initialSearchApprovalId, onInitialSearchDone, hasDecryptPermission = false }) => {
+  const screenId = logType ? logTypeIdToScreenId(logType.id) : null;
   const [logs, setLogs] = useState([]);
   const [loading, setLoading] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
@@ -69,11 +77,11 @@ const LogGrid = ({ logType, initialSearchParams, initialSearchApprovalId, onInit
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [logType?.id, initialSearchParams]);
 
-  // GET /api/decrypt/allowed (req 20260318): 복호화 버튼 enabled/dimmed 판단용. 권한 있을 때만 호출.
+  // GET /api/decrypt/allowed (req 20260318): 복호화 버튼 enabled/dimmed 판단용. screen=pb-feplog|java-fw-imagelog.
   const fetchDecryptionAllowed = React.useCallback(() => {
-    if (!hasDecryptPermission || logType?.id !== 'java_fw_imglog') return;
+    if (!hasDecryptPermission || !screenId || logType?.id !== 'java_fw_imglog') return;
     const apiBaseUrl = process.env.REACT_APP_API_BASE_URL || 'http://localhost:9200/api';
-    fetch(`${apiBaseUrl}/decrypt/allowed?screen=main`, { credentials: 'include' })
+    fetch(`${apiBaseUrl}/decrypt/allowed?screen=${screenId}`, { credentials: 'include' })
       .then((res) => (res.ok ? res.json() : Promise.reject(new Error(`HTTP ${res.status}`))))
       .then((json) => {
         const data = json?.data ?? json;
@@ -85,7 +93,7 @@ const LogGrid = ({ logType, initialSearchParams, initialSearchApprovalId, onInit
         logger.debug('GET decrypt/allowed failed', { error: err.message });
         setDecryptionAllowed({ validUntil: null, guids: [] });
       });
-  }, [hasDecryptPermission, logType?.id]);
+  }, [hasDecryptPermission, logType?.id, screenId]);
 
   useEffect(() => {
     fetchDecryptionAllowed();
@@ -532,6 +540,7 @@ const LogGrid = ({ logType, initialSearchParams, initialSearchApprovalId, onInit
           searchHistoryId={currentApprovalId}
           hasDecryptPermission={hasDecryptPermission}
           decryptionAllowed={decryptionAllowed}
+          screenId={screenId}
         />
       ) : (
         <LogTable

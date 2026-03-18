@@ -74,8 +74,9 @@ VALUES
 ON CONFLICT (code) DO NOTHING;
 
 -- 권한 그룹별 접근 화면 (요건: 20250227-permission-group-screen-menu-access). GENERAL_USER 기본 화면.
+-- New-install policy (req 20260318): grant pb-feplog and java-fw-imagelog instead of main for 로그 검색.
 INSERT INTO permission_group_screen (permission_group_id, screen_id)
-SELECT id, unnest(ARRAY['main','search-history','activity-log','statistics','pending-approvals'])
+SELECT id, unnest(ARRAY['pb-feplog','java-fw-imagelog','search-history','activity-log','statistics','pending-approvals'])
 FROM permission_group WHERE code = 'GENERAL_USER'
 ON CONFLICT (permission_group_id, screen_id) DO NOTHING;
 

@@ -84,6 +84,11 @@ echo "5. 초기 샘플 데이터 삽입 중..."
 psql -U "$DB_SUPERUSER" -h $DB_HOST -p $DB_PORT -d $DB_NAME -f "$(dirname "$0")/init-data.sql"
 echo "   ✅ 초기 데이터 삽입 완료"
 
+# permission_group_screen: main → pb-feplog, java-fw-imagelog (req 20260318). 기존 DB에 main 행이 있으면 복사; 신규 설치(init-data에 main 없음)면 무해. Idempotent.
+echo "5a. permission_group_screen main → pb-feplog/java-fw-imagelog 마이그레이션 적용 중..."
+psql -U "$DB_SUPERUSER" -h $DB_HOST -p $DB_PORT -d $DB_NAME -f "$(dirname "$0")/migrate-main-to-pb-feplog-java-fw-imagelog.sql"
+echo "   ✅ main → pb-feplog/java-fw-imagelog 마이그레이션 완료"
+
 # imagelog 샘플 데이터 (테이블이 비어 있을 때만 삽입; 기존 데이터 유지. Req 20260318-image-log-sample-data-preserve)
 echo "5b. imagelog 샘플 데이터 삽입 중 (비어 있을 때만)..."
 psql -U "$DB_SUPERUSER" -h $DB_HOST -p $DB_PORT -d $DB_NAME -f "$(dirname "$0")/init-data-imagelog.sql"

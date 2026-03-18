@@ -16,9 +16,10 @@ import {
   GroupWork as GroupWorkIcon,
 } from '@mui/icons-material';
 
-/** 허용 화면 ID 목록 (spec §4.1). user-permission-hierarchy: redirect to user-management (Option B). */
+/** 허용 화면 ID 목록 (spec §4.1). req 20260318: pb-feplog, java-fw-imagelog; main removed. */
 export const ALLOWED_SCREEN_IDS = [
-  'main',
+  'pb-feplog',
+  'java-fw-imagelog',
   'search-history',
   'activity-log',
   'statistics',
@@ -28,15 +29,15 @@ export const ALLOWED_SCREEN_IDS = [
   'permission-group-management',
 ];
 
-/** 2-depth 메뉴 트리 (1차: 그룹, 2차: leaf screens) */
+/** 2-depth 메뉴 트리 (1차: 그룹, 2차: leaf screens). req 20260318: 로그 검색 = PB FEP Log, Java FW Image Log only; 이력·승인 = 활동 이력 → 검색 이력 → 복호화 승인 관리. */
 export const MENU_TREE = [
   {
     id: 'log-search',
     label: '로그 검색',
     icon: SearchIcon,
     children: [
-      { id: 'search-main', label: '검색하기', view: 'main' },
-      { id: 'search-history', label: '검색 이력', view: 'search-history' },
+      { id: 'pb-feplog', label: 'PB FEP Log', view: 'pb-feplog' },
+      { id: 'java-fw-imagelog', label: 'Java FW Image Log', view: 'java-fw-imagelog' },
     ],
   },
   {
@@ -45,7 +46,8 @@ export const MENU_TREE = [
     icon: HistoryIcon,
     children: [
       { id: 'activity-log', label: '활동 이력', view: 'activity-log' },
-      { id: 'pending-approvals', label: '승인 대기', view: 'pending-approvals' },
+      { id: 'search-history', label: '검색 이력', view: 'search-history' },
+      { id: 'pending-approvals', label: '복호화 승인 관리', view: 'pending-approvals' },
     ],
   },
   {
@@ -67,7 +69,8 @@ export const MENU_TREE = [
 ];
 
 export const SECOND_ICONS = {
-  'search-main': SearchSecondIcon,
+  'pb-feplog': SearchSecondIcon,
+  'java-fw-imagelog': SearchSecondIcon,
   'search-history': HistorySecondIcon,
   'activity-log': ListIcon,
   'pending-approvals': PendingIcon,
@@ -75,3 +78,16 @@ export const SECOND_ICONS = {
   'user-management': PeopleIcon,
   'permission-group-management': GroupWorkIcon,
 };
+
+/** Ordered screen IDs for first-allowed-screen (menu order). req 20260318. */
+export const ORDERED_SCREEN_IDS = [
+  'pb-feplog',
+  'java-fw-imagelog',
+  'search-history',
+  'activity-log',
+  'pending-approvals',
+  'statistics',
+  'user-management',
+  'user-permission-hierarchy',
+  'permission-group-management',
+];

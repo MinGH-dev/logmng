@@ -53,7 +53,7 @@ const PendingApprovals = ({ user }) => {
       setList(data?.data || []);
       setPagination(data?.pagination || { currentPage: 1, totalPages: 1, totalCount: 0 });
     } catch (e) {
-      logger.error('승인 대기 목록 조회 실패:', e);
+      logger.error('복호화 승인 관리 목록 조회 실패:', e);
       if (e.status === 403 || (e.code && FORBIDDEN_CODES.includes(e.code))) {
         setError('승인 권한이 없습니다. 지정된 결재자 또는 관리자만 접근할 수 있습니다.');
       } else {
@@ -150,7 +150,7 @@ const PendingApprovals = ({ user }) => {
 
   return (
     <div className="pending-approvals">
-      <h2>승인 대기</h2>
+      <h2>복호화 승인 관리</h2>
       {scopeHint && (
         <p className="pending-approvals-scope-hint" aria-live="polite">
           {scopeHint}
@@ -164,9 +164,9 @@ const PendingApprovals = ({ user }) => {
           sortConfig={sortConfig}
           onSort={handleSort}
           loading={loading}
-          emptyMessage="승인 대기 중인 요청이 없습니다."
+          emptyMessage="복호화 승인 대기 중인 요청이 없습니다."
           emptyColSpan={5}
-          ariaLabel="승인 대기 목록"
+          ariaLabel="복호화 승인 관리 목록"
           pagination={{
             currentPage: pagination.currentPage || page,
             totalPages: pagination.totalPages || 1,
@@ -178,7 +178,7 @@ const PendingApprovals = ({ user }) => {
           onPageSizeChange={handlePageSizeChange}
         >
           {sortedList.length === 0 ? (
-            <EmptyTableBody colSpan={5} message="승인 대기 중인 요청이 없습니다." />
+            <EmptyTableBody colSpan={5} message="복호화 승인 대기 중인 요청이 없습니다." />
           ) : (
             sortedList.map((row) => (
               <tr key={row.id}>

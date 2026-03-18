@@ -1,8 +1,8 @@
 package com.logmng.controller;
 
 import com.logmng.annotation.ActivityLog;
-import com.logmng.constants.ScreenConstants;
 import com.logmng.dto.response.ApiResponse;
+import com.logmng.util.LogTypeScreenHelper;
 import com.logmng.service.AuthService;
 import com.logmng.service.DecryptionAllowedService;
 import com.logmng.service.LogDbService;
@@ -49,11 +49,17 @@ public class DecryptController {
                     .body(ApiResponse.failure("로그인이 필요합니다.", "UNAUTHORIZED"));
         }
         Long currentUserId = currentUser.getUserId();
-        if (!authService.hasDecryptForMain(httpRequest)) {
-            return ResponseEntity.status(HttpStatus.FORBIDDEN)
-                    .body(ApiResponse.failure("복호화 기능 권한이 없습니다. 권한 그룹에서 검색하기 화면의 복호화 권한이 부여되어 있어야 합니다.", "FUNCTION_NOT_ALLOWED"));
+
+        String screenId = LogTypeScreenHelper.screenIdForLogType(logType);
+        if (screenId == null) {
+            return ResponseEntity.badRequest()
+                    .body(ApiResponse.failure("현재 java_fw_imglog만 지원됩니다.", "UNSUPPORTED_LOG_TYPE"));
         }
-        // 복호화는 "현재 검색에 대한 승인"만 허용. searchHistoryId가 해당 사용자(user_id=app_user.id)·승인·미만료인지 검사 (req 20260316).
+        if (!authService.hasDecryptForScreen(httpRequest, screenId)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body(ApiResponse.failure("해당 로그 타입에 대한 복호화 권한이 없습니다.", "FUNCTION_NOT_ALLOWED"));
+        }
+
         String guid = request.get("guid");
         String status = request.get("status");
 
@@ -66,7 +72,7 @@ public class DecryptController {
                     .body(ApiResponse.failure("GUID는 필수입니다.", "MISSING_GUID"));
         }
 
-        if (!decryptionAllowedService.isAllowed(currentUserId, ScreenConstants.MAIN, guid)) {
+        if (!decryptionAllowedService.isAllowed(currentUserId, screenId, guid)) {
             log.warn("복호화 거부(decryption-allowed): currentUserId={}, guid={}", currentUserId, guid);
             return ResponseEntity.status(HttpStatus.FORBIDDEN)
                     .body(ApiResponse.failure("복호화 승인 후 이용 가능합니다. 이번 검색에서 '복호화 승인 요청'을 진행해 주세요.", "DECRYPTION_NOT_APPROVED"));

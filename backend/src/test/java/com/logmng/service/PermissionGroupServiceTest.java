@@ -190,6 +190,32 @@ class PermissionGroupServiceTest {
     }
 
     /**
+     * TC-05 (req 20260318): POST permission-groups with allowedScreens pb-feplog, java-fw-imagelog (read + decrypt) → 201, stored.
+     */
+    @Test
+    void create_withPbFeplogAndJavaFwImagelogReadDecrypt_storesSuccessfully() {
+        PermissionGroupCreateRequest req = new PermissionGroupCreateRequest();
+        req.setCode("log_search_group");
+        req.setName("Log Search Two Screens");
+        AllowedScreenItem pbFeplog = new AllowedScreenItem();
+        pbFeplog.setScreenId("pb-feplog");
+        pbFeplog.setRead(true);
+        pbFeplog.setDecrypt(true);
+        AllowedScreenItem javaFwImagelog = new AllowedScreenItem();
+        javaFwImagelog.setScreenId("java-fw-imagelog");
+        javaFwImagelog.setRead(true);
+        javaFwImagelog.setDecrypt(true);
+        req.setAllowedScreens(List.of(pbFeplog, javaFwImagelog));
+
+        var response = service.create(req);
+        assertThat(response).isNotNull();
+        assertThat(response.getCode()).isEqualTo("log_search_group");
+        assertThat(response.getAllowedScreens()).hasSize(2);
+        assertThat(response.getAllowedScreens()).anyMatch(s -> "pb-feplog".equals(s.getScreenId()) && Boolean.TRUE.equals(s.getDecrypt()));
+        assertThat(response.getAllowedScreens()).anyMatch(s -> "java-fw-imagelog".equals(s.getScreenId()) && Boolean.TRUE.equals(s.getDecrypt()));
+    }
+
+    /**
      * TC-04: getScreenScopesForUser returns pending-approvals scope when user has that screen with scope in permission group.
      * Req: 20260305-pending-approvals-scope-same-as-search-history.
      */
