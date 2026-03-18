@@ -187,7 +187,44 @@ ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON SEQUENCES TO logmng;
 - **실행 예 (프로젝트 루트 기준):**  
   `psql -U postgres -h localhost -p 5432 -d logmng -f backend/src/main/resources/db/migrate-search-history-user-id-to-bigint.sql`
 - **복호화 실행 경로 (req 20260317-decrypt-execution-user-id-fix)**: POST /api/logs/decrypt 의 소유·승인 검사는 `search_history.user_id`(BIGINT)와 현재 사용자 id만 사용합니다. 이 경로를 사용하기 전에 **반드시** `migrate-search-history-user-id-to-bigint` 를 적용해 `search_history.user_id` 가 BIGINT인 상태로 두세요.
+  - **증상**: `search_history.user_id`가 아직 VARCHAR이고 username 값이 들어 있는 경우, 코드는 Long(user id)로 비교하므로 매칭되지 않아 "복호화 거부(승인 미충족)"가 발생할 수 있습니다. 이 경우 위 마이그레이션을 실행하면 해결됩니다.
 - 이전 스크립트 `migrate-search-history-user-id-to-username.sql`은 **legacy** 로 두지 않고 새 스키마로 정렬한 환경에서는 실행하지 마세요.
+
+### 복호화 허용 저장소 (user_decryption_allowed, req 20260318)
+
+- "누가 어떤 GUID를 복호화할 수 있는지"는 **user_decryption_allowed** 테이블에서만 판단한다. `search_history_approved_row`는 감사/이력용으로만 유지된다.
+- **마이그레이션 적용** (기존 DB에 테이블 추가 및 선택적 백필):
+  - 프로젝트 루트에서: `psql -U postgres -h localhost -p 5432 -d logmng -f backend/src/main/resources/db/migrate-user-decryption-allowed.sql`
+  - 또는: `psql -U logmng -h localhost -p 5432 -d logmng -f backend/src/main/resources/db/migrate-user-decryption-allowed.sql`
+  - idempotent: 테이블/인덱스는 IF NOT EXISTS; 백필은 재실행 시 ON CONFLICT로 덮어쓰므로 안전.
+  - `search_history_approved_row`는 변경·삭제하지 않음.
+
+### 복호화 403 시 점검 (req 20260317-image-log-decrypt-error-root-cause-and-data-validation)
+
+"복호화 거부(승인 미충족)"(403 DECRYPTION_NOT_APPROVED)이 **마이그레이션 적용 후에도** 발생하면, 다음 진단 SQL로 해당 검색 이력 행의 `user_id`와 요청자(requester)의 `app_user.id`가 일치하는지 확인하세요.
+
+1. **실패한 요청의 searchHistoryId**를 로그 또는 프론트에서 확인합니다.
+2. **요청자(복호화를 실행하려는 사용자)의 로그인 ID(사용자명)** 또는 `app_user.id`를 확인합니다.
+3. 아래 SQL에서 `:search_history_id`를 해당 ID로 바꿔 실행합니다.
+
+```sql
+-- 아래에서 <search_history_id>, <requester_username> 을 실제 값으로 바꿔 실행
+-- 예: search_history_id=100, 요청자 로그인ID=user2
+SELECT sh.id AS search_history_id,
+       sh.user_id AS row_user_id,
+       sh.approval_status,
+       sh.expires_at,
+       (sh.expires_at > CURRENT_TIMESTAMP) AS not_expired,
+       au.id AS app_user_id,
+       (sh.user_id = au.id) AS user_id_matches
+FROM search_history sh
+LEFT JOIN app_user au ON au.username = '<requester_username>'
+WHERE sh.id = <search_history_id>;
+```
+
+- **해석**: `row_user_id`는 해당 검색 이력을 **요청한 사용자**의 `app_user.id`여야 합니다. 복호화 실행 시 **현재 로그인 사용자 id**와 `row_user_id`가 같아야 403이 발생하지 않습니다.
+- `user_id_matches`가 false이면, 해당 검색 이력은 다른 사용자(요청자) 소유이므로 **현재 로그인한 사용자가 요청자가 아닐 때** 의도된 403입니다(실행자는 요청자만 가능).
+- `row_user_id`가 요청자의 `app_user.id`와 다른데 요청자가 실행했다면, **데이터 불일치**이거나 **세션/currentUserId** 문제일 수 있으므로 백엔드 로그의 `복호화 승인 검사 실패(진단): searchHistoryId=..., currentUserId=..., reason=..., rowUserId=...` 로그로 `currentUserId`와 `rowUserId`를 비교하세요.
 
 
 

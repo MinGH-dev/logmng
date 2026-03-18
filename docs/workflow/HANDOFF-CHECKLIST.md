@@ -8,6 +8,7 @@ When building a **scope-specific handoff** for Backend, Frontend, DB, Review, or
 
 - [ ] **§1**: One-paragraph summary (user scenario + expected outcome).
 - [ ] **§2**: Full **Backend** subsection (solution, change file list for backend).
+- [ ] **Error-fix reminder**: When the requirement is an **error/bug fix**, include in the handoff: "Do **not** fix based on hypothesis. (1) Add diagnostic logs (DEBUG level or dev-only; must not run in production), (2) reproduce and capture logs, (3) analyze logs to confirm root cause, (4) only then apply the logic/code fix. Diagnostic logs must be DEBUG, behind a feature flag, or removed after verification."
 - [ ] **§2.1**: Full **§2.1 Security** if the requirement involves PII, decryption, or access control (include even when scope is "Backend").
 - [ ] **Contract/spec**: Reference or excerpt of API/DB contract and `specs/*.spec.yaml` if the change touches API or schema.
 - [ ] **§3**: **All** test cases that involve Backend (unit, integration, and any Integration TCs that imply Backend behavior).
@@ -22,6 +23,7 @@ When building a **scope-specific handoff** for Backend, Frontend, DB, Review, or
 - [ ] **Default standard lookup still applies**: Even when the handoff omits design-doc references, the Frontend implementer must read `docs/design/README.md` first and open the relevant `docs/design/*` standards based on the task type (layout, grid/table, forms/filters, buttons/inputs, CSS exceptions).
 - [ ] **§1**: One-paragraph summary.
 - [ ] **§2**: Full **Frontend** subsection.
+- [ ] **Error-fix reminder**: When the requirement is an **error/bug fix**, include in the handoff: "Do **not** fix based on hypothesis. (1) Add diagnostic logs (DEBUG or dev-only; must not run in production), (2) reproduce and capture logs, (3) analyze logs to confirm root cause, (4) only then apply the fix. Diagnostic logs must be DEBUG, behind a feature flag, or removed after verification."
 - [ ] **§2.1**: Full §2.1 if security/access affects UI.
 - [ ] **Contract/spec**: For any API the frontend calls (request/response shape, error codes).
 - [ ] **§3**: All TCs that involve Frontend (including manual/browser if applicable).

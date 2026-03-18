@@ -1,4 +1,4 @@
-import { getSearchHistoryList } from './searchHistoryService';
+import { getSearchHistoryList, createSearchHistory } from './searchHistoryService';
 
 describe('searchHistoryService', () => {
   beforeEach(() => {
@@ -52,5 +52,55 @@ describe('searchHistoryService', () => {
     expect(requestUrl.searchParams.get('department')).toBeNull();
     expect(requestUrl.searchParams.get('username')).toBeNull();
     expect(requestUrl.searchParams.get('userId')).toBeNull();
+  });
+
+  describe('createSearchHistory', () => {
+    test('TC-05 (req 20260318): when options with searchResultTotalCount and decryptionTargetCount provided, POST body includes both', async () => {
+      global.fetch = jest.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({ success: true, data: { id: 1 } }),
+      });
+
+      await createSearchHistory('java_fw_imglog', { startDate: '2026-01-01' }, 'reason', {
+        searchResultTotalCount: 50,
+        decryptionTargetCount: 20,
+      });
+
+      expect(global.fetch).toHaveBeenCalledTimes(1);
+      const [, init] = global.fetch.mock.calls[0];
+      const body = JSON.parse(init.body);
+      expect(body.searchResultTotalCount).toBe(50);
+      expect(body.decryptionTargetCount).toBe(20);
+      expect(body.logType).toBe('java_fw_imglog');
+      expect(body.requestReason).toBe('reason');
+    });
+
+    test('when options omitted, POST body does not include count fields', async () => {
+      global.fetch = jest.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({ success: true, data: { id: 1 } }),
+      });
+
+      await createSearchHistory('java_fw_imglog', { startDate: '2026-01-01' }, 'reason');
+
+      const [, init] = global.fetch.mock.calls[0];
+      const body = JSON.parse(init.body);
+      expect(body).not.toHaveProperty('searchResultTotalCount');
+      expect(body).not.toHaveProperty('decryptionTargetCount');
+    });
+
+    test('when only one count in options, POST body does not include count fields', async () => {
+      global.fetch = jest.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({ success: true, data: { id: 1 } }),
+      });
+
+      await createSearchHistory('java_fw_imglog', {}, 'reason', { searchResultTotalCount: 50 });
+
+      const [, init] = global.fetch.mock.calls[0];
+      const body = JSON.parse(init.body);
+      expect(body).not.toHaveProperty('searchResultTotalCount');
+      expect(body).not.toHaveProperty('decryptionTargetCount');
+    });
   });
 });

@@ -23,7 +23,23 @@
 - **정의 위치**: `backend/src/main/resources/db/schema.sql` 및 필요 시 `specs/` 내 스키마 기술.
 - **변경**: 스키마 변경 시 schema.sql(또는 마이그레이션)을 먼저 반영하고, 백엔드 코드·API 스펙을 그에 맞춘다.
 - **권한 그룹 관련 테이블** (요건 20250227, 20250303, 20260306): `permission_group` (id, code, name, description, sort_order), `app_user_permission_group` (user_id = app_user.username, permission_group_id → permission_group.id), `permission_group_screen` (permission_group_id, screen_id, scope, read, write, approve, decrypt — read/write/approve/decrypt BOOLEAN NULL; decrypt는 main 전용, 복호화 요청 권한; scope='self'|'team'|'all', activity-log·statistics·search-history·pending-approvals에 적용, 생략/NULL 시 기본값 'team'; NULL=derived). 상세: `specs/permission-group-hierarchy.spec.yaml` §2.1, schema.sql.
-- **검색 이력(search_history)**: `search_history.user_id`는 numeric **`app_user.id`**를 저장한다. 모든 조인은 **app_user.id = search_history.user_id**를 사용한다. `search_history.user_id`에 username을 저장하지 않는다. API의 requester filter·응답의 userId는 numeric `app_user.id`이다. **요청 사유**: POST body·목록/상세 응답에 `requestReason`; 목록 조회 쿼리에 `requestedAtFrom`, `requestedAtTo`, `approvalStatus`(다중), `requestReason`. 상세: docs/api-definition.md §6.1.
+- **검색 이력(search_history)**: `search_history.user_id`는 numeric **`app_user.id`**를 저장한다. 모든 조인은 **app_user.id = search_history.user_id**를 사용한다. `search_history.user_id`에 username을 저장하지 않는다. API의 requester filter·응답의 userId는 numeric `app_user.id`이다. **요청 사유**: POST body·목록/상세 응답에 `requestReason`; 목록 조회 쿼리에 `requestedAtFrom`, `requestedAtTo`, `approvalStatus`(다중), `requestReason`. **상세 조회 응답 (req 20260318)**: APPROVED일 때 `decryptionRequestedRows`(application, serviceGroup, guid 배열), `decryptionRequestedCount` 포함; 비승인 시 생략 또는 null. 상세: docs/api-definition.md §6.1.
+- **복호화 허용 저장소 (decryption-allowed, req 20260318)**: "누가 어떤 GUID를 복호화할 수 있는지"는 **decryption-allowed store**(예: `user_decryption_allowed` 테이블)에서 결정한다. 키: user_id(BIGINT), screen; 값: approved GUIDs, valid_until. `search_history_approved_row`는 감사/이력용으로만 유지되며, 복호화 권한 판단에는 사용하지 않는다. **저장 대상**: 승인 시 저장되는 row ID는 **암호화된 데이터가 있는 행만** 해당한다. 정의는 아래 "Decryption approval — rows with encrypted data only" 참고. 스키마·마이그레이션: schema.sql 및 db 마이그레이션 스크립트.
+
+## Decryption approval — rows with encrypted data only
+
+요건: `docs/requirements/20260318-decryption-approval-guids-encrypted-only.md`. 승인 스냅샷 및 decryption-allowed 집합에는 **암호화된 데이터가 있는 행의 row ID만** 포함된다. 백엔드는 이 정의를 단일 진실 원천으로 구현한다.
+
+1. **java_fw_imglog — "has encrypted data" 정의 (단일 진실)**  
+   한 행이 암호화된 데이터를 가진다고 정의하는 조건(iff):  
+   `(datastring != null && datastring.contains("["))` OR `(headerstring != null && headerstring.contains("["))` OR `(data != null && !((String)data).trim().isEmpty())` OR `(header != null && !((String)header).trim().isEmpty())`.  
+   위 조건을 만족하는 행만 승인 시 스냅샷·허용 집합에 포함된다.
+
+2. **저장 제한**  
+   `POST /api/search-history/{id}/approve` 처리 시, 검색 결과 중 **has encrypted data**가 true인 행의 row_id만 (1) `search_history_approved_row`에 insert되고 (2) `user_decryption_allowed`(decryption-allowed store)에 반영된다. 평문만 있는 행의 row ID는 두 저장소 모두에 넣지 않는다.
+
+3. **pb_feplog**  
+   현재 복호화 미지원. 승인 스냅샷·decryption-allowed에 pb_feplog 행을 넣지 않거나, 추후 스펙에서 정의할 때까지 해당 로그 타입은 "rows with encrypted data" 규칙의 적용 대상이 아니다.
 
 ## 시스템 관리자 보호 (System administrator protection)
 
@@ -39,7 +55,7 @@
 - **승인 범위**: 승인(approve) 가능 범위는 부서로 고정되어 있으며 권한 설정에서 변경할 수 없음. scope 드롭다운은 조회(목록) 범위만 적용됨. (`specs/permission-group-hierarchy.spec.yaml` §1.1 Scope values, `docs/workflow/CONSISTENCY-STANDARDS.md` §7.)
 - **auth/current-user self-context 계약**: 로그인 식별자는 **`app_user.id`** (numeric, 사용자 ID)만 사용한다. 로그인 UI와 API에서는 사용자가 **숫자 사용자 ID**(예: 20269999, 20260001)를 입력한다. `POST /api/auth/login` 요청 body는 **userId (number)** 와 **password** 를 사용한다. (username 필드는 로그인 요청에서 제거.) API/UI에서 노출하는 **canonical "userId"**는 **numeric** **`app_user.id`**(예: 20269999, 20260001)이다. `POST /api/auth/login`의 `user` payload와 `GET /api/auth/me` 응답은 self-scoped 화면 고정 표시용 `selfContext`를 포함해야 한다. 최소 필드는 `department: string | null`, `username: string`, `userId: number`이다. **`selfContext.userId`**는 **numeric** **`app_user.id`**(user ID)이다. **`selfContext.username`**은 현재 사용자의 **표시 이름(display name, 사용자명)**이다: `app_user.name`이 존재하고 비어 있지 않으면 그 값을 사용하고, 그렇지 않으면 `app_user.username`을 사용한다. `scope=self` 화면은 이 값을 화면 표시의 권위 소스로 사용하고, 공유 filter-options 응답이나 사용자가 조작한 필터 입력을 권위 값으로 승격하면 안 된다.
 - **screenFunctions** (req 20250303-screen-function-availability): 로그인·GET /api/auth/me 응답에 `screenFunctions: Record<screenId, { read, write?, approve?, decrypt? }>` 포함. 화면별 read/write/approve/decrypt 가능 여부. main은 read + optional decrypt(복호화 요청 권한); decrypt는 권한관리에서 부여/해제 가능(req 20260306). **screenFunctions explicit storage**: permission_group_screen.read/write/approve/decrypt에 명시 저장 시 해당 값 사용; NULL이면 기존 derivation 규칙 적용. 상세: `specs/permission-group-hierarchy.spec.yaml` §4.4.
-- **API function-level enforcement**: decrypt(복호화 요청), approve(승인/반려), write(생성·수정·삭제) API는 해당 function 권한 검증. 권한 없으면 403, `code: "FUNCTION_NOT_ALLOWED"`. 복호화 API(POST /api/logs/decrypt/*)는 main 화면 접근 + screenFunctions.main.decrypt 필요; 없으면 403. **복호화 소유·승인 검사 (req 20260317)**: POST /api/logs/decrypt 의 소유·승인 검사는 숫자 **user_id**(search_history.user_id 및 현재 사용자 id)만 사용하며, 에러 코드(DECRYPTION_NOT_APPROVED, ROW_NOT_IN_APPROVED_SNAPSHOT 등)는 변경 없음. write API는 function과 scope 모두 검증; scope=self일 때 타인 데이터 수정 시 403.
+- **API function-level enforcement**: decrypt(복호화 요청), approve(승인/반려), write(생성·수정·삭제) API는 해당 function 권한 검증. 권한 없으면 403, `code: "FUNCTION_NOT_ALLOWED"`. 복호화 API(POST /api/logs/decrypt/*)는 main 화면 접근 + screenFunctions.main.decrypt 필요; 없으면 403. **복호화 승인 소스 (req 20260318)**: 복호화 허용 여부는 **decryption-allowed store**(user_id, screen, approved GUIDs, valid_until)에서만 결정된다. POST /api/logs/decrypt 는 **searchHistoryId를 승인 판단에 사용하지 않으며**, searchHistoryId는 감사(audit)용으로만 선택 전달 가능하다. **GET /api/decrypt/allowed**: 경로 `GET /api/decrypt/allowed`, 쿼리 `screen`(예: main), 응답 `{ screen, validUntil, guids }` — 현재 사용자·화면에 대한 허용 GUID 목록과 유효기간. 상세 요청/응답/에러: `docs/api-definition.md` §10. write API는 function과 scope 모두 검증; scope=self일 때 타인 데이터 수정 시 403. **검색 화면 복호화 UI (req 20260317-search-decrypt-permission-ui)**: 사용자에게 main decrypt 권한이 없으면(screenFunctions.main.decrypt false이고 시스템 관리자 아님) 검색 화면에서 복호화 관련 액션(복호화 승인 요청 버튼, 행별 복호화 버튼)을 비활성화하거나 숨기고 "복호화 권한이 없습니다." 메시지를 표시한다.
 - **승인 전용 권한 그룹 (approval-only)**: `allowedScreenIds`에 `main` 없이 `pending-approvals`만 가진 그룹(예: APPROVE_USER, TEAM_APPROVER 등)은 **그룹 이름과 무관하게** 동일 UX/API 규칙(리다이렉트, 메뉴 필터링, 로그 API 403, 액션 숨김) 적용. 상세: `specs/permission-group-hierarchy.spec.yaml` §5.
 
 이 문서는 dev 워크스페이스 전용이다. 변경 시 docs/README.md 등과 맞춘다.

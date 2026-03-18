@@ -578,6 +578,48 @@ public class LogDbService {
     }
     
     /**
+     * Resolve application and servicegroup for a set of guids from imagelog (java_fw_imglog).
+     * Used by search history detail to show decryption-requested rows. On SQLException returns empty map
+     * so the caller can still return rows with guid and null application/serviceGroup.
+     *
+     * @param guids list of guid values (row_id from search_history_approved_row for java_fw_imglog)
+     * @return map keyed by guid, value = map with "application" and "serviceGroup" (camelCase); missing guids not present
+     */
+    public Map<String, Map<String, String>> getApplicationServiceGroupByGuids(List<String> guids) {
+        if (guids == null || guids.isEmpty()) {
+            return Collections.emptyMap();
+        }
+        Map<String, Map<String, String>> result = new LinkedHashMap<>();
+        try (Connection connection = dataSource.getConnection()) {
+            StringBuilder sql = new StringBuilder("SELECT guid, application, servicegroup FROM imagelog WHERE guid IN (");
+            for (int i = 0; i < guids.size(); i++) {
+                if (i > 0) sql.append(", ");
+                sql.append("?");
+            }
+            sql.append(")");
+            try (PreparedStatement stmt = connection.prepareStatement(sql.toString())) {
+                for (int i = 0; i < guids.size(); i++) {
+                    stmt.setString(i + 1, guids.get(i));
+                }
+                try (ResultSet rs = stmt.executeQuery()) {
+                    while (rs.next()) {
+                        String guid = rs.getString("guid");
+                        if (guid == null) continue;
+                        Map<String, String> row = new LinkedHashMap<>();
+                        row.put("application", rs.getString("application"));
+                        row.put("serviceGroup", rs.getString("servicegroup"));
+                        result.put(guid, row);
+                    }
+                }
+            }
+        } catch (SQLException e) {
+            log.warn("imagelog resolution by guids failed (returning empty map): {}", e.getMessage());
+            return Collections.emptyMap();
+        }
+        return result;
+    }
+
+    /**
      * DB 로그 상세 조회
      */
     public Map<String, Object> getLogDetail(String logType, String type, String identifier) {

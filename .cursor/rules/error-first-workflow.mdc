@@ -12,4 +12,10 @@ When the user message is **mainly** an error message, stack trace, or "fix this 
 3. **Then** development (code change, API, frontend).
 4. **Do not** propose implementation todos from an error alone without a requirement doc.
 
+**Diagnostic-first (error/bug fixes):**
+
+5. **Do not fix based on hypothesis.** Requirements, Backend, and Frontend must **not** infer the root cause from assumption and change logic immediately. The requirement doc (§2) for an error fix must require a **diagnostic phase** before the code fix.
+6. **Diagnostic phase (mandatory):** Before any logic/code fix for the error, the implementer must: (1) Add **diagnostic logs** in suspected areas (e.g. key variables, branch outcomes) so the cause can be verified from logs; (2) Reproduce and capture logs; (3) **Analyze logs** to confirm the root cause; (4) Only then implement the fix. This applies to Backend and Frontend when implementing an error-fix requirement.
+7. **Diagnostic logs must not run in production.** Any diagnostic logs added for verification must be at DEBUG level (or equivalent), behind a dev-only flag, or removed after the fix is verified. They must **not** be emitted in production.
+
 Detail: `docs/workflow/WORKFLOW_CHECKLIST.md`, `docs/workflow/ERROR-FIX-WORKFLOW-FLOWCHART.md`, `docs/template/REQUIREMENT_TEMPLATE.md`.

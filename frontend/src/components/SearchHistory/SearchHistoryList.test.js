@@ -57,6 +57,8 @@ const listResponse = {
         requesterDepartmentCode: 'TEAM_SALES_A1',
         requesterDisplayName: '홍길동',
         requesterUsername: '10000001',
+        searchResultTotalCount: 48,
+        decryptionTargetCount: 37,
       },
     ],
     pagination: {
@@ -215,6 +217,8 @@ describe('SearchHistoryList', () => {
       '사용자ID',
       '사용자명',
       '검색 조건',
+      '검색건수',
+      '암호화건수',
       '복호화',
       '요청사유',
       '만료일시',
@@ -228,26 +232,30 @@ describe('SearchHistoryList', () => {
     const firstDataRow = container.querySelector('.log-table tbody tr');
     expect(firstDataRow).not.toBeNull();
     const cells = firstDataRow.querySelectorAll('td');
-    expect(cells.length).toBe(10);
+    expect(cells.length).toBe(12);
 
     const seqCell = cells[0].textContent?.trim();
     const dateCell = cells[1].textContent?.trim();
     const deptCell = cells[2].textContent?.trim();
     const usernameCell = cells[3].textContent?.trim();
     const displayNameCell = cells[4].textContent?.trim();
+    const searchCountCell = cells[6].textContent?.trim();
+    const decryptCountCell = cells[7].textContent?.trim();
 
     expect(seqCell).toBe('1');
     expect(dateCell).toContain('2026-03-13');
     expect(deptCell).toBe('TEAM_SALES_A1');
     expect(usernameCell).toBe('10000001');
     expect(displayNameCell).toBe('홍길동');
+    expect(searchCountCell).toBe('48');
+    expect(decryptCountCell).toBe('37');
 
     expect(deptCell).not.toMatch(/\s*\/\s*/);
     expect(usernameCell).not.toMatch(/\s*\/\s*/);
     expect(displayNameCell).not.toMatch(/\s*\/\s*/);
   });
 
-  test('TC-03: empty list shows empty state with colSpan 10', async () => {
+  test('TC-03: empty list shows empty state with colSpan 12', async () => {
     getSearchHistoryList.mockResolvedValueOnce({
       success: true,
       data: { data: [], pagination: { currentPage: 1, totalPages: 1, totalCount: 0 } },
@@ -260,7 +268,7 @@ describe('SearchHistoryList', () => {
 
     const emptyRow = container.querySelector('.log-table tbody tr');
     expect(emptyRow).not.toBeNull();
-    const emptyCell = emptyRow.querySelector('td[colspan="10"]');
+    const emptyCell = emptyRow.querySelector('td[colspan="12"]');
     expect(emptyCell).not.toBeNull();
     expect(emptyCell?.textContent).toContain('검색 이력이 없습니다');
   });
@@ -454,6 +462,8 @@ describe('SearchHistoryList', () => {
     const headerCells = container.querySelectorAll('.log-table thead tr th');
     const approvalHeader = Array.from(headerCells).find((th) => th.textContent?.trim() === '복호화');
     expect(approvalHeader).toBeInTheDocument();
+    expect(Array.from(headerCells).some((th) => th.textContent?.trim() === '검색건수')).toBe(true);
+    expect(Array.from(headerCells).some((th) => th.textContent?.trim() === '암호화건수')).toBe(true);
   });
 
   test('TC-01 (req): 사용자ID column width fits 8-digit numbers', async () => {
@@ -522,5 +532,120 @@ describe('SearchHistoryList', () => {
     expect(reasonInput).toBeInTheDocument();
     expect(dateFrom).toHaveClass('form-control');
     expect(reasonInput).toHaveClass('form-control');
+  });
+
+  test('list shows 미집계 for legacy rows without count fields', async () => {
+    getSearchHistoryList.mockResolvedValueOnce({
+      success: true,
+      data: {
+        data: [
+          {
+            ...listResponse.data.data[0],
+            searchResultTotalCount: undefined,
+            decryptionTargetCount: undefined,
+          },
+        ],
+        pagination: listResponse.data.pagination,
+      },
+    });
+    await renderAndWaitForInitialLoad(<SearchHistoryList user={baseUser} />);
+    const row = document.querySelector('.log-table tbody tr');
+    expect(row).not.toBeNull();
+    const cells = row.querySelectorAll('td');
+    expect(cells.length).toBeGreaterThanOrEqual(8);
+    expect(cells[6].textContent?.trim()).toBe('미집계');
+    expect(cells[7].textContent?.trim()).toBe('미집계');
+  });
+
+  test('자세히 보기 modal shows 검색건수·암호화건수 when detail API returns counts', async () => {
+    getSearchHistoryDetail.mockResolvedValue({
+      success: true,
+      data: {
+        logType: { name: 'IMAGE' },
+        searchParams: { startDate: '2026-01-01' },
+        searchResultTotalCount: 100,
+        decryptionTargetCount: 25,
+        decryptionRequestedRows: [],
+      },
+    });
+    await renderAndWaitForInitialLoad(<SearchHistoryList user={baseUser} />);
+    await userEvent.click(screen.getByRole('button', { name: /자세히 보기/i }));
+    await waitFor(() => {
+      expect(screen.getByText(/검색건수:\s*100/)).toBeInTheDocument();
+      expect(screen.getByText(/암호화건수:\s*25/)).toBeInTheDocument();
+    });
+  });
+
+  test('자세히 보기 modal "복호화 요청 대상 (총 n건)" uses decryption count not search total', async () => {
+    getSearchHistoryDetail.mockResolvedValue({
+      success: true,
+      data: {
+        logType: { name: 'IMAGE' },
+        searchParams: { startDate: '2026-01-01' },
+        searchResultTotalCount: 48,
+        decryptionTargetCount: 37,
+        decryptionRequestedRows: [{ application: 'App1', serviceGroup: 'SG1', guid: 'g1' }, { application: 'App2', serviceGroup: 'SG2', guid: 'g2' }],
+        decryptionRequestedCount: 2,
+      },
+    });
+    await renderAndWaitForInitialLoad(<SearchHistoryList user={baseUser} />);
+    await userEvent.click(screen.getByRole('button', { name: /자세히 보기/i }));
+    await waitFor(() => {
+      expect(screen.getByText(/검색건수:\s*48/)).toBeInTheDocument();
+      expect(screen.getByText(/암호화건수:\s*37/)).toBeInTheDocument();
+    });
+    expect(screen.getByRole('heading', { name: /복호화 요청 대상 \(총 37건\)/ })).toBeInTheDocument();
+  });
+
+  test('TC-04 (req 20260318): list shows 48 in 검색건수 column and 37 in 암호화건수; detail modal shows both distinctly', async () => {
+    getSearchHistoryList.mockResolvedValueOnce({
+      success: true,
+      data: {
+        data: [
+          {
+            id: 1,
+            seq: 1,
+            requestedAt: '2026-03-13 10:00:00',
+            approvalStatus: 'PENDING',
+            expiresAt: '2026-03-20 10:00:00',
+            userId: 20260001,
+            isExpired: false,
+            requesterDepartmentCode: 'TEAM_A',
+            requesterDisplayName: '홍길동',
+            requesterUsername: '10000001',
+            searchResultTotalCount: 48,
+            decryptionTargetCount: 37,
+          },
+        ],
+        pagination: { currentPage: 1, totalPages: 1, totalCount: 1 },
+      },
+    });
+    getSearchHistoryDetail.mockResolvedValue({
+      success: true,
+      data: {
+        id: 1,
+        logType: { name: 'IMAGE' },
+        searchParams: { startDate: '2026-01-01' },
+        searchResultTotalCount: 48,
+        decryptionTargetCount: 37,
+        decryptionRequestedRows: [],
+      },
+    });
+    const { container } = await renderAndWaitForInitialLoad(<SearchHistoryList user={baseUser} />);
+
+    const firstRow = container.querySelector('.log-table tbody tr');
+    expect(firstRow).not.toBeNull();
+    const cells = firstRow.querySelectorAll('td');
+    expect(cells.length).toBeGreaterThanOrEqual(8);
+    const searchCountCell = cells[6].textContent?.trim();
+    const decryptCountCell = cells[7].textContent?.trim();
+    expect(searchCountCell).toBe('48');
+    expect(decryptCountCell).toBe('37');
+
+    await userEvent.click(screen.getByRole('button', { name: /자세히 보기/i }));
+    await waitFor(() => {
+      expect(screen.getByText(/검색건수:\s*48/)).toBeInTheDocument();
+      expect(screen.getByText(/암호화건수:\s*37/)).toBeInTheDocument();
+    });
   });
 });

@@ -91,6 +91,22 @@ When the **Requirements** subagent writes the requirement doc, it **must not wri
 
 ---
 
+## 1.3 When the requirement is an error/bug fix
+
+When the requirement is an **error fix or bug fix** (user input is mainly an error message, stack trace, or "fix this error"):
+
+- **Do not fix based on hypothesis.** The solution approach in §2 must **not** instruct implementers to change logic immediately based on a suspected cause.
+- **Diagnostic phase (mandatory):** §2 must require:
+  1. Add **diagnostic (debug) logs** in the suspected areas (e.g. key variables, branch outcomes, per-item results) so the root cause can be verified from logs.
+  2. Reproduce the error once and **capture logs**.
+  3. **Analyze logs** to confirm the actual root cause (not assumption).
+  4. Only **after** the cause is confirmed from logs, proceed to the logic/code fix.
+- **Diagnostic logs must not run in production:** §2 (or a short implementation note) must state that diagnostic logs must be either: **(a)** at DEBUG level (or equivalent) so they are off in production, or **(b)** behind a feature flag / dev-only path, or **(c)** removed or downgraded after the fix is verified. This ensures the "add logs to verify" step does not leave production logging sensitive or verbose data.
+
+Apply this subsection whenever the requirement is classified as an error/bug fix (e.g. from the error-first workflow or user-reported failure). The implementing agent (Step 4) must follow the diagnostic phase before applying the fix.
+
+---
+
 ## 1.4 Cursor infrastructure update: when a domain model changes
 
 When a requirement **changes the domain model** (e.g. permission model from multi-group to single-group, data schema restructuring, workflow change), the **Cursor infrastructure files** (`.cursor/skills/`, `specs/`, `.cursor/rules/`) may become stale and cause agents to produce incorrect implementations.

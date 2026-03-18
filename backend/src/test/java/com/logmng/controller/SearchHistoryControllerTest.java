@@ -235,6 +235,36 @@ class SearchHistoryControllerTest {
         assertThat(captured.getRequestReason()).isEqualTo("요청 사유 입력");
     }
 
+    @Test
+    void create_withOptionalCountOverrides_returns201WithCounts() throws Exception {
+        String body = new ObjectMapper().writeValueAsString(Map.of(
+                "logType", "java_fw_imglog",
+                "searchParams", Map.of(),
+                "searchResultTotalCount", 12,
+                "decryptionTargetCount", 3));
+        mockMvc.perform(post("/api/search-history")
+                        .contentType("application/json")
+                        .content(body)
+                        .sessionAttr("userId", 20260001L))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.data.searchResultTotalCount").value(12))
+                .andExpect(jsonPath("$.data.decryptionTargetCount").value(3));
+    }
+
+    @Test
+    void create_whenOnlyOneCountOverride_returns400() throws Exception {
+        String body = new ObjectMapper().writeValueAsString(Map.of(
+                "logType", "java_fw_imglog",
+                "searchParams", Map.of(),
+                "searchResultTotalCount", 5));
+        mockMvc.perform(post("/api/search-history")
+                        .contentType("application/json")
+                        .content(body)
+                        .sessionAttr("userId", 20260001L))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.success").value(false));
+    }
+
     /** requestReason length > 500 → 400. Req 20260317. */
     @Test
     void create_whenRequestReasonOver500_returns400() throws Exception {
@@ -242,6 +272,35 @@ class SearchHistoryControllerTest {
                 "logType", "java_fw_imglog",
                 "searchParams", Map.of(),
                 "requestReason", "a".repeat(501)));
+        mockMvc.perform(post("/api/search-history")
+                        .contentType("application/json")
+                        .content(body)
+                        .sessionAttr("userId", 20260001L))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.success").value(false));
+    }
+
+    /** TC-02 (req 20260318): Missing required field searchParams → 400 (not 500). */
+    @Test
+    void create_whenSearchParamsMissing_returns400() throws Exception {
+        String body = new ObjectMapper().writeValueAsString(Map.of(
+                "logType", "java_fw_imglog",
+                "requestReason", "사유"));
+        mockMvc.perform(post("/api/search-history")
+                        .contentType("application/json")
+                        .content(body)
+                        .sessionAttr("userId", 20260001L))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.code").value("VALIDATION_ERROR"));
+    }
+
+    /** TC-02: Missing required field logType → 400. */
+    @Test
+    void create_whenLogTypeMissing_returns400() throws Exception {
+        String body = new ObjectMapper().writeValueAsString(Map.of(
+                "searchParams", Map.of("startDate", "2026-03-01"),
+                "requestReason", "사유"));
         mockMvc.perform(post("/api/search-history")
                         .contentType("application/json")
                         .content(body)
@@ -456,6 +515,11 @@ class SearchHistoryControllerTest {
         @Override
         public Map<String, Object> create(Long userId, SearchHistoryCreateRequest request) {
             this.lastCreateRequest = request;
+            Integer st = request.getSearchResultTotalCount();
+            Integer dc = request.getDecryptionTargetCount();
+            if ((st != null) != (dc != null)) {
+                throw new IllegalArgumentException("searchResultTotalCount and decryptionTargetCount must both be provided or both omitted");
+            }
             if (request.getRequestReason() != null && request.getRequestReason().length() > MAX_REQUEST_REASON_LENGTH) {
                 throw new IllegalArgumentException("requestReason must not exceed " + MAX_REQUEST_REASON_LENGTH + " characters");
             }
@@ -464,6 +528,8 @@ class SearchHistoryControllerTest {
             result.put("requestedAt", "2026-03-17T12:00:00");
             result.put("expiresAt", "2026-03-18T12:00:00");
             result.put("approvalStatus", "PENDING");
+            result.put("searchResultTotalCount", request.getSearchResultTotalCount());
+            result.put("decryptionTargetCount", request.getDecryptionTargetCount());
             return result;
         }
 

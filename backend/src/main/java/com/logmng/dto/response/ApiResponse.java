@@ -14,10 +14,12 @@ public class ApiResponse<T> {
     private String message;
     private String error;
     private String code;
-    
+    /** Optional subcode for client (e.g. EXECUTOR_NOT_REQUESTER for 403 DECRYPTION_NOT_APPROVED). */
+    private String detailCode;
+
     public ApiResponse() {
     }
-    
+
     public ApiResponse(Boolean success, T data, String message, String error, String code) {
         this.success = success;
         this.data = data;
@@ -66,7 +68,15 @@ public class ApiResponse<T> {
     public void setCode(String code) {
         this.code = code;
     }
-    
+
+    public String getDetailCode() {
+        return detailCode;
+    }
+
+    public void setDetailCode(String detailCode) {
+        this.detailCode = detailCode;
+    }
+
     /**
      * 성공 응답 생성
      */
@@ -96,6 +106,18 @@ public class ApiResponse<T> {
         response.setSuccess(false);
         response.setError(error);
         response.setCode(code);
+        return response;
+    }
+
+    /**
+     * 실패 응답 생성 (상세 코드 포함, e.g. EXECUTOR_NOT_REQUESTER)
+     */
+    public static <T> ApiResponse<T> failure(String error, String code, String detailCode) {
+        ApiResponse<T> response = new ApiResponse<>();
+        response.setSuccess(false);
+        response.setError(error);
+        response.setCode(code);
+        response.setDetailCode(detailCode);
         return response;
     }
     

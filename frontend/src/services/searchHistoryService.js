@@ -9,11 +9,21 @@ const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || 'http://localhost:920
  * @param {string} logType - 로그 타입 ID
  * @param {object} searchParams - 검색 조건
  * @param {string} [requestReason] - 요청 사유 (optional or required per product; max 500)
+ * @param {{ searchResultTotalCount?: number, decryptionTargetCount?: number }} [options] - 선택. 둘 다 제공되고 0 이상일 때만 body에 포함(서버가 권위 값으로 저장). 한쪽만 보내면 400.
  */
-export const createSearchHistory = async (logType, searchParams, requestReason) => {
+export const createSearchHistory = async (logType, searchParams, requestReason, options) => {
   const body = { logType, searchParams };
   if (requestReason != null && String(requestReason).trim() !== '') {
     body.requestReason = String(requestReason).trim();
+  }
+  const sr = options?.searchResultTotalCount;
+  const dt = options?.decryptionTargetCount;
+  if (
+    typeof sr === 'number' && Number.isFinite(sr) && sr >= 0 &&
+    typeof dt === 'number' && Number.isFinite(dt) && dt >= 0
+  ) {
+    body.searchResultTotalCount = sr;
+    body.decryptionTargetCount = dt;
   }
   const response = await fetch(`${API_BASE_URL}/search-history`, {
     method: 'POST',

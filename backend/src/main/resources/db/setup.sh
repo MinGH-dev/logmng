@@ -55,6 +55,7 @@ echo "   ✅ 권한 부여 완료"
 echo "4. 테이블 및 인덱스 생성 중..."
 psql -U "$DB_SUPERUSER" -h $DB_HOST -p $DB_PORT -d $DB_NAME -f "$(dirname "$0")/schema.sql"
 psql -U "$DB_SUPERUSER" -h $DB_HOST -p $DB_PORT -d $DB_NAME -f "$(dirname "$0")/schema_user_activity_log.sql"
+psql -U "$DB_SUPERUSER" -h $DB_HOST -p $DB_PORT -d $DB_NAME -f "$(dirname "$0")/schema_imagelog.sql"
 echo "   ✅ 스키마 생성 완료"
 
 # app_user.name 컬럼 추가 (요건 20260316-login-id-user-name-display). 기존 DB에만 적용; idempotent.
@@ -73,10 +74,20 @@ echo "4d. search_history request_reason 컬럼 마이그레이션 적용 중..."
 psql -U "$DB_SUPERUSER" -h $DB_HOST -p $DB_PORT -d $DB_NAME -f "$(dirname "$0")/migrate-search-history-request-reason.sql"
 echo "   ✅ search_history request_reason 마이그레이션 완료"
 
+# search_history search_result_total_count, decryption_target_count (INTEGER NULL). Idempotent.
+echo "4e. search_history 결과/복호화 대상 건수 컬럼 마이그레이션 적용 중..."
+psql -U "$DB_SUPERUSER" -h $DB_HOST -p $DB_PORT -d $DB_NAME -f "$(dirname "$0")/migrate-search-history-result-counts.sql"
+echo "   ✅ search_history 결과 건수 마이그레이션 완료"
+
 # 초기 데이터 삽입
 echo "5. 초기 샘플 데이터 삽입 중..."
 psql -U "$DB_SUPERUSER" -h $DB_HOST -p $DB_PORT -d $DB_NAME -f "$(dirname "$0")/init-data.sql"
 echo "   ✅ 초기 데이터 삽입 완료"
+
+# imagelog 샘플 데이터 (테이블이 비어 있을 때만 삽입; 기존 데이터 유지. Req 20260318-image-log-sample-data-preserve)
+echo "5b. imagelog 샘플 데이터 삽입 중 (비어 있을 때만)..."
+psql -U "$DB_SUPERUSER" -h $DB_HOST -p $DB_PORT -d $DB_NAME -f "$(dirname "$0")/init-data-imagelog.sql"
+echo "   ✅ imagelog 샘플 데이터 완료"
 
 # app_user.id 부여: admin=20269999, 나머지=20260001부터 (기존 DB 재설정 시 또는 마이그레이션)
 echo "6. app_user id 마이그레이션 (admin=20269999, 기타=20260001~) 적용 중..."

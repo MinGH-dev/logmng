@@ -12,20 +12,32 @@
 
 - **Failure scope**: backend
 - **Layer**: backend (AOP aspect)
-- **Symptom**: ActivityLogAspect serializes all controller parameters (including `HttpServletRequest`) to JSON for activity logging; Jackson serializes `RequestFacade` and accesses `asyncContext`, which throws if the request is not in async mode.
-- **Impact**: Decrypt API (and any @ActivityLog endpoint that has `HttpServletRequest`/`HttpServletResponse` in parameters).
+- **Symptom**: ActivityLogAspect serializes controller parameters to JSON for activity logging. Jackson can hit:
+  - **RequestFacade / headerNames**: `No serializer found for class org.apache.tomcat.util.http.NamesEnumerator` (through reference chain: `RequestFacade["headerNames"]`) when any structure passed to ObjectMapper contains `HttpServletRequest` (e.g. direct param or a Map containing the request).
+  - Previously: `getAsyncContext()` → *IllegalStateException*; `getParts()` → *InvalidContentTypeException* for application/json.
+- **Impact**: Decrypt API (and any @ActivityLog endpoint with `HttpServletRequest`/`HttpServletResponse` in parameters or inside a Map/body).
+- **Optional / user hypothesis**: If `search_history.user_id` is still VARCHAR (migration not applied), `isValidApprovalForUser(searchHistoryId, userId)` binds Long; no row matches → "복호화 거부(승인 미충족)". See §4 migration doc.
 
 ## 3. Cause
 
-- ActivityLogAspect builds `requestParams` by calling `ObjectMapper.writeValueAsString(args[i])` for every non–LogDbSearchRequest parameter. When a parameter is `HttpServletRequest` (e.g. `httpRequest` in DecryptController.decryptRow), Jackson serializes the container’s `RequestFacade`, which triggers `getAsyncContext()` and throws: *It is illegal to call this method if the current request is not in asynchronous mode*.
+- ActivityLogAspect passed values to `ObjectMapper.writeValueAsString()` that could be or contain Servlet API types: (1) direct `HttpServletRequest` parameter (e.g. `httpRequest` in DecryptController.decryptRow); (2) a Map parameter whose value is the request (e.g. request body with `httpRequest` key). Jackson introspects RequestFacade and accesses `getHeaderNames()` → NamesEnumerator has no serializer.
 
 ## 4. Action
 
-- **ActivityLogAspect**: Skip serializing Servlet API parameters. Treat `HttpServletRequest` and `HttpServletResponse` as non-serializable; put placeholders (e.g. `"<HttpServletRequest>"`, `"<HttpServletResponse>"`) in `requestParams` instead of passing them to `ObjectMapper.writeValueAsString`. Added `isNonSerializableServletParam(Object)` and `getPlaceholderForServletParam(Object)`; applied in both the main param loop and the catch fallback.
-- **ActivityLogAspectTest**: New unit test ensuring that when the join point has `HttpServletRequest` in args and `includeParams=true`, the aspect does not throw and stores `"<HttpServletRequest>"` in `requestParams` for that parameter.
-- **Comment**: In ActivityLogAspect, document why request/response are not serialized (Servlet internals / asyncContext not safely serializable).
+- **ActivityLogAspect**: Never pass `HttpServletRequest`/`HttpServletResponse` (or any `ServletRequest`/`ServletResponse`) to ObjectMapper on any code path.
+  - **Interface check**: `isNonSerializableServletParam(arg)` uses `HttpServletRequest`, `HttpServletResponse`, `ServletRequest`, `ServletResponse`; placeholders (e.g. `"<HttpServletRequest>"`) are stored and **never** passed to `writeValueAsString`.
+  - **Early replacement**: When iterating method arguments, if Servlet type → put placeholder and `continue`.
+  - **Deep sanitize**: Before serializing any non–LogDbSearchRequest argument (or in catch fallback), pass value through `deepSanitizeForSerialization()` so nested Map/Collection values that are Servlet are replaced with placeholders (avoids NamesEnumerator when a Map contains the request).
+  - **Catch path**: In parameter-processing catch, check Servlet type first; in fallback never call `objectMapper.writeValueAsString(args[i])` without sanitizing (use `deepSanitizeForSerialization(args[i])` then serialize).
+  - **requestParams map**: `sanitizeParamsForSerialization()` now uses `deepSanitizeForSerialization()` so nested structures are sanitized before `ObjectMapper.writeValueAsString(paramsToSerialize)`.
+- **ActivityLogAspectTest**: (1) `logActivity_doesNotSerializeHttpServletRequest_putsPlaceholderInRequestParams`; (2) `logActivity_withRequestThatThrowsOnGetParts_doesNotThrow_applicationJson`; (3) `logActivity_withMapContainingHttpServletRequest_doesNotThrow_placeholderInParams` (Map param containing request → no exception, placeholder in saved params).
+- **Migration (user_id vs user_name)**: In **backend/DB_SETUP_GUIDE.md**, the section "search_history.user_id 규칙 및 마이그레이션" already states that decrypt execution requires `search_history.user_id` to be BIGINT; added **증상** note: if column is still VARCHAR with username values, run `migrate-search-history-user-id-to-bigint.sql`. Optional startup check: **SearchHistoryUserIdMigrationCheck** (ApplicationRunner) queries `information_schema.columns` for `search_history.user_id`; if `data_type` is not `bigint`, logs WARN with migration command and DB_SETUP_GUIDE reference.
 
 ## 5. Verification
 
-- **mvn test**: All tests pass (including ActivityLogAspectTest and DecryptControllerTest). Completed.
-- Restart backend; POST `/api/logs/decrypt/{logType}` with valid approval returns 200 and activity log is saved without aspect throwing. (QA / manual verification.)
+- **mvn test**: All tests pass (including ActivityLogAspectTest and DecryptControllerTest). ActivityLogAspectTest includes:
+  - `logActivity_doesNotSerializeHttpServletRequest_putsPlaceholderInRequestParams`
+  - `logActivity_withRequestThatThrowsOnGetParts_doesNotThrow_applicationJson`
+  - `logActivity_withMapContainingHttpServletRequest_doesNotThrow_placeholderInParams`
+- Restart backend; POST `/api/logs/decrypt/{logType}` with `Content-Type: application/json` and valid approval returns 200 and activity log is saved without aspect throwing. (QA / manual verification.)
+- If decrypt still fails with "승인 미충족", ensure `migrate-search-history-user-id-to-bigint.sql` has been applied (see DB_SETUP_GUIDE).

@@ -52,6 +52,15 @@ When **Security** subagent has reviewed: summarize risks, acceptance criteria, a
 1. [Problem 1]
 2. [Problem 2]
 
+#### Diagnostic phase (mandatory for error/bug fix only)
+
+When this requirement is an **error fix or bug fix** (user input was mainly error message, stack trace, or "fix this error"), §2 must require the implementer to **verify root cause from logs before changing logic**. Do not instruct a code fix based on hypothesis alone.
+
+- **Phase 0 (diagnostic):** (1) Add diagnostic (debug) logs in suspected areas (key variables, branch outcomes, per-item results). (2) Reproduce the error and capture logs. (3) Analyze logs to confirm the actual root cause. (4) Only after cause is confirmed, proceed to the logic/code fix.
+- **Production safety:** Diagnostic logs must be either at **DEBUG** level (off in production), or behind a **feature flag / dev-only path**, or **removed/downgraded** after the fix is verified. They must not be emitted in production.
+
+*(Omit this subsection when the requirement is a feature or non-error change.)*
+
 #### Solution approach
 
 Structure by scope so each implementing agent receives only its relevant section during handoff. Use scope headers (`Frontend:`, `Backend:`, `DB:`) consistently.

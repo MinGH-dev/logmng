@@ -20,6 +20,11 @@ Read this document first for any **new requirement** or **bug fix** in this proj
 9. Update documentation (§5, and §6 for error fixes).
 10. Commit only after verification passes and documentation is updated. Push only when the user explicitly requests it or when the workflow explicitly hands off the final release-and-push step.
 
+### For error fixes (diagnostic phase before implementation)
+
+- **Gate:** Do **not** implement a code fix based on a hypothesis. Before Step 6 (Implement), complete a **diagnostic phase**: add diagnostic logs in suspected areas → reproduce the error and capture logs → analyze logs to confirm the actual root cause. Only after the cause is confirmed from evidence, implement the fix.
+- **Diagnostic logs must not be emitted in production:** Use DEBUG (or equivalent) level, a feature flag / dev-only path, or remove/reduce diagnostic logging after the fix is verified.
+
 ## Language rule for tooling
 
 - User-facing assistant replies follow the user's requested language.

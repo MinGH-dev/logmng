@@ -9,6 +9,7 @@ For **RequirementsPastSearch** token optimization. Read this file first to find 
 
 ## permission | access-control | 화면 접근 | 권한 그룹 | is_system_admin
 
+- 20260317-search-decrypt-permission-ui | 검색하기 화면 복호화 권한 UI: 권한 없을 때 버튼 비활성화 및 "복호화 권한이 없습니다." 표시; 요청 사유는 승인 요청 시 모달에서 입력
 - 20260306-search-screen-decrypt-permission | 검색하기(main) 화면 복호화 권한 부여/해제; 권한관리에서 복호화 체크; 복호화 API는 권한 있는 사용자만 요청 가능
 - 20260306-approval-scope-fixed-department | Approval scope fixed to department (부서); scope selection read-only when approve selected in permission config
 - 20260304-permission-group-modal-error-visibility | Show permission-group create/edit/delete errors inside modals; fix APPROVE_USER + search-history + team error
@@ -28,6 +29,7 @@ For **RequirementsPastSearch** token optimization. Read this file first to find 
 - 20250303-permission-group-invalid-screen-id-bugfix | 권한 그룹 invalid screen_id 버그 수정
 - 20250303-remove-role-single-admin | role 제거; is_system_admin만 admin 접근; 단일 시스템 관리자
 - 20250303-remove-role-single-admin-bugfix-1 | login/me에 isSystemAdmin; PUT 410; role 응답 제거
+- 20260317-search-decrypt-permission-ui | - **Permission enforcement (UI)**: On the "검색하기" (search) screen, users whose permission group does **not** have the decrypt feature enabled can still trigger decrypt-related actions (e.g. "복호화 승인 요청" button and per-row "복호화" button). This is a permission enforcement bug: the backend correctly returns 403 for the decrypt API when the user lacks `screenFunctions.main.decrypt`, but the UI does not gate these actions.
 
 ## activity-log | statistics | 활동 로그 | 통계 | scope
 
@@ -85,6 +87,8 @@ For **RequirementsPastSearch** token optimization. Read this file first to find 
 
 ## decryption | 복호화 | search-history | 검색 이력 | approval
 
+- 20260318-search-history-create-server-error-bugfix | Bugfix: server error when submitting "복호화 승인 요청" (POST /api/search-history); Backend to identify root cause and fix so create returns 201 and UI shows success.
+- 20260318-search-history-user2-not-showing | user2로 검색이력 화면에서 검색이력 데이터가 표시되지 않는 문제 원인 파악 및 조치
 - 20260310-search-consistency-all-screens | All screens rule-compliant search; search-history·pending-approvals requester filters (부서·이름·사용자ID)
 - 20260306-search-screen-decrypt-permission | 검색하기 화면 복호화 권한 부여/해제; 복호화 API는 main.decrypt 권한 있는 사용자만 요청 가능
 - 20260306-approval-scope-fixed-department | Approval scope fixed to department; config UI shows 부서 read-only when approve selected
@@ -106,6 +110,10 @@ For **RequirementsPastSearch** token optimization. Read this file first to find 
 - 20260317-search-history-labels-layout-decrypt-dropdown | Search History: label 요청일시→검색일시 (form and grid); two-row layout (row1 date only, row2 requester|approval|request reason); 복호화 승인 여부 as dropdown with checkboxes.
 - 20260317-search-history-screen-improvements | Search History screen: default date range d−7/d+0; 7d/15d/30d presets; 복호화 label; approval filter same background as editable fields; narrow seq/복호화 columns; paging aligned with other list screens.
 - 20260317-search-history-grid-columns-filter-fix | Search History: grid column sizing (User ID 8-digit, Search condition button-only); ensure/fix filtering by 검색일시, 복호화, 요청 사유 (expected behavior and diagnosis guidance for frontend vs backend).
+- 20260318-decryption-allowed-store-and-decrypt-ui | This requirement covers six related changes: (1) hide the decrypt button when there is no encrypted data; (2) on the search screen, show a dimmed decrypt button for GUIDs that have not received decryption approval, with an informative message on click; (3) change the decryption-approval model so that “who can decrypt what” is no longer stored in `search_history_approved_row`, and introduce a new store keyed by user, screen, approved GUIDs, and validity period; (4) when a user requests approval for a different search condition, refresh the decryption-allowed list and renew the validity period for that user; (5) when an approver approves a request, clean up expired approval records for that user; (6) keep `search_history_approved_row` as a full audit/history table with no removal of old rows.
+- 20260318-decryption-approval-guids-encrypted-only | Decryption-approval GUID management must apply only to GUIDs (row identifiers) that correspond to rows **that have encrypted data**. Today, when an approver approves a search-history request, **all** row IDs from the search result are stored in `search_history_approved_row` (audit) and in `user_decryption_allowed` (authorization), regardless of whether each row contains encrypted content. This requirement restricts both stores so that only rows that actually have encrypted data are included in the snapshot and in the decryption-allowed set.
+- 20260318-search-history-detail-modal-decryption-list | On the Search History (검색 이력) screen, in the action column of search results, the "view details" (자세히 보기) modal currently shows search conditions (로그 타입, 요청 사유, 검색 조건). The user requests that this modal also display: (1) the **list** of applications, service groups, and GUIDs that were requested for decryption (i.e. the rows in the approval snapshot), and (2) the **total count** of those items.
+- 20260318-search-history-counts-display | Search history list: 검색건수 and 암호화건수 must display distinctly (e.g. search 48 / encryption 37); fix sourcing and display so two counts are correct; diagnostic then fix backend create/list and optional client send counts.
 
 ## image-log | imagelog | datastring
 

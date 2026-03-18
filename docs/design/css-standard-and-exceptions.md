@@ -97,6 +97,7 @@ When a user or requirement asks for something **different from the standard** fo
 | SearchHistory     | .search-history-list .log-table th/td:nth-child(1), nth-child(7): narrower width for seq and 복호화 columns | req 20260317-search-history-screen-improvements (grid column size) |
 | SearchHistory     | .search-history-list .log-table th/td:nth-child(4): 사용자ID column width fits 8-digit numbers (72px–96px) | req 20260317-search-history-grid-columns-filter-fix (search-field-definition-items §4.5) |
 | SearchHistory     | .search-history-list .log-table th/td:nth-child(6): 검색 조건 column width fits button only (120px–160px) | req 20260317-search-history-grid-columns-filter-fix (grid column size) |
+| ImageLogTable     | .decrypt-btn.decrypt-btn--not-allowed: dimmed decrypt button when GUID not in decryption-allowed or expired; click shows approval message | req 20260318-decryption-allowed-store-and-decrypt-ui |
 
 *When you add an exception, add a row here and keep the table updated so overrides stay in one place per concern.*
 

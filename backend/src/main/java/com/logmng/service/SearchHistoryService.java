@@ -1,6 +1,7 @@
 package com.logmng.service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.logmng.constants.ScreenConstants;
 import com.logmng.dto.request.LogDbSearchRequest;
 import com.logmng.dto.request.SearchHistoryCreateRequest;
 import com.logmng.dto.request.SearchHistoryListRequest;
@@ -14,7 +15,13 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 import javax.sql.DataSource;
-import java.sql.*;
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.sql.Timestamp;
+import java.sql.Types;
+import java.sql.Statement;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
@@ -43,18 +50,20 @@ public class SearchHistoryService {
     private final LogDbService logDbService;
     private final DecryptApproverService decryptApproverService;
     private final AppUserResolver appUserResolver;
+    private final DecryptionAllowedService decryptionAllowedService;
 
     public SearchHistoryService(DataSource dataSource, LogDbService logDbService, DecryptApproverService decryptApproverService) {
-        this(dataSource, logDbService, decryptApproverService, null);
+        this(dataSource, logDbService, decryptApproverService, null, null);
     }
 
     @Autowired
-    public SearchHistoryService(DataSource dataSource, LogDbService logDbService, DecryptApproverService decryptApproverService, AppUserResolver appUserResolver) {
+    public SearchHistoryService(DataSource dataSource, LogDbService logDbService, DecryptApproverService decryptApproverService, AppUserResolver appUserResolver, DecryptionAllowedService decryptionAllowedService) {
         this.dataSource = dataSource;
         this.objectMapper = new ObjectMapper();
         this.logDbService = logDbService;
         this.decryptApproverService = decryptApproverService;
         this.appUserResolver = appUserResolver != null ? appUserResolver : new AppUserResolver(dataSource);
+        this.decryptionAllowedService = decryptionAllowedService;
     }
 
     /**
@@ -70,11 +79,26 @@ public class SearchHistoryService {
         if (logType == null || logType.isBlank()) {
             throw new IllegalArgumentException("logType is required");
         }
+        if (request.getSearchParams() == null) {
+            throw new IllegalArgumentException("searchParams is required");
+        }
         String requestReasonRaw = request.getRequestReason();
         String requestReason = sanitizeRequestReason(requestReasonRaw);
         if (requestReason != null && requestReason.length() > MAX_REQUEST_REASON_LENGTH) {
             throw new IllegalArgumentException("requestReason must not exceed " + MAX_REQUEST_REASON_LENGTH + " characters");
         }
+        Integer overrideTotal = request.getSearchResultTotalCount();
+        Integer overrideDecrypt = request.getDecryptionTargetCount();
+        if ((overrideTotal != null) != (overrideDecrypt != null)) {
+            throw new IllegalArgumentException("searchResultTotalCount and decryptionTargetCount must both be provided or both omitted");
+        }
+        CountsAtCreate countsAtCreate;
+        if (overrideTotal != null) {
+            countsAtCreate = new CountsAtCreate(overrideTotal, overrideDecrypt);
+        } else {
+            countsAtCreate = computeCountsAtCreate(logType, request.getSearchParams());
+        }
+
         String searchParamsJson;
         try {
             searchParamsJson = objectMapper.writeValueAsString(request.getSearchParams() != null ? request.getSearchParams() : new HashMap<>());
@@ -83,32 +107,66 @@ public class SearchHistoryService {
             searchParamsJson = "{}";
         }
 
+        Timestamp requestedAtTs = Timestamp.valueOf(LocalDateTime.now());
+        Timestamp expiresAtTs = Timestamp.valueOf(LocalDateTime.now().plusHours(APPROVAL_VALIDITY_HOURS));
         try (Connection conn = dataSource.getConnection()) {
-            String sql = "INSERT INTO search_history (user_id, log_type, search_params, request_reason, requested_at, expires_at, approval_status, approved_by_user_id, approved_by, approved_at, created_at, updated_at) " +
-                    "VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP + (? || ' hours')::interval, 'PENDING', NULL, NULL, NULL, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP) " +
-                    "RETURNING id, requested_at, expires_at, approval_status, approved_by_user_id, approved_by, approved_at, rejected_by, rejected_at, rejection_reason";
-            try (PreparedStatement ps = conn.prepareStatement(sql)) {
+            String insertSql = "INSERT INTO search_history (user_id, log_type, search_params, request_reason, requested_at, expires_at, approval_status, approved_by_user_id, approved_by, approved_at, created_at, updated_at, search_result_total_count, decryption_target_count) " +
+                    "VALUES (?, ?, ?, ?, ?, ?, 'PENDING', NULL, NULL, NULL, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, ?, ?)";
+            try (PreparedStatement ps = conn.prepareStatement(insertSql, Statement.RETURN_GENERATED_KEYS)) {
                 bindUserId(ps, 1, userId);
                 ps.setString(2, logType);
                 ps.setString(3, searchParamsJson);
                 ps.setString(4, requestReason);
-                ps.setString(5, String.valueOf(APPROVAL_VALIDITY_HOURS));
-                try (ResultSet rs = ps.executeQuery()) {
-                    if (rs.next()) {
-                        Map<String, Object> result = new LinkedHashMap<>();
-                        result.put("id", rs.getLong("id"));
-                        result.put("requestedAt", formatTimestamp(rs.getTimestamp("requested_at")));
-                        result.put("expiresAt", formatTimestamp(rs.getTimestamp("expires_at")));
-                        result.put("approvalStatus", rs.getString("approval_status"));
-                        putApprovalFieldsFromRs(rs, result);
-                        int reasonLen = requestReason != null ? requestReason.length() : 0;
-                        log.info("검색 이력 저장 완료: userId={}, id={}, status=PENDING, requestReasonLength={}", userId, result.get("id"), reasonLen);
-                        return result;
+                ps.setTimestamp(5, requestedAtTs);
+                ps.setTimestamp(6, expiresAtTs);
+                if (countsAtCreate.totalCount != null) {
+                    ps.setInt(7, countsAtCreate.totalCount);
+                } else {
+                    ps.setNull(7, Types.INTEGER);
+                }
+                if (countsAtCreate.decryptionTargetCount != null) {
+                    ps.setInt(8, countsAtCreate.decryptionTargetCount);
+                } else {
+                    ps.setNull(8, Types.INTEGER);
+                }
+                int inserted = ps.executeUpdate();
+                if (inserted == 0) {
+                    throw new SQLException("INSERT search_history affected 0 rows");
+                }
+                long newId;
+                try (ResultSet gk = ps.getGeneratedKeys()) {
+                    if (!gk.next()) {
+                        throw new SQLException("INSERT search_history did not return generated id");
+                    }
+                    newId = gk.getLong(1);
+                }
+                String selectSql = "SELECT id, requested_at, expires_at, approval_status, approved_by_user_id, approved_by, approved_at, rejected_by, rejected_at, rejection_reason, search_result_total_count, decryption_target_count FROM search_history WHERE id = ?";
+                try (PreparedStatement sel = conn.prepareStatement(selectSql)) {
+                    sel.setLong(1, newId);
+                    try (ResultSet rs = sel.executeQuery()) {
+                        if (rs.next()) {
+                            Map<String, Object> result = new LinkedHashMap<>();
+                            result.put("id", rs.getLong("id"));
+                            result.put("requestedAt", formatTimestamp(rs.getTimestamp("requested_at")));
+                            result.put("expiresAt", formatTimestamp(rs.getTimestamp("expires_at")));
+                            result.put("approvalStatus", rs.getString("approval_status"));
+                            putApprovalFieldsFromRs(rs, result);
+                            putNullableIntegerColumn(rs, "search_result_total_count", "searchResultTotalCount", result);
+                            putNullableIntegerColumn(rs, "decryption_target_count", "decryptionTargetCount", result);
+                            log.debug("create: after insert id={}, search_result_total_count readBack={}, decryption_target_count readBack={}",
+                                    newId, result.get("searchResultTotalCount"), result.get("decryptionTargetCount"));
+                            int reasonLen = requestReason != null ? requestReason.length() : 0;
+                            log.info("검색 이력 저장 완료: userId={}, id={}, status=PENDING, requestReasonLength={}, searchResultTotalCount={}, decryptionTargetCount={}",
+                                    userId, result.get("id"), reasonLen, result.get("searchResultTotalCount"), result.get("decryptionTargetCount"));
+                            return result;
+                        }
                     }
                 }
             }
         } catch (SQLException e) {
-            log.error("검색 이력 저장 실패: userId={}", userId, e);
+            String sqlState = e.getSQLState() != null ? e.getSQLState() : "";
+            int ec = e.getErrorCode();
+            log.error("검색 이력 저장 실패: userId={}, SQLState={}, errorCode={}, message={}", userId, sqlState, ec, e.getMessage(), e);
             throw new RuntimeException("검색 이력 저장 중 오류가 발생했습니다: " + e.getMessage(), e);
         }
         throw new RuntimeException("검색 이력 저장 후 ID를 읽지 못했습니다.");
@@ -121,6 +179,71 @@ public class SearchHistoryService {
         if (s.isEmpty()) return null;
         s = CONTROL_OR_HTML.matcher(s).replaceAll("");
         return s.trim().isEmpty() ? null : s;
+    }
+
+    /** Snapshot counts at create: total search hits + encrypted-row count in first min(total, SNAPSHOT_MAX_ROWS) rows. */
+    private static final class CountsAtCreate {
+        final Integer totalCount;
+        final Integer decryptionTargetCount;
+
+        CountsAtCreate(Integer totalCount, Integer decryptionTargetCount) {
+            this.totalCount = totalCount;
+            this.decryptionTargetCount = decryptionTargetCount;
+        }
+    }
+
+    @SuppressWarnings("unchecked")
+    private CountsAtCreate computeCountsAtCreate(String logType, Map<String, Object> searchParams) {
+        if (logDbService == null) {
+            log.warn("computeCountsAtCreate: logDbService is null, storing null counts");
+            return new CountsAtCreate(null, null);
+        }
+        try {
+            Map<String, Object> params = searchParams != null ? searchParams : new HashMap<>();
+            LogDbSearchRequest sr = objectMapper.convertValue(params, LogDbSearchRequest.class);
+            if (sr.getLogType() == null || sr.getLogType().isBlank()) {
+                sr.setLogType(logType);
+            }
+            sr.setPage(1);
+            sr.setPageSize(1);
+            LogDbSearchResponse r1 = logDbService.searchLogs(sr);
+            Long totalLong = null;
+            if (r1.getPagination() != null && r1.getPagination().getTotalCount() != null) {
+                totalLong = r1.getPagination().getTotalCount();
+            }
+            if (totalLong == null) {
+                log.warn("computeCountsAtCreate: pagination.totalCount missing, logType={}", logType);
+                return new CountsAtCreate(null, null);
+            }
+            if (totalLong <= 0) {
+                return new CountsAtCreate(0, 0);
+            }
+            int totalInt = totalLong > Integer.MAX_VALUE ? Integer.MAX_VALUE : totalLong.intValue();
+            int pageSize = (int) Math.min(totalLong, (long) SNAPSHOT_MAX_ROWS);
+            sr.setPageSize(pageSize);
+            LogDbSearchResponse r2 = logDbService.searchLogs(sr);
+            List<Map<String, Object>> data = r2.getData() != null ? r2.getData() : Collections.emptyList();
+            int dec = 0;
+            for (Map<String, Object> row : data) {
+                if (hasEncryptedData(logType, row)) {
+                    dec++;
+                }
+            }
+            log.debug("computeCountsAtCreate: computed totalInt={}, dec={} (decryption count) before CountsAtCreate", totalInt, dec);
+            return new CountsAtCreate(totalInt, dec);
+        } catch (Exception e) {
+            log.warn("computeCountsAtCreate: search or parse failed, logType={}: {}", logType, e.getMessage());
+            return new CountsAtCreate(null, null);
+        }
+    }
+
+    private static void putNullableIntegerColumn(ResultSet rs, String columnLabel, String jsonKey, Map<String, Object> out) throws SQLException {
+        int v = rs.getInt(columnLabel);
+        if (rs.wasNull()) {
+            out.put(jsonKey, null);
+        } else {
+            out.put(jsonKey, v);
+        }
     }
 
     /**
@@ -148,6 +271,49 @@ public class SearchHistoryService {
         } catch (SQLException e) {
             log.error("검색 이력 승인 여부 조회 실패: searchHistoryId={}, userId={}", searchHistoryId, userId, e);
             return false;
+        }
+    }
+
+    /**
+     * 복호화 승인 검사 실패 시 진단 정보 (로그·403 상세용, PII 미포함).
+     * req 20260317-image-log-decrypt-error-root-cause-and-data-validation
+     */
+    public Optional<ApprovalFailureDiagnostic> getApprovalFailureReason(Long searchHistoryId, Long userId) {
+        if (searchHistoryId == null || userId == null) {
+            return Optional.of(new ApprovalFailureDiagnostic(ApprovalFailureReason.ROW_NOT_FOUND, null, null, null));
+        }
+        try (Connection conn = dataSource.getConnection()) {
+            String sql = "SELECT user_id, approval_status, expires_at FROM search_history WHERE id = ? LIMIT 1";
+            try (PreparedStatement ps = conn.prepareStatement(sql)) {
+                ps.setLong(1, searchHistoryId);
+                try (ResultSet rs = ps.executeQuery()) {
+                    if (!rs.next()) {
+                        return Optional.of(new ApprovalFailureDiagnostic(ApprovalFailureReason.ROW_NOT_FOUND, null, null, null));
+                    }
+                    Long rowUserId = null;
+                    try {
+                        Object uid = rs.getObject("user_id");
+                        if (uid instanceof Number) rowUserId = ((Number) uid).longValue();
+                    } catch (SQLException ignored) { }
+                    String approvalStatus = rs.getString("approval_status");
+                    Timestamp expiresAt = rs.getTimestamp("expires_at");
+                    boolean expired = expiresAt != null && !expiresAt.toInstant().isAfter(java.time.Instant.now());
+
+                    if (rowUserId != null && !rowUserId.equals(userId)) {
+                        return Optional.of(new ApprovalFailureDiagnostic(ApprovalFailureReason.USER_MISMATCH, rowUserId, approvalStatus, expired));
+                    }
+                    if (!"APPROVED".equals(approvalStatus)) {
+                        return Optional.of(new ApprovalFailureDiagnostic(ApprovalFailureReason.NOT_APPROVED, rowUserId, approvalStatus, expired));
+                    }
+                    if (expired) {
+                        return Optional.of(new ApprovalFailureDiagnostic(ApprovalFailureReason.EXPIRED, rowUserId, approvalStatus, true));
+                    }
+                    return Optional.of(new ApprovalFailureDiagnostic(ApprovalFailureReason.NOT_APPROVED, rowUserId, approvalStatus, false));
+                }
+            }
+        } catch (SQLException e) {
+            log.warn("복호화 승인 진단 조회 실패: searchHistoryId={}, userId={}", searchHistoryId, userId, e);
+            return Optional.empty();
         }
     }
 
@@ -182,7 +348,8 @@ public class SearchHistoryService {
             int offset = (page - 1) * pageSize;
             String sql = "SELECT sh.id, sh.user_id AS \"shUserId\", au.id AS \"userId\", au.department_code AS \"requesterDepartmentCode\", d.name AS \"requesterDepartmentName\", au.name AS \"requesterDisplayName\", au.username AS \"requesterUsername\", " +
                     "sh.log_type, sh.search_params, sh.request_reason, sh.requested_at, sh.expires_at, " +
-                    "sh.approval_status, sh.approved_by_user_id, sh.approved_by, sh.approved_at, sh.rejected_by, sh.rejected_at, sh.rejection_reason " +
+                    "sh.approval_status, sh.approved_by_user_id, sh.approved_by, sh.approved_at, sh.rejected_by, sh.rejected_at, sh.rejection_reason, " +
+                    "sh.search_result_total_count AS sh_sr_total, sh.decryption_target_count AS sh_dec_target " +
                     querySpec.getFromAndWhereClause() +
                     " ORDER BY sh." + safeSort + " " + safeDir + " LIMIT ? OFFSET ?";
             try (PreparedStatement ps = conn.prepareStatement(sql)) {
@@ -193,6 +360,7 @@ public class SearchHistoryService {
                 try (ResultSet rs = ps.executeQuery()) {
                     int seq = offset + 1;
                     LocalDateTime now = LocalDateTime.now();
+                    boolean firstListRow = true;
                     while (rs.next()) {
                         Map<String, Object> row = new LinkedHashMap<>();
                         long id = rs.getLong("id");
@@ -235,6 +403,13 @@ public class SearchHistoryService {
                         row.put("searchParamsSummary", buildSummary(rs.getString("search_params")));
                         boolean expired = expAt != null && expAt.toLocalDateTime().isBefore(now) || "EXPIRED".equals(status);
                         row.put("isExpired", expired);
+                        putNullableIntegerColumn(rs, "sh_sr_total", "searchResultTotalCount", row);
+                        putNullableIntegerColumn(rs, "sh_dec_target", "decryptionTargetCount", row);
+                        if (firstListRow) {
+                            log.debug("list: first row id={}, sh_sr_total→searchResultTotalCount={}, sh_dec_target→decryptionTargetCount={}",
+                                    id, row.get("searchResultTotalCount"), row.get("decryptionTargetCount"));
+                            firstListRow = false;
+                        }
                         results.add(row);
                     }
                 }
@@ -326,7 +501,7 @@ public class SearchHistoryService {
         boolean isAdmin = decryptApproverService.isAdmin(isSystemAdmin);
         List<Map<String, Object>> allFiltered = new ArrayList<>();
         try (Connection conn = dataSource.getConnection()) {
-            String sql = "SELECT id, user_id, search_params, requested_at FROM search_history WHERE approval_status = 'PENDING' ORDER BY requested_at DESC";
+            String sql = "SELECT id, user_id, search_params, requested_at, search_result_total_count, decryption_target_count FROM search_history WHERE approval_status = 'PENDING' ORDER BY requested_at DESC";
             try (PreparedStatement ps = conn.prepareStatement(sql)) {
                 try (ResultSet rs = ps.executeQuery()) {
                     while (rs.next()) {
@@ -338,6 +513,8 @@ public class SearchHistoryService {
                             row.put("requesterUserId", requesterId);
                             row.put("searchParamsSummary", buildSummary(rs.getString("search_params")));
                             row.put("requestedAt", formatTimestampISO(rs.getTimestamp("requested_at")));
+                            putNullableIntegerColumn(rs, "search_result_total_count", "searchResultTotalCount", row);
+                            putNullableIntegerColumn(rs, "decryption_target_count", "decryptionTargetCount", row);
                             allFiltered.add(row);
                         }
                     }
@@ -405,31 +582,14 @@ public class SearchHistoryService {
             throw CustomException.forbidden("해당 기능에 대한 권한이 없습니다.", "FUNCTION_NOT_ALLOWED");
         }
 
-        LogDbSearchRequest searchRequest;
+        List<String> rowIds;
         try {
-            Map<String, Object> paramsMap = searchParamsJson != null && !searchParamsJson.isEmpty()
-                ? objectMapper.readValue(searchParamsJson, Map.class)
-                : new HashMap<>();
-            searchRequest = objectMapper.convertValue(paramsMap, LogDbSearchRequest.class);
-        } catch (Exception e) {
+            rowIds = collectEncryptedSnapshotRowIdsStrict(searchParamsJson, logType);
+        } catch (IllegalArgumentException e) {
             log.warn("search_params 파싱 실패: id={}, {}", id, e.getMessage());
             throw CustomException.badRequest("저장된 검색 조건을 실행할 수 없습니다. 검색 조건 형식을 확인해 주세요.", "INVALID_SEARCH_PARAMS");
         }
-        if (searchRequest.getLogType() == null || searchRequest.getLogType().isEmpty()) {
-            searchRequest.setLogType(logType);
-        }
-        searchRequest.setPage(1);
-        searchRequest.setPageSize(SNAPSHOT_MAX_ROWS);
-
-        LogDbSearchResponse searchResponse = logDbService.searchLogs(searchRequest);
-        List<Map<String, Object>> data = searchResponse.getData() != null ? searchResponse.getData() : Collections.emptyList();
-        List<String> rowIds = new ArrayList<>();
-        for (Map<String, Object> row : data) {
-            String rowId = extractRowIdForSnapshot(logType, row);
-            if (rowId != null && !rowId.isEmpty()) {
-                rowIds.add(rowId);
-            }
-        }
+        log.info("approve snapshot collect: search_history_id={}, logType={}, rowIds_collected={}", id, logType, rowIds.size());
 
         try (Connection conn = dataSource.getConnection()) {
             conn.setAutoCommit(false);
@@ -471,6 +631,12 @@ public class SearchHistoryService {
             throw CustomException.badRequest("승인 처리 중 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.", "APPROVAL_ERROR");
         }
 
+        // Req 20260318: refresh requester's decryption-allowed set and delete expired rows for that user
+        if (decryptionAllowedService != null) {
+            decryptionAllowedService.deleteExpiredForUser(requesterUserIdLong);
+            decryptionAllowedService.addOrReplaceAllowed(requesterUserIdLong, ScreenConstants.MAIN, rowIds);
+        }
+
         try (Connection conn = dataSource.getConnection()) {
             String selectSql = "SELECT id, approval_status, approved_by_user_id, approved_by, approved_at FROM search_history WHERE id = ?";
             try (PreparedStatement ps = conn.prepareStatement(selectSql)) {
@@ -490,6 +656,68 @@ public class SearchHistoryService {
             log.error("승인 결과 조회 실패: id={}", id, e);
         }
         throw CustomException.notFound("해당 검색 이력을 찾을 수 없습니다: id=" + id, "NOT_FOUND");
+    }
+
+    /**
+     * Returns true if the row has encrypted data and should be included in approval snapshot and decryption-allowed set.
+     * Definition per log type; must align with contract/spec and req 20260318-image-log-no-decrypt-button-when-plain.
+     * - java_fw_imglog: only datastring/headerstring content is considered; a row has encrypted data only when
+     *   datastring or headerstring contains encrypted-style content — i.e. a quoted JSON string value that is
+     *   bracket-wrapped (e.g. {@code "key":"[ciphertext]"}). Non-empty data/header or bare "[" are not used;
+     *   plain JSON (e.g. arrays like [1,2,3]) does not count as encrypted.
+     * - pb_feplog: not considered to have encrypted data for approval (no decryption support).
+     */
+    static boolean hasEncryptedData(String logType, Map<String, Object> row) {
+        if (row == null) return false;
+        if ("java_fw_imglog".equals(logType)) {
+            Object ds = getFromRow(row, "datastring", "dataString");
+            if (ds != null && containsEncryptedStylePayload(ds.toString())) return true;
+            Object hs = getFromRow(row, "headerstring", "headerString");
+            if (hs != null && containsEncryptedStylePayload(hs.toString())) return true;
+            return false;
+        }
+        if ("pb_feplog".equals(logType)) {
+            return false;
+        }
+        return false;
+    }
+
+    /**
+     * Returns true if the string (typically JSON) contains a quoted value that is bracket-wrapped
+     * and the content inside brackets is long enough to be a real cipher payload (not a short
+     * plain value like "[100,200]" or "[1,2,3]").
+     * Plain JSON arrays like [1,2,3] or short values like "size":"[100,200]" are not matched.
+     * Aligns with req 20260318-image-log-no-decrypt-button-when-plain and 20260318-search-history-counts-display.
+     */
+    static boolean containsEncryptedStylePayload(String s) {
+        if (s == null || s.isEmpty()) return false;
+        java.util.regex.Matcher m = ENCRYPTED_STYLE_PATTERN.matcher(s);
+        while (m.find()) {
+            String inner = m.group(1);
+            if (inner != null && inner.length() >= MIN_ENCRYPTED_PAYLOAD_LENGTH) return true;
+        }
+        return false;
+    }
+
+    /** Minimum length of content inside "[...]" to treat as encrypted payload (avoids matching "[1,2,3]" or "[100,200]"). */
+    private static final int MIN_ENCRYPTED_PAYLOAD_LENGTH = 32;
+    /** Pattern: quoted JSON string value whose content is bracket-wrapped; group(1) = content inside brackets. */
+    private static final Pattern ENCRYPTED_STYLE_PATTERN = Pattern.compile("\"\\[([^\"]*)\\]\"");
+
+    /** Get first non-null value from row for given keys (e.g. "datastring" then "dataString" for JDBC casing). */
+    private static Object getFromRow(Map<String, Object> row, String... keys) {
+        if (row == null || keys == null) return null;
+        for (String k : keys) {
+            Object v = row.get(k);
+            if (v != null) return v;
+        }
+        return null;
+    }
+
+    private static String asNonEmptyString(Object o) {
+        if (o == null) return "";
+        String s = o instanceof String ? (String) o : o.toString();
+        return s != null ? s.trim() : "";
     }
 
     /**
@@ -605,8 +833,8 @@ public class SearchHistoryService {
             throw new IllegalArgumentException("userId is required");
         }
         try (Connection conn = dataSource.getConnection()) {
-            String sql = "SELECT id, user_id, log_type, search_params, request_reason, requested_at, expires_at, approval_status, approved_by_user_id, approved_by, approved_at, rejected_by, rejected_at, rejection_reason " +
-                    "FROM search_history WHERE id = ?";
+            String sql = "SELECT id, user_id, log_type, search_params, request_reason, requested_at, expires_at, approval_status, approved_by_user_id, approved_by, approved_at, rejected_by, rejected_at, rejection_reason, " +
+                    "search_result_total_count, decryption_target_count FROM search_history WHERE id = ?";
             try (PreparedStatement ps = conn.prepareStatement(sql)) {
                 ps.setLong(1, id);
                 try (ResultSet rs = ps.executeQuery()) {
@@ -629,6 +857,8 @@ public class SearchHistoryService {
                     row.put("expiresAt", formatTimestamp(rs.getTimestamp("expires_at")));
                     row.put("approvalStatus", rs.getString("approval_status"));
                     putApprovalFieldsFromRs(rs, row);
+                    putNullableIntegerColumn(rs, "search_result_total_count", "searchResultTotalCount", row);
+                    putNullableIntegerColumn(rs, "decryption_target_count", "decryptionTargetCount", row);
                     String paramsJson = rs.getString("search_params");
                     if (paramsJson != null && !paramsJson.isEmpty()) {
                         try {
@@ -640,6 +870,22 @@ public class SearchHistoryService {
                     } else {
                         row.put("searchParams", Collections.emptyMap());
                     }
+                    String approvalStatus = rs.getString("approval_status");
+                    String logTypeCol = rs.getString("log_type");
+                    List<Map<String, Object>> decryptionRows;
+                    if ("APPROVED".equals(approvalStatus)) {
+                        decryptionRows = loadDecryptionRequestedRows(conn, id);
+                        if (decryptionRows.isEmpty()) {
+                            List<String> fromSearch = collectEncryptedSnapshotRowIdsLenient(paramsJson, logTypeCol);
+                            decryptionRows = buildDecryptionRequestedRowsFromSearchRowIds(logTypeCol, fromSearch);
+                        }
+                    } else {
+                        List<String> fromSearch = collectEncryptedSnapshotRowIdsLenient(paramsJson, logTypeCol);
+                        decryptionRows = buildDecryptionRequestedRowsFromSearchRowIds(logTypeCol, fromSearch);
+                    }
+                    row.put("decryptionRequestedRows", decryptionRows);
+                    row.put("decryptionRequestedCount", decryptionRows.size());
+                    log.info("getDetail: search_history_id={}, approvalStatus={}, decryptionRequestedCount={}", id, approvalStatus, decryptionRows.size());
                     return row;
                 }
             }
@@ -647,6 +893,139 @@ public class SearchHistoryService {
             log.error("검색 이력 상세 조회 실패: id={}", id, e);
             throw new RuntimeException("검색 이력 상세 조회 중 오류가 발생했습니다: " + e.getMessage(), e);
         }
+    }
+
+    /**
+     * Load decryption-requested rows from search_history_approved_row and resolve application/serviceGroup from log DB for java_fw_imglog.
+     * On log DB unavailability or missing guid, entries still have guid with application/serviceGroup null. Req 20260318.
+     */
+    private List<Map<String, Object>> loadDecryptionRequestedRows(Connection conn, long searchHistoryId) throws SQLException {
+        List<String> orderedRowIds = new ArrayList<>();
+        List<String> orderedLogTypes = new ArrayList<>();
+        String sql = "SELECT log_type, row_id FROM search_history_approved_row WHERE search_history_id = ? ORDER BY log_type, row_id";
+        try (PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setLong(1, searchHistoryId);
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    String lt = rs.getString("log_type");
+                    String rowId = rs.getString("row_id");
+                    if (rowId == null || rowId.isBlank()) continue;
+                    orderedLogTypes.add(lt);
+                    orderedRowIds.add(rowId);
+                }
+            }
+        }
+        log.info("loadDecryptionRequestedRows: search_history_id={}, rows_read_from_search_history_approved_row={}", searchHistoryId, orderedRowIds.size());
+        return buildDecryptionRequestedRowsDisplay(orderedLogTypes, orderedRowIds);
+    }
+
+    /**
+     * Same encrypted-row collection as approve: parse search_params + logType, searchLogs(pageSize=SNAPSHOT_MAX_ROWS), hasEncryptedData, extractRowIdForSnapshot.
+     * Strict parse failures throw IllegalArgumentException (approve path).
+     */
+    @SuppressWarnings("unchecked")
+    private List<String> collectEncryptedSnapshotRowIdsStrict(String searchParamsJson, String logType) throws IllegalArgumentException {
+        LogDbSearchRequest searchRequest;
+        try {
+            Map<String, Object> paramsMap = searchParamsJson != null && !searchParamsJson.isEmpty()
+                    ? objectMapper.readValue(searchParamsJson, Map.class)
+                    : new HashMap<>();
+            searchRequest = objectMapper.convertValue(paramsMap, LogDbSearchRequest.class);
+        } catch (Exception e) {
+            throw new IllegalArgumentException("invalid search_params", e);
+        }
+        return runCollectEncryptedRowIdsFromSearchRequest(searchRequest, logType);
+    }
+
+    /**
+     * getDetail path: invalid params or search failure → empty list (still return 200 with empty rows).
+     */
+    private List<String> collectEncryptedSnapshotRowIdsLenient(String searchParamsJson, String logType) {
+        try {
+            return collectEncryptedSnapshotRowIdsStrict(searchParamsJson, logType);
+        } catch (IllegalArgumentException e) {
+            log.warn("getDetail: search_params parse failed for decryption row list, logType={}", logType);
+            return Collections.emptyList();
+        }
+    }
+
+    private List<String> runCollectEncryptedRowIdsFromSearchRequest(LogDbSearchRequest searchRequest, String logType) {
+        if (searchRequest.getLogType() == null || searchRequest.getLogType().isEmpty()) {
+            searchRequest.setLogType(logType);
+        }
+        searchRequest.setPage(1);
+        searchRequest.setPageSize(SNAPSHOT_MAX_ROWS);
+        LogDbSearchResponse searchResponse;
+        try {
+            searchResponse = logDbService.searchLogs(searchRequest);
+        } catch (Exception e) {
+            log.warn("collectEncryptedRowIds: searchLogs failed, logType={}: {}", logType, e.getMessage());
+            return Collections.emptyList();
+        }
+        List<Map<String, Object>> data = searchResponse.getData() != null ? searchResponse.getData() : Collections.emptyList();
+        List<String> rowIds = new ArrayList<>();
+        for (Map<String, Object> row : data) {
+            if (!hasEncryptedData(logType, row)) {
+                continue;
+            }
+            String rowId = extractRowIdForSnapshot(logType, row);
+            if (rowId != null && !rowId.isEmpty()) {
+                rowIds.add(rowId);
+            }
+        }
+        return rowIds;
+    }
+
+    /**
+     * Build API rows: java_fw_imglog resolves application/serviceGroup via {@link LogDbService#getApplicationServiceGroupByGuids}; other log types null app/sg; guid holds row_id.
+     */
+    private List<Map<String, Object>> buildDecryptionRequestedRowsDisplay(List<String> orderedLogTypes, List<String> orderedRowIds) {
+        List<Map<String, Object>> rows = new ArrayList<>();
+        List<String> guidsToResolve = new ArrayList<>();
+        for (int i = 0; i < orderedRowIds.size(); i++) {
+            String rowId = orderedRowIds.get(i);
+            if (rowId == null || rowId.isBlank()) {
+                continue;
+            }
+            if ("java_fw_imglog".equals(orderedLogTypes.get(i))) {
+                guidsToResolve.add(rowId);
+            }
+        }
+        Map<String, Map<String, String>> resolution = Collections.emptyMap();
+        if (!guidsToResolve.isEmpty() && logDbService != null) {
+            try {
+                resolution = logDbService.getApplicationServiceGroupByGuids(guidsToResolve);
+            } catch (Exception e) {
+                log.warn("Log DB resolution for decryption rows failed (returning null app/sg): {}", e.getMessage());
+            }
+        }
+        for (int i = 0; i < orderedRowIds.size(); i++) {
+            String rowId = orderedRowIds.get(i);
+            if (rowId == null || rowId.isBlank()) {
+                continue;
+            }
+            boolean isImglog = "java_fw_imglog".equals(orderedLogTypes.get(i));
+            Map<String, Object> entry = new LinkedHashMap<>();
+            if (isImglog) {
+                Map<String, String> resolved = resolution.get(rowId);
+                entry.put("application", resolved != null ? resolved.get("application") : null);
+                entry.put("serviceGroup", resolved != null ? resolved.get("serviceGroup") : null);
+            } else {
+                entry.put("application", null);
+                entry.put("serviceGroup", null);
+            }
+            entry.put("guid", rowId);
+            rows.add(entry);
+        }
+        return rows;
+    }
+
+    private List<Map<String, Object>> buildDecryptionRequestedRowsFromSearchRowIds(String logType, List<String> rowIds) {
+        List<String> logTypes = new ArrayList<>(rowIds.size());
+        for (int i = 0; i < rowIds.size(); i++) {
+            logTypes.add(logType);
+        }
+        return buildDecryptionRequestedRowsDisplay(logTypes, rowIds);
     }
 
     private static String formatTimestamp(Timestamp ts) {

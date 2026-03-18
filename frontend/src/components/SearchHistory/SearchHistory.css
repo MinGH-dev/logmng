@@ -227,6 +227,14 @@
   white-space: nowrap;
 }
 
+/* 검색건수 / 암호화건수 columns: numeric only */
+.search-history-counts-cell {
+  text-align: right;
+  white-space: nowrap;
+  font-size: 0.8125rem;
+  min-width: 4rem;
+}
+
 .search-history-btn {
   margin-right: 0.5rem;
   padding: 0.25rem 0.5rem;
@@ -266,11 +274,12 @@
   z-index: 1000;
 }
 
+/* Wider detail modal so 복호화 요청 대상 table and body text have room (desktop); mobile stays within viewport. */
 .search-history-detail-dialog {
   background: #fff;
   border-radius: 8px;
-  max-width: 560px;
-  width: 90%;
+  width: min(95vw, 960px);
+  max-width: min(95vw, 960px);
   max-height: 85vh;
   display: flex;
   flex-direction: column;
@@ -350,6 +359,74 @@
   word-break: break-word;
 }
 
+/* 검색 결과 / 복호화 대상 건수 (상세 모달, 복호화 요청 대상 위) */
+.search-history-detail-summary-counts {
+  margin: 0.75rem 0 0.5rem;
+  padding: 0.5rem 0;
+  border-top: 1px solid #eee;
+  font-size: 0.9rem;
+  line-height: 1.4;
+}
+
+.search-history-detail-summary-counts__line + .search-history-detail-summary-counts__line {
+  margin-top: 4px;
+}
+
+/* Req 20260318-search-history-detail-modal-decryption-list: decryption-requested section and table in detail modal. */
+.search-history-decryption-requested-section {
+  margin-top: 1rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid #eee;
+}
+
+.search-history-decryption-requested-title {
+  margin: 0 0 0.5rem 0;
+  font-size: 1rem;
+  font-weight: 600;
+  color: #444;
+}
+
+.search-history-decryption-requested-wrapper {
+  max-height: 200px;
+  overflow-y: auto;
+  overflow-x: auto;
+  border: 1px solid #e0e0e0;
+  border-radius: 4px;
+}
+
+.search-history-decryption-requested-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+}
+
+.search-history-decryption-requested-table th,
+.search-history-decryption-requested-table td {
+  padding: 0.4rem 0.6rem;
+  text-align: left;
+  border-bottom: 1px solid #eee;
+}
+
+.search-history-decryption-requested-table thead th {
+  background: #f5f5f5;
+  font-weight: 600;
+  color: #444;
+}
+
+.search-history-decryption-requested-table tbody tr:hover {
+  background: #f9f9f9;
+}
+
+.search-history-decryption-requested-table td {
+  word-break: break-word;
+}
+
+.search-history-decryption-requested-none {
+  margin: 0;
+  color: #666;
+  font-size: 0.9rem;
+}
+
 .search-history-btn.detail {
   margin-right: 0.5rem;
 }
@@ -361,8 +438,11 @@
   min-width: 56px;
   max-width: 80px;
 }
+/* 검색건수, 암호화건수: numeric columns */
 .search-history-list .log-table th:nth-child(7),
-.search-history-list .log-table td:nth-child(7) {
+.search-history-list .log-table td:nth-child(7),
+.search-history-list .log-table th:nth-child(8),
+.search-history-list .log-table td:nth-child(8) {
   width: 1%;
   min-width: 56px;
   max-width: 88px;
@@ -382,6 +462,14 @@
   width: 1%;
   min-width: 120px;
   max-width: 160px;
+}
+
+/* 복호화(승인 여부) column remains narrow */
+.search-history-list .log-table th:nth-child(9),
+.search-history-list .log-table td:nth-child(9) {
+  width: 1%;
+  min-width: 56px;
+  max-width: 72px;
 }
 
 @media (max-width: 768px) {

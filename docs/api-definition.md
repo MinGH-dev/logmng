@@ -229,9 +229,11 @@
 | logType | string | O | 로그 타입 (pb_feplog, java_fw_imglog 등) |
 | searchParams | object | O | 검색 조건 (LogDbSearchRequest 또는 AdvancedSearchRequest와 동일한 구조의 JSON) |
 | requestReason | string | X 또는 O (제품 결정) | 요청 사유. 최대 길이 500자(제품에서 조정 가능). 초과 시 400. (req 20260317) |
+| searchResultTotalCount | number | X | 선택. `decryptionTargetCount`와 **둘 다** 보낼 때만 유효(≥0). 둘 다 생략 시 서버가 동일 검색으로 `pagination.totalCount` 및 첫 `min(total, 10000)`건에서 암호화 대상 건수를 계산해 저장. 한쪽만내면 400. |
+| decryptionTargetCount | number | X | 선택. 위와 동일. `java_fw_imglog`만 암호화 행 판별; `pb_feplog` 등은 0. 검색 실패·totalCount 미반환 시 두 필드 모두 DB에 NULL로 저장될 수 있음. |
 
-- **Response (data)**: `{ "id": number, "requestedAt": string (yyyy-MM-dd'T'HH:mm:ss), "expiresAt": string, "approvalStatus": "PENDING" }`
-- **에러**: 비인증 401, logType/searchParams 누락 400, requestReason 길이 초과 400
+- **Response (data)**: `{ "id": number, "requestedAt": string, "expiresAt": string, "approvalStatus": "PENDING", "searchResultTotalCount": number \| null, "decryptionTargetCount": number \| null }` — 저장된 스냅샷 값(레거시 행 생성 API는 null).
+- **에러**: 비인증 401, logType/searchParams 누락 400, requestReason 길이 초과 400, 카운트 override 한쪽만 전달 400, searchResultTotalCount/decryptionTargetCount &lt; 0 → 검증 오류 400
 
 ### 6.1.2 검색 이력 목록 조회
 
@@ -254,7 +256,7 @@
   - 필터 변경 또는 `pageSize` 변경 시 현재 페이지는 `1`로 재설정한다.
   - 백엔드는 목록 데이터와 `pagination.totalCount` / `pagination.totalPages`를 동일한 filter set으로 계산해야 한다.
 - **Response (data)**: `SearchHistoryListResponse`
-  - `data`: 배열. 각 항목: `seq` (목록 순번), `id`, `userId` (number, `app_user.id`), `requesterDepartmentCode` (string | null, 검색한 사용자 부서 코드), `requesterDepartmentName` (string | null, 검색한 사용자 부서 표시명; `department.name`, 없으면 null), `requesterDisplayName` (string | null, 검색한 사용자 표시명; `app_user.name` 없으면 `username`), `requesterUsername` (string | null, 검색한 사용자 로그인 ID), `logType`, `requestedAt`, `expiresAt`, `approvalStatus` (PENDING | APPROVED | EXPIRED | REJECTED), `requestReason` (string | null, 요청 사유; req 20260317), `searchParamsSummary` (요약 문자열; 그리드에서는 미표시·모달에서만 사용), `isExpired` (boolean, 만료 여부), 결재 이력(선택·nullable): `approvedBy` (string, 표시용; req 20260316: `approved_by_user_id`로 username 해석, 없으면 `approved_by`), `approvedAt` (string), `rejectedBy` (string), `rejectedAt` (string), `rejectionReason` (string)
+  - `data`: 배열. 각 항목: `seq` (목록 순번), `id`, `userId` (number, `app_user.id`), `requesterDepartmentCode` (string | null, 검색한 사용자 부서 코드), `requesterDepartmentName` (string | null, 검색한 사용자 부서 표시명; `department.name`, 없으면 null), `requesterDisplayName` (string | null, 검색한 사용자 표시명; `app_user.name` 없으면 `username`), `requesterUsername` (string | null, 검색한 사용자 로그인 ID), `logType`, `requestedAt`, `expiresAt`, `approvalStatus` (PENDING | APPROVED | EXPIRED | REJECTED), `requestReason` (string | null, 요청 사유; req 20260317), `searchParamsSummary` (요약 문자열; 그리드에서는 미표시·모달에서만 사용), `isExpired` (boolean, 만료 여부), **`searchResultTotalCount` (number \| null, 요청 시점 검색 총건)**, **`decryptionTargetCount` (number \| null, 동일 스냅샷 윈도에서 복호화 대상 건수; 레거시 행 null)**, 결재 이력(선택·nullable): `approvedBy` (string, 표시용; req 20260316: `approved_by_user_id`로 username 해석, 없으면 `approved_by`), `approvedAt` (string), `rejectedBy` (string), `rejectedAt` (string), `rejectionReason` (string)
   - UI 그리드: 요청자 정보는 **부서**, **사용자ID**, **사용자명** 세 개 컬럼으로 표시.
   - `pagination`: `{ currentPage, totalPages, totalCount }`
 - **에러**: 비인증 401, requestedAtFrom/requestedAtTo 형식 오류 시 400 BAD_REQUEST (형식: yyyy-MM-dd HH:mm:ss, req 20260317)
@@ -270,7 +272,7 @@
 
 - **GET** `/api/search-history/{id}`
 - **Path**: `id` — 검색 이력 ID (Long)
-- **Response (data)**: `id`, `logType`, `searchParams` (object, 전체 검색 조건), `requestedAt`, `expiresAt`, `approvalStatus`, `requestReason` (string | null, 요청 사유; req 20260317), 결재 이력(선택·nullable): `approvedBy` (표시용; req 20260316: `approved_by_user_id`→username, 없으면 `approved_by`), `approvedAt`, `rejectedBy`, `rejectedAt`, `rejectionReason`
+- **Response (data)**: `id`, `logType`, `searchParams` (object, 전체 검색 조건), `requestedAt`, `expiresAt`, `approvalStatus`, `requestReason` (string | null, 요청 사유; req 20260317), **`searchResultTotalCount` (number \| null), `decryptionTargetCount` (number \| null)** — DB 저장 스냅샷(레거시 null), 결재 이력(선택·nullable): `approvedBy` (표시용; req 20260316: `approved_by_user_id`→username, 없으면 `approved_by`), `approvedAt`, `rejectedBy`, `rejectedAt`, `rejectionReason`. **복호화 요청 대상 (항상 포함)**: `decryptionRequestedRows`: `{ application: string | null, serviceGroup: string | null, guid: string }[]`, `decryptionRequestedCount`: number. **출처**: `APPROVED`이고 `search_history_approved_row`에 행이 있으면 DB 스냅샷을 사용(없으면 승인과 동일하게 저장 검색 재실행: `search_params`+`logType`, 최대 1만 건, 암호화 데이터가 있는 행만). `PENDING` / `REJECTED` / `EXPIRED`는 항상 저장 검색 재실행으로 수집(동일 규칙). java_fw_imglog는 `getApplicationServiceGroupByGuids`로 application·serviceGroup 보강; 로그 DB 장애·미존재 시 해당 항목은 null. `search_params` 파싱 실패·검색 실패 시 빈 배열·0.
 - **에러**: 403(타 사용자 소유), 404(없음)
 
 ### 6.1.5 승인 대기 목록 조회 (결재자·관리자 전용)
@@ -280,7 +282,7 @@
 - **Scope (검색 이력과 동일 규칙, req 20260305)**: is_system_admin=false일 때 권한 그룹의 pending-approvals scope 적용. scope='self' → 요청자(requester)=현재 사용자인 건만; scope='team' → 동일 부서 요청자만(그 중 canApproveForRequester 충족); scope='all' → 결재 가능한 전체(기존 동작). auth 응답 screenScopes['pending-approvals']에 따라 백엔드가 목록 필터.
 - **Query**: `page` (기본 1), `pageSize` (기본 20)
 - **Response (data)**: `SearchHistoryPendingListResponse`
-  - `data`: 배열. 각 항목: `id`, `requester` (요청자 username), `searchParamsSummary` (요약 문자열), `requestedAt` (yyyy-MM-dd'T'HH:mm:ss), 기타 목록용 필드
+  - `data`: 배열. 각 항목: `id`, `requester` (요청자 username), `searchParamsSummary` (요약 문자열), `requestedAt` (yyyy-MM-dd'T'HH:mm:ss), `searchResultTotalCount` (number \| null), `decryptionTargetCount` (number \| null), 기타 목록용 필드
   - `pagination`: `{ currentPage, totalPages, totalCount }`
 - **에러**: 401 비인증, 403 결재자/관리자 아님 → `code: "FORBIDDEN_NOT_APPROVER"` 또는 `"NOT_APPROVER"`
 
@@ -443,20 +445,40 @@
 
 ## 10. 복호화 (단일 로우)
 
-**Base path**: `/api/logs/decrypt`
+**Base path**: `/api/logs/decrypt` (POST), **Base path (허용 목록)**: `/api/decrypt/allowed` (GET)
 
-### 10.1 단일 로우 복호화
+**승인 소스 (req 20260318)**: 복호화 허용 여부는 **decryption-allowed store**(user_id, screen, approved GUIDs, valid_until)에서만 결정된다. `search_history`/`search_history_approved_row`는 감사·이력용이며, POST decrypt의 권한 판단에는 사용하지 않는다.
+
+### 10.1 복호화 허용 목록 조회 (GET)
+
+- **GET** `/api/decrypt/allowed`
+- **권한**: 인증 필요. main 화면 접근 + screenFunctions.main.decrypt (또는 is_system_admin) 있는 사용자만 호출. 그 외 403 `FUNCTION_NOT_ALLOWED`.
+- **Query**:
+  - `screen` (필수) — 화면 ID. 예: `main`. 해당 사용자·화면에 대한 허용 GUID 목록과 유효기간 반환.
+- **Response (data)**: `{ "screen": string, "validUntil": string (yyyy-MM-dd'T'HH:mm:ss 또는 ISO-8601), "guids": string[] }`
+  - `screen`: 요청한 screen 값.
+  - `validUntil`: 현재 사용자·화면에 대한 복호화 허용 유효 종료 시각. 이 시각 이전에만 해당 guids에 대한 복호화 가능.
+  - `guids`: 해당 사용자·화면에서 복호화 허용된 GUID 목록. 없으면 빈 배열 `[]`.
+- **에러**:
+  - 401 미로그인: `code: "UNAUTHORIZED"`
+  - 403 복호화 권한 없음: `code: "FUNCTION_NOT_ALLOWED"`
+  - 400 `screen` 누락 또는 미지원 값: `code: "INVALID_SCREEN_ID"` (또는 동일 의미 코드)
+
+### 10.2 단일 로우 복호화 (POST)
 
 - **POST** `/api/logs/decrypt/{logType}`
 - **권한 (req 20260306)**: **검색하기(main) 화면 접근 + screenFunctions.main.decrypt === true** (또는 is_system_admin). 권한 없으면 403 `code: "FUNCTION_NOT_ALLOWED"`. 권한관리 화면에서 검색하기 화면에 대해 "복호화" 권한을 부여/해제할 수 있음.
 - **Path**: `logType` — 현재 **java_fw_imglog** 만 지원
-- **Request body** (JSON): `{ "guid": string (필수), "status"?: string, "searchHistoryId": number (필수) }` — searchHistoryId는 이번 검색에 대한 승인된 검색 이력 ID. 해당 건이 본인 소유·APPROVED·미만료일 때만 복호화 허용. **실행 가능 사용자 (req 20260317)**: 복호화 실행은 **요청자**(search_history.user_id = 현재 사용자 id)만 허용; 승인자(approver)가 같은 searchHistoryId로 실행하면 403 DECRYPTION_NOT_APPROVED. **소유·승인 검사**: 숫자 **user_id**(search_history.user_id 및 현재 사용자 id)만 사용; username은 이 경로에서 사용하지 않음.
+- **Request body** (JSON): `{ "guid": string (필수), "status"?: string, "searchHistoryId"?: number (선택, 감사용) }`
+  - **guid**: 필수. 복호화 대상 row의 GUID.
+  - **status**: 선택. 복호화 상태 등.
+  - **searchHistoryId**: 선택. **승인 판단에는 사용하지 않음.** 감사·추적용으로만 전달 가능. 생략 가능.
+  - **승인 판단 (req 20260318)**: 백엔드는 현재 사용자·화면(main)에 대한 **decryption-allowed store**를 확인한다. guid가 해당 store의 허용 목록에 있고 valid_until > now 일 때만 복호화 허용.
 - **Response (data)**: Map (복호화된 필드)
 - **에러**:
   - 401 미로그인: `code: "UNAUTHORIZED"`
-  - 403 복호화 권한 없음: `code: "FUNCTION_NOT_ALLOWED"` — main 화면의 복호화(decrypt) 권한이 없음. 권한 그룹에서 검색하기 화면에 복호화 권한 부여 필요.
-  - 403 복호화 미승인: `code: "DECRYPTION_NOT_APPROVED"` — searchHistoryId 없거나, 해당 검색 이력이 본인 소유·승인·미만료가 아님.
-  - 403 스냅샷 미포함: `code: "ROW_NOT_IN_APPROVED_SNAPSHOT"` — 승인된 검색 결과(승인 시점 스냅샷)에 포함된 row만 복호화 가능. 해당 guid가 스냅샷에 없음. (참고: `docs/requirements/20260224-decryption-snapshot-final-design-en.md`)
+  - 403 복호화 권한 없음: `code: "FUNCTION_NOT_ALLOWED"` — main 화면의 복호화(decrypt) 권한이 없음. 권한 그룹에서 검색하기 화면에 복호화 권한 부여 필요. **검색 화면 UI (req 20260317-search-decrypt-permission-ui)**: 권한 없을 때 검색 화면에서 복호화 액션(승인 요청·행별 복호화)을 비활성/숨기고 "복호화 권한이 없습니다." 표시.
+  - 403 복호화 미허용: `code: "DECRYPTION_NOT_APPROVED"` (또는 단일 "not allowed" 코드) — guid가 decryption-allowed store에 없거나 valid_until이 만료된 경우. 제품에서 기존 코드 유지 또는 단일 코드로 통일 가능. ROW_NOT_IN_APPROVED_SNAPSHOT 은 동일 의미로 사용 가능.
   - java_fw_imglog 외: `code: "UNSUPPORTED_LOG_TYPE"`
   - guid 누락: `code: "MISSING_GUID"`
   - 복호화 실패: `code: "DECRYPTION_FAILED"`
@@ -469,8 +491,8 @@
 |------|------|
 | LOG_TYPE_NOT_FOUND | 존재하지 않는 로그 타입 |
 | UNSUPPORTED_LOG_TYPE | 해당 로그 타입 미지원 (현재 java_fw_imglog만 지원하는 API) |
-| DECRYPTION_NOT_APPROVED | 복호화 승인 후 이용 가능 (403) |
-| ROW_NOT_IN_APPROVED_SNAPSHOT | 승인된 검색 결과에 포함된 항목만 복호화 가능 (403) |
+| DECRYPTION_NOT_APPROVED | 복호화 미허용: decryption-allowed store에 guid 없음 또는 valid_until 만료 (403). req 20260318. |
+| ROW_NOT_IN_APPROVED_SNAPSHOT | (선택) 위와 동일 의미로 사용 가능. 제품에서 DECRYPTION_NOT_APPROVED 로 통일 가능 (403). |
 | MISSING_GUID | 복호화 시 guid 필수 |
 | DECRYPTION_FAILED | 복호화 처리 실패 |
 | FORBIDDEN_NOT_APPROVER | 승인/반려·대기목록 API 호출 권한 없음(결재자 또는 관리자만 가능) (403) |

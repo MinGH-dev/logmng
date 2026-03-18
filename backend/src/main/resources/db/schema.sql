@@ -91,6 +91,7 @@ CREATE TRIGGER update_pb_recv_updated_at
 -- 검색 이력 (복호화 승인 부가 기능)
 -- user_id: requester's user id (numeric). app_user.id = search_history.user_id. Do not store username. Req: 20260316-search-history-user-id-query-and-naming.
 -- approved_by_user_id: approver's app_user.id (numeric). Req: 20260316-decrypt-approval-use-user-id-everywhere. Backfill from approved_by (username) via migrate-decrypt-approval-use-user-id.sql.
+-- search_result_total_count / decryption_target_count: snapshot at request time (nullable); existing DBs: migrate-search-history-result-counts.sql.
 CREATE TABLE IF NOT EXISTS search_history (
     id BIGSERIAL PRIMARY KEY,
     user_id BIGINT NOT NULL,
@@ -107,7 +108,9 @@ CREATE TABLE IF NOT EXISTS search_history (
     rejected_by VARCHAR(100) NULL,
     rejected_at TIMESTAMP NULL,
     rejection_reason TEXT NULL,
-    request_reason TEXT NULL
+    request_reason TEXT NULL,
+    search_result_total_count INTEGER NULL,
+    decryption_target_count INTEGER NULL
 );
 
 CREATE INDEX IF NOT EXISTS idx_search_history_user_id ON search_history(user_id);
@@ -190,6 +193,18 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_decrypt_approver_dept ON decrypt_approver 
 CREATE INDEX IF NOT EXISTS idx_decrypt_approver_user ON decrypt_approver(user_id);
 CREATE INDEX IF NOT EXISTS idx_decrypt_approver_app_user ON decrypt_approver(app_user_id);
 CREATE INDEX IF NOT EXISTS idx_decrypt_approver_department ON decrypt_approver(department_code);
+
+-- 복호화 허용 저장소: 사용자·화면별 허용 GUID와 유효기간. 권한 판단만 사용; search_history_approved_row는 감사용 유지.
+-- Req: docs/requirements/20260318-decryption-allowed-store-and-decrypt-ui.md. §2.1: user_id, screen, guid, valid_until only.
+CREATE TABLE IF NOT EXISTS user_decryption_allowed (
+    user_id    BIGINT NOT NULL REFERENCES app_user(id) ON DELETE CASCADE,
+    screen     VARCHAR(50) NOT NULL,
+    guid       VARCHAR(512) NOT NULL,
+    valid_until TIMESTAMP NOT NULL,
+    PRIMARY KEY (user_id, screen, guid)
+);
+CREATE INDEX IF NOT EXISTS idx_user_decryption_allowed_get ON user_decryption_allowed(user_id, screen, valid_until);
+CREATE INDEX IF NOT EXISTS idx_user_decryption_allowed_cleanup ON user_decryption_allowed(user_id, valid_until);
 
 -- 권한 그룹 (요건: 20250227-user-permission-hierarchy-group). DBA 검토 반영.
 CREATE TABLE IF NOT EXISTS permission_group (

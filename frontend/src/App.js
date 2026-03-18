@@ -301,6 +301,7 @@ function App() {
                 initialSearchParams={initialSearchParams}
                 initialSearchApprovalId={initialSearchApprovalId}
                 onInitialSearchDone={handleInitialSearchDone}
+                hasDecryptPermission={user?.isSystemAdmin === true || getScreenFunctions(user)?.['main']?.decrypt === true}
               />
             )}
           </Box>

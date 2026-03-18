@@ -104,6 +104,17 @@ This requirement is **analysis and test-plan focused**. The **code fix** for the
 - **docs/api-definition.md** — Added one sentence under §10.1: execution allowed only for **requester** (search_history.user_id = current user id); approver executing same searchHistoryId → 403 DECRYPTION_NOT_APPROVED.
 - **docs/requirements/20260317-image-log-decrypt-error-root-cause-and-data-validation.md** — §2 change list and §5 test results updated.
 
+**Follow-up (diagnostic logging and 403 subcode, same requirement):**
+
+- **backend/src/main/java/com/logmng/service/ApprovalFailureReason.java** — New enum: ROW_NOT_FOUND, USER_MISMATCH, NOT_APPROVED, EXPIRED (diagnostic only, no PII).
+- **backend/src/main/java/com/logmng/service/ApprovalFailureDiagnostic.java** — New DTO for diagnostic (reason, rowUserId, approvalStatus, expired).
+- **backend/src/main/java/com/logmng/service/SearchHistoryService.java** — Added `getApprovalFailureReason(searchHistoryId, userId)` returning Optional&lt;ApprovalFailureDiagnostic&gt; for logging and 403 subcode.
+- **backend/src/main/java/com/logmng/controller/DecryptController.java** — When 403 DECRYPTION_NOT_APPROVED: call getApprovalFailureReason, log at INFO "복호화 승인 검사 실패(진단): searchHistoryId=..., currentUserId=..., reason=..., rowUserId=..., approvalStatus=..., expired=..."; when reason is USER_MISMATCH return `detailCode` "EXECUTOR_NOT_REQUESTER".
+- **backend/src/main/java/com/logmng/dto/response/ApiResponse.java** — Added optional `detailCode` and `failure(error, code, detailCode)`.
+- **backend/src/test/java/com/logmng/service/StubSearchHistoryService.java** — Override getApprovalFailureReason to return Optional.empty() for tests.
+- **backend/DB_SETUP_GUIDE.md** — Added § "복호화 403 시 점검" with diagnostic SQL and interpretation (compare search_history.user_id to requester app_user.id).
+- **docs/api-definition.md** — §10.1: 403 DECRYPTION_NOT_APPROVED 시 `detailCode: "EXECUTOR_NOT_REQUESTER"` 포함 가능하다고 명시.
+
 **Confirmed (no code change):** `ActivityLogAspect.java` — bugfix-1 fully applied. **Verified:** `SearchHistoryUserIdMigrationCheck.java`, `migrate-search-history-user-id-to-bigint.sql`, and `backend/DB_SETUP_GUIDE.md` § search_history.user_id exist and are documented.
 
 #### Backend
@@ -225,3 +236,5 @@ This requirement is **analysis and test-plan focused**. The **code fix** for the
 - **Actions taken**: Aspect fix and migration/startup check per bugfix-1; this doc clarifies root cause and adds §3 test cases and data-validation subsection.
 - **Result**: Backend verification complete. ActivityLogAspect bugfix-1 confirmed; DecryptController + Aspect tests added/updated (TC-01–TC-05); api-definition updated for requester-only execution. All backend tests pass.
 - **Completed**: 2026-03-17 (Backend implementation and test run)
+- **Follow-up**: Diagnostic logging when isValidApprovalForUser is false (INFO log with searchHistoryId, currentUserId, reason, rowUserId, approvalStatus, expired); optional 403 subcode EXECUTOR_NOT_REQUESTER when reason is USER_MISMATCH; DB_SETUP_GUIDE § 복호화 403 시 점검 with diagnostic SQL.
+- **Recommendation for user**: If 403 persists after migration, run the diagnostic SQL in `backend/DB_SETUP_GUIDE.md` § "복호화 403 시 점검" with the **failing searchHistoryId** and compare that row’s `user_id` with the requester’s `app_user.id`; also check backend log line "복호화 승인 검사 실패(진단)" for currentUserId vs rowUserId.

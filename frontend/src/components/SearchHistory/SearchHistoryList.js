@@ -21,6 +21,8 @@ const SEARCH_HISTORY_COLUMNS = [
   { key: 'requesterUsername', label: '사용자ID', sortable: false },
   { key: 'requesterDisplayName', label: '사용자명', sortable: false },
   { key: 'searchConditions', label: '검색 조건', sortable: false },
+  { key: 'searchResultCount', label: '검색건수', sortable: false },
+  { key: 'decryptionTargetCount', label: '암호화건수', sortable: false },
   { key: 'approvalStatus', label: '복호화', sortable: false },
   { key: 'requestReason', label: '요청사유', sortable: false },
   { key: 'expiresAt', label: '만료일시', sortable: false },
@@ -265,11 +267,34 @@ function getRequesterCellValues(row) {
   return { department, requesterUsername, requesterDisplayName };
 }
 
+/** List/detail: camelCase or snake_case from API. */
+function getSearchResultTotalCount(rowOrDetail) {
+  if (!rowOrDetail || typeof rowOrDetail !== 'object') return null;
+  const v = rowOrDetail.searchResultTotalCount ?? rowOrDetail.search_result_total_count;
+  if (v == null) return null;
+  const n = typeof v === 'number' ? v : Number(v);
+  return Number.isFinite(n) ? n : null;
+}
+
+function getDecryptionTargetCount(rowOrDetail) {
+  if (!rowOrDetail || typeof rowOrDetail !== 'object') return null;
+  const v = rowOrDetail.decryptionTargetCount ?? rowOrDetail.decryption_target_count;
+  if (v == null) return null;
+  const n = typeof v === 'number' ? v : Number(v);
+  return Number.isFinite(n) ? n : null;
+}
+
+/** List cell: numeric only; null/undefined → 미집계 */
+function formatListCount(value) {
+  if (value == null) return '미집계';
+  return String(value);
+}
+
 const SEARCH_PARAMS_LABELS = {
   startDate: '시작일시',
   endDate: '종료일시',
-  application: '시스템 명',
-  servicegroup: '서비스그룹',
+  application: '애플리케이션',
+  servicegroup: '서비스 그룹',
   service: '서비스명',
   datastring: '데이터',
   headerstring: '헤더',
@@ -284,6 +309,80 @@ function formatDetailValue(value) {
   if (Array.isArray(value)) return value.length ? value.join(', ') : '—';
   if (typeof value === 'object') return null;
   return String(value);
+}
+
+/** Modal summary: 검색건수 and 암호화건수 from detailData. */
+function SearchHistoryDetailCounts({ detailData }) {
+  if (!detailData) return null;
+  const searchTotal = getSearchResultTotalCount(detailData);
+  const decryptTarget = getDecryptionTargetCount(detailData);
+  if (searchTotal == null && decryptTarget == null) return null;
+  return (
+    <div
+      className="search-history-detail-summary-counts"
+      aria-label="검색건수·암호화건수"
+    >
+      {searchTotal != null && (
+        <div className="search-history-detail-summary-counts__line">
+          검색건수: {searchTotal}
+        </div>
+      )}
+      {decryptTarget != null && (
+        <div className="search-history-detail-summary-counts__line">
+          암호화건수: {decryptTarget}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/** Section "복호화 요청 대상 (총 n건)" with table when APPROVED; "해당 없음" otherwise. n = decryption count only (never search total). Req 20260318-search-history-detail-modal-decryption-list. */
+function DecryptionRequestedSection({ detailData }) {
+  if (!detailData) return null;
+  const rows = detailData.decryptionRequestedRows;
+  const hasRows = Array.isArray(rows) && rows.length > 0;
+  const decryptionN = getDecryptionTargetCount(detailData) ?? detailData.decryptionRequestedCount ?? (hasRows ? rows.length : 0);
+  const count = hasRows ? decryptionN : 0;
+  const sectionId = 'search-history-decryption-requested-title';
+
+  if (!hasRows) {
+    return (
+      <section className="search-history-decryption-requested-section" aria-label="복호화 요청 대상">
+        <p className="search-history-decryption-requested-none">복호화 요청 대상: 해당 없음</p>
+      </section>
+    );
+  }
+
+  return (
+    <section className="search-history-decryption-requested-section" aria-labelledby={sectionId}>
+      <h4 id={sectionId} className="search-history-decryption-requested-title">
+        복호화 요청 대상 (총 {count}건)
+      </h4>
+      <div className="search-history-decryption-requested-wrapper">
+        <table
+          className="search-history-decryption-requested-table"
+          aria-labelledby={sectionId}
+        >
+          <thead>
+            <tr>
+              <th scope="col">애플리케이션</th>
+              <th scope="col">서비스 그룹</th>
+              <th scope="col">GUID</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((row, idx) => (
+              <tr key={row.guid != null ? String(row.guid) : idx}>
+                <td>{row.application != null && String(row.application).trim() !== '' ? String(row.application) : '—'}</td>
+                <td>{row.serviceGroup != null && String(row.serviceGroup).trim() !== '' ? String(row.serviceGroup) : '—'}</td>
+                <td>{row.guid != null ? String(row.guid) : '—'}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  );
 }
 
 function SearchParamsDetailView({ searchParams }) {
@@ -715,7 +814,7 @@ const SearchHistoryList = ({ onBackToMain, onReSearch, user }) => {
         onSort={handleSort}
         loading={loading}
         emptyMessage="검색 이력이 없습니다. 복호화 승인 요청을 한 검색이 여기에 표시됩니다."
-        emptyColSpan={10}
+        emptyColSpan={12}
         ariaLabel="검색 이력 목록"
         pagination={{
           currentPage: pagination.currentPage || page,
@@ -728,12 +827,14 @@ const SearchHistoryList = ({ onBackToMain, onReSearch, user }) => {
         onPageSizeChange={handlePageSizeChange}
       >
         {list.length === 0 ? (
-          <EmptyTableBody colSpan={10} message="검색 이력이 없습니다. 복호화 승인 요청을 한 검색이 여기에 표시됩니다." />
+          <EmptyTableBody colSpan={12} message="검색 이력이 없습니다. 복호화 승인 요청을 한 검색이 여기에 표시됩니다." />
         ) : (
           list.map((row) => {
             const isRequester = user && (Number(row.userId) === Number(user.id) || row.requesterUsername === user.username);
             const { department, requesterUsername, requesterDisplayName } = getRequesterCellValues(row);
             const requestReasonText = row.requestReason ?? row.request_reason ?? '';
+            const searchTotal = getSearchResultTotalCount(row);
+            const decryptTarget = getDecryptionTargetCount(row);
             return (
               <tr key={row.id}>
                 <td>{row.seq}</td>
@@ -751,6 +852,8 @@ const SearchHistoryList = ({ onBackToMain, onReSearch, user }) => {
                     검색 조건 보기
                   </button>
                 </td>
+                <td className="search-history-counts-cell">{formatListCount(searchTotal)}</td>
+                <td className="search-history-counts-cell">{formatListCount(decryptTarget)}</td>
                 <td>{STATUS_LABEL[row.approvalStatus] || row.approvalStatus}</td>
                 <td className="search-history-summary">{requestReasonText || '—'}</td>
                 <td>{row.expiresAt}</td>
@@ -813,6 +916,8 @@ const SearchHistoryList = ({ onBackToMain, onReSearch, user }) => {
                     </div>
                   )}
                   <SearchParamsDetailView searchParams={detailData.searchParams} />
+                  <SearchHistoryDetailCounts detailData={detailData} />
+                  <DecryptionRequestedSection detailData={detailData} />
                 </>
               )}
             </div>

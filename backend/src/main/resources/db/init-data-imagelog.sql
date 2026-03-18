@@ -1,81 +1,117 @@
--- imagelog 테이블 샘플 데이터 삽입
--- status: input, output, error
--- datastring, headerstring: JSON string
--- 암호화된 데이터는 []로 감싸져 있음
+-- imagelog sample data (idempotent)
+-- Inserts only when the table is empty. Re-run does not delete or duplicate.
+-- Req: 20260318-image-log-sample-data-preserve
+--
+-- Mix: ~100 rows (95-105); rows WITHOUT encrypted data (plain/empty) and
+-- rows WITH encrypted/bracket-wrapped content for decryption and non-decryption testing.
 
--- 기존 데이터 삭제
-DELETE FROM imagelog;
-
--- 샘플 데이터 삽입
-INSERT INTO imagelog (application, servicegroup, service, status, data, datastring, guid, header, headerstring, insert_time) VALUES
--- input 상태 샘플
-('LDP', 'EduSG', 'SE10002_select', 'input', 
- 'encrypted_data_1', 
- '{"id":"1110","name":"","age":0,"r":"","p":"[E002Jo1mpzWoGoFvutn6NhYlAeMXNh4nURpSji8S5xIqIyCiHQF9xw/cB7O4c6ebk337]"}',
- '250315142429291DAOLCS0TT0S01090000045001',
- 'encrypted_header_1',
- '{"flag":"\u0000","inputMsgType":"JSON","outputMsgType":"JSON","guid":"250315142429291DAOLCS0TT0S01090000045001"}',
- EXTRACT(EPOCH FROM NOW() - INTERVAL '1 hour') * 1000),
-
--- input 상태 샘플 2
-('LDP', 'EduSG', 'SE10003_insert', 'input',
- 'encrypted_data_2',
- '{"id":"2220","name":"홍길동","age":30,"email":"[A1B2C3D4E5F6G7H8I9J0K1L2M3N4O5P6Q7R8S9T0U1V2W3X4Y5Z6]","phone":"010-1234-5678"}',
- '250315142429291DAOLCS0TT0S01090000045002',
- 'encrypted_header_2',
- '{"flag":"\u0000","inputMsgType":"JSON","outputMsgType":"JSON","guid":"250315142429291DAOLCS0TT0S01090000045002","sessionId":"[S1E2S3S4I5O6N7I8D9A0T1A2B3C4D5E6F7G8H9I0J1K2L3M4N5O6]"}',
- EXTRACT(EPOCH FROM NOW() - INTERVAL '2 hours') * 1000),
-
--- output 상태 샘플
-('LDP', 'EduSG', 'SE10002_select', 'output',
- 'encrypted_data_3',
- '{"result":"success","data":[{"id":"1110","name":"김철수","age":25}],"count":1,"message":"[O1U2T3P4U5T6M7E8S9S0A1G2E3D4A5T6A7H8E9R0E1I2S3E4N5C6R7Y8P9T0E1D2]"}',
- '250315142429291DAOLCS0TT0S01090000045003',
- 'encrypted_header_3',
- '{"flag":"\u0000","inputMsgType":"JSON","outputMsgType":"JSON","guid":"250315142429291DAOLCS0TT0S01090000045003","responseCode":"200"}',
- EXTRACT(EPOCH FROM NOW() - INTERVAL '30 minutes') * 1000),
-
--- output 상태 샘플 2
-('LDP', 'EduSG', 'SE10003_insert', 'output',
- 'encrypted_data_4',
- '{"result":"success","insertedId":"2220","message":"데이터가 성공적으로 저장되었습니다","timestamp":"[T1I2M3E4S5T6A7M8P9D0A1T2A3H4E5R6E7I8S9E0N1C2R3Y4P5T6E7D8]"}',
- '250315142429291DAOLCS0TT0S01090000045004',
- 'encrypted_header_4',
- '{"flag":"\u0000","inputMsgType":"JSON","outputMsgType":"JSON","guid":"250315142429291DAOLCS0TT0S01090000045004","responseCode":"201"}',
- EXTRACT(EPOCH FROM NOW() - INTERVAL '1 hour 30 minutes') * 1000),
-
--- error 상태 샘플
-('LDP', 'EduSG', 'SE10002_select', 'error',
- 'encrypted_data_5',
- '{"error":"Database connection failed","code":"DB_ERROR","details":"[E1R2R3O4R5D6E7T8A9I0L1S2H3E4R5E6I7S8E9N0C1R2Y3P4T5E6D7D8A9T0A1H2E3R4E5I6S7E8N9C0R1Y2P3T4E5D6]","timestamp":"2025-01-15T14:24:29"}',
- '250315142429291DAOLCS0TT0S01090000045005',
- 'encrypted_header_5',
- '{"flag":"\u0000","inputMsgType":"JSON","outputMsgType":"JSON","guid":"250315142429291DAOLCS0TT0S01090000045005","responseCode":"500","errorCode":"DB_CONNECTION_ERROR"}',
- EXTRACT(EPOCH FROM NOW() - INTERVAL '3 hours') * 1000),
-
--- error 상태 샘플 2
-('LDP', 'EduSG', 'SE10004_update', 'error',
- 'encrypted_data_6',
- '{"error":"Validation failed","code":"VALIDATION_ERROR","fields":["name","email"],"message":"[V1A2L3I4D5A6T7I8O9N0E1R2R3O4R5M6E7S8S9A0G1E2H3E4R5E6I7S8E9N0C1R2Y3P4T5E6D7D8A9T0A1H2E3R4E5I6S7E8N9C0R1Y2P3T4E5D6]"}',
- '250315142429291DAOLCS0TT0S01090000045006',
- 'encrypted_header_6',
- '{"flag":"\u0000","inputMsgType":"JSON","outputMsgType":"JSON","guid":"250315142429291DAOLCS0TT0S01090000045006","responseCode":"400","errorCode":"VALIDATION_ERROR"}',
- EXTRACT(EPOCH FROM NOW() - INTERVAL '4 hours') * 1000),
-
--- 다른 application 샘플 (input)
-('SYSTEM_B', 'Group1', 'SERVICE_001', 'input',
- 'encrypted_data_7',
- '{"userId":"user123","action":"login","password":"[P1A2S3S4W5O6R7D8H9E0R1E2I3S4E5N6C7R8Y9P0T1E2D3D4A5T6A7H8E9R0E1I2S3E4N5C6R7Y8P9T0E1D2]"}',
- '250315142429291DAOLCS0TT0S01090000045007',
- 'encrypted_header_7',
- '{"flag":"\u0000","inputMsgType":"JSON","outputMsgType":"JSON","guid":"250315142429291DAOLCS0TT0S01090000045007","ipAddress":"192.168.1.100"}',
- EXTRACT(EPOCH FROM NOW() - INTERVAL '5 hours') * 1000),
-
--- 다른 application 샘플 (output)
-('SYSTEM_B', 'Group1', 'SERVICE_001', 'output',
- 'encrypted_data_8',
- '{"result":"success","token":"[T1O2K3E4N5H6E7R8E9I0S1E2N3C4R5Y6P7T8E9D0D1A2T3A4H5E6R7E8I9S0E1N2C3R4Y5P6T7E8D9D0A1T2A3H4E5R6E7I8S9E0N1C2R3Y4P5T6E7D8]","expiresIn":3600}',
- '250315142429291DAOLCS0TT0S01090000045008',
- 'encrypted_header_8',
- '{"flag":"\u0000","inputMsgType":"JSON","outputMsgType":"JSON","guid":"250315142429291DAOLCS0TT0S01090000045008","responseCode":"200"}',
- EXTRACT(EPOCH FROM NOW() - INTERVAL '6 hours') * 1000);
+DO $$
+BEGIN
+  IF (SELECT COUNT(*) FROM imagelog) = 0 THEN
+    INSERT INTO imagelog (application, servicegroup, service, status, data, datastring, guid, header, headerstring, insert_time)
+    VALUES
+-- === Rows WITHOUT encrypted data (plain or empty) — ~22 rows ===
+('LDP', 'EduSG', 'SE10002_select', 'input', '', '{"id":"1001","name":"plain"}', 'GUID-PLAIN-001', '', '{"flag":"0","inputMsgType":"JSON"}', EXTRACT(EPOCH FROM NOW() - INTERVAL '1 hour') * 1000),
+('LDP', 'EduSG', 'SE10002_select', 'output', 'plain_data', '{"result":"ok","count":0}', 'GUID-PLAIN-002', 'plain_header', '{"responseCode":"200"}', EXTRACT(EPOCH FROM NOW() - INTERVAL '2 hours') * 1000),
+('LDP', 'EduSG', 'SE10003_insert', 'input', NULL, '{"id":"1002"}', 'GUID-PLAIN-003', NULL, '{}', EXTRACT(EPOCH FROM NOW() - INTERVAL '3 hours') * 1000),
+('LDP', 'EduSG', 'SE10003_insert', 'output', 'ok', '{"inserted":1}', 'GUID-PLAIN-004', 'h', '{"code":201}', EXTRACT(EPOCH FROM NOW() - INTERVAL '4 hours') * 1000),
+('LDP', 'EduSG', 'SE10004_update', 'input', 'update payload', '{"id":"1003","action":"update"}', 'GUID-PLAIN-005', '', '{"msgType":"JSON"}', EXTRACT(EPOCH FROM NOW() - INTERVAL '5 hours') * 1000),
+('LDP', 'EduSG', 'SE10004_update', 'output', '', '{"updated":1}', 'GUID-PLAIN-006', '', '', EXTRACT(EPOCH FROM NOW() - INTERVAL '6 hours') * 1000),
+('LDP', 'EduSG', 'SE10002_select', 'error', 'error payload', '{"error":"timeout"}', 'GUID-PLAIN-007', 'err', '{"code":500}', EXTRACT(EPOCH FROM NOW() - INTERVAL '7 hours') * 1000),
+('SYSTEM_B', 'Group1', 'SVC_A', 'input', 'login', '{"user":"u1","action":"login"}', 'GUID-PLAIN-008', '', '{}', EXTRACT(EPOCH FROM NOW() - INTERVAL '8 hours') * 1000),
+('SYSTEM_B', 'Group1', 'SVC_A', 'output', 'success', '{"token":"abc","expires":3600}', 'GUID-PLAIN-009', 'h', '{"code":200}', EXTRACT(EPOCH FROM NOW() - INTERVAL '9 hours') * 1000),
+('SYSTEM_B', 'Group1', 'SVC_B', 'input', '', '{}', 'GUID-PLAIN-010', '', '{}', EXTRACT(EPOCH FROM NOW() - INTERVAL '10 hours') * 1000),
+('APP_C', 'Grp2', 'S1', 'input', 'req', '{"q":"query"}', 'GUID-PLAIN-011', 'r', '{"t":"JSON"}', EXTRACT(EPOCH FROM NOW() - INTERVAL '11 hours') * 1000),
+('APP_C', 'Grp2', 'S1', 'output', 'res', '{"data":[]}', 'GUID-PLAIN-012', '', '', EXTRACT(EPOCH FROM NOW() - INTERVAL '12 hours') * 1000),
+('APP_C', 'Grp2', 'S2', 'error', 'err', '{"message":"not found"}', 'GUID-PLAIN-013', '', '{"code":404}', EXTRACT(EPOCH FROM NOW() - INTERVAL '13 hours') * 1000),
+('LDP', 'EduSG', 'SE10002_select', 'input', 'plain', '{"id":"2001","name":"no encryption"}', 'GUID-PLAIN-014', 'plain', '{"flag":"0"}', EXTRACT(EPOCH FROM NOW() - INTERVAL '14 hours') * 1000),
+('LDP', 'EduSG', 'SE10002_select', 'output', 'data', '{"list":[],"total":0}', 'GUID-PLAIN-015', 'out', '{"code":200}', EXTRACT(EPOCH FROM NOW() - INTERVAL '15 hours') * 1000),
+('LDP', 'EduSG', 'SE10005_delete', 'input', 'delete id=1', '{"id":1}', 'GUID-PLAIN-016', '', '{}', EXTRACT(EPOCH FROM NOW() - INTERVAL '16 hours') * 1000),
+('LDP', 'EduSG', 'SE10005_delete', 'output', 'deleted', '{"deleted":1}', 'GUID-PLAIN-017', '', '{"code":200}', EXTRACT(EPOCH FROM NOW() - INTERVAL '17 hours') * 1000),
+('MONITOR', 'Ops', 'Health', 'input', 'ping', '{}', 'GUID-PLAIN-018', '', '{}', EXTRACT(EPOCH FROM NOW() - INTERVAL '18 hours') * 1000),
+('MONITOR', 'Ops', 'Health', 'output', 'pong', '{"status":"up"}', 'GUID-PLAIN-019', '', '{}', EXTRACT(EPOCH FROM NOW() - INTERVAL '19 hours') * 1000),
+('BATCH', 'Job', 'J1', 'input', 'job start', '{"jobId":"j1"}', 'GUID-PLAIN-020', '', '{}', EXTRACT(EPOCH FROM NOW() - INTERVAL '20 hours') * 1000),
+('BATCH', 'Job', 'J1', 'output', 'job done', '{"rows":100}', 'GUID-PLAIN-021', '', '{}', EXTRACT(EPOCH FROM NOW() - INTERVAL '21 hours') * 1000),
+('LDP', 'EduSG', 'SE10002_select', 'input', 'last plain', '{"id":"2999"}', 'GUID-PLAIN-022', '', '{"msgType":"JSON"}', EXTRACT(EPOCH FROM NOW() - INTERVAL '22 hours') * 1000),
+-- === Rows WITH encrypted/bracket-wrapped content — ~78 rows ===
+('LDP', 'EduSG', 'SE10002_select', 'input', 'encrypted_data_1', '{"id":"1110","name":"","age":0,"r":"","p":"[E002Jo1mpzWoGoFvutn6NhYlAeMXNh4nURpSji8S5xIqIyCiHQF9xw/cB7O4c6ebk337]"}', '250315142429291DAOLCS0TT0S01090000045001', 'encrypted_header_1', '{"flag":"\u0000","inputMsgType":"JSON","outputMsgType":"JSON","guid":"250315142429291DAOLCS0TT0S01090000045001"}', EXTRACT(EPOCH FROM NOW() - INTERVAL '1 hour') * 1000),
+('LDP', 'EduSG', 'SE10003_insert', 'input', 'encrypted_data_2', '{"id":"2220","name":"홍길동","age":30,"email":"[A1B2C3D4E5F6G7H8I9J0K1L2M3N4O5P6Q7R8S9T0U1V2W3X4Y5Z6]","phone":"010-1234-5678"}', '250315142429291DAOLCS0TT0S01090000045002', 'encrypted_header_2', '{"flag":"\u0000","guid":"250315142429291DAOLCS0TT0S01090000045002","sessionId":"[S1E2S3S4I5O6N7I8D9A0T1A2B3C4D5E6F7G8H9I0J1K2L3M4N5O6]"}', EXTRACT(EPOCH FROM NOW() - INTERVAL '2 hours') * 1000),
+('LDP', 'EduSG', 'SE10002_select', 'output', 'encrypted_data_3', '{"result":"success","data":[{"id":"1110","name":"김철수","age":25}],"message":"[O1U2T3P4U5T6M7E8S9S0A1G2E3D4A5T6A7H8E9R0E1I2S3E4N5C6R7Y8P9T0E1D2]"}', '250315142429291DAOLCS0TT0S01090000045003', 'encrypted_header_3', '{"flag":"\u0000","guid":"250315142429291DAOLCS0TT0S01090000045003","responseCode":"200"}', EXTRACT(EPOCH FROM NOW() - INTERVAL '30 minutes') * 1000),
+('LDP', 'EduSG', 'SE10003_insert', 'output', 'encrypted_data_4', '{"result":"success","insertedId":"2220","message":"저장됨","timestamp":"[T1I2M3E4S5T6A7M8P9D0A1T2A3H4E5R6E7I8S9E0N1C2R3Y4P5T6E7D8]"}', '250315142429291DAOLCS0TT0S01090000045004', 'encrypted_header_4', '{"flag":"\u0000","guid":"250315142429291DAOLCS0TT0S01090000045004","responseCode":"201"}', EXTRACT(EPOCH FROM NOW() - INTERVAL '1 hour 30 minutes') * 1000),
+('LDP', 'EduSG', 'SE10002_select', 'error', 'encrypted_data_5', '{"error":"DB failed","code":"DB_ERROR","details":"[E1R2R3O4R5D6E7T8A9I0L1S2H3E4R5E6I7S8E9N0C1R2Y3P4T5E6D7D8A9T0A1H2E3R4E5I6S7E8N9C0R1Y2P3T4E5D6]"}', '250315142429291DAOLCS0TT0S01090000045005', 'encrypted_header_5', '{"flag":"\u0000","guid":"250315142429291DAOLCS0TT0S01090000045005","responseCode":"500"}', EXTRACT(EPOCH FROM NOW() - INTERVAL '3 hours') * 1000),
+('LDP', 'EduSG', 'SE10004_update', 'error', 'encrypted_data_6', '{"error":"Validation failed","message":"[V1A2L3I4D5A6T7I8O9N0E1R2R3O4R5M6E7S8S9A0G1E2H3E4R5E6I7S8E9N0C1R2Y3P4T5E6D7]"}', '250315142429291DAOLCS0TT0S01090000045006', 'encrypted_header_6', '{"flag":"\u0000","guid":"250315142429291DAOLCS0TT0S01090000045006","responseCode":"400"}', EXTRACT(EPOCH FROM NOW() - INTERVAL '4 hours') * 1000),
+('SYSTEM_B', 'Group1', 'SERVICE_001', 'input', 'encrypted_data_7', '{"userId":"user123","action":"login","password":"[P1A2S3S4W5O6R7D8H9E0R1E2I3S4E5N6C7R8Y9P0T1E2D3D4A5T6A7H8E9R0E1I2S3E4N5C6R7Y8P9T0E1D2]"}', '250315142429291DAOLCS0TT0S01090000045007', 'encrypted_header_7', '{"flag":"\u0000","guid":"250315142429291DAOLCS0TT0S01090000045007","ipAddress":"192.168.1.100"}', EXTRACT(EPOCH FROM NOW() - INTERVAL '5 hours') * 1000),
+('SYSTEM_B', 'Group1', 'SERVICE_001', 'output', 'encrypted_data_8', '{"result":"success","token":"[T1O2K3E4N5H6E7R8E9I0S1E2N3C4R5Y6P7T8E9D0D1A2T3A4H5E6R7E8I9S0E1N2C3R4Y5P6T7E8D9D0A1T2A3H4E5R6E7I8S9E0N1C2R3Y4P5T6E7D8]","expiresIn":3600}', '250315142429291DAOLCS0TT0S01090000045008', 'encrypted_header_8', '{"flag":"\u0000","guid":"250315142429291DAOLCS0TT0S01090000045008","responseCode":"200"}', EXTRACT(EPOCH FROM NOW() - INTERVAL '6 hours') * 1000),
+('LDP', 'EduSG', 'SE10002_select', 'input', '[ENC_DATA_9]', '{"id":"3001","payload":"[ENC_PAYLOAD_9]"}', 'GUID-ENC-009', '[ENC_HDR_9]', '{"guid":"GUID-ENC-009","secret":"[ENC_SECRET_9]"}', EXTRACT(EPOCH FROM NOW() - INTERVAL '7 hours') * 1000),
+('LDP', 'EduSG', 'SE10002_select', 'output', '[ENC_DATA_10]', '{"result":"ok","data":"[ENC_BODY_10]"}', 'GUID-ENC-010', '[ENC_HDR_10]', '{"code":200}', EXTRACT(EPOCH FROM NOW() - INTERVAL '8 hours') * 1000),
+('LDP', 'EduSG', 'SE10003_insert', 'input', '[ENC_DATA_11]', '{"id":"3002","value":"[ENC_VAL_11]"}', 'GUID-ENC-011', '', '{"token":"[ENC_TKN_11]"}', EXTRACT(EPOCH FROM NOW() - INTERVAL '9 hours') * 1000),
+('LDP', 'EduSG', 'SE10004_update', 'input', '[ENC_DATA_12]', '{"id":"3003","field":"[ENC_FIELD_12]"}', 'GUID-ENC-012', '[ENC_HDR_12]', '{}', EXTRACT(EPOCH FROM NOW() - INTERVAL '10 hours') * 1000),
+('LDP', 'EduSG', 'SE10002_select', 'error', '[ENC_DATA_13]', '{"error":"[ENC_ERR_13]"}', 'GUID-ENC-013', '[ENC_HDR_13]', '{"code":500}', EXTRACT(EPOCH FROM NOW() - INTERVAL '11 hours') * 1000),
+('SYSTEM_B', 'Group1', 'SVC_C', 'input', '[ENC_DATA_14]', '{"user":"u2","pwd":"[ENC_PWD_14]"}', 'GUID-ENC-014', '', '{"sid":"[ENC_SID_14]"}', EXTRACT(EPOCH FROM NOW() - INTERVAL '12 hours') * 1000),
+('SYSTEM_B', 'Group1', 'SVC_C', 'output', '[ENC_DATA_15]', '{"token":"[ENC_TKN_15]","exp":"[ENC_EXP_15]"}', 'GUID-ENC-015', '[ENC_HDR_15]', '{}', EXTRACT(EPOCH FROM NOW() - INTERVAL '13 hours') * 1000),
+('APP_C', 'Grp2', 'S3', 'input', '[ENC_DATA_16]', '{"q":"[ENC_Q_16]"}', 'GUID-ENC-016', '[ENC_HDR_16]', '{}', EXTRACT(EPOCH FROM NOW() - INTERVAL '14 hours') * 1000),
+('APP_C', 'Grp2', 'S3', 'output', '[ENC_DATA_17]', '{"data":"[ENC_D_17]"}', 'GUID-ENC-017', '', '{"code":200}', EXTRACT(EPOCH FROM NOW() - INTERVAL '15 hours') * 1000),
+('APP_C', 'Grp2', 'S4', 'error', '[ENC_DATA_18]', '{"msg":"[ENC_MSG_18]"}', 'GUID-ENC-018', '[ENC_HDR_18]', '{"code":400}', EXTRACT(EPOCH FROM NOW() - INTERVAL '16 hours') * 1000),
+('MONITOR', 'Ops', 'Alert', 'input', '[ENC_DATA_19]', '{"event":"[ENC_EVT_19]"}', 'GUID-ENC-019', '', '{}', EXTRACT(EPOCH FROM NOW() - INTERVAL '17 hours') * 1000),
+('MONITOR', 'Ops', 'Alert', 'output', '[ENC_DATA_20]', '{"ack":"[ENC_ACK_20]"}', 'GUID-ENC-020', '[ENC_HDR_20]', '{}', EXTRACT(EPOCH FROM NOW() - INTERVAL '18 hours') * 1000),
+('BATCH', 'Job', 'J2', 'input', '[ENC_DATA_21]', '{"job":"[ENC_JOB_21]"}', 'GUID-ENC-021', '', '{}', EXTRACT(EPOCH FROM NOW() - INTERVAL '19 hours') * 1000),
+('BATCH', 'Job', 'J2', 'output', '[ENC_DATA_22]', '{"result":"[ENC_RES_22]"}', 'GUID-ENC-022', '[ENC_HDR_22]', '{}', EXTRACT(EPOCH FROM NOW() - INTERVAL '20 hours') * 1000),
+('LDP', 'EduSG', 'SE10005_delete', 'input', '[ENC_DATA_23]', '{"id":"[ENC_ID_23]"}', 'GUID-ENC-023', '', '{"reason":"[ENC_R_23]"}', EXTRACT(EPOCH FROM NOW() - INTERVAL '21 hours') * 1000),
+('LDP', 'EduSG', 'SE10005_delete', 'output', '[ENC_DATA_24]', '{"deleted":"[ENC_DEL_24]"}', 'GUID-ENC-024', '[ENC_HDR_24]', '{}', EXTRACT(EPOCH FROM NOW() - INTERVAL '22 hours') * 1000),
+('LDP', 'EduSG', 'SE10002_select', 'input', '[ENC_DATA_25]', '{"id":"4001","p":"[ENC_P_25]"}', 'GUID-ENC-025', '[ENC_HDR_25]', '{}', EXTRACT(EPOCH FROM NOW() - INTERVAL '23 hours') * 1000),
+('LDP', 'EduSG', 'SE10002_select', 'output', '[ENC_DATA_26]', '{"list":"[ENC_L_26]"}', 'GUID-ENC-026', '', '{"code":200}', EXTRACT(EPOCH FROM NOW() - INTERVAL '24 hours') * 1000),
+('LDP', 'EduSG', 'SE10003_insert', 'input', '[ENC_DATA_27]', '{"id":"4002","body":"[ENC_B_27]"}', 'GUID-ENC-027', '[ENC_HDR_27]', '{}', EXTRACT(EPOCH FROM NOW() - INTERVAL '25 hours') * 1000),
+('LDP', 'EduSG', 'SE10003_insert', 'output', '[ENC_DATA_28]', '{"inserted":"[ENC_INS_28]"}', 'GUID-ENC-028', '', '{"code":201}', EXTRACT(EPOCH FROM NOW() - INTERVAL '26 hours') * 1000),
+('LDP', 'EduSG', 'SE10004_update', 'input', '[ENC_DATA_29]', '{"id":"4003","diff":"[ENC_DIFF_29]"}', 'GUID-ENC-029', '[ENC_HDR_29]', '{}', EXTRACT(EPOCH FROM NOW() - INTERVAL '27 hours') * 1000),
+('LDP', 'EduSG', 'SE10004_update', 'output', '[ENC_DATA_30]', '{"updated":"[ENC_U_30]"}', 'GUID-ENC-030', '', '{}', EXTRACT(EPOCH FROM NOW() - INTERVAL '28 hours') * 1000),
+('SYSTEM_B', 'Group1', 'SVC_D', 'input', '[ENC_DATA_31]', '{"req":"[ENC_REQ_31]"}', 'GUID-ENC-031', '[ENC_HDR_31]', '{}', EXTRACT(EPOCH FROM NOW() - INTERVAL '29 hours') * 1000),
+('SYSTEM_B', 'Group1', 'SVC_D', 'output', '[ENC_DATA_32]', '{"res":"[ENC_RES_32]"}', 'GUID-ENC-032', '', '{"code":200}', EXTRACT(EPOCH FROM NOW() - INTERVAL '30 hours') * 1000),
+('APP_C', 'Grp2', 'S5', 'input', '[ENC_DATA_33]', '{"x":"[ENC_X_33]"}', 'GUID-ENC-033', '[ENC_HDR_33]', '{}', EXTRACT(EPOCH FROM NOW() - INTERVAL '31 hours') * 1000),
+('APP_C', 'Grp2', 'S5', 'output', '[ENC_DATA_34]', '{"y":"[ENC_Y_34]"}', 'GUID-ENC-034', '', '{}', EXTRACT(EPOCH FROM NOW() - INTERVAL '32 hours') * 1000),
+('APP_C', 'Grp2', 'S6', 'error', '[ENC_DATA_35]', '{"e":"[ENC_E_35]"}', 'GUID-ENC-035', '[ENC_HDR_35]', '{"code":500}', EXTRACT(EPOCH FROM NOW() - INTERVAL '33 hours') * 1000),
+('MONITOR', 'Ops', 'Metric', 'input', '[ENC_DATA_36]', '{"m":"[ENC_M_36]"}', 'GUID-ENC-036', '', '{}', EXTRACT(EPOCH FROM NOW() - INTERVAL '34 hours') * 1000),
+('MONITOR', 'Ops', 'Metric', 'output', '[ENC_DATA_37]', '{"v":"[ENC_V_37]"}', 'GUID-ENC-037', '[ENC_HDR_37]', '{}', EXTRACT(EPOCH FROM NOW() - INTERVAL '35 hours') * 1000),
+('BATCH', 'Job', 'J3', 'input', '[ENC_DATA_38]', '{"j":"[ENC_J_38]"}', 'GUID-ENC-038', '', '{}', EXTRACT(EPOCH FROM NOW() - INTERVAL '36 hours') * 1000),
+('BATCH', 'Job', 'J3', 'output', '[ENC_DATA_39]', '{"done":"[ENC_DONE_39]"}', 'GUID-ENC-039', '[ENC_HDR_39]', '{}', EXTRACT(EPOCH FROM NOW() - INTERVAL '37 hours') * 1000),
+('LDP', 'EduSG', 'SE10002_select', 'input', '[ENC_DATA_40]', '{"id":"5001","k":"[ENC_K_40]"}', 'GUID-ENC-040', '', '{}', EXTRACT(EPOCH FROM NOW() - INTERVAL '38 hours') * 1000),
+('LDP', 'EduSG', 'SE10002_select', 'output', '[ENC_DATA_41]', '{"rows":"[ENC_ROWS_41]"}', 'GUID-ENC-041', '[ENC_HDR_41]', '{"code":200}', EXTRACT(EPOCH FROM NOW() - INTERVAL '39 hours') * 1000),
+('LDP', 'EduSG', 'SE10003_insert', 'input', '[ENC_DATA_42]', '{"id":"5002","v":"[ENC_V_42]"}', 'GUID-ENC-042', '', '{}', EXTRACT(EPOCH FROM NOW() - INTERVAL '40 hours') * 1000),
+('LDP', 'EduSG', 'SE10004_update', 'input', '[ENC_DATA_43]', '{"id":"5003","chg":"[ENC_CHG_43]"}', 'GUID-ENC-043', '[ENC_HDR_43]', '{}', EXTRACT(EPOCH FROM NOW() - INTERVAL '41 hours') * 1000),
+('LDP', 'EduSG', 'SE10004_update', 'output', '[ENC_DATA_44]', '{"n":"[ENC_N_44]"}', 'GUID-ENC-044', '', '{}', EXTRACT(EPOCH FROM NOW() - INTERVAL '42 hours') * 1000),
+('SYSTEM_B', 'Group1', 'SVC_E', 'input', '[ENC_DATA_45]', '{"a":"[ENC_A_45]"}', 'GUID-ENC-045', '[ENC_HDR_45]', '{}', EXTRACT(EPOCH FROM NOW() - INTERVAL '43 hours') * 1000),
+('SYSTEM_B', 'Group1', 'SVC_E', 'output', '[ENC_DATA_46]', '{"b":"[ENC_B_46]"}', 'GUID-ENC-046', '', '{"code":200}', EXTRACT(EPOCH FROM NOW() - INTERVAL '44 hours') * 1000),
+('APP_C', 'Grp2', 'S7', 'input', '[ENC_DATA_47]', '{"c":"[ENC_C_47]"}', 'GUID-ENC-047', '', '{}', EXTRACT(EPOCH FROM NOW() - INTERVAL '45 hours') * 1000),
+('APP_C', 'Grp2', 'S7', 'output', '[ENC_DATA_48]', '{"d":"[ENC_D_48]"}', 'GUID-ENC-048', '[ENC_HDR_48]', '{}', EXTRACT(EPOCH FROM NOW() - INTERVAL '46 hours') * 1000),
+('LDP', 'EduSG', 'SE10002_select', 'error', '[ENC_DATA_49]', '{"err":"[ENC_ERR_49]"}', 'GUID-ENC-049', '', '{"code":503}', EXTRACT(EPOCH FROM NOW() - INTERVAL '47 hours') * 1000),
+('LDP', 'EduSG', 'SE10005_delete', 'input', '[ENC_DATA_50]', '{"id":"[ENC_ID_50]"}', 'GUID-ENC-050', '[ENC_HDR_50]', '{}', EXTRACT(EPOCH FROM NOW() - INTERVAL '48 hours') * 1000),
+('LDP', 'EduSG', 'SE10005_delete', 'output', '[ENC_DATA_51]', '{"ok":"[ENC_OK_51]"}', 'GUID-ENC-051', '', '{}', EXTRACT(EPOCH FROM NOW() - INTERVAL '49 hours') * 1000),
+('MONITOR', 'Ops', 'Log', 'input', '[ENC_DATA_52]', '{"line":"[ENC_LINE_52]"}', 'GUID-ENC-052', '', '{}', EXTRACT(EPOCH FROM NOW() - INTERVAL '50 hours') * 1000),
+('MONITOR', 'Ops', 'Log', 'output', '[ENC_DATA_53]', '{"written":"[ENC_W_53]"}', 'GUID-ENC-053', '[ENC_HDR_53]', '{}', EXTRACT(EPOCH FROM NOW() - INTERVAL '51 hours') * 1000),
+('BATCH', 'Job', 'J4', 'input', '[ENC_DATA_54]', '{"batch":"[ENC_BAT_54]"}', 'GUID-ENC-054', '', '{}', EXTRACT(EPOCH FROM NOW() - INTERVAL '52 hours') * 1000),
+('BATCH', 'Job', 'J4', 'output', '[ENC_DATA_55]', '{"count":"[ENC_CNT_55]"}', 'GUID-ENC-055', '', '{"code":200}', EXTRACT(EPOCH FROM NOW() - INTERVAL '53 hours') * 1000),
+('LDP', 'EduSG', 'SE10002_select', 'input', '[ENC_DATA_56]', '{"id":"6001"}', 'GUID-ENC-056', '[ENC_HDR_56]', '{"p":"[ENC_P_56]"}', EXTRACT(EPOCH FROM NOW() - INTERVAL '54 hours') * 1000),
+('LDP', 'EduSG', 'SE10002_select', 'output', '[ENC_DATA_57]', '{"result":"[ENC_R_57]"}', 'GUID-ENC-057', '', '{}', EXTRACT(EPOCH FROM NOW() - INTERVAL '55 hours') * 1000),
+('LDP', 'EduSG', 'SE10003_insert', 'input', '[ENC_DATA_58]', '{"id":"6002","payload":"[ENC_PL_58]"}', 'GUID-ENC-058', '[ENC_HDR_58]', '{}', EXTRACT(EPOCH FROM NOW() - INTERVAL '56 hours') * 1000),
+('LDP', 'EduSG', 'SE10003_insert', 'output', '[ENC_DATA_59]', '{"id":"[ENC_NID_59]"}', 'GUID-ENC-059', '', '{}', EXTRACT(EPOCH FROM NOW() - INTERVAL '57 hours') * 1000),
+('LDP', 'EduSG', 'SE10004_update', 'input', '[ENC_DATA_60]', '{"id":"6003","set":"[ENC_SET_60]"}', 'GUID-ENC-060', '', '{}', EXTRACT(EPOCH FROM NOW() - INTERVAL '58 hours') * 1000),
+('LDP', 'EduSG', 'SE10004_update', 'output', '[ENC_DATA_61]', '{"n":"[ENC_N_61]"}', 'GUID-ENC-061', '[ENC_HDR_61]', '{"code":200}', EXTRACT(EPOCH FROM NOW() - INTERVAL '59 hours') * 1000),
+('SYSTEM_B', 'Group1', 'SVC_F', 'input', '[ENC_DATA_62]', '{"u":"[ENC_U_62]"}', 'GUID-ENC-062', '[ENC_HDR_62]', '{}', EXTRACT(EPOCH FROM NOW() - INTERVAL '60 hours') * 1000),
+('SYSTEM_B', 'Group1', 'SVC_F', 'output', '[ENC_DATA_63]', '{"t":"[ENC_T_63]"}', 'GUID-ENC-063', '', '{}', EXTRACT(EPOCH FROM NOW() - INTERVAL '61 hours') * 1000),
+('APP_C', 'Grp2', 'S8', 'input', '[ENC_DATA_64]', '{"f":"[ENC_F_64]"}', 'GUID-ENC-064', '', '{}', EXTRACT(EPOCH FROM NOW() - INTERVAL '62 hours') * 1000),
+('APP_C', 'Grp2', 'S8', 'output', '[ENC_DATA_65]', '{"g":"[ENC_G_65]"}', 'GUID-ENC-065', '[ENC_HDR_65]', '{}', EXTRACT(EPOCH FROM NOW() - INTERVAL '63 hours') * 1000),
+('LDP', 'EduSG', 'SE10002_select', 'input', '[ENC_DATA_66]', '{"id":"7001","s":"[ENC_S_66]"}', 'GUID-ENC-066', '', '{}', EXTRACT(EPOCH FROM NOW() - INTERVAL '64 hours') * 1000),
+('LDP', 'EduSG', 'SE10002_select', 'output', '[ENC_DATA_67]', '{"data":"[ENC_DAT_67]"}', 'GUID-ENC-067', '[ENC_HDR_67]', '{"code":200}', EXTRACT(EPOCH FROM NOW() - INTERVAL '65 hours') * 1000),
+('LDP', 'EduSG', 'SE10003_insert', 'input', '[ENC_DATA_68]', '{"id":"7002","x":"[ENC_X_68]"}', 'GUID-ENC-068', '', '{}', EXTRACT(EPOCH FROM NOW() - INTERVAL '66 hours') * 1000),
+('LDP', 'EduSG', 'SE10003_insert', 'output', '[ENC_DATA_69]', '{"newId":"[ENC_NI_69]"}', 'GUID-ENC-069', '[ENC_HDR_69]', '{}', EXTRACT(EPOCH FROM NOW() - INTERVAL '67 hours') * 1000),
+('LDP', 'EduSG', 'SE10004_update', 'input', '[ENC_DATA_70]', '{"id":"7003","y":"[ENC_Y_70]"}', 'GUID-ENC-070', '', '{}', EXTRACT(EPOCH FROM NOW() - INTERVAL '68 hours') * 1000),
+('LDP', 'EduSG', 'SE10004_update', 'output', '[ENC_DATA_71]', '{"updated":"[ENC_UP_71]"}', 'GUID-ENC-071', '', '{}', EXTRACT(EPOCH FROM NOW() - INTERVAL '69 hours') * 1000),
+('SYSTEM_B', 'Group1', 'SVC_G', 'input', '[ENC_DATA_72]', '{"z":"[ENC_Z_72]"}', 'GUID-ENC-072', '[ENC_HDR_72]', '{}', EXTRACT(EPOCH FROM NOW() - INTERVAL '70 hours') * 1000),
+('SYSTEM_B', 'Group1', 'SVC_G', 'output', '[ENC_DATA_73]', '{"out":"[ENC_OUT_73]"}', 'GUID-ENC-073', '', '{"code":200}', EXTRACT(EPOCH FROM NOW() - INTERVAL '71 hours') * 1000),
+('APP_C', 'Grp2', 'S9', 'input', '[ENC_DATA_74]', '{"in":"[ENC_IN_74]"}', 'GUID-ENC-074', '', '{}', EXTRACT(EPOCH FROM NOW() - INTERVAL '72 hours') * 1000),
+('APP_C', 'Grp2', 'S9', 'output', '[ENC_DATA_75]', '{"out":"[ENC_O_75]"}', 'GUID-ENC-075', '[ENC_HDR_75]', '{}', EXTRACT(EPOCH FROM NOW() - INTERVAL '73 hours') * 1000),
+('MONITOR', 'Ops', 'Trace', 'input', '[ENC_DATA_76]', '{"span":"[ENC_SPAN_76]"}', 'GUID-ENC-076', '', '{}', EXTRACT(EPOCH FROM NOW() - INTERVAL '74 hours') * 1000),
+('MONITOR', 'Ops', 'Trace', 'output', '[ENC_DATA_77]', '{"trace":"[ENC_TR_77]"}', 'GUID-ENC-077', '[ENC_HDR_77]', '{}', EXTRACT(EPOCH FROM NOW() - INTERVAL '75 hours') * 1000),
+('BATCH', 'Job', 'J5', 'input', '[ENC_DATA_78]', '{"task":"[ENC_TASK_78]"}', 'GUID-ENC-078', '', '{}', EXTRACT(EPOCH FROM NOW() - INTERVAL '76 hours') * 1000),
+('BATCH', 'Job', 'J5', 'output', '[ENC_DATA_79]', '{"summary":"[ENC_SUM_79]"}', 'GUID-ENC-079', '[ENC_HDR_79]', '{}', EXTRACT(EPOCH FROM NOW() - INTERVAL '77 hours') * 1000);
+  END IF;
+END $$;

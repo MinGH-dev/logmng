@@ -5,6 +5,8 @@ import com.logmng.annotation.ActivityLog;
 import com.logmng.dto.response.LoginResponse;
 import com.logmng.service.AuthService;
 import com.logmng.service.UserActivityLogService;
+import jakarta.servlet.ServletRequest;
+import jakarta.servlet.ServletResponse;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.aspectj.lang.ProceedingJoinPoint;
@@ -18,7 +20,10 @@ import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
 
 import java.lang.reflect.Method;
+import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -116,14 +121,19 @@ public class ActivityLogAspect {
                 
                 for (int i = 0; i < paramNames.length && i < args.length; i++) {
                     // 민감한 정보 제외 (비밀번호 등)
-                    if (!isSensitiveField(paramNames[i])) {
-                        try {
+                    if (isSensitiveField(paramNames[i])) {
+                        continue;
+                    }
+                    // Early replacement: never pass Servlet API to ObjectMapper (RequestFacade.getHeaderNames()
+                    // returns NamesEnumerator; getParts()/getAsyncContext() throw for non-multipart/non-async).
+                    if (isNonSerializableServletParam(args[i])) {
+                        params.put(paramNames[i], getPlaceholderForServletParam(args[i]));
+                        continue;
+                    }
+                    try {
                             // 객체를 JSON으로 변환 시도
                             if (args[i] != null) {
-                                // Servlet API 객체는 직렬화하지 않음 (RequestFacade 등은 asyncContext 접근 시 비동기 모드가 아니면 예외 발생)
-                                if (isNonSerializableServletParam(args[i])) {
-                                    params.put(paramNames[i], getPlaceholderForServletParam(args[i]));
-                                } else if (args[i] instanceof com.logmng.dto.request.LogDbSearchRequest) {
+                                if (args[i] instanceof com.logmng.dto.request.LogDbSearchRequest) {
                                     com.logmng.dto.request.LogDbSearchRequest searchRequest = 
                                         (com.logmng.dto.request.LogDbSearchRequest) args[i];
                                     Map<String, Object> searchConditions = new HashMap<>();
@@ -157,15 +167,17 @@ public class ActivityLogAspect {
                                     
                                     params.put(paramNames[i], searchConditions);
                                 } else {
-                                    // 다른 타입은 JSON으로 변환 (민감한 정보 마스킹)
-                                    String json = objectMapper.writeValueAsString(args[i]);
+                                    // Never serialize values that might contain Servlet (e.g. Map with request key)
+                                    Object toSerialize = deepSanitizeForSerialization(args[i]);
+                                    String json = objectMapper.writeValueAsString(toSerialize);
                                     params.put(paramNames[i], maskSensitiveData(json));
                                 }
                             }
                         } catch (Exception e) {
                             log.warn("파라미터 처리 실패: paramName={}, error={}", paramNames[i], e.getMessage(), e);
-                            // LogDbSearchRequest인 경우에도 예외가 발생할 수 있으므로 재시도
-                            if (args[i] instanceof com.logmng.dto.request.LogDbSearchRequest) {
+                            if (isNonSerializableServletParam(args[i])) {
+                                params.put(paramNames[i], getPlaceholderForServletParam(args[i]));
+                            } else if (args[i] instanceof com.logmng.dto.request.LogDbSearchRequest) {
                                 try {
                                     com.logmng.dto.request.LogDbSearchRequest searchRequest = 
                                         (com.logmng.dto.request.LogDbSearchRequest) args[i];
@@ -200,25 +212,22 @@ public class ActivityLogAspect {
                                     params.put(paramNames[i], searchConditions);
                                 } catch (Exception e2) {
                                     log.error("LogDbSearchRequest 파싱 재시도 실패: {}", e2.getMessage());
-                                    // 최후의 수단으로 ObjectMapper 사용
+                                    Object sanitized = deepSanitizeForSerialization(args[i]);
                                     try {
-                                        params.put(paramNames[i], objectMapper.writeValueAsString(args[i]));
+                                        params.put(paramNames[i], objectMapper.writeValueAsString(sanitized));
                                     } catch (Exception e3) {
                                         params.put(paramNames[i], null);
                                     }
                                 }
-                            } else if (isNonSerializableServletParam(args[i])) {
-                                params.put(paramNames[i], getPlaceholderForServletParam(args[i]));
                             } else {
-                                // 다른 타입은 ObjectMapper로 변환 시도
+                                Object sanitized = deepSanitizeForSerialization(args[i]);
                                 try {
-                                    params.put(paramNames[i], objectMapper.writeValueAsString(args[i]));
+                                    params.put(paramNames[i], objectMapper.writeValueAsString(sanitized));
                                 } catch (Exception e2) {
                                     params.put(paramNames[i], null);
                                 }
                             }
                         }
-                    }
                 }
                 actionDetail.put("requestParams", params);
             }
@@ -311,10 +320,13 @@ public class ActivityLogAspect {
                 }
             }
             
-            // 요청 파라미터 JSON 문자열 생성
+            // 요청 파라미터 JSON 문자열 생성 (Servlet 타입은 직렬화 전에 플레이스홀더로 대체)
             String requestParamsJson = null;
             try {
-                requestParamsJson = objectMapper.writeValueAsString(actionDetail.get("requestParams"));
+                @SuppressWarnings("unchecked")
+                Map<String, Object> rawParams = (Map<String, Object>) actionDetail.get("requestParams");
+                Map<String, Object> paramsToSerialize = rawParams != null ? sanitizeParamsForSerialization(rawParams) : new HashMap<>();
+                requestParamsJson = objectMapper.writeValueAsString(paramsToSerialize);
             } catch (Exception e) {
                 log.debug("요청 파라미터 직렬화 실패: {}", e.getMessage());
             }
@@ -561,16 +573,59 @@ public class ActivityLogAspect {
     
     /**
      * Servlet API 파라미터 여부. 이 타입들은 Jackson으로 직렬화하면 안 됨
-     * (예: RequestFacade의 asyncContext 접근 시 비동기 모드가 아니면 IllegalStateException).
+     * (RequestFacade.getHeaderNames() → NamesEnumerator; getParts()/getAsyncContext() 예외).
      */
     private static boolean isNonSerializableServletParam(Object arg) {
-        return arg instanceof HttpServletRequest || arg instanceof HttpServletResponse;
+        return arg instanceof HttpServletRequest || arg instanceof HttpServletResponse
+                || arg instanceof ServletRequest || arg instanceof ServletResponse;
     }
 
     private static String getPlaceholderForServletParam(Object arg) {
         if (arg instanceof HttpServletRequest) return "<HttpServletRequest>";
         if (arg instanceof HttpServletResponse) return "<HttpServletResponse>";
+        if (arg instanceof ServletRequest) return "<ServletRequest>";
+        if (arg instanceof ServletResponse) return "<ServletResponse>";
         return "<Servlet>";
+    }
+
+    /**
+     * ObjectMapper에 넘기기 전에 구조 전체에서 Servlet 참조를 플레이스홀더로 치환.
+     * Map/List 중첩 시에도 재귀 적용 (e.g. request body Map에 httpRequest 키가 있는 경우).
+     */
+    @SuppressWarnings("unchecked")
+    private static Object deepSanitizeForSerialization(Object value) {
+        if (value == null) return null;
+        if (isNonSerializableServletParam(value)) return getPlaceholderForServletParam(value);
+        if (value instanceof Map) {
+            Map<Object, Object> in = (Map<Object, Object>) value;
+            Map<Object, Object> out = new HashMap<>();
+            for (Map.Entry<Object, Object> e : in.entrySet()) {
+                out.put(e.getKey(), deepSanitizeForSerialization(e.getValue()));
+            }
+            return out;
+        }
+        if (value instanceof Collection) {
+            List<Object> out = new ArrayList<>();
+            for (Object item : (Collection<?>) value) {
+                out.add(deepSanitizeForSerialization(item));
+            }
+            return out;
+        }
+        return value;
+    }
+
+    /**
+     * requestParams map을 ObjectMapper로 직렬화하기 전에 Servlet API 참조를 플레이스홀더로 치환.
+     * 중첩 Map/List도 재귀 치환.
+     */
+    private static Map<String, Object> sanitizeParamsForSerialization(Map<String, Object> params) {
+        if (params == null) return new HashMap<>();
+        Map<String, Object> out = new HashMap<>();
+        for (Map.Entry<String, Object> e : params.entrySet()) {
+            Object v = deepSanitizeForSerialization(e.getValue());
+            out.put(e.getKey(), v);
+        }
+        return out;
     }
 
     /**
