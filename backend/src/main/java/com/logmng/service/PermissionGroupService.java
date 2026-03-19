@@ -520,15 +520,25 @@ public class PermissionGroupService {
         return s != null ? s.trim() : "";
     }
 
+    /** Legacy screen ID alias: normalize to canonical form (req 20260318-permission-group-menu-invalid-screen-id-imagelog). */
+    private static String normalizeScreenId(String screenId) {
+        if (screenId == null || screenId.isBlank()) return screenId;
+        String trimmed = screenId.trim();
+        if (ScreenConstants.JAVA_FW_IMAGELOG_LEGACY.equals(trimmed)) {
+            return ScreenConstants.JAVA_FW_IMAGELOG;
+        }
+        return trimmed;
+    }
+
     private void validateAllowedScreens(List<AllowedScreenItem> items) {
         if (items == null || items.isEmpty()) {
             return;
         }
         for (AllowedScreenItem item : items) {
             if (item == null || item.getScreenId() == null || item.getScreenId().isBlank()) continue;
-            String screenId = item.getScreenId().trim();
+            String screenId = normalizeScreenId(item.getScreenId());
             if (!ScreenConstants.isValid(screenId)) {
-                throw CustomException.badRequest("유효하지 않은 화면 ID입니다: " + screenId, "INVALID_SCREEN_ID");
+                throw CustomException.badRequest("유효하지 않은 화면 ID입니다: " + item.getScreenId().trim(), "INVALID_SCREEN_ID");
             }
             if (ScreenConstants.supportsScope(screenId)) {
                 String scope = item.getScope();
@@ -573,7 +583,7 @@ public class PermissionGroupService {
                     String scope = rs.getString("scope");
                     if (screenId != null && !screenId.isBlank()) {
                         AllowedScreenItem item = new AllowedScreenItem();
-                        item.setScreenId(screenId);
+                        item.setScreenId(normalizeScreenId(screenId));
                         if (ScreenConstants.supportsScope(screenId)) {
                             String scopeVal = (scope == null || scope.isBlank()) ? "team"
                                     : "all".equalsIgnoreCase(scope) ? "all" : "team".equalsIgnoreCase(scope) ? "team" : "self";
@@ -606,7 +616,7 @@ public class PermissionGroupService {
             try (PreparedStatement ps = conn.prepareStatement(insertSql)) {
                 for (AllowedScreenItem item : items) {
                     if (item == null || item.getScreenId() == null || item.getScreenId().isBlank()) continue;
-                    String screenId = item.getScreenId().trim();
+                    String screenId = normalizeScreenId(item.getScreenId());
                     ps.setLong(1, groupId);
                     ps.setString(2, screenId);
                     String scope = null;

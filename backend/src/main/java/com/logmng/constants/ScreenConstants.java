@@ -17,6 +17,8 @@ public final class ScreenConstants {
     public static final String PB_FEPLOG = "pb-feplog";
     /** Log search screen for Java FW Image Log. Replaces main for java_fw_imglog. */
     public static final String JAVA_FW_IMAGELOG = "java-fw-imagelog";
+    /** Legacy typo: normalize to JAVA_FW_IMAGELOG (req 20260318-permission-group-menu-invalid-screen-id-imagelog). */
+    public static final String JAVA_FW_IMAGELOG_LEGACY = "java-fw_imagelog";
     public static final String SEARCH_HISTORY = "search-history";
     public static final String ACTIVITY_LOG = "activity-log";
     public static final String STATISTICS = "statistics";

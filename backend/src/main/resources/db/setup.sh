@@ -89,6 +89,11 @@ echo "5a. permission_group_screen main → pb-feplog/java-fw-imagelog 마이그�
 psql -U "$DB_SUPERUSER" -h $DB_HOST -p $DB_PORT -d $DB_NAME -f "$(dirname "$0")/migrate-main-to-pb-feplog-java-fw-imagelog.sql"
 echo "   ✅ main → pb-feplog/java-fw-imagelog 마이그레이션 완료"
 
+# permission_group_screen: legacy typo java-fw_imagelog → java-fw-imagelog (req 20260318-permission-group-menu-invalid-screen-id-imagelog). Idempotent.
+echo "5a-1. permission_group_screen java-fw_imagelog → java-fw-imagelog 정규화 적용 중..."
+psql -U "$DB_SUPERUSER" -h $DB_HOST -p $DB_PORT -d $DB_NAME -f "$(dirname "$0")/migrate-permission-group-screen-imagelog-canonical.sql"
+echo "   ✅ java-fw_imagelog 정규화 완료"
+
 # imagelog 샘플 데이터 (테이블이 비어 있을 때만 삽입; 기존 데이터 유지. Req 20260318-image-log-sample-data-preserve)
 echo "5b. imagelog 샘플 데이터 삽입 중 (비어 있을 때만)..."
 psql -U "$DB_SUPERUSER" -h $DB_HOST -p $DB_PORT -d $DB_NAME -f "$(dirname "$0")/init-data-imagelog.sql"

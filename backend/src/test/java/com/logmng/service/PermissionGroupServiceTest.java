@@ -216,6 +216,44 @@ class PermissionGroupServiceTest {
     }
 
     /**
+     * TC-01 (req 20260318-permission-group-menu-invalid-screen-id-imagelog): Create with legacy screenId java-fw_imagelog
+     * is accepted and stored/returned as java-fw-imagelog.
+     */
+    @Test
+    void create_withLegacyImagelogScreenId_normalizesAndStoresCanonical() {
+        PermissionGroupCreateRequest req = new PermissionGroupCreateRequest();
+        req.setCode("legacy_imagelog");
+        req.setName("Legacy Imagelog Group");
+        AllowedScreenItem item = new AllowedScreenItem();
+        item.setScreenId("java-fw_imagelog");
+        item.setRead(true);
+        item.setDecrypt(true);
+        req.setAllowedScreens(List.of(item));
+
+        var response = service.create(req);
+        assertThat(response).isNotNull();
+        assertThat(response.getAllowedScreens()).hasSize(1);
+        assertThat(response.getAllowedScreens().get(0).getScreenId()).isEqualTo("java-fw-imagelog");
+        assertThat(response.getAllowedScreens().get(0).getDecrypt()).isTrue();
+    }
+
+    /**
+     * TC-03 (req 20260318): GET group returns canonical java-fw-imagelog when DB has legacy java-fw_imagelog.
+     */
+    @Test
+    void findById_whenDbHasLegacyImagelog_returnsCanonicalScreenId() throws Exception {
+        try (Connection conn = dataSource.getConnection();
+             Statement stmt = conn.createStatement()) {
+            stmt.executeUpdate("INSERT INTO permission_group (id, code, name, description, sort_order) VALUES (200, 'legacy_pg', 'Legacy', NULL, 0)");
+            stmt.executeUpdate("INSERT INTO permission_group_screen (permission_group_id, screen_id, scope, read, write, approve, decrypt) VALUES (200, 'java-fw_imagelog', NULL, true, false, false, true)");
+        }
+        var response = service.findById(200L);
+        assertThat(response).isNotNull();
+        assertThat(response.getAllowedScreens()).hasSize(1);
+        assertThat(response.getAllowedScreens().get(0).getScreenId()).isEqualTo("java-fw-imagelog");
+    }
+
+    /**
      * TC-04: getScreenScopesForUser returns pending-approvals scope when user has that screen with scope in permission group.
      * Req: 20260305-pending-approvals-scope-same-as-search-history.
      */
