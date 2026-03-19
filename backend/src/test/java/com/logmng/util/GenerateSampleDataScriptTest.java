@@ -32,9 +32,7 @@ class GenerateSampleDataScriptTest {
         cryptoUtil = new CryptoUtil();
         ReflectionTestUtils.setField(cryptoUtil, "encryptionKey", "01234567890123456789012345678901");
         ReflectionTestUtils.setField(cryptoUtil, "decryptionEnabled", true);
-        script = new GenerateSampleDataScript();
-        ReflectionTestUtils.setField(script, "cryptoUtil", cryptoUtil);
-        ReflectionTestUtils.setField(script, "jdbcTemplate", jdbcTemplate);
+        script = new GenerateSampleDataScript(cryptoUtil, jdbcTemplate);
     }
 
     private static DataSource createH2DataSource() throws Exception {

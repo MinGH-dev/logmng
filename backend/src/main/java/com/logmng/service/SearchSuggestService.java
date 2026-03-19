@@ -3,6 +3,7 @@ package com.logmng.service;
 import com.logmng.dto.response.FieldMetadataResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
 
 import javax.sql.DataSource;
@@ -18,11 +19,12 @@ import java.util.*;
 public class SearchSuggestService {
     
     private static final Logger log = LoggerFactory.getLogger(SearchSuggestService.class);
-    private final DataSource dataSource;
+    private final DataSource imagelogDataSource;
     private final FieldMetadataService fieldMetadataService;
     
-    public SearchSuggestService(DataSource dataSource, FieldMetadataService fieldMetadataService) {
-        this.dataSource = dataSource;
+    public SearchSuggestService(@Qualifier("imagelogDataSource") DataSource imagelogDataSource,
+                                FieldMetadataService fieldMetadataService) {
+        this.imagelogDataSource = imagelogDataSource;
         this.fieldMetadataService = fieldMetadataService;
     }
     
@@ -166,7 +168,7 @@ public class SearchSuggestService {
     private List<Map<String, Object>> getValueSuggestionsFromDb(String fieldName, String prefix) {
         List<Map<String, Object>> suggestions = new ArrayList<>();
         
-        try (Connection connection = dataSource.getConnection()) {
+        try (Connection connection = imagelogDataSource.getConnection()) {
             String sql = "SELECT DISTINCT " + fieldName + " FROM imagelog " +
                         "WHERE " + fieldName + " IS NOT NULL ";
             

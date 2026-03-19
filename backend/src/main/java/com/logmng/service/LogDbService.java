@@ -10,6 +10,7 @@ import com.logmng.dto.response.LogDbSearchResponse;
 import com.logmng.util.CryptoUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
 
 import javax.sql.DataSource;
@@ -23,16 +24,23 @@ import java.util.*;
  */
 @Service
 public class LogDbService {
-    
+
+    /** Max rows to fetch when data/header/keyword filters are present; filter in memory then paginate. Per req 20260318. */
+    private static final int IMGLOG_FILTER_PREFETCH_CAP = 5000;
+
     private static final Logger log = LoggerFactory.getLogger(LogDbService.class);
-    
-    private final DataSource dataSource;
+
+    private final DataSource primaryDataSource;
+    private final DataSource imagelogDataSource;
     private final CryptoUtil cryptoUtil;
     private final ObjectMapper objectMapper;
     private static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
     
-    public LogDbService(DataSource dataSource, CryptoUtil cryptoUtil) {
-        this.dataSource = dataSource;
+    public LogDbService(@Qualifier("dataSource") DataSource primaryDataSource,
+                        @Qualifier("imagelogDataSource") DataSource imagelogDataSource,
+                        CryptoUtil cryptoUtil) {
+        this.primaryDataSource = primaryDataSource;
+        this.imagelogDataSource = imagelogDataSource;
         this.cryptoUtil = cryptoUtil;
         this.objectMapper = new ObjectMapper();
     }
@@ -42,7 +50,7 @@ public class LogDbService {
      */
     public LogDbSearchResponse searchLogs(LogDbSearchRequest request) {
         String logType = request.getLogType() != null ? request.getLogType() : "pb_feplog";
-        log.info("🔍 DB 로그 검색 요청: logType={}, startDate={}, endDate={}, mediaCode={}, trCode={}, loginId={}, page={}, pageSize={}",
+        log.debug("searchLogs: logType={}, startDate={}, endDate={}, mediaCode={}, trCode={}, loginId={}, page={}, pageSize={}",
                 logType, request.getStartDate(), request.getEndDate(), request.getMediaCode(),
                 request.getTrCode(), request.getLoginId(), request.getPage(), request.getPageSize());
         
@@ -62,7 +70,7 @@ public class LogDbService {
     private LogDbSearchResponse searchPbFeplog(LogDbSearchRequest request) {
         List<Map<String, Object>> results = new ArrayList<>();
         
-        try (Connection connection = dataSource.getConnection()) {
+        try (Connection connection = primaryDataSource.getConnection()) {
             // SQL 쿼리 구성
             StringBuilder sql = new StringBuilder();
             sql.append("SELECT id, log_timestamp, media_code, tr_code, user_id, ip_address, ");
@@ -240,14 +248,17 @@ public class LogDbService {
      * Java FW Image 로그 검색 (imagelog)
      */
     private LogDbSearchResponse searchJavaFwImglog(LogDbSearchRequest request) {
-        log.info("🔍 이미지로그 검색 요청: startDate={}, endDate={}, application={}, servicegroup={}, service={}, datastring={}, headerstring={}, keywords={}",
+        // Per req 20260318: do not log full datastring/headerstring/keywords. DEBUG, length/null only.
+        int dsLen = request.getDatastring() != null ? request.getDatastring().length() : -1;
+        int hsLen = request.getHeaderstring() != null ? request.getHeaderstring().length() : -1;
+        int kwSize = request.getKeywords() != null ? request.getKeywords().size() : -1;
+        log.debug("searchJavaFwImglog request: startDate={}, endDate={}, application={}, servicegroup={}, service={}, datastringLen={}, headerstringLen={}, keywordsSize={}",
                 request.getStartDate(), request.getEndDate(), request.getApplication(),
-                request.getServicegroup(), request.getService(), request.getDatastring(), 
-                request.getHeaderstring(), request.getKeywords());
-        
+                request.getServicegroup(), request.getService(), dsLen, hsLen, kwSize);
+
         List<Map<String, Object>> results = new ArrayList<>();
         
-        try (Connection connection = dataSource.getConnection()) {
+        try (Connection connection = imagelogDataSource.getConnection()) {
             // SQL 쿼리 구성
             StringBuilder sql = new StringBuilder();
             sql.append("SELECT application, servicegroup, service, status, data, datastring, ");
@@ -259,8 +270,7 @@ public class LogDbService {
             // 날짜 조건 (insert_time은 bigint 타임스탬프)
             Long startTimestamp = request.getStartDateAsTimestamp();
             Long endTimestamp = request.getEndDateAsTimestamp();
-            log.info("🔍 이미지로그 검색 날짜 조건: startDate={}, endDate={} -> startTs={}, endTs={} (null이면 날짜 조건 미적용)",
-                    request.getStartDate(), request.getEndDate(), startTimestamp, endTimestamp);
+            log.debug("image log date: startTs={}, endTs={} (null=no date filter)", startTimestamp, endTimestamp);
             if (startTimestamp == null || endTimestamp == null) {
                 log.warn("🔍 이미지로그 검색: startDate 또는 endDate 파싱 실패로 날짜 조건이 일부/전부 미적용됨. raw startDate={}, endDate={}",
                         request.getStartDate(), request.getEndDate());
@@ -295,15 +305,10 @@ public class LogDbService {
             
             // datastring, headerstring, keywords 검색은 암호화된 값도 복호화하여 검색해야 하므로
             // SQL에서는 제외하고 나중에 애플리케이션 레벨에서 필터링 처리
-            log.info("🔍 datastring 검색 조건 확인: datastring='{}', null={}, empty={}, length={}", 
-                    request.getDatastring(), 
-                    request.getDatastring() == null,
-                    request.getDatastring() != null ? request.getDatastring().trim().isEmpty() : "N/A",
-                    request.getDatastring() != null ? request.getDatastring().length() : 0);
             boolean hasDatastringSearch = request.getDatastring() != null && !request.getDatastring().trim().isEmpty();
             boolean hasHeaderstringSearch = request.getHeaderstring() != null && !request.getHeaderstring().trim().isEmpty();
             boolean hasKeywordsSearch = request.getKeywords() != null && !request.getKeywords().isEmpty();
-            log.info("🔍 검색 조건 플래그: hasDatastringSearch={}, hasHeaderstringSearch={}, hasKeywordsSearch={}", 
+            log.debug("image log filter flags: hasDatastringSearch={}, hasHeaderstringSearch={}, hasKeywordsSearch={}",
                     hasDatastringSearch, hasHeaderstringSearch, hasKeywordsSearch);
             
             // 정렬 (이미지로그는 insert_time 사용)
@@ -317,8 +322,53 @@ public class LogDbService {
             
             log.debug("실행 SQL: {}", sql.toString());
             log.debug("파라미터: {}", params);
-            
-            // 전체 개수 조회
+
+            int page = request.getPage() != null ? request.getPage() : 1;
+            int pageSize = request.getPageSize() != null ? request.getPageSize() : 10;
+            int offset = (page - 1) * pageSize;
+            boolean needsFiltering = hasDatastringSearch || hasHeaderstringSearch || hasKeywordsSearch;
+
+            if (needsFiltering) {
+                // Per req 20260318: when data/header/keyword filters present, fetch larger set (capped) then filter then paginate.
+                String prefetchSql = sql.toString() + " LIMIT ?";
+                List<Object> prefetchParams = new ArrayList<>(params);
+                prefetchParams.add(IMGLOG_FILTER_PREFETCH_CAP);
+                try (PreparedStatement stmt = connection.prepareStatement(prefetchSql)) {
+                    for (int i = 0; i < prefetchParams.size(); i++) {
+                        stmt.setObject(i + 1, prefetchParams.get(i));
+                    }
+                    try (ResultSet rs = stmt.executeQuery()) {
+                        results = readImageLogResultSet(rs, request);
+                    }
+                }
+                int prefetchN = results.size();
+                log.debug("image log prefetch rows before in-memory filter: {}", prefetchN);
+                // Temporary INFO for diagnosis only: remove or downgrade to DEBUG after root cause found (req 20260318 follow-up).
+                log.info("[DIAG] image log filter path: prefetch SQL returned N={} rows", prefetchN);
+
+                List<Map<String, Object>> filteredResults = filterImageLogRowsByDataHeaderKeywords(results, request,
+                        hasDatastringSearch, hasHeaderstringSearch, hasKeywordsSearch);
+                int filteredM = filteredResults.size();
+                log.debug("image log rows after in-memory filter: {}", filteredM);
+                log.info("[DIAG] image log filter path: filterImageLogRowsByDataHeaderKeywords returned M={} rows (if N>0 and M=0, check filter/decrypt or date range)", filteredM);
+
+                long finalCount = filteredResults.size();
+                int totalPages = (int) Math.ceil((double) finalCount / pageSize);
+                int fromIndex = (page - 1) * pageSize;
+                int toIndex = Math.min(fromIndex + pageSize, filteredResults.size());
+                List<Map<String, Object>> pageResults = fromIndex >= filteredResults.size()
+                        ? new ArrayList<>()
+                        : new ArrayList<>(filteredResults.subList(fromIndex, toIndex));
+
+                log.info("✅ 이미지로그 검색 완료 (필터 적용): {}건 중 {}건 반환 (페이지: {}/{})",
+                        finalCount, pageResults.size(), page, totalPages);
+
+                LogDbSearchResponse.PaginationInfo pagination = new LogDbSearchResponse.PaginationInfo(
+                        page, totalPages, finalCount);
+                return new LogDbSearchResponse(pageResults, pagination);
+            }
+
+            // No data/header/keyword filter: use count + LIMIT/OFFSET as before
             String countSql = "SELECT COUNT(*) FROM (" + sql.toString() + ") as total";
             long totalCount = 0;
             try (PreparedStatement countStmt = connection.prepareStatement(countSql)) {
@@ -331,250 +381,189 @@ public class LogDbService {
                     }
                 }
             }
-            
-            // 페이징 적용
-            int page = request.getPage() != null ? request.getPage() : 1;
-            int pageSize = request.getPageSize() != null ? request.getPageSize() : 10;
-            int offset = (page - 1) * pageSize;
+
             sql.append(" LIMIT ? OFFSET ?");
             params.add(pageSize);
             params.add(offset);
-            
-            // 데이터 조회
+
             try (PreparedStatement stmt = connection.prepareStatement(sql.toString())) {
                 for (int i = 0; i < params.size(); i++) {
                     stmt.setObject(i + 1, params.get(i));
                 }
-                
                 try (ResultSet rs = stmt.executeQuery()) {
-                    ResultSetMetaData metaData = rs.getMetaData();
-                    int columnCount = metaData.getColumnCount();
-                    
-                    while (rs.next()) {
-                        Map<String, Object> row = new LinkedHashMap<>();
-                        for (int i = 1; i <= columnCount; i++) {
-                            String columnName = metaData.getColumnName(i);
-                            Object value = rs.getObject(i);
-                            
-                            // insert_time을 날짜 문자열로 변환
-                            if ("insert_time".equals(columnName) && value != null) {
-                                long timestamp = ((Number) value).longValue();
-                                LocalDateTime dateTime = LocalDateTime.ofInstant(
-                                    java.time.Instant.ofEpochMilli(timestamp),
-                                    java.time.ZoneId.systemDefault()
-                                );
-                                value = dateTime.format(DATE_FORMATTER);
-                            }
-                            
-                            row.put(columnName, value);
-                        }
-                        
-                        // datastring과 headerstring은 원본 유지 (암호화된 값은 [...] 형태로 표시)
-                        // 복호화는 사용자가 복호화 버튼을 클릭할 때만 수행
-                        
-                        // 복호화 옵션이 활성화된 경우 복호화된 데이터 포함
-                        if (request.getDecryptData() != null && request.getDecryptData() && 
-                            request.getKeywords() != null && !request.getKeywords().isEmpty()) {
-                            try {
-                                // data 복호화
-                                if (row.get("data") != null) {
-                                    String encryptedData = (String) row.get("data");
-                                    String decryptedData = cryptoUtil.decrypt(encryptedData);
-                                    row.put("decrypted_data", decryptedData);
-                                }
-                                // header 복호화
-                                if (row.get("header") != null) {
-                                    String encryptedHeader = (String) row.get("header");
-                                    String decryptedHeader = cryptoUtil.decrypt(encryptedHeader);
-                                    row.put("decrypted_header", decryptedHeader);
-                                }
-                            } catch (Exception e) {
-                                log.warn("복호화 실패 (GUID: {}): {}", row.get("guid"), e.getMessage());
-                                row.put("decrypted_data", "복호화 실패");
-                                row.put("decrypted_header", "복호화 실패");
-                            }
-                        }
-                        
-                        results.add(row);
-                    }
+                    results = readImageLogResultSet(rs, request);
                 }
             }
-            
-            // datastring, headerstring, keywords 검색이 있는 경우, 복호화된 값에서도 검색하여 필터링
-            long filteredCount = totalCount;
-            boolean needsFiltering = hasDatastringSearch || hasHeaderstringSearch || hasKeywordsSearch;
-            
-            if (needsFiltering) {
-                List<Map<String, Object>> filteredResults = new ArrayList<>();
-                
-                for (Map<String, Object> row : results) {
-                    boolean matches = true;
-                    String datastring = (String) row.get("datastring");
-                    String headerstring = (String) row.get("headerstring");
-                    
-                    // datastring 검색 (암호화된 값도 복호화하여 검색)
-                    if (hasDatastringSearch) {
-                        String searchTerm = request.getDatastring().trim();
-                        boolean datastringMatches = false;
-                        boolean matchedInEncrypted = false;
-                        
-                        log.debug("🔍 datastring 검색: searchTerm='{}', datastring length={}", 
-                                searchTerm, datastring != null ? datastring.length() : 0);
-                        
-                        // 원본 텍스트에서 검색
-                        if (datastring != null && datastring.contains(searchTerm)) {
-                            datastringMatches = true;
-                            log.debug("🔍 datastring 원본에서 매칭됨");
-                        }
-                        
-                        // 암호화된 값([...] 형태) 복호화 후 검색
-                        if (!datastringMatches && datastring != null && datastring.contains("[")) {
-                            try {
-                                String decryptedDatastring = decryptJsonStringValues(datastring);
-                                if (decryptedDatastring.contains(searchTerm)) {
-                                    datastringMatches = true;
-                                    matchedInEncrypted = true;
-                                }
-                            } catch (Exception e) {
-                                log.debug("datastring 검색 중 복호화 실패: {}", e.getMessage());
-                            }
-                        }
-                        
-                        if (!datastringMatches) {
-                            matches = false;
-                        } else if (matchedInEncrypted) {
-                            // 암호화된 값에서 매칭된 경우 메타데이터 추가
-                            row.put("_datastring_has_encrypted_match", true);
-                        }
-                    }
-                    
-                    // headerstring 검색 (암호화된 값도 복호화하여 검색)
-                    if (hasHeaderstringSearch && matches) {
-                        String searchTerm = request.getHeaderstring().trim();
-                        boolean headerstringMatches = false;
-                        boolean matchedInEncrypted = false;
-                        
-                        // 원본 텍스트에서 검색
-                        if (headerstring != null && headerstring.contains(searchTerm)) {
-                            headerstringMatches = true;
-                        }
-                        
-                        // 암호화된 값([...] 형태) 복호화 후 검색
-                        if (!headerstringMatches && headerstring != null && headerstring.contains("[")) {
-                            try {
-                                String decryptedHeaderstring = decryptJsonStringValues(headerstring);
-                                if (decryptedHeaderstring.contains(searchTerm)) {
-                                    headerstringMatches = true;
-                                    matchedInEncrypted = true;
-                                }
-                            } catch (Exception e) {
-                                log.debug("headerstring 검색 중 복호화 실패: {}", e.getMessage());
-                            }
-                        }
-                        
-                        if (!headerstringMatches) {
-                            matches = false;
-                        } else if (matchedInEncrypted) {
-                            // 암호화된 값에서 매칭된 경우 메타데이터 추가
-                            row.put("_headerstring_has_encrypted_match", true);
-                        }
-                    }
-                    
-                    // 키워드 검색 (OR 조건)
-                    if (hasKeywordsSearch && matches) {
-                        boolean matchesKeyword = false;
-                        boolean matchedInEncryptedDatastring = false;
-                        boolean matchedInEncryptedHeaderstring = false;
-                        
-                        for (String keyword : request.getKeywords()) {
-                            // 원본 텍스트에서 키워드 검색
-                            if ((datastring != null && datastring.contains(keyword)) ||
-                                (headerstring != null && headerstring.contains(keyword))) {
-                                matchesKeyword = true;
-                                break;
-                            }
-                            
-                            // 암호화된 값([...] 형태) 복호화 후 검색
-                            if (datastring != null && datastring.contains("[")) {
-                                try {
-                                    String decryptedDatastring = decryptJsonStringValues(datastring);
-                                    if (decryptedDatastring.contains(keyword)) {
-                                        matchesKeyword = true;
-                                        matchedInEncryptedDatastring = true;
-                                        break;
-                                    }
-                                } catch (Exception e) {
-                                    log.debug("키워드 검색 중 복호화 실패: {}", e.getMessage());
-                                }
-                            }
-                            
-                            if (headerstring != null && headerstring.contains("[")) {
-                                try {
-                                    String decryptedHeaderstring = decryptJsonStringValues(headerstring);
-                                    if (decryptedHeaderstring.contains(keyword)) {
-                                        matchesKeyword = true;
-                                        matchedInEncryptedHeaderstring = true;
-                                        break;
-                                    }
-                                } catch (Exception e) {
-                                    log.debug("키워드 검색 중 복호화 실패: {}", e.getMessage());
-                                }
-                            }
-                        }
-                        
-                        if (!matchesKeyword) {
-                            matches = false;
-                        } else {
-                            // 암호화된 값에서 매칭된 경우 메타데이터 추가
-                            if (matchedInEncryptedDatastring) {
-                                row.put("_datastring_has_encrypted_match", true);
-                            }
-                            if (matchedInEncryptedHeaderstring) {
-                                row.put("_headerstring_has_encrypted_match", true);
-                            }
-                        }
-                    }
-                    
-                    // 모든 조건이 매칭되면 결과에 포함
-                    if (matches) {
-                        filteredResults.add(row);
-                    }
-                }
-                
-                results = filteredResults;
-                filteredCount = filteredResults.size();
-                
-                log.info("🔍 필터링 완료: 원본 {}건 -> 필터링 후 {}건", totalCount, filteredCount);
-                
-                // 키워드 필터링 후 다시 페이징 적용
-                int newOffset = (page - 1) * pageSize;
-                
-                if (newOffset < results.size()) {
-                    int endIndex = Math.min(newOffset + pageSize, results.size());
-                    results = results.subList(newOffset, endIndex);
-                } else {
-                    results = new ArrayList<>();
-                }
-            }
-            
-            // 페이징 정보 계산
-            // 필터링이 수행된 경우 filteredCount 사용, 그렇지 않으면 totalCount 사용
-            long finalCount = needsFiltering ? filteredCount : totalCount;
+
+            long finalCount = totalCount;
             int totalPages = (int) Math.ceil((double) finalCount / pageSize);
-            
-            log.info("✅ 이미지로그 검색 완료: {}건 중 {}건 반환 (페이지: {}/{})", 
-                    finalCount, results.size(), page, totalPages);
-            
-            LogDbSearchResponse.PaginationInfo pagination = new LogDbSearchResponse.PaginationInfo(
-                    page, totalPages, finalCount
-            );
-            
+            log.info("✅ 이미지로그 검색 완료: {}건 중 {}건 반환 (페이지: {}/{})", finalCount, results.size(), page, totalPages);
+            LogDbSearchResponse.PaginationInfo pagination = new LogDbSearchResponse.PaginationInfo(page, totalPages, finalCount);
             return new LogDbSearchResponse(results, pagination);
-            
         } catch (SQLException e) {
             log.error("이미지로그 검색 중 오류 발생", e);
             throw new RuntimeException("이미지로그 검색 중 오류가 발생했습니다: " + e.getMessage(), e);
         }
+    }
+
+    /**
+     * Reads imagelog ResultSet into list of row maps (insert_time formatted as string). Used by searchJavaFwImglog.
+     */
+    private List<Map<String, Object>> readImageLogResultSet(ResultSet rs, LogDbSearchRequest request) throws SQLException {
+        List<Map<String, Object>> list = new ArrayList<>();
+        ResultSetMetaData metaData = rs.getMetaData();
+        int columnCount = metaData.getColumnCount();
+        while (rs.next()) {
+            Map<String, Object> row = new LinkedHashMap<>();
+            for (int i = 1; i <= columnCount; i++) {
+                String columnName = metaData.getColumnName(i);
+                Object value = rs.getObject(i);
+                if ("insert_time".equals(columnName) && value != null) {
+                    long timestamp = ((Number) value).longValue();
+                    LocalDateTime dateTime = LocalDateTime.ofInstant(
+                            java.time.Instant.ofEpochMilli(timestamp),
+                            java.time.ZoneId.systemDefault());
+                    value = dateTime.format(DATE_FORMATTER);
+                }
+                row.put(columnName, value);
+            }
+            if (request.getDecryptData() != null && request.getDecryptData()
+                    && request.getKeywords() != null && !request.getKeywords().isEmpty()) {
+                try {
+                    if (row.get("data") != null) {
+                        String encryptedData = (String) row.get("data");
+                        String decryptedData = cryptoUtil.decrypt(encryptedData);
+                        row.put("decrypted_data", decryptedData);
+                    }
+                    if (row.get("header") != null) {
+                        String encryptedHeader = (String) row.get("header");
+                        String decryptedHeader = cryptoUtil.decrypt(encryptedHeader);
+                        row.put("decrypted_header", decryptedHeader);
+                    }
+                } catch (Exception e) {
+                    log.warn("복호화 실패 (GUID: {}): {}", row.get("guid"), e.getMessage());
+                    row.put("decrypted_data", "복호화 실패");
+                    row.put("decrypted_header", "복호화 실패");
+                }
+            }
+            list.add(row);
+        }
+        return list;
+    }
+
+    /**
+     * Filters imagelog rows by datastring, headerstring, and keywords (and decrypted content when present). Per req 20260318.
+     */
+    private List<Map<String, Object>> filterImageLogRowsByDataHeaderKeywords(List<Map<String, Object>> rows,
+            LogDbSearchRequest request, boolean hasDatastringSearch, boolean hasHeaderstringSearch, boolean hasKeywordsSearch) {
+        List<Map<String, Object>> filteredResults = new ArrayList<>();
+        for (Map<String, Object> row : rows) {
+            boolean matches = true;
+            String datastring = (String) row.get("datastring");
+            String headerstring = (String) row.get("headerstring");
+
+            if (hasDatastringSearch) {
+                String searchTerm = request.getDatastring().trim();
+                boolean datastringMatches = false;
+                boolean matchedInEncrypted = false;
+                if (datastring != null && datastring.contains(searchTerm)) {
+                    datastringMatches = true;
+                }
+                if (!datastringMatches && datastring != null && datastring.contains("[")) {
+                    try {
+                        String decryptedDatastring = decryptJsonStringValues(datastring);
+                        if (decryptedDatastring.contains(searchTerm)) {
+                            datastringMatches = true;
+                            matchedInEncrypted = true;
+                        }
+                    } catch (Exception e) {
+                        log.debug("datastring search decrypt failed: {}", e.getMessage());
+                    }
+                }
+                if (!datastringMatches) {
+                    matches = false;
+                } else if (matchedInEncrypted) {
+                    row.put("_datastring_has_encrypted_match", true);
+                }
+            }
+
+            if (hasHeaderstringSearch && matches) {
+                String searchTerm = request.getHeaderstring().trim();
+                boolean headerstringMatches = false;
+                boolean matchedInEncrypted = false;
+                if (headerstring != null && headerstring.contains(searchTerm)) {
+                    headerstringMatches = true;
+                }
+                if (!headerstringMatches && headerstring != null && headerstring.contains("[")) {
+                    try {
+                        String decryptedHeaderstring = decryptJsonStringValues(headerstring);
+                        if (decryptedHeaderstring.contains(searchTerm)) {
+                            headerstringMatches = true;
+                            matchedInEncrypted = true;
+                        }
+                    } catch (Exception e) {
+                        log.debug("headerstring search decrypt failed: {}", e.getMessage());
+                    }
+                }
+                if (!headerstringMatches) {
+                    matches = false;
+                } else if (matchedInEncrypted) {
+                    row.put("_headerstring_has_encrypted_match", true);
+                }
+            }
+
+            if (hasKeywordsSearch && matches) {
+                boolean matchesKeyword = false;
+                boolean matchedInEncryptedDatastring = false;
+                boolean matchedInEncryptedHeaderstring = false;
+                for (String keyword : request.getKeywords()) {
+                    if ((datastring != null && datastring.contains(keyword))
+                            || (headerstring != null && headerstring.contains(keyword))) {
+                        matchesKeyword = true;
+                        break;
+                    }
+                    if (datastring != null && datastring.contains("[")) {
+                        try {
+                            String decryptedDatastring = decryptJsonStringValues(datastring);
+                            if (decryptedDatastring.contains(keyword)) {
+                                matchesKeyword = true;
+                                matchedInEncryptedDatastring = true;
+                                break;
+                            }
+                        } catch (Exception e) {
+                            log.debug("keyword search decrypt failed: {}", e.getMessage());
+                        }
+                    }
+                    if (headerstring != null && headerstring.contains("[")) {
+                        try {
+                            String decryptedHeaderstring = decryptJsonStringValues(headerstring);
+                            if (decryptedHeaderstring.contains(keyword)) {
+                                matchesKeyword = true;
+                                matchedInEncryptedHeaderstring = true;
+                                break;
+                            }
+                        } catch (Exception e) {
+                            log.debug("keyword search decrypt failed: {}", e.getMessage());
+                        }
+                    }
+                }
+                if (!matchesKeyword) {
+                    matches = false;
+                } else {
+                    if (matchedInEncryptedDatastring) {
+                        row.put("_datastring_has_encrypted_match", true);
+                    }
+                    if (matchedInEncryptedHeaderstring) {
+                        row.put("_headerstring_has_encrypted_match", true);
+                    }
+                }
+            }
+
+            if (matches) {
+                filteredResults.add(row);
+            }
+        }
+        return filteredResults;
     }
     
     /**
@@ -590,7 +579,7 @@ public class LogDbService {
             return Collections.emptyMap();
         }
         Map<String, Map<String, String>> result = new LinkedHashMap<>();
-        try (Connection connection = dataSource.getConnection()) {
+        try (Connection connection = imagelogDataSource.getConnection()) {
             StringBuilder sql = new StringBuilder("SELECT guid, application, servicegroup FROM imagelog WHERE guid IN (");
             for (int i = 0; i < guids.size(); i++) {
                 if (i > 0) sql.append(", ");
@@ -641,7 +630,7 @@ public class LogDbService {
     private Map<String, Object> getPbFeplogDetail(String type, Long id) {
         String tableName = "send".equalsIgnoreCase(type) ? "pb_send" : "pb_recv";
         
-        try (Connection connection = dataSource.getConnection()) {
+        try (Connection connection = primaryDataSource.getConnection()) {
             String sql = "SELECT id, log_timestamp, media_code, tr_code, user_id, ip_address, " +
                         "user_agent, request_data, response_data, status_code, response_time, " +
                         "error_message, session_id, device_type, created_at, updated_at " +
@@ -689,7 +678,7 @@ public class LogDbService {
     private Map<String, Object> getJavaFwImglogDetail(String guid) {
         log.info("🔍 이미지로그 상세 조회: guid={}", guid);
         
-        try (Connection connection = dataSource.getConnection()) {
+        try (Connection connection = imagelogDataSource.getConnection()) {
             String sql = "SELECT application, servicegroup, service, status, data, datastring, " +
                         "guid, header, headerstring, insert_time " +
                         "FROM imagelog WHERE guid = ?";
@@ -757,7 +746,7 @@ public class LogDbService {
             throw new RuntimeException("현재 java_fw_imglog만 지원됩니다.");
         }
         
-        try (Connection connection = dataSource.getConnection()) {
+        try (Connection connection = imagelogDataSource.getConnection()) {
             String sql = "SELECT application, servicegroup, service, status, data, datastring, " +
                         "guid, header, headerstring, insert_time " +
                         "FROM imagelog WHERE guid = ?";
@@ -1027,7 +1016,7 @@ public class LogDbService {
         
         List<Map<String, Object>> results = new ArrayList<>();
         
-        try (Connection connection = dataSource.getConnection()) {
+        try (Connection connection = imagelogDataSource.getConnection()) {
             // SQL 쿼리 구성
             StringBuilder sql = new StringBuilder();
             sql.append("SELECT application, servicegroup, service, status, data, datastring, ");

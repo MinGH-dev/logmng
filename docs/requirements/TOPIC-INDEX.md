@@ -30,6 +30,7 @@ For **RequirementsPastSearch** token optimization. Read this file first to find 
 - 20250303-remove-role-single-admin | role 제거; is_system_admin만 admin 접근; 단일 시스템 관리자
 - 20250303-remove-role-single-admin-bugfix-1 | login/me에 isSystemAdmin; PUT 410; role 응답 제거
 - 20260317-search-decrypt-permission-ui | - **Permission enforcement (UI)**: On the "검색하기" (search) screen, users whose permission group does **not** have the decrypt feature enabled can still trigger decrypt-related actions (e.g. "복호화 승인 요청" button and per-row "복호화" button). This is a permission enforcement bug: the backend correctly returns 403 for the decrypt API when the user lacks `screenFunctions.main.decrypt`, but the UI does not gate these actions.
+- 20260318-permission-group-menu-invalid-screen-id-imagelog | When an administrator opens the permission group management screen and tries to edit menu permissions (allowed screens) for a group, the modal shows the error: **"유효하지 않은 화면 ID입니다: java-fw_imagelog"** (Invalid screen ID: java-fw_imagelog). The backend rejects the screen ID and the save fails with 400 `INVALID_SCREEN_ID`, so the admin cannot complete the permission group update.
 
 ## activity-log | statistics | 활동 로그 | 통계 | scope
 
@@ -121,6 +122,7 @@ For **RequirementsPastSearch** token optimization. Read this file first to find 
 - 20260206-image-log-decrypt-datastring-display | Image Log 복호화 시 datastring 필드 표시
 - 20260224-image-log-encrypted-highlight-only | Image log 암호화 구간만 encrypted 하이라이트
 - 20260225-image-log-search-no-results | 이미지 로그 검색 결과 없음
+- 20260318-image-log-search-data-header-keyword-fix | On the Image Log (Java FW Image Log) screen, **data search** (datastring), **header search** (headerstring), and **keyword search** (keywords) are reported as not working properly. The user wants the **root cause identified** and the search behavior fixed so that data, header, and keyword filters behave as intended.
 
 ## grid | UX | ux-standards | 그리드
 
@@ -140,9 +142,14 @@ For **RequirementsPastSearch** token optimization. Read this file first to find 
 - 20260206-privacy-security-improvement-test-results | 개인정보 보호 테스트 결과
 - 20260206-ip-collection-and-decryption-logging | IP 수집 정확도 개선 및 복호화 로깅 강화
 
+## database | datasource | schema | multi-db
+
+- 20260320-multi-datasource-schema-configuration | Multi-datasource config: system+PB on DB A (`logmng_sys`, `logmng`), Java FW ImageLog on DB B (`public`); setup scripts + Spring Boot configurable URLs/schemas; single-DB dev backward compatible
+
 ## log-type | 로그 타입 | dynamic
 
 - 20260208-dynamic-log-type-management | 동적 로그 타입 관리 기능
+- 20260320-pb-feplog-empty-results-media-code-verification | PB FEP Log: verify empty search for media code SAAAA100 from 2023 — true data absence vs API/filter bug; read-only DB count vs POST search evidence
 
 ## auth | logout | 로그인 | 로그아웃
 

@@ -1,6 +1,6 @@
 package com.logmng.util;
 
-import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Component;
@@ -11,19 +11,23 @@ import java.util.List;
  * Sample data seed script for imagelog.
  * Runs on application startup. Strategy: insert sample rows only when the imagelog table
  * is empty; never delete existing rows so that restarts preserve past data.
+ * Uses the ImageLog datasource (B), or primary when dev fallback is active.
  */
 @Component
 public class GenerateSampleDataScript implements CommandLineRunner {
 
-    @Autowired
-    private CryptoUtil cryptoUtil;
+    private final CryptoUtil cryptoUtil;
+    private final JdbcTemplate imagelogJdbcTemplate;
 
-    @Autowired
-    private JdbcTemplate jdbcTemplate;
+    public GenerateSampleDataScript(CryptoUtil cryptoUtil,
+                                    @Qualifier("imagelogJdbcTemplate") JdbcTemplate imagelogJdbcTemplate) {
+        this.cryptoUtil = cryptoUtil;
+        this.imagelogJdbcTemplate = imagelogJdbcTemplate;
+    }
 
     @Override
     public void run(String... args) {
-        Long count = jdbcTemplate.queryForObject("SELECT COUNT(*) FROM imagelog", Long.class);
+        Long count = imagelogJdbcTemplate.queryForObject("SELECT COUNT(*) FROM imagelog", Long.class);
         if (count != null && count > 0) {
             System.out.println("imagelog already has " + count + " row(s); skipping sample seed (preserve existing data).");
             return;
@@ -40,7 +44,7 @@ public class GenerateSampleDataScript implements CommandLineRunner {
             long insertTime = nowMs - (hoursAgo * 3600L * 1000);
             String sql = "INSERT INTO imagelog (application, servicegroup, service, status, data, datastring, guid, header, headerstring, insert_time) "
                     + "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
-            jdbcTemplate.update(sql,
+            imagelogJdbcTemplate.update(sql,
                     sample.application,
                     sample.servicegroup,
                     sample.service,
@@ -56,4 +60,3 @@ public class GenerateSampleDataScript implements CommandLineRunner {
         System.out.println("Sample imagelog data inserted: " + samples.size() + " rows.");
     }
 }
-

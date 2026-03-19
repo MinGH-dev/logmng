@@ -19,7 +19,7 @@ DECLARE
 BEGIN
   SELECT data_type INTO col_type
   FROM information_schema.columns
-  WHERE table_schema = 'public' AND table_name = 'search_history' AND column_name = 'user_id';
+  WHERE table_schema = current_schema()::text AND table_name = 'search_history' AND column_name = 'user_id';
 
   IF col_type = 'bigint' THEN
     RAISE NOTICE 'search_history.user_id already BIGINT; migration skipped.';

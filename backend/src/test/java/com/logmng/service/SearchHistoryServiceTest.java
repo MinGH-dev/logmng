@@ -52,7 +52,7 @@ class SearchHistoryServiceTest {
         CryptoUtil cryptoUtil = new CryptoUtil();
         ReflectionTestUtils.setField(cryptoUtil, "encryptionKey", "test-key-32-bytes-long!!!!!!!!!");
         ReflectionTestUtils.setField(cryptoUtil, "decryptionEnabled", true);
-        stubLogDbService = new StubLogDbService(dataSource, cryptoUtil);
+        stubLogDbService = new StubLogDbService(dataSource, dataSource, cryptoUtil);
         decryptApproverService = new StubDecryptApproverService();
         searchHistoryService = new SearchHistoryService(dataSource, stubLogDbService, decryptApproverService);
     }

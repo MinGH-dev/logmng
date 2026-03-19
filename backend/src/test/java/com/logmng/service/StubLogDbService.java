@@ -25,8 +25,8 @@ public class StubLogDbService extends LogDbService {
     private Long createSnapshotTotalCount;
     private List<Map<String, Object>> createSnapshotRows = Collections.emptyList();
 
-    public StubLogDbService(DataSource dataSource, CryptoUtil cryptoUtil) {
-        super(dataSource, cryptoUtil);
+    public StubLogDbService(DataSource primaryDataSource, DataSource imagelogDataSource, CryptoUtil cryptoUtil) {
+        super(primaryDataSource, imagelogDataSource, cryptoUtil);
     }
 
     public void setSearchLogsResponse(LogDbSearchResponse response) {

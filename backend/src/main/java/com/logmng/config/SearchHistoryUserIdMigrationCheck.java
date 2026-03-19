@@ -2,6 +2,7 @@ package com.logmng.config;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
 import org.springframework.core.annotation.Order;
@@ -24,17 +25,26 @@ public class SearchHistoryUserIdMigrationCheck implements ApplicationRunner {
     private static final Logger log = LoggerFactory.getLogger(SearchHistoryUserIdMigrationCheck.class);
 
     private final DataSource dataSource;
+    private final String systemTableSchema;
 
-    public SearchHistoryUserIdMigrationCheck(DataSource dataSource) {
+    public SearchHistoryUserIdMigrationCheck(DataSource dataSource,
+                                            @Value("${app.db.schema.sys:public}") String systemTableSchema) {
         this.dataSource = dataSource;
+        this.systemTableSchema = PgSchemaSupport.requireValidSchemaName(systemTableSchema);
+    }
+
+    /** Visible for unit tests (TC-05): SQL must use configured system schema, not hardcoded public. */
+    public static String searchHistoryUserIdColumnTypeSql(String systemSchema) {
+        String s = PgSchemaSupport.requireValidSchemaName(systemSchema);
+        return "SELECT data_type FROM information_schema.columns " +
+                "WHERE table_schema = '" + s + "' AND table_name = 'search_history' AND column_name = 'user_id'";
     }
 
     @Override
     public void run(ApplicationArguments args) {
         try (Connection conn = dataSource.getConnection();
              Statement stmt = conn.createStatement()) {
-            String sql = "SELECT data_type FROM information_schema.columns " +
-                    "WHERE table_schema = 'public' AND table_name = 'search_history' AND column_name = 'user_id'";
+            String sql = searchHistoryUserIdColumnTypeSql(systemTableSchema);
             try (ResultSet rs = stmt.executeQuery(sql)) {
                 if (!rs.next()) {
                     log.debug("search_history table or user_id column not found; skipping migration check");

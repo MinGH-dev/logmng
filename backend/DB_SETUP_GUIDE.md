@@ -4,6 +4,37 @@
 
 이 가이드는 PostgreSQL 16을 사용하여 로그 관리 시스템의 데이터베이스를 설정하는 방법을 설명합니다.
 
+## 🔀 멀티 데이터베이스·멀티 스키마 (선택)
+
+요구사항 `20260320-multi-datasource-schema-configuration`에 따라, 운영에서는 **DB A**에 시스템 데이터(`SCHEMA_SYS`, 예: `logmng_sys`)와 PB FEP 로그(`SCHEMA_PB`, 예: `logmng`)를 두고, **Java FW ImageLog**는 **DB B**의 스키마(`SCHEMA_IMAGELOG`, 기본 `public`)에 둘 수 있습니다. **새 환경 변수를 설정하지 않으면** 기존과 동일하게 단일 DB(`logmng`)·스키마 `public`으로 `setup.sh`가 동작합니다.
+
+| 변수 | 설명 | 기본값 |
+|------|------|--------|
+| `DB_NAME` | 레거시 DB 이름 | `logmng` |
+| `DB_A_NAME` | 시스템 + PB가 들어가는 DB | `DB_NAME` |
+| `DB_B_NAME` | ImageLog 전용 DB | `DB_A_NAME` (같으면 단일 DB) |
+| `SCHEMA_SYS` | 시스템 DDL 대상 스키마 | `public` |
+| `SCHEMA_PB` | PB FEP DDL 대상 스키마 | `public` |
+| `SCHEMA_IMAGELOG` | DB B에서 imagelog DDL 대상 스키마 | `public` |
+| `DB_SUPERUSER` | DDL 실행 슈퍼유저 | `postgres` |
+| `PGPASSWORD_SUPER` | 슈퍼유저 비밀번호(선택) | (미설정 시 로컬 인증에 따름) |
+
+**DDL 파일 구성**  
+`schema.sql`은 `schema_pb_fep.sql`(PB)과 `schema_sys.sql`(시스템)을 `\i`로 불러옵니다. 단일 DB·`public`만 쓰는 경우에도 `psql -f schema.sql` 한 번으로 이전과 동일한 객체 집합이 생성됩니다.
+
+**마이그레이션 적용 순서 (TC-06)**  
+
+1. DB A에 `SCHEMA_SYS`, `SCHEMA_PB`가 `public`이 아니면 `CREATE SCHEMA IF NOT EXISTS`로 생성.  
+2. **PB**: `psql` 세션에서 `SET search_path TO SCHEMA_PB, public` 후 `schema_pb_fep.sql`.  
+3. **시스템**: `SET search_path TO SCHEMA_SYS, SCHEMA_PB, public` 후 `schema_sys.sql` (**PB에 생성된 `update_updated_at_column()`을 쓰므로 PB가 path에 포함되어야 함**).  
+4. **활동 로그**: 동일 `search_path`로 `schema_user_activity_log.sql`.  
+5. **ImageLog**: DB `DB_B`에서 `SET search_path TO SCHEMA_IMAGELOG, public` 후 `schema_imagelog.sql`.  
+6. 이후 마이그레이션·`init-data.sql`은 앱 테이블이 있는 스키마를 앞에 두는 `search_path`(예: `SCHEMA_SYS, SCHEMA_PB, public`)로 DB A에 적용; `init-data-imagelog.sql`은 DB B에 적용.  
+실제 일괄 실행은 `backend/src/main/resources/db/setup.sh`가 위 순서와 변수를 사용합니다. 점검은 `check-db.sh`로 동일 변수를 넘겨 실행합니다.
+
+**애플리케이션 `search_path`**  
+백엔드는 JDBC URL 옵션 또는 커넥션 풀 초기 SQL로 DB A에 `logmng_sys, logmng, public` 등 운영 스키마 순서를 맞춥니다. 상세 키는 `application.yml` 및 `docs/contract.md`(멀티 데이터소스 반영 시)를 따릅니다.
+
 ## 🔧 사전 요구사항
 
 - PostgreSQL 16 설치 완료
@@ -53,9 +84,10 @@ GRANT ALL PRIVILEGES ON SCHEMA public TO logmng;
 ### 3. 테이블 생성
 
 ```bash
-# 스키마 파일 실행
+# 스키마 파일 실행 (schema.sql → schema_pb_fep.sql + schema_sys.sql)
 cd dev/backend/src/main/resources/db
 psql -U postgres -d logmng -f schema.sql
+# 멀티 스키마는 setup.sh 사용 권장 (search_path·GRANT·마이그레이션 일괄)
 ```
 
 또는 PostgreSQL 프롬프트에서:

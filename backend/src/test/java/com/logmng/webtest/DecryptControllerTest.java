@@ -40,7 +40,7 @@ class DecryptControllerTest {
         CryptoUtil cryptoUtil = new CryptoUtil();
         ReflectionTestUtils.setField(cryptoUtil, "encryptionKey", "test-key-32-bytes-long!!!!!!!!!");
         ReflectionTestUtils.setField(cryptoUtil, "decryptionEnabled", true);
-        logDbService = new StubLogDbService(dataSource, cryptoUtil);
+        logDbService = new StubLogDbService(dataSource, dataSource, cryptoUtil);
         decryptionAllowedService = new StubDecryptionAllowedService();
         authServiceStub = new StubAuthServiceDecryptAllowed();
         authServiceStub.setCurrentUserId(20260001L);

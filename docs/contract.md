@@ -8,7 +8,35 @@
 |------|-----|-----------|
 | 백엔드 API | http://localhost:9200/api | backend application.yml, frontend .env REACT_APP_API_BASE_URL |
 | 프론트엔드 | http://localhost:3001 | frontend/.env PORT |
-| DB | localhost:5432, DB logmng | backend application.yml datasource |
+| DB — Primary (A) | 예: `localhost:5432`, DB `logmng` (배포마다 상이) | `spring.datasource.*` — 시스템 데이터 + PB FEP 로그 동일 JDBC 풀 |
+| DB — Secondary ImageLog (B) | 별도 DB·풀 또는 Primary와 동일 | `app.datasource.imagelog.*` — Java FW ImageLog(`imagelog`) 전용 풀 |
+
+### DB 다중 데이터소스·스키마
+
+요건: `docs/requirements/20260320-multi-datasource-schema-configuration.md`.
+
+- **Primary (A)**: `spring.datasource.*` 의미는 기존과 같다. 애플리케이션 시스템 데이터와 PB FEP 로그가 **동일 DB A**에서 이 풀로 접근한다.
+- **Secondary ImageLog (B)**: ImageLog 전용 두 번째 Hikari 풀. 아래 `app.datasource.imagelog.*` 및 스키마 속성으로 구성한다.
+- **단일 DB 개발**: `app.datasource.imagelog.url`이 비어 있으면 애플리케이션은 **Primary 데이터소스를 재사용**한다(로컬 단일 DB). JDBC URL·비밀번호 등 민감값은 문서/저장소에 실제 값을 적지 말고 환경 변수로만 설정한다.
+
+**스키마 이름 (backend `application.yml` / env)**
+
+| 속성 | 환경 변수 | 기본값 |
+|------|-----------|--------|
+| `app.db.schema.sys` | `APP_DB_SCHEMA_SYS` | `public` |
+| `app.db.schema.pb` | `APP_DB_SCHEMA_PB` | `public` |
+| `app.db.schema.imagelog` | `APP_DB_SCHEMA_IMAGELOG` | `public` |
+
+**Secondary ImageLog JDBC (`app.datasource.imagelog.*` / env)**
+
+| 속성 | 환경 변수 |
+|------|-----------|
+| `app.datasource.imagelog.url` | `APP_DATASOURCE_IMAGELOG_URL` |
+| `app.datasource.imagelog.username` | `APP_DATASOURCE_IMAGELOG_USERNAME` |
+| `app.datasource.imagelog.password` | `APP_DATASOURCE_IMAGELOG_PASSWORD` |
+| `app.datasource.imagelog.driver-class-name` | `APP_DATASOURCE_IMAGELOG_DRIVER` |
+| `app.datasource.imagelog.fail-fast` | `APP_DATASOURCE_IMAGELOG_FAIL_FAST` |
+| `app.datasource.imagelog.initialization-fail-timeout-ms` | `APP_DATASOURCE_IMAGELOG_INIT_FAIL_TIMEOUT_MS` |
 
 ## API 규격
 
