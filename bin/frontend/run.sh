@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Deploy-only: static UI from bin/frontend/www + JDK static-server JAR (not npm start).
-# Env: PORT (default 3001), JAVA_OPTS
+# Env: PORT (default 3001), JAVA_OPTS, LOGMNG_API_BASE_URL (browser API base; static JAR serves /runtime-config.js)
 set -euo pipefail
 DIR="$(cd "$(dirname "$0")" && pwd)"
 JAR="$DIR/logmng-static-server-1.0.0.jar"

@@ -2,7 +2,7 @@
  * 사용자 활동 이력 API 서비스
  */
 
-const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || 'http://localhost:9200/api';
+import { getApiBaseUrl } from '../config/runtimeApi';
 
 /**
  * 사용자 활동 이력 검색
@@ -10,7 +10,7 @@ const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || 'http://localhost:920
  */
 export const searchActivityLogs = async (searchParams) => {
   try {
-    const response = await fetch(`${API_BASE_URL}/activity-log/search`, {
+    const response = await fetch(`${getApiBaseUrl()}/activity-log/search`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -41,7 +41,7 @@ export const searchActivityLogs = async (searchParams) => {
  */
 export const getActivityLogDetail = async (id) => {
   try {
-    const response = await fetch(`${API_BASE_URL}/activity-log/${id}`, {
+    const response = await fetch(`${getApiBaseUrl()}/activity-log/${id}`, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',

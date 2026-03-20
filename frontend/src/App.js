@@ -23,6 +23,7 @@ import {
   clearUserData,
 } from './utils/security';
 import logger from './utils/logger';
+import { getApiBaseUrl } from './config/runtimeApi';
 
 /** logType objects for log-search screens (req 20260318). */
 const LOG_TYPE_BY_VIEW = {
@@ -86,7 +87,7 @@ function App() {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), AUTH_CHECK_TIMEOUT_MS);
     try {
-      const apiBaseUrl = process.env.REACT_APP_API_BASE_URL || 'http://localhost:9200/api';
+      const apiBaseUrl = getApiBaseUrl();
       const response = await fetch(`${apiBaseUrl}/auth/check`, {
         credentials: 'include',
         signal: controller.signal,
@@ -167,7 +168,7 @@ function App() {
 
   const handleLogout = async () => {
     try {
-      const apiBaseUrl = process.env.REACT_APP_API_BASE_URL || 'http://localhost:9200/api';
+      const apiBaseUrl = getApiBaseUrl();
       await fetch(`${apiBaseUrl}/auth/logout`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import './AdvancedSearchForm.css';
+import { getApiBaseUrl } from '../config/runtimeApi';
 
 const AdvancedSearchForm = ({ logType, onSearch }) => {
   const [tokens, setTokens] = useState([]);
@@ -22,7 +23,7 @@ const AdvancedSearchForm = ({ logType, onSearch }) => {
   // 필드 메타데이터 로드
   const loadFieldMetadata = async () => {
     try {
-      const apiBaseUrl = process.env.REACT_APP_API_BASE_URL || 'http://localhost:9200/api';
+      const apiBaseUrl = getApiBaseUrl();
       const response = await fetch(`${apiBaseUrl}/log-types/java_fw_imglog/fields`);
       const result = await response.json();
       
@@ -39,7 +40,7 @@ const AdvancedSearchForm = ({ logType, onSearch }) => {
     if (!logType || logType.id !== 'java_fw_imglog') return;
     
     try {
-      const apiBaseUrl = process.env.REACT_APP_API_BASE_URL || 'http://localhost:9200/api';
+      const apiBaseUrl = getApiBaseUrl();
       const url = `${apiBaseUrl}/search/suggest?logType=java_fw_imglog&context=${context}&prefix=${encodeURIComponent(prefix || '')}${fieldName ? `&fieldName=${encodeURIComponent(fieldName)}` : ''}`;
       const response = await fetch(url);
       const result = await response.json();

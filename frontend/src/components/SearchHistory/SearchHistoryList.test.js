@@ -584,7 +584,10 @@ describe('SearchHistoryList', () => {
         searchParams: { startDate: '2026-01-01' },
         searchResultTotalCount: 48,
         decryptionTargetCount: 37,
-        decryptionRequestedRows: [{ application: 'App1', serviceGroup: 'SG1', guid: 'g1' }, { application: 'App2', serviceGroup: 'SG2', guid: 'g2' }],
+        decryptionRequestedRows: [
+          { application: 'App1', serviceGroup: 'SG1', guid: 'g1', status: 'input' },
+          { application: 'App2', serviceGroup: 'SG2', guid: 'g2', status: 'output' },
+        ],
         decryptionRequestedCount: 2,
       },
     });
@@ -595,6 +598,9 @@ describe('SearchHistoryList', () => {
       expect(screen.getByText(/암호화건수:\s*37/)).toBeInTheDocument();
     });
     expect(screen.getByRole('heading', { name: /복호화 요청 대상 \(총 37건\)/ })).toBeInTheDocument();
+    expect(screen.getByRole('columnheader', { name: 'status' })).toBeInTheDocument();
+    expect(screen.getByRole('cell', { name: 'input' })).toBeInTheDocument();
+    expect(screen.getByRole('cell', { name: 'output' })).toBeInTheDocument();
   });
 
   test('TC-04 (req 20260318): list shows 48 in 검색건수 column and 37 in 암호화건수; detail modal shows both distinctly', async () => {

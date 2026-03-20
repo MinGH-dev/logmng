@@ -31,6 +31,7 @@ For **RequirementsPastSearch** token optimization. Read this file first to find 
 - 20250303-remove-role-single-admin-bugfix-1 | login/me에 isSystemAdmin; PUT 410; role 응답 제거
 - 20260317-search-decrypt-permission-ui | - **Permission enforcement (UI)**: On the "검색하기" (search) screen, users whose permission group does **not** have the decrypt feature enabled can still trigger decrypt-related actions (e.g. "복호화 승인 요청" button and per-row "복호화" button). This is a permission enforcement bug: the backend correctly returns 403 for the decrypt API when the user lacks `screenFunctions.main.decrypt`, but the UI does not gate these actions.
 - 20260318-permission-group-menu-invalid-screen-id-imagelog | When an administrator opens the permission group management screen and tries to edit menu permissions (allowed screens) for a group, the modal shows the error: **"유효하지 않은 화면 ID입니다: java-fw_imagelog"** (Invalid screen ID: java-fw_imagelog). The backend rejects the screen ID and the save fails with 400 `INVALID_SCREEN_ID`, so the admin cannot complete the permission group update.
+- 20260320-permission-group-screen-entry-error-migration-check | Permission group management screen shows an error on entry; verify root cause via diagnostics and objectively check DB migration applicability (`permission_group_screen` columns vs. `PermissionGroupService` SQL, migrate script inventory vs. `setup.sh`).
 
 ## activity-log | statistics | 활동 로그 | 통계 | scope
 
@@ -115,9 +116,11 @@ For **RequirementsPastSearch** token optimization. Read this file first to find 
 - 20260318-decryption-approval-guids-encrypted-only | Decryption-approval GUID management must apply only to GUIDs (row identifiers) that correspond to rows **that have encrypted data**. Today, when an approver approves a search-history request, **all** row IDs from the search result are stored in `search_history_approved_row` (audit) and in `user_decryption_allowed` (authorization), regardless of whether each row contains encrypted content. This requirement restricts both stores so that only rows that actually have encrypted data are included in the snapshot and in the decryption-allowed set.
 - 20260318-search-history-detail-modal-decryption-list | On the Search History (검색 이력) screen, in the action column of search results, the "view details" (자세히 보기) modal currently shows search conditions (로그 타입, 요청 사유, 검색 조건). The user requests that this modal also display: (1) the **list** of applications, service groups, and GUIDs that were requested for decryption (i.e. the rows in the approval snapshot), and (2) the **total count** of those items.
 - 20260318-search-history-counts-display | Search history list: 검색건수 and 암호화건수 must display distinctly (e.g. search 48 / encryption 37); fix sourcing and display so two counts are correct; diagnostic then fix backend create/list and optional client send counts.
+- 20260320-imagelog-guid-status-composite-key | For **Java FW Image Log** (`java_fw_imglog`, table `imagelog`), a single **guid** value is **not** sufficient to identify a row: the business identity is the **pair (guid, status)**. The product must treat this pair as the **canonical row key** everywhere: search-result rows, detail fetch, decryption execution, decryption-approval snapshot, decryption-allowed authorization store, search-history payloads, and all related APIs and UI.
 
 ## image-log | imagelog | datastring
 
+- 20260320-imagelog-guid-status-composite-key | Java FW Image Log row identity is (guid + status); APIs, decryption-allowed store, approval snapshot, search-history detail, DB constraints, and UI must use the composite end-to-end
 - 20260206-image-log-datastring-search | Image Log datastring 검색 기능 개선
 - 20260206-image-log-decrypt-datastring-display | Image Log 복호화 시 datastring 필드 표시
 - 20260224-image-log-encrypted-highlight-only | Image log 암호화 구간만 encrypted 하이라이트

@@ -55,6 +55,9 @@ REACT_APP_API_BASE_URL=http://서버IP:9200/api ./scripts/package-airgap-bin.sh
    # 멀티 스키마·ImageLog 등: docs/contract.md / application.yml 참고 (APP_DB_* 등)
    # 브라우저 UI 출처가 localhost가 아니면 CORS:
    export CORS_ALLOWED_ORIGINS='http://서버IP:3001'
+   # 암·복호화(이미지 로그 등): 운영에서는 반드시 고유 키(UTF-8 32바이트 권장)
+   export ENCRYPTION_KEY='32바이트_길이의_비밀키문자열!!!!!!!!'
+   # 선택: export DECRYPTION_ENABLED=true FAILURE_HANDLING=fallback
    ./run.sh
    ```
 
@@ -62,8 +65,11 @@ REACT_APP_API_BASE_URL=http://서버IP:9200/api ./scripts/package-airgap-bin.sh
 
    ```bash
    cd bin/frontend
+   export LOGMNG_API_BASE_URL='http://브라우저가 접속할-백엔드-호스트:9200/api'
    PORT=3001 ./run.sh
    ```
+
+`LOGMNG_API_BASE_URL` 은 **재빌드 없이** 정적 JAR가 `/runtime-config.js`로 내려주는 API 베이스(우선순위가 `REACT_APP_API_BASE_URL` 빌드값보다 높음). 비우면 빌드 시 박힌 값·기본 localhost를 씁니다.
 
 UI와 API가 **다른 호스트/포트**이면 CORS에 **브라우저가 실제로 여는 UI URL**(Origin)을 넣어야 합니다.
 

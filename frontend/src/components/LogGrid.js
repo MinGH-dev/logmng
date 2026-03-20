@@ -7,6 +7,7 @@ import ImageLogTable from './ImageLogTable';
 import { createSearchHistory } from '../services/searchHistoryService';
 import './LogGrid.css';
 import logger from '../utils/logger';
+import { getApiBaseUrl } from '../config/runtimeApi';
 
 /** Map logType.id to screen ID for decrypt/allowed API. req 20260318. */
 const logTypeIdToScreenId = (logTypeId) => {
@@ -46,8 +47,8 @@ const LogGrid = ({ logType, initialSearchParams, initialSearchApprovalId, onInit
   const [requestReasonInModal, setRequestReasonInModal] = useState('');
   /** 이번 검색에 대한 복호화 승인 이력 ID. 감사/재조회용; 복호화 허용 여부는 decryption-allowed store 기준 */
   const [currentApprovalId, setCurrentApprovalId] = useState(null);
-  /** GET /api/decrypt/allowed 결과 (req 20260318): validUntil, guids — 복호화 버튼 enabled/dimmed 판단용 */
-  const [decryptionAllowed, setDecryptionAllowed] = useState({ validUntil: null, guids: [] });
+  /** GET /api/decrypt/allowed (req 20260318, 20260320): validUntil, guids(레거시), allowedRows[{guid,status}] 복합 키 */
+  const [decryptionAllowed, setDecryptionAllowed] = useState({ validUntil: null, guids: [], allowedRows: [] });
 
   // 로그 타입에 따라 기본 정렬 필드 설정 (초기화 시 한 번만)
   useEffect(() => {
@@ -80,18 +81,27 @@ const LogGrid = ({ logType, initialSearchParams, initialSearchApprovalId, onInit
   // GET /api/decrypt/allowed (req 20260318): 복호화 버튼 enabled/dimmed 판단용. screen=pb-feplog|java-fw-imagelog.
   const fetchDecryptionAllowed = React.useCallback(() => {
     if (!hasDecryptPermission || !screenId || logType?.id !== 'java_fw_imglog') return;
-    const apiBaseUrl = process.env.REACT_APP_API_BASE_URL || 'http://localhost:9200/api';
+    const apiBaseUrl = getApiBaseUrl();
     fetch(`${apiBaseUrl}/decrypt/allowed?screen=${screenId}`, { credentials: 'include' })
       .then((res) => (res.ok ? res.json() : Promise.reject(new Error(`HTTP ${res.status}`))))
       .then((json) => {
         const data = json?.data ?? json;
         const validUntil = data?.validUntil ?? data?.valid_until ?? null;
         const guids = Array.isArray(data?.guids) ? data.guids : [];
-        setDecryptionAllowed({ validUntil, guids });
+        const rawRows = Array.isArray(data?.allowedRows)
+          ? data.allowedRows
+          : (Array.isArray(data?.allowed_rows) ? data.allowed_rows : []);
+        const allowedRows = rawRows
+          .map((r) => ({
+            guid: r?.guid != null ? String(r.guid).trim() : '',
+            status: r?.status != null ? String(r.status).trim() : (r?.row_status != null ? String(r.row_status).trim() : ''),
+          }))
+          .filter((r) => r.guid);
+        setDecryptionAllowed({ validUntil, guids, allowedRows });
       })
       .catch((err) => {
         logger.debug('GET decrypt/allowed failed', { error: err.message });
-        setDecryptionAllowed({ validUntil: null, guids: [] });
+        setDecryptionAllowed({ validUntil: null, guids: [], allowedRows: [] });
       });
   }, [hasDecryptPermission, logType?.id, screenId]);
 
@@ -199,7 +209,7 @@ const LogGrid = ({ logType, initialSearchParams, initialSearchApprovalId, onInit
       }
 
       // 실제 API 호출
-      const apiBaseUrl = process.env.REACT_APP_API_BASE_URL || 'http://localhost:9200/api';
+      const apiBaseUrl = getApiBaseUrl();
       const response = await fetch(`${apiBaseUrl}/logs/db-refactored/search`, {
         method: 'POST',
         headers: {
@@ -254,7 +264,7 @@ const LogGrid = ({ logType, initialSearchParams, initialSearchApprovalId, onInit
 
     if (Object.keys(searchParams).length > 0) {
       try {
-        const apiBaseUrl = process.env.REACT_APP_API_BASE_URL || 'http://localhost:9200/api';
+        const apiBaseUrl = getApiBaseUrl();
         const response = await fetch(`${apiBaseUrl}/logs/db-refactored/search`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -290,7 +300,7 @@ const LogGrid = ({ logType, initialSearchParams, initialSearchApprovalId, onInit
     setPageSize(newSize);
     setCurrentPage(1);
     if (Object.keys(searchParams).length > 0) {
-      const apiBaseUrl = process.env.REACT_APP_API_BASE_URL || 'http://localhost:9200/api';
+      const apiBaseUrl = getApiBaseUrl();
       setLoading(true);
       fetch(`${apiBaseUrl}/logs/db-refactored/search`, {
         method: 'POST',
@@ -328,7 +338,7 @@ const LogGrid = ({ logType, initialSearchParams, initialSearchApprovalId, onInit
     // 현재 검색 조건으로 API 재호출
     if (Object.keys(searchParams).length > 0) {
       try {
-        const apiBaseUrl = process.env.REACT_APP_API_BASE_URL || 'http://localhost:9200/api';
+        const apiBaseUrl = getApiBaseUrl();
         const response = await fetch(`${apiBaseUrl}/logs/db-refactored/search`, {
           method: 'POST',
           headers: {
@@ -419,7 +429,7 @@ const LogGrid = ({ logType, initialSearchParams, initialSearchApprovalId, onInit
     setCurrentPage(1);
     
     try {
-      const apiBaseUrl = process.env.REACT_APP_API_BASE_URL || 'http://localhost:9200/api';
+      const apiBaseUrl = getApiBaseUrl();
       const response = await fetch(`${apiBaseUrl}/logs/db-refactored/advanced-search`, {
         method: 'POST',
         headers: {

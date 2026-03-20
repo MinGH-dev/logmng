@@ -46,7 +46,8 @@ class SearchHistoryControllerTest {
                 decryptApproverService,
                 authService,
                 new StubDataSource(),
-                resolver);
+                resolver,
+                false);
         mockMvc = MockMvcBuilders.standaloneSetup(controller)
                 .setControllerAdvice(new com.logmng.exception.GlobalExceptionHandler())
                 .build();
@@ -117,7 +118,8 @@ class SearchHistoryControllerTest {
                 new StubDecryptApproverService(),
                 new NoopAuthService(),
                 new StubDataSource(),
-                new StubAppUserResolver(new StubDataSource()));
+                new StubAppUserResolver(new StubDataSource()),
+                false);
         MockMvc mvc = MockMvcBuilders.standaloneSetup(controller)
                 .setControllerAdvice(new com.logmng.exception.GlobalExceptionHandler())
                 .build();
@@ -175,7 +177,8 @@ class SearchHistoryControllerTest {
                 new StubDecryptApproverService(),
                 throwingAuthService,
                 new StubDataSource(),
-                new StubAppUserResolver(new StubDataSource()));
+                new StubAppUserResolver(new StubDataSource()),
+                false);
         MockMvc mvc = MockMvcBuilders.standaloneSetup(controller)
                 .setControllerAdvice(new com.logmng.exception.GlobalExceptionHandler())
                 .build();
@@ -204,7 +207,8 @@ class SearchHistoryControllerTest {
                 new StubDecryptApproverService(),
                 nullUserAuthService,
                 new StubDataSource(),
-                new StubAppUserResolver(new StubDataSource()));
+                new StubAppUserResolver(new StubDataSource()),
+                false);
         MockMvc mvc = MockMvcBuilders.standaloneSetup(controller)
                 .setControllerAdvice(new com.logmng.exception.GlobalExceptionHandler())
                 .build();
@@ -345,7 +349,8 @@ class SearchHistoryControllerTest {
                 new StubDecryptApproverService(),
                 new NoopAuthService(),
                 new StubDataSource(),
-                new StubAppUserResolver(new StubDataSource()));
+                new StubAppUserResolver(new StubDataSource()),
+                false);
         MockMvc mvc = MockMvcBuilders.standaloneSetup(ctrl)
                 .setControllerAdvice(new com.logmng.exception.GlobalExceptionHandler())
                 .build();
@@ -410,7 +415,8 @@ class SearchHistoryControllerTest {
                 new StubDecryptApproverService(),
                 new NoopAuthService(),
                 new StubDataSource(),
-                new StubAppUserResolver(new StubDataSource()));
+                new StubAppUserResolver(new StubDataSource()),
+                false);
         MockMvc mvc = MockMvcBuilders.standaloneSetup(ctrl)
                 .setControllerAdvice(new com.logmng.exception.GlobalExceptionHandler())
                 .build();
@@ -437,7 +443,8 @@ class SearchHistoryControllerTest {
                 new StubDecryptApproverService(),
                 new NoopAuthService(),
                 new StubDataSource(),
-                new StubAppUserResolver(new StubDataSource()));
+                new StubAppUserResolver(new StubDataSource()),
+                false);
         MockMvc mvc = MockMvcBuilders.standaloneSetup(ctrl)
                 .setControllerAdvice(new com.logmng.exception.GlobalExceptionHandler())
                 .build();
@@ -463,7 +470,8 @@ class SearchHistoryControllerTest {
                 new StubDecryptApproverService(),
                 new NoopAuthService(),
                 new StubDataSource(),
-                new StubAppUserResolver(new StubDataSource()));
+                new StubAppUserResolver(new StubDataSource()),
+                false);
         MockMvc mvc = MockMvcBuilders.standaloneSetup(ctrl)
                 .setControllerAdvice(new com.logmng.exception.GlobalExceptionHandler())
                 .build();
@@ -488,7 +496,8 @@ class SearchHistoryControllerTest {
                 new StubDecryptApproverService(),
                 throwingAuthService,
                 new StubDataSource(),
-                new StubAppUserResolver(new StubDataSource()));
+                new StubAppUserResolver(new StubDataSource()),
+                false);
         MockMvc mvc = MockMvcBuilders.standaloneSetup(controller)
                 .setControllerAdvice(new com.logmng.exception.GlobalExceptionHandler())
                 .build();

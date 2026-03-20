@@ -82,12 +82,16 @@ tail -f dev/backend/logs/application.log
 **폐쇄망 서버에서 설치·기동을 한 스크립트로** 하려면 tarball까지 만든 뒤 서버에서 풀고 `./install-offline.sh all`:
 
 ```bash
+# (선택) 폐쇄망에서 psql 없을 때 쓸 Debian/Ubuntu amd64 클라이언트 .deb 를 번들에 넣기
+# ./scripts/download-psql-for-bundle.sh
 ./scripts/build-offline-bundle.sh
 # dist/logmng-offline-1.0.0.tar.gz 를 폐쇄망으로 복사 후
 # tar xzf logmng-offline-1.0.0.tar.gz && cd logmng-offline-1.0.0 && ./install-offline.sh all
 ```
 
 설명: [`scripts/offline-bundle/README-OFFLINE.md`](../scripts/offline-bundle/README-OFFLINE.md).
+
+운영·폐쇄망 배포 절차·환경 변수 요약: [`DEPLOY.md`](DEPLOY.md). 한 줄 빌드(기본 = 오프라인 tarball): `./scripts/release-build.sh` — `bin/` 만: `./scripts/release-build.sh bin`.
 
 ## ⚠️ 중요 원칙
 

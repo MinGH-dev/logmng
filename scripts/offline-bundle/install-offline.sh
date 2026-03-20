@@ -3,7 +3,18 @@
 # LogMng — single offline installer & launcher (no npm/mvn/internet on this host).
 # Run from the root of the extracted offline bundle (same directory as bin/, db/).
 #
-# Usage: ./install-offline.sh check|db|configure|start|stop|status|all
+# Usage: ./install-offline.sh check|db|configure|start|stop|status|all|start-frontend|stop-frontend
+#
+# Java: if `java` is not on PATH, set either
+#   export JAVA_HOME=/path/to/jdk-17
+#   export JAVA_CMD=/path/to/jdk-17/bin/java
+# or answer the java path prompt in `configure` (saved to var/logmng.env).
+#
+# psql: only needed when you run ./install-offline.sh db (or all with DB=yes) on THIS host.
+#       App start (configure/start) does not need psql if the database is already provisioned.
+#
+# Bundled psql: if tools/psql-deb/*.deb exist (Debian bookworm amd64 client), db step tries
+#   dpkg -i as root/sudo when psql is missing. Set SKIP_BUNDLE_PSQL=1 to disable.
 #
 set -euo pipefail
 
@@ -20,6 +31,76 @@ DB_SETUP="$BUNDLE_ROOT/db/setup.sh"
 
 lc() {
   printf '%s' "$1" | tr '[:upper:]' '[:lower:]'
+}
+
+# Sets JAVA_BIN for backend/static-server processes. Honors JAVA_CMD, then PATH java, then JAVA_HOME.
+resolve_java() {
+  if [[ -n "${JAVA_CMD:-}" ]]; then
+    if [[ -x "$JAVA_CMD" || -f "$JAVA_CMD" ]]; then
+      JAVA_BIN="$JAVA_CMD"
+      return 0
+    fi
+    echo "[WARN] JAVA_CMD is set but not executable: $JAVA_CMD" >&2
+  fi
+  if command -v java >/dev/null 2>&1; then
+    JAVA_BIN="$(command -v java)"
+    return 0
+  fi
+  if [[ -n "${JAVA_HOME:-}" && -x "$JAVA_HOME/bin/java" ]]; then
+    JAVA_BIN="$JAVA_HOME/bin/java"
+    return 0
+  fi
+  JAVA_BIN=""
+  return 1
+}
+
+# Install bundled .deb PostgreSQL client when psql is missing (Debian/Ubuntu + dpkg only).
+ensure_psql_from_bundle() {
+  if command -v psql >/dev/null 2>&1; then
+    return 0
+  fi
+  if [[ "${SKIP_BUNDLE_PSQL:-0}" == "1" ]]; then
+    return 1
+  fi
+  local d="$BUNDLE_ROOT/tools/psql-deb"
+  shopt -s nullglob
+  local deb=( "$d"/*.deb )
+  shopt -u nullglob
+  if [[ ${#deb[@]} -eq 0 ]]; then
+    return 1
+  fi
+  if ! command -v dpkg >/dev/null 2>&1; then
+    echo "[INFO] Bundled .deb packages are present but dpkg was not found — use your OS postgresql client (e.g. RPM-based distros)." >&2
+    return 1
+  fi
+  echo "psql not found — installing bundled packages from tools/psql-deb/ (requires root or sudo) ..."
+  run_pkg_as_root() {
+    if [[ "$(id -u)" -eq 0 ]]; then
+      "$@"
+    elif command -v sudo >/dev/null 2>&1; then
+      sudo "$@"
+    else
+      echo "Root or sudo is required to install .deb files. Install postgresql-client manually." >&2
+      return 1
+    fi
+  }
+  local ordered=()
+  local f
+  for f in "$d"/postgresql-client-common_*.deb; do [[ -f "$f" ]] && ordered+=( "$f" ); done
+  for f in "$d"/libpq5_*.deb; do [[ -f "$f" ]] && ordered+=( "$f" ); done
+  for f in "$d"/postgresql-client-*.deb; do [[ -f "$f" ]] && ordered+=( "$f" ); done
+  for f in "${deb[@]}"; do
+    local seen=0
+    local o
+    for o in "${ordered[@]}"; do [[ "$f" == "$o" ]] && seen=1 && break; done
+    [[ "$seen" -eq 0 ]] && ordered+=( "$f" )
+  done
+  if ! run_pkg_as_root dpkg -i "${ordered[@]}"; then
+    echo "[WARN] dpkg -i failed — install missing dependencies from the same OS release (offline mirror) or add psql to PATH." >&2
+    echo "       See tools/psql-deb/README.txt and README-OFFLINE.md." >&2
+    return 1
+  fi
+  command -v psql >/dev/null 2>&1
 }
 
 prompt() {
@@ -63,7 +144,16 @@ export APP_DATASOURCE_IMAGELOG_USERNAME="${APP_DATASOURCE_IMAGELOG_USERNAME:-}"
 export APP_DATASOURCE_IMAGELOG_PASSWORD="${APP_DATASOURCE_IMAGELOG_PASSWORD:-}"
 export CORS_ALLOWED_ORIGINS="${CORS_ALLOWED_ORIGINS}"
 export FRONTEND_PORT="${FRONTEND_PORT}"
+export LOGMNG_API_BASE_URL="${LOGMNG_API_BASE_URL:-}"
+# AES-256 암·복호화 (LogDbService/CryptoUtil). 운영에서는 반드시 고유 키(UTF-8 32바이트 권장).
+export ENCRYPTION_KEY="${ENCRYPTION_KEY}"
+export DECRYPTION_ENABLED="${DECRYPTION_ENABLED:-true}"
+export AUTO_DECRYPT_ON_KEYWORD_SEARCH="${AUTO_DECRYPT_ON_KEYWORD_SEARCH:-true}"
+export FAILURE_HANDLING="${FAILURE_HANDLING:-fallback}"
 EOF
+  if [[ -n "${JAVA_CMD_LINE:-}" ]]; then
+    printf 'export JAVA_CMD="%s"\n' "${JAVA_CMD_LINE//\"/\\\"}" >>"$path"
+  fi
   chmod 600 "$path"
   echo "Wrote $path (mode 600)"
 }
@@ -72,15 +162,22 @@ cmd_check() {
   echo "=== Offline bundle check ==="
   echo "Root: $BUNDLE_ROOT"
   local ok=1
-  if ! command -v java >/dev/null 2>&1; then
-    echo "[FAIL] java not found — install JRE/JDK 17+"
+  resolve_java || true
+  if [[ -z "${JAVA_BIN:-}" ]]; then
+    echo "[FAIL] java not found on PATH and JAVA_HOME/bin/java missing."
+    echo "      Fix: export JAVA_HOME=/path/to/jdk-17   (then re-run check)"
+    echo "      or:  export JAVA_CMD=/path/to/jdk-17/bin/java"
+    echo "      or:  ./install-offline.sh configure — java path prompt saves JAVA_CMD into var/logmng.env"
     ok=0
   else
-    echo "[OK] java: $(command -v java)"
-    java -version 2>&1 | head -1 || true
+    echo "[OK] java: $JAVA_BIN"
+    "$JAVA_BIN" -version 2>&1 | head -1 || true
   fi
   if ! command -v psql >/dev/null 2>&1; then
-    echo "[WARN] psql not found — DB step (db/all) will fail until client is installed"
+    echo "[WARN] psql not on PATH — required for ./install-offline.sh db or all (DB on this host)."
+    echo "       If tools/psql-deb/*.deb exist, the db step will try sudo dpkg -i (Debian/Ubuntu)."
+    echo "       Else: Debian/Ubuntu postgresql-client | RHEL: postgresql (see README-OFFLINE.md)."
+    echo "       Skip DB step if schema was applied elsewhere."
   else
     echo "[OK] psql: $(command -v psql)"
   fi
@@ -110,6 +207,13 @@ cmd_db() {
   if [[ "$dchoice" == "3" ]]; then
     echo "Skipped."
     return 0
+  fi
+  if ! command -v psql >/dev/null 2>&1; then
+    ensure_psql_from_bundle || true
+  fi
+  if ! command -v psql >/dev/null 2>&1; then
+    echo "psql not found on PATH. Install postgresql-client (or add psql to PATH), use bundled tools/psql-deb on Debian/Ubuntu with sudo, or run DDL from another host using bundle db/*.sql" >&2
+    exit 1
   fi
   export DB_SUPERUSER="$(prompt "PostgreSQL superuser" "postgres")"
   echo "Superuser password (empty if peer/trust):"
@@ -174,6 +278,23 @@ cmd_configure() {
   local def_cors="http://127.0.0.1:${FRONTEND_PORT},http://localhost:${FRONTEND_PORT}"
   export CORS_ALLOWED_ORIGINS="$(prompt "CORS_ALLOWED_ORIGINS (comma-separated UI origins)" "$def_cors")"
 
+  local def_api="http://127.0.0.1:${SERVER_PORT}/api"
+  echo ""
+  echo "브라우저가 호출할 백엔드 API 베이스 URL (정적 UI용; 비우면 빌드 시 REACT_APP 값 또는 localhost 기본)."
+  export LOGMNG_API_BASE_URL="$(prompt "LOGMNG_API_BASE_URL (empty = build default)" "$def_api")"
+
+  echo ""
+  echo "암·복호화 키 (AES-256, UTF-8로 32바이트 권장). 운영은 임의 32바이트 이상으로 변경하세요."
+  export ENCRYPTION_KEY="$(prompt "ENCRYPTION_KEY" "12345678901234567890123456789012")"
+  export DECRYPTION_ENABLED="$(prompt "DECRYPTION_ENABLED (true/false)" "true")"
+  export AUTO_DECRYPT_ON_KEYWORD_SEARCH="$(prompt "AUTO_DECRYPT_ON_KEYWORD_SEARCH (true/false)" "true")"
+  export FAILURE_HANDLING="$(prompt "FAILURE_HANDLING (fallback|skip|error)" "fallback")"
+
+  echo ""
+  echo "Java: if PATH에 java가 없으면 JDK 설치 경로의 bin/java 전체 경로를 입력하세요."
+  JAVA_CMD_LINE="$(prompt "java full path (empty if java is already on PATH)" "")"
+  export JAVA_CMD_LINE
+
   write_env_file "$ENV_FILE"
 }
 
@@ -188,10 +309,16 @@ cmd_start() {
   source "$ENV_FILE"
   set +a
 
+  resolve_java || true
+  if [[ -z "${JAVA_BIN:-}" ]]; then
+    echo "Cannot find java. Set JAVA_HOME, or JAVA_CMD in $ENV_FILE, or PATH." >&2
+    exit 1
+  fi
+
   if [[ -f "$RUN_DIR/backend.pid" ]] && kill -0 "$(cat "$RUN_DIR/backend.pid")" 2>/dev/null; then
     echo "Backend already running (pid $(cat "$RUN_DIR/backend.pid"))"
   else
-    nohup java ${JAVA_OPTS:-} -jar "$BACKEND_JAR" >>"$LOG_DIR/backend.log" 2>&1 &
+    nohup "$JAVA_BIN" ${JAVA_OPTS:-} -jar "$BACKEND_JAR" >>"$LOG_DIR/backend.log" 2>&1 &
     echo $! >"$RUN_DIR/backend.pid"
     echo "Backend started pid=$(cat "$RUN_DIR/backend.pid") port=${SERVER_PORT:-9200}"
     sleep 2
@@ -201,11 +328,58 @@ cmd_start() {
     echo "Frontend already running (pid $(cat "$RUN_DIR/frontend.pid"))"
   else
     export PORT="${FRONTEND_PORT:-3001}"
-    nohup java ${JAVA_OPTS:-} -jar "$STATIC_JAR" "$WWW_DIR" "$PORT" >>"$LOG_DIR/frontend.log" 2>&1 &
+    nohup "$JAVA_BIN" ${JAVA_OPTS:-} -jar "$STATIC_JAR" "$WWW_DIR" "$PORT" >>"$LOG_DIR/frontend.log" 2>&1 &
     echo $! >"$RUN_DIR/frontend.pid"
     echo "Frontend started pid=$(cat "$RUN_DIR/frontend.pid") port=$PORT"
   fi
   echo "Logs: $LOG_DIR"
+}
+
+# 정적 UI만 기동 (백엔드 없음). var/logmng.env 가 있으면 로드해 FRONTEND_PORT·LOGMNG_API_BASE_URL·JAVA_CMD 반영.
+cmd_start_frontend() {
+  ensure_dirs
+  if [[ -f "$ENV_FILE" ]]; then
+    # shellcheck disable=SC1090
+    set -a
+    source "$ENV_FILE"
+    set +a
+  else
+    echo "[INFO] No $ENV_FILE — using shell env only (FRONTEND_PORT, LOGMNG_API_BASE_URL, JAVA_HOME, PATH)." >&2
+  fi
+  resolve_java || true
+  if [[ -z "${JAVA_BIN:-}" ]]; then
+    echo "Cannot find java. Set JAVA_HOME, JAVA_CMD, PATH, or run: $0 configure" >&2
+    exit 1
+  fi
+  if [[ ! -f "$STATIC_JAR" || ! -f "$WWW_DIR/index.html" ]]; then
+    echo "Missing static UI: $STATIC_JAR or $WWW_DIR/index.html" >&2
+    exit 1
+  fi
+  if [[ -f "$RUN_DIR/frontend.pid" ]] && kill -0 "$(cat "$RUN_DIR/frontend.pid")" 2>/dev/null; then
+    echo "Frontend already running (pid $(cat "$RUN_DIR/frontend.pid"))"
+    return 0
+  fi
+  export PORT="${FRONTEND_PORT:-3001}"
+  nohup "$JAVA_BIN" ${JAVA_OPTS:-} -jar "$STATIC_JAR" "$WWW_DIR" "$PORT" >>"$LOG_DIR/frontend.log" 2>&1 &
+  echo $! >"$RUN_DIR/frontend.pid"
+  echo "Frontend only: pid=$(cat "$RUN_DIR/frontend.pid") port=$PORT (backend not started)"
+  echo "Log: $LOG_DIR/frontend.log"
+}
+
+cmd_stop_frontend() {
+  local f="$RUN_DIR/frontend.pid"
+  if [[ -f "$f" ]]; then
+    local pid
+    pid="$(cat "$f")"
+    if kill -0 "$pid" 2>/dev/null; then
+      kill "$pid" && echo "Stopped frontend (pid $pid)" || true
+    else
+      echo "Frontend: stale pid file"
+    fi
+    rm -f "$f"
+  else
+    echo "Frontend: not started (no pid file)"
+  fi
 }
 
 cmd_stop() {
@@ -262,7 +436,7 @@ cmd_all() {
 }
 
 usage() {
-  echo "Usage: $0 check|db|configure|start|stop|status|all"
+  echo "Usage: $0 check|db|configure|start|stop|status|all|start-frontend|stop-frontend"
   exit 1
 }
 
@@ -277,6 +451,8 @@ main() {
     stop) cmd_stop ;;
     status) cmd_status ;;
     all) cmd_all ;;
+    start-frontend|frontend-start) cmd_start_frontend ;;
+    stop-frontend|frontend-stop) cmd_stop_frontend ;;
     *) usage ;;
   esac
 }

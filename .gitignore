@@ -21,6 +21,9 @@ bin/frontend/www/**
 # Offline bundle output (from scripts/build-offline-bundle.sh)
 dist/
 
+# PostgreSQL client .debs for bundle (scripts/download-psql-for-bundle.sh)
+third_party/psql-deb/
+
 # Logs
 logs/
 *.log

@@ -2,7 +2,10 @@ package com.logmng.service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.logmng.constants.ScreenConstants;
+import com.logmng.diagnostic.ApprovalFlowDiagnosticLog;
 import com.logmng.util.LogTypeScreenHelper;
+import com.logmng.dto.ApprovedSnapshotRow;
+import com.logmng.dto.DecryptionRowKey;
 import com.logmng.dto.request.LogDbSearchRequest;
 import com.logmng.dto.request.SearchHistoryCreateRequest;
 import com.logmng.dto.request.SearchHistoryListRequest;
@@ -11,6 +14,7 @@ import com.logmng.dto.response.SearchHistoryListResponse;
 import com.logmng.dto.response.UserActivityLogResponse;
 import com.logmng.exception.CustomException;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -52,19 +56,21 @@ public class SearchHistoryService {
     private final DecryptApproverService decryptApproverService;
     private final AppUserResolver appUserResolver;
     private final DecryptionAllowedService decryptionAllowedService;
+    private final boolean diagnosticApprovalFlow;
 
     public SearchHistoryService(DataSource dataSource, LogDbService logDbService, DecryptApproverService decryptApproverService) {
-        this(dataSource, logDbService, decryptApproverService, null, null);
+        this(dataSource, logDbService, decryptApproverService, null, null, false);
     }
 
     @Autowired
-    public SearchHistoryService(DataSource dataSource, LogDbService logDbService, DecryptApproverService decryptApproverService, AppUserResolver appUserResolver, DecryptionAllowedService decryptionAllowedService) {
+    public SearchHistoryService(DataSource dataSource, LogDbService logDbService, DecryptApproverService decryptApproverService, AppUserResolver appUserResolver, DecryptionAllowedService decryptionAllowedService, @Value("${app.diagnostic.approval-flow:false}") boolean diagnosticApprovalFlow) {
         this.dataSource = dataSource;
         this.objectMapper = new ObjectMapper();
         this.logDbService = logDbService;
         this.decryptApproverService = decryptApproverService;
         this.appUserResolver = appUserResolver != null ? appUserResolver : new AppUserResolver(dataSource);
         this.decryptionAllowedService = decryptionAllowedService;
+        this.diagnosticApprovalFlow = diagnosticApprovalFlow;
     }
 
     /**
@@ -550,12 +556,31 @@ public class SearchHistoryService {
     }
 
     /**
+     * 검색 응답에 동일 행이 반복되면 {@code search_history_approved_row} / {@code user_decryption_allowed} 배치 INSERT가 PK 충돌(23505) 날 수 있어 첫 행만 유지.
+     */
+    private static List<ApprovedSnapshotRow> dedupeApprovedSnapshotRows(List<ApprovedSnapshotRow> rows) {
+        if (rows == null || rows.isEmpty()) {
+            return rows != null ? rows : Collections.emptyList();
+        }
+        LinkedHashMap<String, ApprovedSnapshotRow> byKey = new LinkedHashMap<>();
+        for (ApprovedSnapshotRow r : rows) {
+            if (r == null || r.isEmpty()) {
+                continue;
+            }
+            String k = r.getRowId() + "\u001f" + r.getRowStatus();
+            byKey.putIfAbsent(k, r);
+        }
+        return new ArrayList<>(byKey.values());
+    }
+
+    /**
      * 승인. PENDING 건만 갱신. §6.1.6
      * Approval snapshot: run search with search_params, collect row_id per log_type, insert into search_history_approved_row, then set APPROVED.
      * Ref: docs/requirements/20260224-decryption-snapshot-final-design-en.md §6.1
      */
     @SuppressWarnings("unchecked")
     public Map<String, Object> approve(Long id, Long approverUserId) {
+        ApprovalFlowDiagnosticLog.info(diagnosticApprovalFlow, id, approverUserId, "LOAD_PENDING_START", "");
         String logType;
         String searchParamsJson;
         Long requesterUserIdLong;
@@ -573,9 +598,11 @@ public class SearchHistoryService {
                 }
             }
         } catch (SQLException e) {
+            ApprovalFlowDiagnosticLog.logSqlException(diagnosticApprovalFlow, id, "LOAD_PENDING_SELECT", e);
             log.error("검색 이력 조회 실패: id={}", id, e);
             throw CustomException.badRequest("승인 처리 중 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.", "APPROVAL_ERROR");
         }
+        ApprovalFlowDiagnosticLog.info(diagnosticApprovalFlow, id, approverUserId, "LOAD_PENDING_END", "logType=" + (logType != null ? logType : ""));
         if (approverUserId == null) {
             throw CustomException.forbidden("해당 기능에 대한 권한이 없습니다.", "FUNCTION_NOT_ALLOWED");
         }
@@ -583,27 +610,47 @@ public class SearchHistoryService {
             throw CustomException.forbidden("해당 기능에 대한 권한이 없습니다.", "FUNCTION_NOT_ALLOWED");
         }
 
-        List<String> rowIds;
+        List<ApprovedSnapshotRow> snapshotRows;
         try {
-            rowIds = collectEncryptedSnapshotRowIdsStrict(searchParamsJson, logType);
+            snapshotRows = collectEncryptedSnapshotRowsStrict(searchParamsJson, logType);
         } catch (IllegalArgumentException e) {
             log.warn("search_params 파싱 실패: id={}, {}", id, e.getMessage());
             throw CustomException.badRequest("저장된 검색 조건을 실행할 수 없습니다. 검색 조건 형식을 확인해 주세요.", "INVALID_SEARCH_PARAMS");
         }
-        log.info("approve snapshot collect: search_history_id={}, logType={}, rowIds_collected={}", id, logType, rowIds.size());
+        int snapshotRawCount = snapshotRows.size();
+        snapshotRows = dedupeApprovedSnapshotRows(snapshotRows);
+        log.info("approve snapshot collect: search_history_id={}, logType={}, rows_collected={}, rows_after_dedupe={}",
+                id, logType, snapshotRawCount, snapshotRows.size());
+        int snapshotTotal = snapshotRows.size();
+        Set<String> distinctSnapshotKeys = new HashSet<>();
+        for (ApprovedSnapshotRow r : snapshotRows) {
+            if (!r.isEmpty()) {
+                distinctSnapshotKeys.add((logType != null ? logType : "") + "\u001f" + r.getRowId() + "\u001f" + r.getRowStatus());
+            }
+        }
+        ApprovalFlowDiagnosticLog.info(diagnosticApprovalFlow, id, approverUserId, "SNAPSHOT",
+                "rawRowCount=" + snapshotRawCount + " rowCount=" + snapshotTotal + " distinctKeyCount=" + distinctSnapshotKeys.size()
+                        + " duplicateHint=" + (snapshotRawCount != snapshotTotal));
+        ApprovalFlowDiagnosticLog.debug(diagnosticApprovalFlow, id, "SNAPSHOT", "logType=" + logType);
 
         try (Connection conn = dataSource.getConnection()) {
             conn.setAutoCommit(false);
             try {
-                String ins = "INSERT INTO search_history_approved_row (search_history_id, log_type, row_id) VALUES (?, ?, ?)";
+                int batches = 0;
+                String ins = "INSERT INTO search_history_approved_row (search_history_id, log_type, row_id, row_status) VALUES (?, ?, ?, ?)";
                 try (PreparedStatement ps = conn.prepareStatement(ins)) {
-                    for (String rowId : rowIds) {
+                    for (ApprovedSnapshotRow r : snapshotRows) {
+                        if (r.isEmpty()) {
+                            continue;
+                        }
                         ps.setLong(1, id);
                         ps.setString(2, logType);
-                        ps.setString(3, rowId);
+                        ps.setString(3, r.getRowId());
+                        ps.setString(4, r.getRowStatus());
                         ps.addBatch();
+                        batches++;
                     }
-                    if (!rowIds.isEmpty()) {
+                    if (batches > 0) {
                         ps.executeBatch();
                     }
                 }
@@ -619,8 +666,10 @@ public class SearchHistoryService {
                         throw CustomException.notFound("해당 검색 이력을 찾을 수 없거나 이미 처리되었습니다: id=" + id, "NOT_FOUND");
                     }
                 }
+                ApprovalFlowDiagnosticLog.info(diagnosticApprovalFlow, id, approverUserId, "TXN_BEFORE_COMMIT", "batchRows=" + batches);
                 conn.commit();
-                log.info("검색 이력 승인 및 스냅샷 저장: id={}, approvedByUserId={}, snapshotRows={}", id, approverUserId, rowIds.size());
+                ApprovalFlowDiagnosticLog.info(diagnosticApprovalFlow, id, approverUserId, "TXN_AFTER_COMMIT", "ok");
+                log.info("검색 이력 승인 및 스냅샷 저장: id={}, approvedByUserId={}, snapshotRows={}", id, approverUserId, snapshotRows.size());
             } catch (Exception e) {
                 conn.rollback();
                 throw e;
@@ -628,16 +677,25 @@ public class SearchHistoryService {
                 conn.setAutoCommit(true);
             }
         } catch (SQLException e) {
+            ApprovalFlowDiagnosticLog.logSqlException(diagnosticApprovalFlow, id, "APPROVE_SNAPSHOT_TXN", e);
             log.error("검색 이력 승인(스냅샷) 실패: id={}", id, e);
             throw CustomException.badRequest("승인 처리 중 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.", "APPROVAL_ERROR");
         }
 
         // Req 20260318: refresh requester's decryption-allowed set by screen (logType→screen_id). java_fw_imglog→java-fw-imagelog; pb_feplog has no decrypt support, skip.
-        if (decryptionAllowedService != null && logType != null && !rowIds.isEmpty()) {
+        if (decryptionAllowedService != null && logType != null && !snapshotRows.isEmpty()) {
             String screenId = LogTypeScreenHelper.screenIdForLogType(logType);
             if (ScreenConstants.JAVA_FW_IMAGELOG.equals(screenId)) {
+                List<DecryptionRowKey> keys = new ArrayList<>();
+                for (ApprovedSnapshotRow r : snapshotRows) {
+                    if (!r.isEmpty()) {
+                        keys.add(r.toDecryptionRowKey());
+                    }
+                }
+                ApprovalFlowDiagnosticLog.info(diagnosticApprovalFlow, id, approverUserId, "DECRYPTION_ALLOWED_BEFORE", "keyCount=" + keys.size());
                 decryptionAllowedService.deleteExpiredForUser(requesterUserIdLong);
-                decryptionAllowedService.addOrReplaceAllowed(requesterUserIdLong, screenId, rowIds);
+                decryptionAllowedService.addOrReplaceAllowed(requesterUserIdLong, screenId, keys, id);
+                ApprovalFlowDiagnosticLog.info(diagnosticApprovalFlow, id, approverUserId, "DECRYPTION_ALLOWED_AFTER", "keyCount=" + keys.size());
             }
             // pb_feplog: no decryption support, skip addOrReplaceAllowed
         }
@@ -726,38 +784,51 @@ public class SearchHistoryService {
     }
 
     /**
-     * Extract row_id for snapshot from a search result row. java_fw_imglog: guid; pb_feplog: log_type|id.
+     * Extract snapshot row: java_fw_imglog uses (guid, status); pb_feplog uses row_id only with empty row_status.
      */
-    private static String extractRowIdForSnapshot(String logType, Map<String, Object> row) {
-        if (row == null) return null;
+    private static ApprovedSnapshotRow extractSnapshotRow(String logType, Map<String, Object> row) {
+        if (row == null) {
+            return new ApprovedSnapshotRow("", "");
+        }
         if ("java_fw_imglog".equals(logType)) {
             Object g = row.get("guid");
-            return g != null ? g.toString() : null;
+            if (g == null) {
+                return new ApprovedSnapshotRow("", "");
+            }
+            Object st = row.get("status");
+            String statusStr = st != null ? st.toString() : "";
+            return new ApprovedSnapshotRow(g.toString(), statusStr);
         }
         if ("pb_feplog".equals(logType)) {
             Object lt = row.get("log_type");
             Object id = row.get("id");
             if (lt != null && id != null) {
-                return lt.toString() + "|" + id.toString();
+                return new ApprovedSnapshotRow(lt.toString() + "|" + id.toString(), "");
             }
         }
-        return null;
+        return new ApprovedSnapshotRow("", "");
     }
 
     /**
      * Returns true if the row is in the approved snapshot for the given search_history (decrypt allowed).
-     * Ref: docs/requirements/20260224-decryption-snapshot-final-design-en.md §6.1
+     * Ref: docs/requirements/20260224-decryption-snapshot-final-design-en.md §6.1; composite row_status req 20260320.
      */
     public boolean isRowInApprovedSnapshot(Long searchHistoryId, String logType, String rowId) {
+        return isRowInApprovedSnapshot(searchHistoryId, logType, rowId, "");
+    }
+
+    public boolean isRowInApprovedSnapshot(Long searchHistoryId, String logType, String rowId, String rowStatus) {
         if (searchHistoryId == null || logType == null || logType.isBlank() || rowId == null || rowId.isBlank()) {
             return false;
         }
+        String rsNorm = DecryptionRowKey.normalizeStatus(rowStatus);
         try (Connection conn = dataSource.getConnection()) {
-            String sql = "SELECT 1 FROM search_history_approved_row WHERE search_history_id = ? AND log_type = ? AND row_id = ? LIMIT 1";
+            String sql = "SELECT 1 FROM search_history_approved_row WHERE search_history_id = ? AND log_type = ? AND row_id = ? AND row_status = ? LIMIT 1";
             try (PreparedStatement ps = conn.prepareStatement(sql)) {
                 ps.setLong(1, searchHistoryId);
                 ps.setString(2, logType);
                 ps.setString(3, rowId);
+                ps.setString(4, rsNorm);
                 try (ResultSet rs = ps.executeQuery()) {
                     boolean found = rs.next();
                     if (!found) {
@@ -767,7 +838,7 @@ public class SearchHistoryService {
                 }
             }
         } catch (SQLException e) {
-            log.error("스냅샷 조회 실패: searchHistoryId={}, logType={}, rowId={}", searchHistoryId, logType, rowId, e);
+            log.error("스냅샷 조회 실패: searchHistoryId={}, logType={}, rowId={}, rowStatus={}", searchHistoryId, logType, rowId, rsNorm, e);
             return false;
         }
     }
@@ -881,12 +952,12 @@ public class SearchHistoryService {
                     if ("APPROVED".equals(approvalStatus)) {
                         decryptionRows = loadDecryptionRequestedRows(conn, id);
                         if (decryptionRows.isEmpty()) {
-                            List<String> fromSearch = collectEncryptedSnapshotRowIdsLenient(paramsJson, logTypeCol);
-                            decryptionRows = buildDecryptionRequestedRowsFromSearchRowIds(logTypeCol, fromSearch);
+                            List<ApprovedSnapshotRow> fromSearch = collectEncryptedSnapshotRowsLenient(paramsJson, logTypeCol);
+                            decryptionRows = buildDecryptionRequestedRowsFromSearchRows(logTypeCol, fromSearch);
                         }
                     } else {
-                        List<String> fromSearch = collectEncryptedSnapshotRowIdsLenient(paramsJson, logTypeCol);
-                        decryptionRows = buildDecryptionRequestedRowsFromSearchRowIds(logTypeCol, fromSearch);
+                        List<ApprovedSnapshotRow> fromSearch = collectEncryptedSnapshotRowsLenient(paramsJson, logTypeCol);
+                        decryptionRows = buildDecryptionRequestedRowsFromSearchRows(logTypeCol, fromSearch);
                     }
                     row.put("decryptionRequestedRows", decryptionRows);
                     row.put("decryptionRequestedCount", decryptionRows.size());
@@ -907,21 +978,26 @@ public class SearchHistoryService {
     private List<Map<String, Object>> loadDecryptionRequestedRows(Connection conn, long searchHistoryId) throws SQLException {
         List<String> orderedRowIds = new ArrayList<>();
         List<String> orderedLogTypes = new ArrayList<>();
-        String sql = "SELECT log_type, row_id FROM search_history_approved_row WHERE search_history_id = ? ORDER BY log_type, row_id";
+        List<String> orderedStatuses = new ArrayList<>();
+        String sql = "SELECT log_type, row_id, row_status FROM search_history_approved_row WHERE search_history_id = ? ORDER BY log_type, row_id, row_status";
         try (PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setLong(1, searchHistoryId);
             try (ResultSet rs = ps.executeQuery()) {
                 while (rs.next()) {
                     String lt = rs.getString("log_type");
                     String rowId = rs.getString("row_id");
-                    if (rowId == null || rowId.isBlank()) continue;
+                    String rowSt = rs.getString("row_status");
+                    if (rowId == null || rowId.isBlank()) {
+                        continue;
+                    }
                     orderedLogTypes.add(lt);
                     orderedRowIds.add(rowId);
+                    orderedStatuses.add(rowSt != null ? rowSt : "");
                 }
             }
         }
         log.info("loadDecryptionRequestedRows: search_history_id={}, rows_read_from_search_history_approved_row={}", searchHistoryId, orderedRowIds.size());
-        return buildDecryptionRequestedRowsDisplay(orderedLogTypes, orderedRowIds);
+        return buildDecryptionRequestedRowsDisplay(orderedLogTypes, orderedRowIds, orderedStatuses);
     }
 
     /**
@@ -929,7 +1005,7 @@ public class SearchHistoryService {
      * Strict parse failures throw IllegalArgumentException (approve path).
      */
     @SuppressWarnings("unchecked")
-    private List<String> collectEncryptedSnapshotRowIdsStrict(String searchParamsJson, String logType) throws IllegalArgumentException {
+    private List<ApprovedSnapshotRow> collectEncryptedSnapshotRowsStrict(String searchParamsJson, String logType) throws IllegalArgumentException {
         LogDbSearchRequest searchRequest;
         try {
             Map<String, Object> paramsMap = searchParamsJson != null && !searchParamsJson.isEmpty()
@@ -939,22 +1015,22 @@ public class SearchHistoryService {
         } catch (Exception e) {
             throw new IllegalArgumentException("invalid search_params", e);
         }
-        return runCollectEncryptedRowIdsFromSearchRequest(searchRequest, logType);
+        return runCollectEncryptedRowsFromSearchRequest(searchRequest, logType);
     }
 
     /**
      * getDetail path: invalid params or search failure → empty list (still return 200 with empty rows).
      */
-    private List<String> collectEncryptedSnapshotRowIdsLenient(String searchParamsJson, String logType) {
+    private List<ApprovedSnapshotRow> collectEncryptedSnapshotRowsLenient(String searchParamsJson, String logType) {
         try {
-            return collectEncryptedSnapshotRowIdsStrict(searchParamsJson, logType);
+            return collectEncryptedSnapshotRowsStrict(searchParamsJson, logType);
         } catch (IllegalArgumentException e) {
             log.warn("getDetail: search_params parse failed for decryption row list, logType={}", logType);
             return Collections.emptyList();
         }
     }
 
-    private List<String> runCollectEncryptedRowIdsFromSearchRequest(LogDbSearchRequest searchRequest, String logType) {
+    private List<ApprovedSnapshotRow> runCollectEncryptedRowsFromSearchRequest(LogDbSearchRequest searchRequest, String logType) {
         if (searchRequest.getLogType() == null || searchRequest.getLogType().isEmpty()) {
             searchRequest.setLogType(logType);
         }
@@ -964,42 +1040,43 @@ public class SearchHistoryService {
         try {
             searchResponse = logDbService.searchLogs(searchRequest);
         } catch (Exception e) {
-            log.warn("collectEncryptedRowIds: searchLogs failed, logType={}: {}", logType, e.getMessage());
+            log.warn("collectEncryptedRows: searchLogs failed, logType={}: {}", logType, e.getMessage());
             return Collections.emptyList();
         }
         List<Map<String, Object>> data = searchResponse.getData() != null ? searchResponse.getData() : Collections.emptyList();
-        List<String> rowIds = new ArrayList<>();
+        List<ApprovedSnapshotRow> out = new ArrayList<>();
         for (Map<String, Object> row : data) {
             if (!hasEncryptedData(logType, row)) {
                 continue;
             }
-            String rowId = extractRowIdForSnapshot(logType, row);
-            if (rowId != null && !rowId.isEmpty()) {
-                rowIds.add(rowId);
+            ApprovedSnapshotRow ar = extractSnapshotRow(logType, row);
+            if (!ar.isEmpty()) {
+                out.add(ar);
             }
         }
-        return rowIds;
+        return out;
     }
 
     /**
-     * Build API rows: java_fw_imglog resolves application/serviceGroup via {@link LogDbService#getApplicationServiceGroupByGuids}; other log types null app/sg; guid holds row_id.
+     * Build API rows: java_fw_imglog resolves application/serviceGroup via composite (guid, status).
      */
-    private List<Map<String, Object>> buildDecryptionRequestedRowsDisplay(List<String> orderedLogTypes, List<String> orderedRowIds) {
+    private List<Map<String, Object>> buildDecryptionRequestedRowsDisplay(List<String> orderedLogTypes, List<String> orderedRowIds, List<String> orderedStatuses) {
         List<Map<String, Object>> rows = new ArrayList<>();
-        List<String> guidsToResolve = new ArrayList<>();
+        List<DecryptionRowKey> keysToResolve = new ArrayList<>();
         for (int i = 0; i < orderedRowIds.size(); i++) {
             String rowId = orderedRowIds.get(i);
             if (rowId == null || rowId.isBlank()) {
                 continue;
             }
             if ("java_fw_imglog".equals(orderedLogTypes.get(i))) {
-                guidsToResolve.add(rowId);
+                String st = i < orderedStatuses.size() ? orderedStatuses.get(i) : "";
+                keysToResolve.add(new DecryptionRowKey(rowId, st));
             }
         }
         Map<String, Map<String, String>> resolution = Collections.emptyMap();
-        if (!guidsToResolve.isEmpty() && logDbService != null) {
+        if (!keysToResolve.isEmpty() && logDbService != null) {
             try {
-                resolution = logDbService.getApplicationServiceGroupByGuids(guidsToResolve);
+                resolution = logDbService.getApplicationServiceGroupByGuidStatusPairs(keysToResolve);
             } catch (Exception e) {
                 log.warn("Log DB resolution for decryption rows failed (returning null app/sg): {}", e.getMessage());
             }
@@ -1010,14 +1087,18 @@ public class SearchHistoryService {
                 continue;
             }
             boolean isImglog = "java_fw_imglog".equals(orderedLogTypes.get(i));
+            String st = i < orderedStatuses.size() ? orderedStatuses.get(i) : "";
             Map<String, Object> entry = new LinkedHashMap<>();
             if (isImglog) {
-                Map<String, String> resolved = resolution.get(rowId);
+                DecryptionRowKey k = new DecryptionRowKey(rowId, st);
+                Map<String, String> resolved = resolution.get(k.compositeMapKey());
                 entry.put("application", resolved != null ? resolved.get("application") : null);
                 entry.put("serviceGroup", resolved != null ? resolved.get("serviceGroup") : null);
+                entry.put("status", st);
             } else {
                 entry.put("application", null);
                 entry.put("serviceGroup", null);
+                entry.put("status", "");
             }
             entry.put("guid", rowId);
             rows.add(entry);
@@ -1025,12 +1106,19 @@ public class SearchHistoryService {
         return rows;
     }
 
-    private List<Map<String, Object>> buildDecryptionRequestedRowsFromSearchRowIds(String logType, List<String> rowIds) {
-        List<String> logTypes = new ArrayList<>(rowIds.size());
-        for (int i = 0; i < rowIds.size(); i++) {
+    private List<Map<String, Object>> buildDecryptionRequestedRowsFromSearchRows(String logType, List<ApprovedSnapshotRow> snapshotRows) {
+        List<String> logTypes = new ArrayList<>();
+        List<String> rowIds = new ArrayList<>();
+        List<String> statuses = new ArrayList<>();
+        for (ApprovedSnapshotRow r : snapshotRows) {
+            if (r.isEmpty()) {
+                continue;
+            }
             logTypes.add(logType);
+            rowIds.add(r.getRowId());
+            statuses.add(r.getRowStatus());
         }
-        return buildDecryptionRequestedRowsDisplay(logTypes, rowIds);
+        return buildDecryptionRequestedRowsDisplay(logTypes, rowIds, statuses);
     }
 
     private static String formatTimestamp(Timestamp ts) {

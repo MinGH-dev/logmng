@@ -147,6 +147,7 @@ describe('ImageLogTable (req 20260318 decryption-allowed store and decrypt UI)',
       const decryptionAllowed = {
         validUntil: '2026-12-31T23:59:59',
         guids: ['guid-allowed'],
+        allowedRows: [{ guid: 'guid-allowed', status: 'OK' }],
       };
       let capturedUrl;
       let capturedBody;
@@ -186,6 +187,37 @@ describe('ImageLogTable (req 20260318 decryption-allowed store and decrypt UI)',
         );
         expect(capturedBody).toEqual({ guid: 'guid-allowed', status: 'OK' });
       });
+    });
+
+    test('same guid but status not in allowedRows → dimmed (composite key)', async () => {
+      const logs = [
+        {
+          guid: 'guid-allowed',
+          status: 'OK',
+          insert_time: '2026-03-18 10:00:00',
+          application: 'app1',
+          servicegroup: 'sg1',
+          service: 'svc1',
+          datastring: '{"key":"[encrypted]"}',
+          headerstring: '{}',
+        },
+      ];
+      const decryptionAllowed = {
+        validUntil: '2026-12-31T23:59:59',
+        guids: ['guid-allowed'],
+        allowedRows: [{ guid: 'guid-allowed', status: 'OTHER' }],
+      };
+      const { container } = render(
+        <ImageLogTable
+          {...defaultProps}
+          logs={logs}
+          totalCount={1}
+          decryptionAllowed={decryptionAllowed}
+        />
+      );
+      const decryptCell = container.querySelector('td.decrypt-action-cell');
+      const dimmedBtn = within(decryptCell).getByRole('button', { name: /복호화 \(승인 필요\)/ });
+      expect(dimmedBtn).toHaveClass('decrypt-btn--not-allowed');
     });
   });
 });

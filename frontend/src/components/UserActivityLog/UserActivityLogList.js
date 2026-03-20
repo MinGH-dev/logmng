@@ -10,8 +10,7 @@ import {
 import { getSelfContextForDisplay } from '../../utils/security';
 import './UserActivityLog.css';
 import logger from '../../utils/logger';
-
-const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || 'http://localhost:9200/api';
+import { getApiBaseUrl } from '../../config/runtimeApi';
 const SELF_SCOPE_OMIT_FIELDS = ['userId', 'username', 'department', 'ipAddress'];
 
 const sanitizeSearchParamsForScope = (params = {}, isSelfScope = false) => {
@@ -69,7 +68,7 @@ const UserActivityLogList = ({ user }) => {
   // 초기 로드 - 서버 날짜(health) 기준 '오늘'로 검색 (브라우저/서버 타임존 불일치 방지)
   useEffect(() => {
     let cancelled = false;
-    fetch(`${API_BASE_URL}/health`, { credentials: 'include' })
+    fetch(`${getApiBaseUrl()}/health`, { credentials: 'include' })
       .then((res) => res.json())
       .then((res) => {
         if (cancelled) return;

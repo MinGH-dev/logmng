@@ -3,8 +3,9 @@
 # Usage: from repo root — ./scripts/install_linux.sh
 # Requires: psql, bash 4+ (for ${var,,}); PostgreSQL reachable on this host.
 #
-# For a full offline bundle (JARs + db + single install/start tool on the server), use
-#   ./scripts/build-offline-bundle.sh
+# For a full offline bundle (JARs + db + single install/start tool on the server), optionally
+#   ./scripts/download-psql-for-bundle.sh
+# then ./scripts/build-offline-bundle.sh
 # and on the air-gapped host: ./install-offline.sh all
 
 set -euo pipefail

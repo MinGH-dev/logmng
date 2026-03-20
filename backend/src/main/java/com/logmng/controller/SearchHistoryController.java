@@ -1,6 +1,7 @@
 package com.logmng.controller;
 
 import com.logmng.constants.ScreenConstants;
+import com.logmng.diagnostic.ApprovalFlowDiagnosticLog;
 import com.logmng.dto.request.RejectRequest;
 import com.logmng.dto.request.SearchHistoryCreateRequest;
 import com.logmng.dto.request.SearchHistoryListRequest;
@@ -20,6 +21,7 @@ import javax.sql.DataSource;
 import java.util.Collections;
 import java.util.List;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -43,17 +45,20 @@ public class SearchHistoryController {
     private final AuthService authService;
     private final DataSource dataSource;
     private final AppUserResolver appUserResolver;
+    private final boolean diagnosticApprovalFlow;
 
     public SearchHistoryController(SearchHistoryService searchHistoryService,
                                    DecryptApproverService decryptApproverService,
                                    AuthService authService,
                                    DataSource dataSource,
-                                   AppUserResolver appUserResolver) {
+                                   AppUserResolver appUserResolver,
+                                   @Value("${app.diagnostic.approval-flow:false}") boolean diagnosticApprovalFlow) {
         this.searchHistoryService = searchHistoryService;
         this.decryptApproverService = decryptApproverService;
         this.authService = authService;
         this.dataSource = dataSource;
         this.appUserResolver = appUserResolver;
+        this.diagnosticApprovalFlow = diagnosticApprovalFlow;
     }
 
     /** Current user's username (app_user.username). Resolved from session userId via AuthService. */
@@ -342,6 +347,7 @@ public class SearchHistoryController {
         } catch (CustomException e) {
             throw e;
         } catch (Throwable t) {
+            ApprovalFlowDiagnosticLog.controllerThrowable(diagnosticApprovalFlow, id, userId, t);
             log.error("승인 처리 중 오류: id={}, userId={}, type={}, message={}", id, userId, t.getClass().getName(), t.getMessage(), t);
             return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                     .body(ApiResponse.failure("승인 처리 중 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.", "APPROVAL_ERROR"));

@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import './LoginForm.css';
 import logger from '../utils/logger';
+import { getApiBaseUrl } from '../config/runtimeApi';
 
 const LoginForm = ({ onLogin }) => {
   const [formData, setFormData] = useState({
@@ -56,8 +57,8 @@ const LoginForm = ({ onLogin }) => {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), LOGIN_TIMEOUT_MS);
 
+    const apiBaseUrl = getApiBaseUrl();
     try {
-      const apiBaseUrl = process.env.REACT_APP_API_BASE_URL || 'http://localhost:9200/api';
       const requestBody = {
         userId: Number(formData.userId),
         password: formData.password
@@ -106,12 +107,28 @@ const LoginForm = ({ onLogin }) => {
       }
     } catch (error) {
       clearTimeout(timeoutId);
-      logger.error('❌ 로그인 요청 중 오류:', { error: error.message });
+      logger.error('❌ 로그인 요청 중 오류:', {
+        error: error.message,
+        apiBaseUrl,
+        loginUrl: `${apiBaseUrl}/auth/login`,
+      });
 
       if (error.name === 'TypeError' && error.message.includes('fetch')) {
-        setErrors({ general: '🌐 서버에 연결할 수 없습니다.\n네트워크 연결을 확인해주세요.' });
+        setErrors({
+          general:
+            '🌐 서버에 연결할 수 없습니다.\n' +
+            '브라우저가 API에 도달하지 못했습니다(백엔드 로그에 요청이 안 남는 경우가 많음).\n\n' +
+            `시도한 API: ${apiBaseUrl}\n` +
+            '백엔드에 LOGMNG_API_BASE_URL(또는 정적 서버 환경)로 API 주소를 주거나, www/runtime-config.js 에 apiBaseUrl을 넣으세요. 재빌드 없이 가능합니다.\n' +
+            'CORS_ALLOWED_ORIGINS에 UI 주소(예: http://서버IP:3001)가 정확히 포함돼 있는지 확인하세요.',
+        });
       } else if (error.name === 'AbortError') {
-        setErrors({ general: '⏱️ 요청 시간이 초과되었습니다.\n서버(백엔드)가 동작 중인지 확인해주세요.' });
+        setErrors({
+          general:
+            '⏱️ 요청 시간이 초과되었습니다.\n' +
+            `시도한 API: ${apiBaseUrl}\n` +
+            '방화벽·포트·백엔드 기동 여부를 확인하세요.',
+        });
       } else {
         setErrors({ general: '🚨 예상치 못한 오류가 발생했습니다.\n페이지를 새로고침하거나 관리자에게 문의하세요.' });
       }

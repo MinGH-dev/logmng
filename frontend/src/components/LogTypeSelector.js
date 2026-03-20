@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import './LogTypeSelector.css';
+import { getApiBaseUrl } from '../config/runtimeApi';
 
 const LogTypeSelector = ({ onSelectLogType }) => {
   const [logTypes, setLogTypes] = useState([]);
@@ -13,7 +14,7 @@ const LogTypeSelector = ({ onSelectLogType }) => {
   const fetchLogTypes = async () => {
     try {
       setLoading(true);
-      const apiBaseUrl = process.env.REACT_APP_API_BASE_URL || 'http://localhost:9200/api';
+      const apiBaseUrl = getApiBaseUrl();
       const response = await fetch(`${apiBaseUrl}/log-types`);
       const result = await response.json();
       

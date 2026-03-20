@@ -1,5 +1,6 @@
 package com.logmng.config;
 
+import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.web.servlet.config.annotation.CorsRegistry;
 import org.springframework.web.servlet.config.annotation.InterceptorRegistry;
@@ -9,14 +10,18 @@ import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
  * Web 설정
  */
 @Configuration
+@EnableConfigurationProperties(AppCorsProperties.class)
 public class WebConfig implements WebMvcConfigurer {
 
     private final AuthInterceptor authInterceptor;
     private final ScreenAccessInterceptor screenAccessInterceptor;
+    private final AppCorsProperties appCorsProperties;
 
-    public WebConfig(AuthInterceptor authInterceptor, ScreenAccessInterceptor screenAccessInterceptor) {
+    public WebConfig(AuthInterceptor authInterceptor, ScreenAccessInterceptor screenAccessInterceptor,
+                       AppCorsProperties appCorsProperties) {
         this.authInterceptor = authInterceptor;
         this.screenAccessInterceptor = screenAccessInterceptor;
+        this.appCorsProperties = appCorsProperties;
     }
 
     @Override
@@ -31,13 +36,14 @@ public class WebConfig implements WebMvcConfigurer {
 
     @Override
     public void addCorsMappings(CorsRegistry registry) {
+        String[] origins = appCorsProperties.allowedOriginList().toArray(String[]::new);
         registry.addMapping("/api/**")
-                .allowedOrigins("http://localhost:3000", "http://localhost:3001",
-                        "http://127.0.0.1:3000", "http://127.0.0.1:3001")
+                .allowedOrigins(origins)
                 .allowCredentials(true) // 세션 쿠키 전달 허용
                 .allowedMethods("GET", "POST", "PUT", "DELETE", "OPTIONS")
-                .allowedHeaders("*")
-                .allowCredentials(true)
+                .allowedHeaders(
+                        "Content-Type", "Authorization", "Accept", "Accept-Language",
+                        "X-Requested-With", "Cache-Control", "Pragma")
                 .maxAge(3600);
     }
 }

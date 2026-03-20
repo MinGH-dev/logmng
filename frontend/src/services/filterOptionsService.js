@@ -1,6 +1,5 @@
 import logger from '../utils/logger';
-
-const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || 'http://localhost:9200/api';
+import { getApiBaseUrl } from '../config/runtimeApi';
 
 export const FILTER_OPTION_SCREEN_IDS = Object.freeze({
   ACTIVITY_LOG: 'activity-log',
@@ -16,7 +15,7 @@ export const getDepartmentFilterOptions = async (screenId) => {
   }
 
   const params = new URLSearchParams({ screen: screenId });
-  const response = await fetch(`${API_BASE_URL}/filter-options/departments?${params.toString()}`, {
+  const response = await fetch(`${getApiBaseUrl()}/filter-options/departments?${params.toString()}`, {
     method: 'GET',
     headers: { 'Content-Type': 'application/json' },
     credentials: 'include',

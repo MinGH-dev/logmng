@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 #
 # Build a self-contained offline deployment tree + gzip tarball for air-gapped servers.
-# Includes: backend fat JAR, static UI, JDK static-server JAR, all db/*.sql + *.sh, installer, docs.
+# Includes: backend fat JAR, static UI, JDK static-server JAR, all db/*.sql + *.sh, installer, docs,
+#           optional tools/psql-deb/*.deb if third_party/psql-deb/ was populated (download-psql-for-bundle.sh).
 # Run ONLY on a machine with Internet (npm, Maven) — the resulting .tar.gz needs no network.
 #
 # Usage (repo root):
@@ -25,7 +26,7 @@ echo "[build-offline-bundle] Packaging bin (npm + mvn)..."
 
 echo "[build-offline-bundle] Assembling $OUT ..."
 rm -rf "$OUT"
-mkdir -p "$OUT/bin/backend" "$OUT/bin/frontend/www" "$OUT/db" "$OUT/docs"
+mkdir -p "$OUT/bin/backend" "$OUT/bin/frontend/www" "$OUT/db" "$OUT/docs" "$OUT/tools/psql-deb"
 
 # --- Application binaries (libraries embedded in JARs) ---
 cp "$ROOT/bin/backend/logmng-backend-1.0.0.jar" "$OUT/bin/backend/"
@@ -44,6 +45,20 @@ cp "$ROOT/backend/DB_SETUP_GUIDE.md" "$OUT/docs/"
 cp "$ROOT/docs/contract.md" "$OUT/docs/"
 cp "$ROOT/bin/README.md" "$OUT/docs/BIN-DEPLOY-README.md"
 
+# Optional: bundled psql (.deb) for Debian/Ubuntu air-gap hosts (see download-psql-for-bundle.sh)
+PSQL_SRC="$ROOT/third_party/psql-deb"
+shopt -s nullglob
+PSQL_DEBS=( "$PSQL_SRC"/*.deb )
+shopt -u nullglob
+if [[ ${#PSQL_DEBS[@]} -gt 0 ]]; then
+  cp "${PSQL_DEBS[@]}" "$OUT/tools/psql-deb/"
+  [[ -f "$PSQL_SRC/README.txt" ]] && cp "$PSQL_SRC/README.txt" "$OUT/tools/psql-deb/README.txt"
+  echo "[build-offline-bundle] Included ${#PSQL_DEBS[@]} file(s) in tools/psql-deb/"
+else
+  cp "$ROOT/scripts/offline-bundle/bundle-psql-deb-README.no-debs.txt" "$OUT/tools/psql-deb/README.txt"
+  echo "[build-offline-bundle] WARN: tools/psql-deb/ has no .deb — run scripts/download-psql-for-bundle.sh on a build PC with Internet to bundle psql."
+fi
+
 chmod +x "$OUT/install-offline.sh" "$OUT/bin/backend/run.sh" "$OUT/bin/frontend/run.sh"
 find "$OUT/db" -name "*.sh" -exec chmod +x {} \; 2>/dev/null || true
 
@@ -53,6 +68,7 @@ find "$OUT/db" -name "*.sh" -exec chmod +x {} \; 2>/dev/null || true
   echo "version=${VERSION}"
   echo "built_utc=$(date -u +%Y-%m-%dT%H:%M:%SZ)"
   echo "react_app_api_base_url=${REACT_APP_API_BASE_URL:-http://127.0.0.1:9200/api}"
+  echo "runtime_api_base_hint=Set LOGMNG_API_BASE_URL on static-server process for /runtime-config.js (no rebuild)"
   printf 'git_commit='
   (cd "$ROOT" && git rev-parse --short HEAD 2>/dev/null) || echo "n/a"
 } >"$OUT/BUNDLE-VERSION.txt"

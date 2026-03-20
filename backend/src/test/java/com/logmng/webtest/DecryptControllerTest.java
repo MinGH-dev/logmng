@@ -61,7 +61,7 @@ class DecryptControllerTest {
     void decryptRow_whenNotInDecryptionAllowed_returns403DecryptionNotApproved() throws Exception {
         decryptionAllowedService.setAllowed(false);
 
-        Map<String, String> body = Map.of("guid", "guid-any");
+        Map<String, String> body = Map.of("guid", "guid-any", "status", "input");
 
         mockMvc.perform(post("/api/logs/decrypt/java_fw_imglog")
                         .sessionAttr("userId", 20260001L)
@@ -78,7 +78,7 @@ class DecryptControllerTest {
         decryptionAllowedService.setAllowed(true);
         logDbService.setDecryptRowResult(Map.of("decrypted", "data"));
 
-        Map<String, String> body = Map.of("guid", "guid-in-snapshot");
+        Map<String, String> body = Map.of("guid", "guid-in-snapshot", "status", "output");
 
         mockMvc.perform(post("/api/logs/decrypt/java_fw_imglog")
                         .sessionAttr("userId", 20260001L)
@@ -90,12 +90,33 @@ class DecryptControllerTest {
     }
 
     @Test
+    @DisplayName("TC-07: missing or blank status → 400 MISSING_STATUS")
+    void decryptRow_whenStatusMissing_returns400MissingStatus() throws Exception {
+        decryptionAllowedService.setAllowed(true);
+
+        mockMvc.perform(post("/api/logs/decrypt/java_fw_imglog")
+                        .sessionAttr("userId", 20260001L)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of("guid", "guid-in-snapshot"))))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.code").value("MISSING_STATUS"));
+
+        mockMvc.perform(post("/api/logs/decrypt/java_fw_imglog")
+                        .sessionAttr("userId", 20260001L)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of("guid", "guid-in-snapshot", "status", "  "))))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("MISSING_STATUS"));
+    }
+
+    @Test
     @DisplayName("TC-01: requester executes decrypt with guid in allowed set → 200")
     void decryptRow_requesterWithAllowedGuid_returns200() throws Exception {
         decryptionAllowedService.setAllowed(true);
         logDbService.setDecryptRowResult(Map.of("decrypted", "data"));
 
-        Map<String, String> body = Map.of("guid", "guid-in-snapshot");
+        Map<String, String> body = Map.of("guid", "guid-in-snapshot", "status", "output");
 
         mockMvc.perform(post("/api/logs/decrypt/java_fw_imglog")
                         .sessionAttr("userId", 20260001L)
@@ -113,7 +134,7 @@ class DecryptControllerTest {
         authServiceStub.setCurrentUsername("user2");
         decryptionAllowedService.setAllowed(false);
 
-        Map<String, String> body = Map.of("guid", "guid-any");
+        Map<String, String> body = Map.of("guid", "guid-any", "status", "input");
 
         mockMvc.perform(post("/api/logs/decrypt/java_fw_imglog")
                         .contentType(MediaType.APPLICATION_JSON)

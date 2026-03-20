@@ -117,15 +117,23 @@ public class LogDbController {
             @PathVariable String logType,
             @PathVariable String type,
             @PathVariable String identifier,
+            @RequestParam(value = "status", required = false) String status,
             HttpServletRequest httpRequest) {
 
         requireLogTypeAccess(httpRequest, logType);
-        log.debug("DB 로그 상세 조회: logType={}, type={}, identifier={}", logType, type, identifier);
+        log.debug("DB 로그 상세 조회: logType={}, type={}, identifier={}, status={}", logType, type, identifier, status);
 
-        Map<String, Object> data = logDbService.getLogDetail(logType, type, identifier);
-        
-        ApiResponse<Map<String, Object>> response = ApiResponse.success(data);
-        return ResponseEntity.ok(response);
+        if ("java_fw_imglog".equals(logType) && (status == null || status.isBlank())) {
+            return ResponseEntity.badRequest()
+                    .body(ApiResponse.failure("java_fw_imglog 상세 조회에는 status 쿼리 파라미터가 필요합니다.", "MISSING_STATUS"));
+        }
+        try {
+            Map<String, Object> data = logDbService.getLogDetail(logType, type, identifier, status);
+            return ResponseEntity.ok(ApiResponse.success(data));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest()
+                    .body(ApiResponse.failure(e.getMessage(), "MISSING_STATUS"));
+        }
     }
     
     /**
@@ -138,15 +146,23 @@ public class LogDbController {
             @PathVariable String logType,
             @PathVariable String type,
             @PathVariable String identifier,
+            @RequestParam(value = "status", required = false) String status,
             HttpServletRequest httpRequest) {
 
         requireLogTypeAccess(httpRequest, logType);
-        log.debug("복호화된 데이터 조회: logType={}, type={}, identifier={}", logType, type, identifier);
+        log.debug("복호화된 데이터 조회: logType={}, type={}, identifier={}, status={}", logType, type, identifier, status);
 
-        Map<String, Object> data = logDbService.getDecryptedData(logType, type, identifier);
-        
-        ApiResponse<Map<String, Object>> response = ApiResponse.success(data);
-        return ResponseEntity.ok(response);
+        if ("java_fw_imglog".equals(logType) && (status == null || status.isBlank())) {
+            return ResponseEntity.badRequest()
+                    .body(ApiResponse.failure("java_fw_imglog 복호화 조회에는 status 쿼리 파라미터가 필요합니다.", "MISSING_STATUS"));
+        }
+        try {
+            Map<String, Object> data = logDbService.getDecryptedData(logType, type, identifier, status);
+            return ResponseEntity.ok(ApiResponse.success(data));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest()
+                    .body(ApiResponse.failure(e.getMessage(), "MISSING_STATUS"));
+        }
     }
     
     /**

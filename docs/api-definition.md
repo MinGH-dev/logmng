@@ -273,7 +273,7 @@
 
 - **GET** `/api/search-history/{id}`
 - **Path**: `id` — 검색 이력 ID (Long)
-- **Response (data)**: `id`, `logType`, `searchParams` (object, 전체 검색 조건), `requestedAt`, `expiresAt`, `approvalStatus`, `requestReason` (string | null, 요청 사유; req 20260317), **`searchResultTotalCount` (number \| null), `decryptionTargetCount` (number \| null)** — DB 저장 스냅샷(레거시 null), 결재 이력(선택·nullable): `approvedBy` (표시용; req 20260316: `approved_by_user_id`→username, 없으면 `approved_by`), `approvedAt`, `rejectedBy`, `rejectedAt`, `rejectionReason`. **복호화 요청 대상 (항상 포함)**: `decryptionRequestedRows`: `{ application: string | null, serviceGroup: string | null, guid: string }[]`, `decryptionRequestedCount`: number. **출처**: `APPROVED`이고 `search_history_approved_row`에 행이 있으면 DB 스냅샷을 사용(없으면 승인과 동일하게 저장 검색 재실행: `search_params`+`logType`, 최대 1만 건, 암호화 데이터가 있는 행만). `PENDING` / `REJECTED` / `EXPIRED`는 항상 저장 검색 재실행으로 수집(동일 규칙). java_fw_imglog는 `getApplicationServiceGroupByGuids`로 application·serviceGroup 보강; 로그 DB 장애·미존재 시 해당 항목은 null. `search_params` 파싱 실패·검색 실패 시 빈 배열·0.
+- **Response (data)**: `id`, `logType`, `searchParams` (object, 전체 검색 조건), `requestedAt`, `expiresAt`, `approvalStatus`, `requestReason` (string | null, 요청 사유; req 20260317), **`searchResultTotalCount` (number \| null), `decryptionTargetCount` (number \| null)** — DB 저장 스냅샷(레거시 null), 결재 이력(선택·nullable): `approvedBy` (표시용; req 20260316: `approved_by_user_id`→username, 없으면 `approved_by`), `approvedAt`, `rejectedBy`, `rejectedAt`, `rejectionReason`. **복호화 요청 대상 (항상 포함, req 20260320)**: `decryptionRequestedRows`: `{ application: string | null, serviceGroup: string | null, guid: string, status: string }[]` (java_fw_imglog의 `status`는 행의 비즈니스 status; 스냅샷·복합 키와 정렬), `decryptionRequestedCount`: number. **출처**: `APPROVED`이고 `search_history_approved_row`에 행이 있으면 DB 스냅샷을 사용(없으면 승인과 동일하게 저장 검색 재실행: `search_params`+`logType`, 최대 1만 건, 암호화 데이터가 있는 행만). `PENDING` / `REJECTED` / `EXPIRED`는 항상 저장 검색 재실행으로 수집(동일 규칙). java_fw_imglog는 `(guid, status)`로 로그 DB 보강; 로그 DB 장애·미존재 시 해당 항목은 null. `search_params` 파싱 실패·검색 실패 시 빈 배열·0.
 - **에러**: 403(타 사용자 소유), 404(없음)
 
 ### 6.1.5 승인 대기 목록 조회 (결재자·관리자 전용)
@@ -448,7 +448,7 @@
 
 **Base path**: `/api/logs/decrypt` (POST), **Base path (허용 목록)**: `/api/decrypt/allowed` (GET)
 
-**승인 소스 (req 20260318)**: 복호화 허용 여부는 **decryption-allowed store**(user_id, screen, approved GUIDs, valid_until)에서만 결정된다. `search_history`/`search_history_approved_row`는 감사·이력용이며, POST decrypt의 권한 판단에는 사용하지 않는다.
+**승인 소스 (req 20260318, 20260320)**: 복호화 허용 여부는 **decryption-allowed store**에서만 결정된다. java_fw_imglog는 **(user_id, screen, guid, row_status)** 복합 키. `search_history`/`search_history_approved_row`는 감사·이력용이며, POST decrypt의 권한 판단에는 사용하지 않는다.
 
 ### 10.1 복호화 허용 목록 조회 (GET)
 
@@ -456,10 +456,11 @@
 - **권한**: 인증 필요. 요청한 `screen`에 대한 접근 + screenFunctions[screen].decrypt (또는 is_system_admin) 필요. 그 외 403 `FUNCTION_NOT_ALLOWED`.
 - **Query**:
   - `screen` (필수) — 화면 ID. `pb-feplog` 또는 `java-fw-imagelog` (main은 이전 호환용). 해당 사용자·화면에 대한 허용 GUID 목록과 유효기간 반환.
-- **Response (data)**: `{ "screen": string, "validUntil": string (yyyy-MM-dd'T'HH:mm:ss 또는 ISO-8601), "guids": string[] }`
+- **Response (data)**: `{ "screen": string, "validUntil": string (yyyy-MM-dd'T'HH:mm:ss 또는 ISO-8601), "guids": string[], "allowedRows": { "guid": string, "status": string }[] }`
   - `screen`: 요청한 screen 값.
-  - `validUntil`: 현재 사용자·화면에 대한 복호화 허용 유효 종료 시각. 이 시각 이전에만 해당 guids에 대한 복호화 가능.
-  - `guids`: 해당 사용자·화면에서 복호화 허용된 GUID 목록. 없으면 빈 배열 `[]`.
+  - `validUntil`: 현재 사용자·화면에 대한 복호화 허용 유효 종료 시각. 이 시각 이전에만 복호화 가능.
+  - `allowedRows`: java_fw_imglog 복합 허용 목록(권위). 각 항목은 `(guid, status)` 일치 시에만 POST decrypt 허용.
+  - `guids`: 허용된 guid의 distinct 목록(하위 호환·요약용). 없으면 빈 배열 `[]`.
 - **에러**:
   - 401 미로그인: `code: "UNAUTHORIZED"`
   - 403 복호화 권한 없음: `code: "FUNCTION_NOT_ALLOWED"`
@@ -470,11 +471,11 @@
 - **POST** `/api/logs/decrypt/{logType}`
 - **권한 (req 20260318)**: **logType에 대응하는 화면**(java_fw_imglog→java-fw-imagelog) 접근 + screenFunctions[screen].decrypt === true (또는 is_system_admin). 권한 없으면 403 `code: "FUNCTION_NOT_ALLOWED"`. 권한관리에서 pb-feplog·java-fw-imagelog에 대해 "복호화" 권한 부여/해제 가능.
 - **Path**: `logType` — 현재 **java_fw_imglog** 만 지원
-- **Request body** (JSON): `{ "guid": string (필수), "status"?: string, "searchHistoryId"?: number (선택, 감사용) }`
+- **Request body** (JSON): `{ "guid": string (필수), "status": string (java_fw_imglog 필수), "searchHistoryId"?: number (선택, 감사용) }`
   - **guid**: 필수. 복호화 대상 row의 GUID.
-  - **status**: 선택. 복호화 상태 등.
+  - **status**: **java_fw_imglog에서 필수**(공백만 불가). 행의 비즈니스 status; decryption-allowed store의 `row_status`와 정규화(trim) 후 일치해야 함.
   - **searchHistoryId**: 선택. **승인 판단에는 사용하지 않음.** 감사·추적용으로만 전달 가능. 생략 가능.
-  - **승인 판단 (req 20260318)**: 백엔드는 logType→screen 매핑 후, 현재 사용자·해당 screen에 대한 **decryption-allowed store**를 확인한다. guid가 해당 store의 허용 목록에 있고 valid_until > now 일 때만 복호화 허용.
+  - **승인 판단 (req 20260318, 20260320)**: logType→screen 매핑 후, 현재 사용자·screen·**(guid, status)** 가 decryption-allowed store에 있고 valid_until > now 일 때만 복호화 허용.
 - **Response (data)**: Map (복호화된 필드)
 - **에러**:
   - 401 미로그인: `code: "UNAUTHORIZED"`
@@ -482,6 +483,7 @@
   - 403 복호화 미허용: `code: "DECRYPTION_NOT_APPROVED"` — guid가 decryption-allowed store에 없거나 valid_until이 만료된 경우.
   - java_fw_imglog 외: `code: "UNSUPPORTED_LOG_TYPE"`
   - guid 누락: `code: "MISSING_GUID"`
+  - status 누락·공백(java_fw_imglog): `code: "MISSING_STATUS"`
   - 복호화 실패: `code: "DECRYPTION_FAILED"`
 
 ---
@@ -492,9 +494,10 @@
 |------|------|
 | LOG_TYPE_NOT_FOUND | 존재하지 않는 로그 타입 |
 | UNSUPPORTED_LOG_TYPE | 해당 로그 타입 미지원 (현재 java_fw_imglog만 지원하는 API) |
-| DECRYPTION_NOT_APPROVED | 복호화 미허용: decryption-allowed store에 guid 없음 또는 valid_until 만료 (403). req 20260318. |
+| DECRYPTION_NOT_APPROVED | 복호화 미허용: decryption-allowed store에 **(guid, status)** 없음 또는 valid_until 만료 (403). req 20260318, 20260320. |
 | ROW_NOT_IN_APPROVED_SNAPSHOT | (선택) 위와 동일 의미로 사용 가능. 제품에서 DECRYPTION_NOT_APPROVED 로 통일 가능 (403). |
 | MISSING_GUID | 복호화 시 guid 필수 |
+| MISSING_STATUS | java_fw_imglog 복호화 시 status 필수(공백 불가) (400). req 20260320. |
 | DECRYPTION_FAILED | 복호화 처리 실패 |
 | FORBIDDEN_NOT_APPROVER | 승인/반려·대기목록 API 호출 권한 없음(결재자 또는 관리자만 가능) (403) |
 | NOT_APPROVER | 위와 동일 의미. 구현 시 하나로 통일 가능 |

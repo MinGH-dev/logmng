@@ -2,6 +2,10 @@
 # dev 서비스 start/stop/restart (frontend | backend | db | all)
 # 사용법: ./scripts/dev-services.sh <frontend|backend|db|all> <start|stop|restart>
 # db: PostgreSQL (Homebrew postgresql@16, 포트 5432)
+#
+# 승인 흐름 진단 로그([diag-approval])를 켜려면 백엔드 재시작 시:
+#   BACKEND_DIAGNOSTIC_APPROVAL=1 ./scripts/dev-services.sh backend restart
+# (또는 미리 export APP_DIAGNOSTIC_APPROVAL_FLOW=true)
 
 set -e
 
@@ -40,7 +44,12 @@ start_backend() {
     mvn clean package -DskipTests -q
   fi
   mkdir -p logs
-  nohup java -jar "target/$JAR_NAME" >> logs/backend-stdout.log 2>&1 &
+  local approval_diag="${APP_DIAGNOSTIC_APPROVAL_FLOW:-false}"
+  if [ "${BACKEND_DIAGNOSTIC_APPROVAL:-}" = "1" ] || [ "${BACKEND_DIAGNOSTIC_APPROVAL:-}" = "true" ]; then
+    approval_diag=true
+    echo "[OK] APP_DIAGNOSTIC_APPROVAL_FLOW=true (BACKEND_DIAGNOSTIC_APPROVAL)"
+  fi
+  nohup env APP_DIAGNOSTIC_APPROVAL_FLOW="$approval_diag" java -jar "target/$JAR_NAME" >> logs/backend-stdout.log 2>&1 &
   echo "[OK] Backend starting (port $BACKEND_PORT). Logs: backend/logs/"
 }
 

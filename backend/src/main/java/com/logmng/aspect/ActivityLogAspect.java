@@ -2,6 +2,7 @@ package com.logmng.aspect;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.logmng.annotation.ActivityLog;
+import com.logmng.dto.DecryptionRowKey;
 import com.logmng.dto.response.LoginResponse;
 import com.logmng.service.AuthService;
 import com.logmng.service.UserActivityLogService;
@@ -133,7 +134,10 @@ public class ActivityLogAspect {
                     try {
                             // 객체를 JSON으로 변환 시도
                             if (args[i] != null) {
-                                if (args[i] instanceof com.logmng.dto.request.LogDbSearchRequest) {
+                                if (isJavaFwImglogDecryptRequestMap(paramNames[i], args[i], paramNames, args)) {
+                                    params.put(paramNames[i],
+                                            buildJavaFwImglogDecryptActivityParams((Map<?, ?>) args[i]));
+                                } else if (args[i] instanceof com.logmng.dto.request.LogDbSearchRequest) {
                                     com.logmng.dto.request.LogDbSearchRequest searchRequest = 
                                         (com.logmng.dto.request.LogDbSearchRequest) args[i];
                                     Map<String, Object> searchConditions = new HashMap<>();
@@ -624,6 +628,37 @@ public class ActivityLogAspect {
         for (Map.Entry<String, Object> e : params.entrySet()) {
             Object v = deepSanitizeForSerialization(e.getValue());
             out.put(e.getKey(), v);
+        }
+        return out;
+    }
+
+    /**
+     * POST /api/logs/decrypt/java_fw_imglog body: structured audit fields (guid, status, optional searchHistoryId).
+     * Does not log full JSON body or decrypted payload. Req: imagelog composite (guid, status) in activity params.
+     */
+    private static boolean isJavaFwImglogDecryptRequestMap(String paramName, Object arg,
+                                                           String[] paramNames, Object[] args) {
+        if (!"request".equals(paramName) || !(arg instanceof Map)) {
+            return false;
+        }
+        for (int j = 0; j < paramNames.length && j < args.length; j++) {
+            if ("logType".equals(paramNames[j]) && "java_fw_imglog".equals(args[j])) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static Map<String, Object> buildJavaFwImglogDecryptActivityParams(Map<?, ?> body) {
+        Map<String, Object> out = new HashMap<>();
+        Object g = body.get("guid");
+        out.put("guid", g != null ? g.toString().trim() : null);
+        Object s = body.get("status");
+        String st = DecryptionRowKey.normalizeStatus(s != null ? s.toString() : null);
+        out.put("status", st.isEmpty() ? null : st);
+        if (body.containsKey("searchHistoryId")) {
+            Object sh = body.get("searchHistoryId");
+            out.put("searchHistoryId", sh != null ? sh.toString() : null);
         }
         return out;
     }

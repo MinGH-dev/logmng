@@ -25,9 +25,7 @@ public class AuthInterceptor implements HandlerInterceptor {
     private static final Logger log = LoggerFactory.getLogger(AuthInterceptor.class);
 
     private static final String API_PREFIX = "/api/";
-    private static final List<String> CORS_ALLOWED_ORIGINS = List.of(
-            "http://localhost:3000", "http://localhost:3001",
-            "http://127.0.0.1:3000", "http://127.0.0.1:3001");
+    private final List<String> corsAllowedOrigins;
     private static final List<Pattern> EXCLUDE_PATTERNS = List.of(
             Pattern.compile("^/api/auth/.*"),
             Pattern.compile("^/api/health$"),
@@ -41,9 +39,10 @@ public class AuthInterceptor implements HandlerInterceptor {
     private final AuthService authService;
     private final ObjectMapper objectMapper;
 
-    public AuthInterceptor(AuthService authService, ObjectMapper objectMapper) {
+    public AuthInterceptor(AuthService authService, ObjectMapper objectMapper, AppCorsProperties cors) {
         this.authService = authService;
         this.objectMapper = objectMapper;
+        this.corsAllowedOrigins = cors.allowedOriginList();
     }
 
     @Override
@@ -73,12 +72,12 @@ public class AuthInterceptor implements HandlerInterceptor {
 
     private void addCorsHeaders(HttpServletRequest request, HttpServletResponse response) {
         String origin = request.getHeader("Origin");
-        if (origin != null && CORS_ALLOWED_ORIGINS.contains(origin)) {
+        if (origin != null && corsAllowedOrigins.contains(origin)) {
             response.setHeader("Access-Control-Allow-Origin", origin);
         }
         response.setHeader("Access-Control-Allow-Credentials", "true");
         response.setHeader("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
-        response.setHeader("Access-Control-Allow-Headers", "*");
+        CorsAllowHeaders.setOnResponse(request, response);
         response.setHeader("Access-Control-Max-Age", "3600");
     }
 

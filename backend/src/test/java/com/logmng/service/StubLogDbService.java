@@ -1,5 +1,6 @@
 package com.logmng.service;
 
+import com.logmng.dto.DecryptionRowKey;
 import com.logmng.dto.request.LogDbSearchRequest;
 import com.logmng.dto.response.LogDbSearchResponse;
 import com.logmng.util.CryptoUtil;
@@ -83,6 +84,20 @@ public class StubLogDbService extends LogDbService {
         for (String guid : guids) {
             if (applicationServiceGroupByGuids.containsKey(guid)) {
                 result.put(guid, new LinkedHashMap<>(applicationServiceGroupByGuids.get(guid)));
+            }
+        }
+        return result;
+    }
+
+    @Override
+    public Map<String, Map<String, String>> getApplicationServiceGroupByGuidStatusPairs(List<DecryptionRowKey> keys) {
+        if (keys == null || keys.isEmpty()) {
+            return Collections.emptyMap();
+        }
+        Map<String, Map<String, String>> result = new LinkedHashMap<>();
+        for (DecryptionRowKey k : keys) {
+            if (applicationServiceGroupByGuids.containsKey(k.getGuid())) {
+                result.put(k.compositeMapKey(), new LinkedHashMap<>(applicationServiceGroupByGuids.get(k.getGuid())));
             }
         }
         return result;

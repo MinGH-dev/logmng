@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.logmng.dto.request.AdvancedSearchRequest;
 import com.logmng.dto.request.FilterCondition;
+import com.logmng.dto.DecryptionRowKey;
 import com.logmng.dto.request.LogDbSearchRequest;
 import com.logmng.dto.response.LogDbSearchResponse;
 import com.logmng.util.CryptoUtil;
@@ -578,32 +579,45 @@ public class LogDbService {
         if (guids == null || guids.isEmpty()) {
             return Collections.emptyMap();
         }
+        List<DecryptionRowKey> keys = new ArrayList<>();
+        for (String g : guids) {
+            if (g != null && !g.isBlank()) {
+                keys.add(new DecryptionRowKey(g, ""));
+            }
+        }
+        return getApplicationServiceGroupByGuidStatusPairs(keys);
+    }
+
+    /**
+     * Resolve application/servicegroup per (guid, status) composite. Map key = {@link DecryptionRowKey#compositeMapKey()}.
+     */
+    public Map<String, Map<String, String>> getApplicationServiceGroupByGuidStatusPairs(List<DecryptionRowKey> keys) {
+        if (keys == null || keys.isEmpty()) {
+            return Collections.emptyMap();
+        }
         Map<String, Map<String, String>> result = new LinkedHashMap<>();
         try (Connection connection = imagelogDataSource.getConnection()) {
-            StringBuilder sql = new StringBuilder("SELECT guid, application, servicegroup FROM imagelog WHERE guid IN (");
-            for (int i = 0; i < guids.size(); i++) {
-                if (i > 0) sql.append(", ");
-                sql.append("?");
-            }
-            sql.append(")");
-            try (PreparedStatement stmt = connection.prepareStatement(sql.toString())) {
-                for (int i = 0; i < guids.size(); i++) {
-                    stmt.setString(i + 1, guids.get(i));
+            for (DecryptionRowKey k : keys) {
+                if (k == null || k.getGuid().isEmpty()) {
+                    continue;
                 }
-                try (ResultSet rs = stmt.executeQuery()) {
-                    while (rs.next()) {
-                        String guid = rs.getString("guid");
-                        if (guid == null) continue;
-                        Map<String, String> row = new LinkedHashMap<>();
-                        row.put("application", rs.getString("application"));
-                        row.put("serviceGroup", rs.getString("servicegroup"));
-                        result.put(guid, row);
+                String sql = "SELECT application, servicegroup FROM imagelog WHERE guid = ? AND COALESCE(NULLIF(TRIM(status), ''), '') = ?";
+                try (PreparedStatement stmt = connection.prepareStatement(sql)) {
+                    stmt.setString(1, k.getGuid());
+                    stmt.setString(2, k.getStatus());
+                    try (ResultSet rs = stmt.executeQuery()) {
+                        if (rs.next()) {
+                            Map<String, String> row = new LinkedHashMap<>();
+                            row.put("application", rs.getString("application"));
+                            row.put("serviceGroup", rs.getString("servicegroup"));
+                            result.put(k.compositeMapKey(), row);
+                        }
                     }
                 }
             }
         } catch (SQLException e) {
-            log.warn("imagelog resolution by guids failed (returning empty map): {}", e.getMessage());
-            return Collections.emptyMap();
+            log.warn("imagelog resolution by guid+status failed (returning partial map): {}", e.getMessage());
+            return result;
         }
         return result;
     }
@@ -611,14 +625,18 @@ public class LogDbService {
     /**
      * DB 로그 상세 조회
      */
-    public Map<String, Object> getLogDetail(String logType, String type, String identifier) {
-        log.info("🔍 DB 로그 상세 조회: logType={}, type={}, identifier={}", logType, type, identifier);
+    public Map<String, Object> getLogDetail(String logType, String type, String identifier, String status) {
+        log.info("🔍 DB 로그 상세 조회: logType={}, type={}, identifier={}, status={}", logType, type, identifier, status);
         
         if ("pb_feplog".equals(logType)) {
             Long id = Long.parseLong(identifier);
             return getPbFeplogDetail(type, id);
         } else if ("java_fw_imglog".equals(logType)) {
-            return getJavaFwImglogDetail(identifier); // guid 사용
+            String st = DecryptionRowKey.normalizeStatus(status);
+            if (st.isEmpty()) {
+                throw new IllegalArgumentException("java_fw_imglog 상세 조회에는 status 쿼리 파라미터가 필요합니다.");
+            }
+            return getJavaFwImglogDetail(identifier, st);
         } else {
             throw new RuntimeException("지원하지 않는 로그 타입입니다: " + logType);
         }
@@ -673,18 +691,19 @@ public class LogDbService {
     }
     
     /**
-     * Java FW Image 로그 상세 조회 (guid로 조회)
+     * Java FW Image 로그 상세 조회 (guid + status)
      */
-    private Map<String, Object> getJavaFwImglogDetail(String guid) {
-        log.info("🔍 이미지로그 상세 조회: guid={}", guid);
+    private Map<String, Object> getJavaFwImglogDetail(String guid, String status) {
+        log.info("🔍 이미지로그 상세 조회: guid={}, status={}", guid, status);
         
         try (Connection connection = imagelogDataSource.getConnection()) {
             String sql = "SELECT application, servicegroup, service, status, data, datastring, " +
                         "guid, header, headerstring, insert_time " +
-                        "FROM imagelog WHERE guid = ?";
+                        "FROM imagelog WHERE guid = ? AND COALESCE(NULLIF(TRIM(status), ''), '') = ?";
             
             try (PreparedStatement stmt = connection.prepareStatement(sql)) {
                 stmt.setString(1, guid);
+                stmt.setString(2, DecryptionRowKey.normalizeStatus(status));
                 
                 try (ResultSet rs = stmt.executeQuery()) {
                     if (rs.next()) {
@@ -721,10 +740,10 @@ public class LogDbService {
                             row.put("headerstring", decryptedHeaderstring);
                         }
                         
-                        log.info("✅ 이미지로그 상세 조회 완료: GUID={}", guid);
+                        log.info("✅ 이미지로그 상세 조회 완료: GUID={}, status={}", guid, status);
                         return row;
                     } else {
-                        throw new RuntimeException("이미지로그를 찾을 수 없습니다: guid=" + guid);
+                        throw new RuntimeException("이미지로그를 찾을 수 없습니다: guid=" + guid + ", status=" + status);
                     }
                 }
             }
@@ -745,22 +764,19 @@ public class LogDbService {
         if (!"java_fw_imglog".equals(logType)) {
             throw new RuntimeException("현재 java_fw_imglog만 지원됩니다.");
         }
+        String st = DecryptionRowKey.normalizeStatus(status);
+        if (st.isEmpty()) {
+            throw new IllegalArgumentException("java_fw_imglog 복호화에는 status가 필요합니다.");
+        }
         
         try (Connection connection = imagelogDataSource.getConnection()) {
             String sql = "SELECT application, servicegroup, service, status, data, datastring, " +
                         "guid, header, headerstring, insert_time " +
-                        "FROM imagelog WHERE guid = ?";
-            
-            // status가 제공된 경우 WHERE 조건에 추가
-            if (status != null && !status.trim().isEmpty()) {
-                sql += " AND status = ?";
-            }
+                        "FROM imagelog WHERE guid = ? AND COALESCE(NULLIF(TRIM(status), ''), '') = ?";
             
             try (PreparedStatement stmt = connection.prepareStatement(sql)) {
                 stmt.setString(1, guid);
-                if (status != null && !status.trim().isEmpty()) {
-                    stmt.setString(2, status);
-                }
+                stmt.setString(2, st);
                 
                 try (ResultSet rs = stmt.executeQuery()) {
                     if (rs.next()) {
@@ -832,8 +848,7 @@ public class LogDbService {
                                 logType, guid, rowStatus, duration);
                         return row;
                     } else {
-                        throw new RuntimeException("이미지로그를 찾을 수 없습니다: guid=" + guid + 
-                                (status != null ? ", status=" + status : ""));
+                        throw new RuntimeException("이미지로그를 찾을 수 없습니다: guid=" + guid + ", status=" + st);
                     }
                 }
             }
@@ -846,11 +861,11 @@ public class LogDbService {
     /**
      * 복호화된 데이터 조회
      */
-    public Map<String, Object> getDecryptedData(String logType, String type, String identifier) {
+    public Map<String, Object> getDecryptedData(String logType, String type, String identifier, String status) {
         long startTime = System.currentTimeMillis();
-        log.info("🔓 복호화 요청 시작: logType={}, type={}, identifier={}", logType, type, identifier);
+        log.info("🔓 복호화 요청 시작: logType={}, type={}, identifier={}, status={}", logType, type, identifier, status);
         
-        Map<String, Object> logData = getLogDetail(logType, type, identifier);
+        Map<String, Object> logData = getLogDetail(logType, type, identifier, status);
         
         try {
             if ("pb_feplog".equals(logType)) {

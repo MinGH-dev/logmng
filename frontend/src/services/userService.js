@@ -4,7 +4,7 @@
  * Note: updateUserRole removed — role is deprecated; admin access uses isSystemAdmin.
  */
 
-const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || 'http://localhost:9200/api';
+import { getApiBaseUrl } from '../config/runtimeApi';
 
 const fetchWithCreds = async (url, options = {}) => {
   const response = await fetch(url, {
@@ -20,7 +20,7 @@ const fetchWithCreds = async (url, options = {}) => {
  * @returns {Promise<{ success: boolean, data: Array<{ userId, isSystemAdmin, departmentCode, isApprover }> }>}
  */
 export const getUsers = async () => {
-  const response = await fetchWithCreds(`${API_BASE_URL}/users`);
+  const response = await fetchWithCreds(`${getApiBaseUrl()}/users`);
   const result = await response.json();
   if (!response.ok) {
     const msg = result.error || (response.status === 403 ? '권한이 없습니다.' : `HTTP ${response.status}`);

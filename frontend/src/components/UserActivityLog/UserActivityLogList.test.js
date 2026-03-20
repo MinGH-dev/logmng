@@ -54,6 +54,14 @@ describe('UserActivityLogList', () => {
     expect(request).not.toHaveProperty('ipAddress');
   };
 
+  /** Initial mount: /health → handleSearch (async). Wait until search finished (button re-enabled). */
+  async function waitForInitialSearchIdle() {
+    await waitFor(() => expect(searchActivityLogs).toHaveBeenCalled());
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: '검색' })).not.toBeDisabled();
+    });
+  }
+
   beforeEach(() => {
     jest.clearAllMocks();
     global.fetch = jest.fn().mockResolvedValue({
@@ -86,7 +94,7 @@ describe('UserActivityLogList', () => {
       />,
     );
 
-    await waitFor(() => expect(searchActivityLogs).toHaveBeenCalled());
+    await waitForInitialSearchIdle();
 
     expect(getDepartmentFilterOptions).not.toHaveBeenCalled();
     expect(screen.getByDisplayValue('개발부')).toHaveAttribute('readonly');
@@ -111,6 +119,7 @@ describe('UserActivityLogList', () => {
         FILTER_OPTION_SCREEN_IDS.ACTIVITY_LOG,
       ),
     );
+    await waitForInitialSearchIdle();
 
     expect(await screen.findByLabelText('부서')).toBeInTheDocument();
     expect(screen.getByLabelText(/사용자명/)).toBeInTheDocument();
@@ -131,6 +140,7 @@ describe('UserActivityLogList', () => {
         FILTER_OPTION_SCREEN_IDS.ACTIVITY_LOG,
       ),
     );
+    await waitForInitialSearchIdle();
 
     expect(await screen.findByRole('option', { name: '개발부' })).toBeInTheDocument();
     await userEvent.selectOptions(screen.getByLabelText('부서'), '개발부');
@@ -167,6 +177,7 @@ describe('UserActivityLogList', () => {
         FILTER_OPTION_SCREEN_IDS.ACTIVITY_LOG,
       ),
     );
+    await waitForInitialSearchIdle();
 
     expect(await screen.findByRole('option', { name: '운영부' })).toBeInTheDocument();
     await userEvent.selectOptions(screen.getByLabelText('부서'), '운영부');

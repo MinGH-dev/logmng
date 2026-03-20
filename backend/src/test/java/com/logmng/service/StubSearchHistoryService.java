@@ -38,6 +38,11 @@ public class StubSearchHistoryService extends SearchHistoryService {
     }
 
     @Override
+    public boolean isRowInApprovedSnapshot(Long searchHistoryId, String logType, String rowId, String rowStatus) {
+        return rowInApprovedSnapshot;
+    }
+
+    @Override
     public Optional<ApprovalFailureDiagnostic> getApprovalFailureReason(Long searchHistoryId, Long userId) {
         return Optional.empty();
     }

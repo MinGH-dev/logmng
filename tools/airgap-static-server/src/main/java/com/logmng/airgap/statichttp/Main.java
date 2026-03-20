@@ -7,6 +7,7 @@ import com.sun.net.httpserver.HttpServer;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.net.InetSocketAddress;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -15,6 +16,9 @@ import java.util.concurrent.Executors;
 /**
  * Serves a Create React App (or any SPA) build directory using only the JDK ({@code jdk.httpserver}).
  * No Node/npm at runtime. Unknown paths fall back to {@code index.html}.
+ * <p>
+ * {@code GET /runtime-config.js} injects {@code window.__LOGMNG_RUNTIME_CONFIG__.apiBaseUrl} from
+ * env {@code LOGMNG_API_BASE_URL} or {@code REACT_APP_API_BASE_URL} so the UI can call the API without rebuild.
  */
 public final class Main {
 
@@ -32,11 +36,66 @@ public final class Main {
         }
 
         HttpServer server = HttpServer.create(new InetSocketAddress("0.0.0.0", port), 64);
+        server.createContext("/runtime-config.js", Main::serveRuntimeConfig);
         server.createContext("/", new StaticSpaHandler(root, index));
         int threads = Math.min(8, Math.max(2, Runtime.getRuntime().availableProcessors() * 2));
         server.setExecutor(Executors.newFixedThreadPool(threads));
         server.start();
         System.out.println("LogMng static UI: http://0.0.0.0:" + port + "  root=" + root);
+    }
+
+    static void serveRuntimeConfig(HttpExchange exchange) throws IOException {
+        String method = exchange.getRequestMethod();
+        if (!"GET".equalsIgnoreCase(method) && !"HEAD".equalsIgnoreCase(method)) {
+            exchange.sendResponseHeaders(405, -1);
+            exchange.close();
+            return;
+        }
+        String v = System.getenv("LOGMNG_API_BASE_URL");
+        if (v == null || v.isBlank()) {
+            v = System.getenv("REACT_APP_API_BASE_URL");
+        }
+        v = v != null ? v.trim() : "";
+        byte[] body = buildRuntimeConfigJs(v).getBytes(StandardCharsets.UTF_8);
+        exchange.getResponseHeaders().set("Content-Type", "text/javascript; charset=utf-8");
+        exchange.getResponseHeaders().set("Cache-Control", "no-store");
+        if ("HEAD".equalsIgnoreCase(method)) {
+            exchange.sendResponseHeaders(200, body.length);
+            exchange.close();
+            return;
+        }
+        exchange.sendResponseHeaders(200, body.length);
+        try (OutputStream os = exchange.getResponseBody()) {
+            os.write(body);
+        }
+    }
+
+    static String buildRuntimeConfigJs(String apiBaseUrl) {
+        StringBuilder sb = new StringBuilder();
+        sb.append("window.__LOGMNG_RUNTIME_CONFIG__=window.__LOGMNG_RUNTIME_CONFIG__||{};\n");
+        if (apiBaseUrl.isEmpty()) {
+            sb.append("try{delete window.__LOGMNG_RUNTIME_CONFIG__.apiBaseUrl;}catch(e){window.__LOGMNG_RUNTIME_CONFIG__.apiBaseUrl=undefined;}\n");
+        } else {
+            sb.append("window.__LOGMNG_RUNTIME_CONFIG__.apiBaseUrl=\"")
+                    .append(jsEscape(apiBaseUrl))
+                    .append("\";\n");
+        }
+        return sb.toString();
+    }
+
+    static String jsEscape(String s) {
+        StringBuilder sb = new StringBuilder();
+        for (int i = 0; i < s.length(); i++) {
+            char c = s.charAt(i);
+            switch (c) {
+                case '\\' -> sb.append("\\\\");
+                case '"' -> sb.append("\\\"");
+                case '\n' -> sb.append("\\n");
+                case '\r' -> sb.append("\\r");
+                default -> sb.append(c);
+            }
+        }
+        return sb.toString();
     }
 
     private static final class StaticSpaHandler implements HttpHandler {

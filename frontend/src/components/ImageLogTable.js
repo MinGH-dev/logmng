@@ -2,7 +2,16 @@ import React, { useState } from 'react';
 import DataTable, { EmptyTableBody } from './DataTable';
 import './ImageLogTable.css';
 import logger from '../utils/logger';
+import { getApiBaseUrl } from '../config/runtimeApi';
 import { getUserFriendlyErrorMessage, DECRYPTION_NOT_APPROVED_MESSAGE } from '../utils/security';
+
+/** CI eslint (react-scripts)는 컴포넌트 내부 async 콜백의 import 사용을 간혹 미검출함 — 래퍼로 참조 고정 */
+function buildJavaFwDecryptApiUrl(screenId) {
+  const apiBaseUrl = getApiBaseUrl();
+  return screenId
+    ? `${apiBaseUrl}/logs/decrypt/java_fw_imglog?screen=${encodeURIComponent(screenId)}`
+    : `${apiBaseUrl}/logs/decrypt/java_fw_imglog`;
+}
 
 const IMAGE_LOG_COLUMNS = [
   { key: 'insert_time', label: 'insert_time', sortable: true },
@@ -35,13 +44,28 @@ const ImageLogTable = ({
   decryptionAllowed = null,
   screenId = null,
 }) => {
-  // decryptionAllowed: { validUntil: string | null, guids: string[] } from GET /api/decrypt/allowed (req 20260318)
+  // decryptionAllowed: GET /api/decrypt/allowed — req 20260320: allowedRows [{ guid, status }]; guids만 있으면 레거시(guid-only)
   const allowedGuids = decryptionAllowed && Array.isArray(decryptionAllowed.guids) ? decryptionAllowed.guids : [];
+  const allowedRows = decryptionAllowed && Array.isArray(decryptionAllowed.allowedRows) ? decryptionAllowed.allowedRows : [];
   const validUntil = decryptionAllowed?.validUntil ?? null;
-  const isAllowedForGuid = (guid) => {
-    if (!guid || !allowedGuids.length) return false;
+
+  const normalizeAllowedStatus = (s) => (s == null || s === '' ? '' : String(s).trim());
+
+  const isAllowedForRow = (guid, status) => {
+    if (!guid) return false;
     const until = validUntil ? new Date(validUntil) : null;
     if (until && until.getTime() <= Date.now()) return false;
+    const rowSt = normalizeAllowedStatus(status);
+    const g = String(guid).trim();
+    if (allowedRows.length > 0) {
+      return allowedRows.some((r) => {
+        if (!r || r.guid == null) return false;
+        const rg = String(r.guid).trim();
+        const rs = normalizeAllowedStatus(r.status ?? r.row_status);
+        return rg === g && rs === rowSt;
+      });
+    }
+    if (!allowedGuids.length) return false;
     return allowedGuids.includes(guid);
   };
   // 시간 포맷팅
@@ -256,10 +280,7 @@ const ImageLogTable = ({
     });
     
     try {
-      const apiBaseUrl = process.env.REACT_APP_API_BASE_URL || 'http://localhost:9200/api';
-      const decryptUrl = screenId
-        ? `${apiBaseUrl}/logs/decrypt/java_fw_imglog?screen=${encodeURIComponent(screenId)}`
-        : `${apiBaseUrl}/logs/decrypt/java_fw_imglog`;
+      const decryptUrl = buildJavaFwDecryptApiUrl(screenId);
       logger.debug('🔓 복호화 API 호출:', { apiUrl: decryptUrl, guid, status, screenId });
       const body = { guid, status };
       if (searchHistoryId != null) body.searchHistoryId = searchHistoryId;
@@ -555,7 +576,7 @@ const ImageLogTable = ({
                         }
 
                         // req 20260318: 허용 목록(decryption-allowed) 기준으로 normal vs dimmed
-                        const allowed = isAllowedForGuid(logGuid);
+                        const allowed = isAllowedForRow(logGuid, logStatus);
                         if (!allowed) {
                           return (
                             <button

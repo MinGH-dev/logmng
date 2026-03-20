@@ -2,6 +2,7 @@ package com.logmng.controller;
 
 import com.logmng.annotation.ActivityLog;
 import com.logmng.dto.response.ApiResponse;
+import com.logmng.dto.DecryptionRowKey;
 import com.logmng.util.LogTypeScreenHelper;
 import com.logmng.service.AuthService;
 import com.logmng.service.DecryptionAllowedService;
@@ -71,20 +72,28 @@ public class DecryptController {
             return ResponseEntity.badRequest()
                     .body(ApiResponse.failure("GUID는 필수입니다.", "MISSING_GUID"));
         }
+        String st = DecryptionRowKey.normalizeStatus(status);
+        if (st.isEmpty()) {
+            return ResponseEntity.badRequest()
+                    .body(ApiResponse.failure("status는 필수입니다 (java_fw_imglog 복합 키).", "MISSING_STATUS"));
+        }
 
-        if (!decryptionAllowedService.isAllowed(currentUserId, screenId, guid)) {
-            log.warn("복호화 거부(decryption-allowed): currentUserId={}, guid={}", currentUserId, guid);
+        if (!decryptionAllowedService.isAllowed(currentUserId, screenId, guid, st)) {
+            log.warn("복호화 거부(decryption-allowed): currentUserId={}, guid={}, status={}", currentUserId, guid, st);
             return ResponseEntity.status(HttpStatus.FORBIDDEN)
                     .body(ApiResponse.failure("복호화 승인 후 이용 가능합니다. 이번 검색에서 '복호화 승인 요청'을 진행해 주세요.", "DECRYPTION_NOT_APPROVED"));
         }
 
-        log.info("🔓 복호화 요청: logType={}, guid={}, status={}", logType, guid, status);
+        log.info("🔓 복호화 요청: logType={}, guid={}, status={}", logType, guid, st);
 
         try {
-            Map<String, Object> decryptedData = logDbService.decryptRow(logType, guid, status);
+            Map<String, Object> decryptedData = logDbService.decryptRow(logType, guid, st);
             return ResponseEntity.ok(ApiResponse.success(decryptedData));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest()
+                    .body(ApiResponse.failure(e.getMessage(), "MISSING_STATUS"));
         } catch (Exception e) {
-            log.error("복호화 중 오류 발생: currentUserId={}, guid={}, status={}", currentUserId, guid, status, e);
+            log.error("복호화 중 오류 발생: currentUserId={}, guid={}, status={}", currentUserId, guid, st, e);
             return ResponseEntity.internalServerError()
                     .body(ApiResponse.failure("복호화 실패: " + e.getMessage(), "DECRYPTION_FAILED"));
         }

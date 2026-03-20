@@ -50,6 +50,12 @@ Cursor에서 **브라우저 자동화 검증**(`/verify` 시 프론트 변경 TC
 
 ---
 
+## 📦 배포(운영·폐쇄망)
+
+- **가이드**: [docs/DEPLOY.md](docs/DEPLOY.md) — 산출물 빌드, 환경 변수, 점검
+- **bin 모듈**: [bin/README.md](bin/README.md) — `package-airgap-bin.sh` 결과물 실행
+- **한 번에 빌드**: `./scripts/release-build.sh` (기본 = 폐쇄망 tarball + `bin/`), 빠른 `bin/` 만은 `./scripts/release-build.sh bin`
+
 ## 🚀 빠른 시작
 
 - **문서**: [docs/QUICK_START.md](docs/QUICK_START.md)

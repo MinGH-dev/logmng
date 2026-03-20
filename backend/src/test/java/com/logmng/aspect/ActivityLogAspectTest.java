@@ -99,6 +99,10 @@ class ActivityLogAspectTest {
         assertThat(requestParams.get("httpRequest")).isEqualTo("<HttpServletRequest>");
         assertThat(requestParams.get("request")).isNotNull();
         assertThat(requestParams).containsKey("logType");
+        @SuppressWarnings("unchecked")
+        Map<String, Object> decryptBody = (Map<String, Object>) requestParams.get("request");
+        assertThat(decryptBody).containsKey("status");
+        assertThat(decryptBody).containsKey("guid");
     }
 
     /**
@@ -165,12 +169,16 @@ class ActivityLogAspectTest {
         Map<String, Object> requestParams = (Map<String, Object>) actionDetail.get("requestParams");
         assertThat(requestParams).isNotNull();
         assertThat(requestParams.get("httpRequest")).isEqualTo("<HttpServletRequest>");
-        // "request" param was a Map containing HttpServletRequest; stored value must contain placeholder, not raw request
+        // java_fw_imglog decrypt body: only audit fields (guid, status, …); no raw map / no Servlet leakage
         Object requestParam = requestParams.get("request");
         assertThat(requestParam).isNotNull();
-        String requestParamStr = requestParam.toString();
-        assertThat(requestParamStr).contains("<HttpServletRequest>");
-        assertThat(requestParamStr).doesNotContain("NamesEnumerator");
+        assertThat(requestParam).isInstanceOf(Map.class);
+        @SuppressWarnings("unchecked")
+        Map<String, Object> requestMap = (Map<String, Object>) requestParam;
+        assertThat(requestMap).doesNotContainKey("httpRequest");
+        assertThat(requestMap).containsKey("guid");
+        assertThat(requestMap).containsKey("status");
+        assertThat(requestMap.toString()).doesNotContain("NamesEnumerator");
     }
 
     private static class StubAuthServiceForAspect extends AuthService {
