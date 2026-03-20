@@ -12,6 +12,7 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -113,6 +114,57 @@ public class DepartmentService {
             return (a.getCode() != null && b.getCode() != null) ? a.getCode().compareTo(b.getCode()) : 0;
         });
         return roots;
+    }
+
+    /**
+     * 현재 생성된 부서 데이터셋의 부서명 목록.
+     * 검색/필터용 옵션 소스로 사용하며, 관리자 전용 부서 관리 API와는 별개다.
+     */
+    public List<String> listCurrentDepartmentNames() {
+        LinkedHashSet<String> names = new LinkedHashSet<>();
+        try (Connection conn = dataSource.getConnection()) {
+            String sql = "SELECT code, name FROM department " +
+                    "WHERE name IS NOT NULL AND name <> '' " +
+                    "ORDER BY sort_order NULLS FIRST, code";
+            try (PreparedStatement ps = conn.prepareStatement(sql);
+                 ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    names.add(rs.getString("name"));
+                }
+            }
+        } catch (SQLException e) {
+            log.error("현재 부서명 목록 조회 실패", e);
+            throw new RuntimeException("부서 목록 조회 중 오류가 발생했습니다: " + e.getMessage(), e);
+        }
+        return new ArrayList<>(names);
+    }
+
+    /**
+     * 현재 사용자의 소속 부서명을 현재 부서 데이터셋에서 조회한다.
+     */
+    public String findCurrentDepartmentNameByUsername(String username) {
+        if (username == null || username.isBlank()) {
+            return null;
+        }
+        try (Connection conn = dataSource.getConnection()) {
+            String sql = "SELECT d.name " +
+                    "FROM app_user u " +
+                    "JOIN department d ON d.code = u.department_code " +
+                    "WHERE u.username = ? AND d.name IS NOT NULL AND d.name <> '' " +
+                    "LIMIT 1";
+            try (PreparedStatement ps = conn.prepareStatement(sql)) {
+                ps.setString(1, username.trim());
+                try (ResultSet rs = ps.executeQuery()) {
+                    if (rs.next()) {
+                        return rs.getString("name");
+                    }
+                }
+            }
+        } catch (SQLException e) {
+            log.error("사용자 부서명 조회 실패: username={}", username, e);
+            throw new RuntimeException("부서 조회 중 오류가 발생했습니다: " + e.getMessage(), e);
+        }
+        return null;
     }
 
     /**

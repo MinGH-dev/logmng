@@ -36,6 +36,12 @@ public class LoginResponse {
     /** Per-screen function availability. Key=screenId, value={read, write?, approve?}. Per req 20250303-screen-function-availability. */
     private Map<String, ScreenFunctionCapability> screenFunctions;
 
+    /** Authoritative locked self-context for visible self-scoped user/requester fields. */
+    private SelfContext selfContext;
+
+    /** Numeric app_user.id for current user (req 20260316). Convenience for APIs that need Long. */
+    private Long userId;
+
     public LoginResponse() {
     }
     
@@ -107,6 +113,64 @@ public class LoginResponse {
 
     public void setScreenFunctions(Map<String, ScreenFunctionCapability> screenFunctions) {
         this.screenFunctions = screenFunctions;
+    }
+
+    public SelfContext getSelfContext() {
+        return selfContext;
+    }
+
+    public void setSelfContext(SelfContext selfContext) {
+        this.selfContext = selfContext;
+    }
+
+    public Long getUserId() {
+        return userId;
+    }
+
+    public void setUserId(Long userId) {
+        this.userId = userId;
+    }
+
+    /** Self-context for locked user/requester display. userId = numeric app_user.id (req 20260316). */
+    public static class SelfContext {
+
+        private String department;
+        private String username;
+        /** Numeric app_user.id; JSON serializes as number. */
+        private Long userId;
+
+        public SelfContext() {
+        }
+
+        public SelfContext(String department, String username, Long userId) {
+            this.department = department;
+            this.username = username;
+            this.userId = userId;
+        }
+
+        public String getDepartment() {
+            return department;
+        }
+
+        public void setDepartment(String department) {
+            this.department = department;
+        }
+
+        public String getUsername() {
+            return username;
+        }
+
+        public void setUsername(String username) {
+            this.username = username;
+        }
+
+        public Long getUserId() {
+            return userId;
+        }
+
+        public void setUserId(Long userId) {
+            this.userId = userId;
+        }
     }
 }
 

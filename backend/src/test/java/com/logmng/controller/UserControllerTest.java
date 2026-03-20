@@ -36,7 +36,7 @@ class UserControllerTest {
     void updateUserRole_whenNotLoggedIn_returns401() throws Exception {
         stubAuthService.setCheckAuth(false);
 
-        mockMvc.perform(put("/api/users/user1")
+        mockMvc.perform(put("/api/users/20260001")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"role\":\"USER\"}"))
                 .andExpect(status().isUnauthorized())
@@ -49,7 +49,7 @@ class UserControllerTest {
         stubAuthService.setCheckAuth(true);
         stubAuthService.setCanAccessUserManagementView(false);
 
-        mockMvc.perform(put("/api/users/user1")
+        mockMvc.perform(put("/api/users/20260001")
                         .sessionAttr("userId", "user2")
                         .sessionAttr("isSystemAdmin", false)
                         .contentType(MediaType.APPLICATION_JSON)
@@ -64,7 +64,7 @@ class UserControllerTest {
         stubAuthService.setCheckAuth(true);
         stubAuthService.setCanAccessUserManagementView(true);
 
-        mockMvc.perform(put("/api/users/user1")
+        mockMvc.perform(put("/api/users/20260001")
                         .sessionAttr("userId", "admin1")
                         .sessionAttr("isSystemAdmin", true)
                         .contentType(MediaType.APPLICATION_JSON)

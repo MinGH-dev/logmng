@@ -1,22 +1,35 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { statisticsApi, logTypeApi } from '../services/api';
 import { format } from 'date-fns';
 import StatisticsHeader from './StatisticsHeader';
 import StatisticsFilters from './StatisticsFilters';
 import StatisticsView from './StatisticsView';
 import UserStatisticsTable from './UserStatisticsTable';
+import {
+  FILTER_OPTION_SCREEN_IDS,
+  getDepartmentFilterOptions,
+} from '../services/filterOptionsService';
+import { getSelfContextForDisplay } from '../utils/security';
 import './ActivityStatistics.css';
 
+const getLockedSelfFilters = (selfContext) => ({
+  userId: selfContext?.userId || '',
+  username: selfContext?.username || '',
+  department: selfContext?.department || '',
+});
+
 const ActivityStatistics = ({ user }) => {
+  const isSelfScope = !user?.isSystemAdmin && user?.screenScopes?.statistics === 'self';
+  const selfContext = useMemo(() => getSelfContextForDisplay(user), [user]);
+  const lockedSelfFilters = getLockedSelfFilters(selfContext);
+
   // 통계 타입: 'daily' 또는 'monthly'
   const [statisticsType, setStatisticsType] = useState('daily');
   
   // 검색 조건
   const [filters, setFilters] = useState({
     logType: '',
-    userId: '',
-    username: '',
-    department: '',
+    ...getLockedSelfFilters(isSelfScope ? selfContext : null),
     ip: ''
   });
   
@@ -47,9 +60,6 @@ const ActivityStatistics = ({ user }) => {
   // 표 정렬
   const [sortConfig, setSortConfig] = useState({ key: null, direction: 'asc' });
 
-  // scope=self: hide user/department/IP filters. Admin or scope=all: show all. req 20250303
-  const hideUserFilters = !user?.isSystemAdmin && user?.screenScopes?.statistics === 'self';
-  
   // 사용자별 통계 정렬
   const [userSortConfig, setUserSortConfig] = useState({ key: null, direction: 'asc' });
 
@@ -63,36 +73,50 @@ const ActivityStatistics = ({ user }) => {
     setEndDate(format(today, 'yyyy-MM-dd'));
   }, []);
 
-  // 콤보박스 데이터 로드
   useEffect(() => {
-    loadComboBoxData();
-  }, []);
+    let cancelled = false;
 
-  const loadComboBoxData = async () => {
-    try {
-      const [usersRes, departmentsRes, ipsRes, logTypesRes] = await Promise.all([
-        statisticsApi.getUserList(),
-        statisticsApi.getDepartmentList(),
-        statisticsApi.getIpList(),
-        logTypeApi.getLogTypeList(true)
-      ]);
-      
-      if (usersRes.success) {
-        setUserList(usersRes.data || []);
+    const loadComboBoxData = async () => {
+      try {
+        const [usersRes, departmentsRes, ipsRes, logTypesRes] = await Promise.all([
+          isSelfScope ? Promise.resolve({ success: true, data: [] }) : statisticsApi.getUserList(),
+          isSelfScope ? Promise.resolve({ success: true, data: [] }) : getDepartmentFilterOptions(FILTER_OPTION_SCREEN_IDS.STATISTICS),
+          isSelfScope ? Promise.resolve({ success: true, data: [] }) : statisticsApi.getIpList(),
+          logTypeApi.getLogTypeList(true),
+        ]);
+
+        if (cancelled) return;
+
+        setUserList(usersRes.success ? (usersRes.data || []) : []);
+        setDepartmentList(departmentsRes.success ? (departmentsRes.data || []) : []);
+        setIpList(ipsRes.success ? (ipsRes.data || []) : []);
+        setLogTypeList(logTypesRes.success ? (logTypesRes.data || []) : []);
+      } catch (error) {
+        if (!cancelled) {
+          console.error('콤보박스 데이터 로드 중 오류:', error);
+          setUserList([]);
+          setDepartmentList([]);
+          setIpList([]);
+        }
       }
-      if (departmentsRes.success) {
-        setDepartmentList(departmentsRes.data || []);
-      }
-      if (ipsRes.success) {
-        setIpList(ipsRes.data || []);
-      }
-      if (logTypesRes.success) {
-        setLogTypeList(logTypesRes.data || []);
-      }
-    } catch (error) {
-      console.error('콤보박스 데이터 로드 중 오류:', error);
-    }
-  };
+    };
+
+    loadComboBoxData();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [isSelfScope]);
+
+  useEffect(() => {
+    if (!isSelfScope) return;
+    const nextLockedSelfFilters = getLockedSelfFilters(selfContext);
+    setFilters((prev) => ({
+      ...prev,
+      ...nextLockedSelfFilters,
+      ip: '',
+    }));
+  }, [isSelfScope, selfContext]);
 
   /** @param {Object} [filtersOverride] - When provided (e.g. after reset), use instead of state filters */
   const handleSearch = async (filtersOverride) => {
@@ -118,7 +142,7 @@ const ActivityStatistics = ({ user }) => {
           return;
         }
         setDateRangeInvalid(false);
-        const effectiveFilters = hideUserFilters ? { logType: currentFilters.logType } : currentFilters;
+        const effectiveFilters = isSelfScope ? { logType: currentFilters.logType } : currentFilters;
         [response, userStatsResponse] = await Promise.all([
           statisticsApi.getDailyStatistics(startDate, endDate, effectiveFilters),
           statisticsApi.getAllUserStatistics(startDate, endDate, effectiveFilters)
@@ -134,7 +158,7 @@ const ActivityStatistics = ({ user }) => {
         const monthEnd = new Date(year, month, 0);
         const monthStartDate = format(monthStart, 'yyyy-MM-dd');
         const monthEndDate = format(monthEnd, 'yyyy-MM-dd');
-        const effectiveFilters = hideUserFilters ? { logType: currentFilters.logType } : currentFilters;
+        const effectiveFilters = isSelfScope ? { logType: currentFilters.logType } : currentFilters;
         [response, userStatsResponse] = await Promise.all([
           statisticsApi.getMonthlyStatistics(year, month, effectiveFilters),
           statisticsApi.getAllUserStatistics(monthStartDate, monthEndDate, effectiveFilters)
@@ -163,7 +187,7 @@ const ActivityStatistics = ({ user }) => {
 
   const handleExport = async () => {
     try {
-      const effectiveFilters = hideUserFilters ? { logType: filters.logType } : filters;
+      const effectiveFilters = isSelfScope ? { logType: filters.logType } : filters;
       let queryParams;
       if (statisticsType === 'daily') {
         queryParams = {
@@ -197,7 +221,11 @@ const ActivityStatistics = ({ user }) => {
   };
 
   const handleFiltersReset = () => {
-    const cleared = { logType: '', userId: '', username: '', department: '', ip: '' };
+    const cleared = {
+      logType: '',
+      ...getLockedSelfFilters(isSelfScope ? selfContext : null),
+      ip: '',
+    };
     setFilters(cleared);
     setError(null);
     setDateRangeInvalid(false);
@@ -239,7 +267,8 @@ const ActivityStatistics = ({ user }) => {
         departmentList={departmentList}
         ipList={ipList}
         logTypeList={logTypeList}
-        hideUserFilters={hideUserFilters}
+        isSelfScope={isSelfScope}
+        selfContext={lockedSelfFilters}
         statisticsType={statisticsType}
         startDate={startDate}
         endDate={endDate}

@@ -224,7 +224,7 @@ response:
 ```
 
 ### GET /api/users
-사용자 목록 조회 (관리자 전용). **현재 구현**: `docs/api-definition.md` §7.1.
+사용자 목록 조회 (관리자 전용). **현재 구현**: `docs/api-definition.md` §7.1. 현재 API에서 `userId`는 numeric `app_user.id` (req 20260316).
 ```yaml
 request:
   headers:
@@ -282,7 +282,7 @@ response:
 ```
 
 ### PUT /api/users/:userId
-사용자 정보 수정 (관리자 전용). **현재 구현**: `docs/api-definition.md` §7.2 — 역할 변경만 지원.
+사용자 정보 수정 (관리자 전용). **현재 구현**: `docs/api-definition.md` §7.2 — 역할 변경만 지원. Path `userId`는 numeric `app_user.id` (req 20260316).
 ```yaml
 request:
   headers:

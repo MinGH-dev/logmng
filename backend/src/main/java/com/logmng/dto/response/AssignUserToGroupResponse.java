@@ -5,12 +5,12 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 
 /**
  * Response for POST /api/permission-groups/{id}/users (§14.6).
- * userId, permissionGroupId, permissionGroupCode
+ * userId = numeric app_user.id (req 20260316), permissionGroupId, permissionGroupCode.
  */
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public class AssignUserToGroupResponse {
 
-    private String userId;
+    private Long userId;
     @JsonProperty("permissionGroupId")
     private Long permissionGroupId;
     @JsonProperty("permissionGroupCode")
@@ -19,17 +19,17 @@ public class AssignUserToGroupResponse {
     public AssignUserToGroupResponse() {
     }
 
-    public AssignUserToGroupResponse(String userId, Long permissionGroupId, String permissionGroupCode) {
+    public AssignUserToGroupResponse(Long userId, Long permissionGroupId, String permissionGroupCode) {
         this.userId = userId;
         this.permissionGroupId = permissionGroupId;
         this.permissionGroupCode = permissionGroupCode;
     }
 
-    public String getUserId() {
+    public Long getUserId() {
         return userId;
     }
 
-    public void setUserId(String userId) {
+    public void setUserId(Long userId) {
         this.userId = userId;
     }
 

@@ -1,0 +1,157 @@
+-- 애플리케이션 시스템 스키마 (검색 이력, 사용자, 권한 등)
+-- PostgreSQL 16
+-- 적용 시 search_path는 SCHEMA_SYS, SCHEMA_PB, public 순이어야 합니다(pb_fep에서 만든 update_updated_at_column()이 SCHEMA_PB에 있음).
+-- 권한(GRANT)은 setup.sh에서 스키마별로 수행합니다.
+
+-- 검색 이력 (복호화 승인 부가 기능)
+-- user_id: requester's user id (numeric). app_user.id = search_history.user_id. Do not store username. Req: 20260316-search-history-user-id-query-and-naming.
+-- approved_by_user_id: approver's app_user.id (numeric). Req: 20260316-decrypt-approval-use-user-id-everywhere. Backfill from approved_by (username) via migrate-decrypt-approval-use-user-id.sql.
+-- search_result_total_count / decryption_target_count: snapshot at request time (nullable); existing DBs: migrate-search-history-result-counts.sql.
+CREATE TABLE IF NOT EXISTS search_history (
+    id BIGSERIAL PRIMARY KEY,
+    user_id BIGINT NOT NULL,
+    log_type VARCHAR(50) NOT NULL,
+    search_params TEXT NOT NULL,
+    requested_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    expires_at TIMESTAMP NOT NULL,
+    approval_status VARCHAR(20) NOT NULL DEFAULT 'PENDING',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    approved_by VARCHAR(100) NULL,
+    approved_by_user_id BIGINT NULL REFERENCES app_user(id),
+    approved_at TIMESTAMP NULL,
+    rejected_by VARCHAR(100) NULL,
+    rejected_at TIMESTAMP NULL,
+    rejection_reason TEXT NULL,
+    request_reason TEXT NULL,
+    search_result_total_count INTEGER NULL,
+    decryption_target_count INTEGER NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_search_history_user_id ON search_history(user_id);
+CREATE INDEX IF NOT EXISTS idx_search_history_requested_at ON search_history(requested_at);
+CREATE INDEX IF NOT EXISTS idx_search_history_user_requested ON search_history(user_id, requested_at DESC);
+
+-- Approval snapshot: rows allowed for decryption per approved search_history (20260224-decryption-snapshot-final-design-en)
+CREATE TABLE IF NOT EXISTS search_history_approved_row (
+    search_history_id BIGINT NOT NULL REFERENCES search_history(id) ON DELETE CASCADE,
+    log_type         VARCHAR(50) NOT NULL,
+    row_id           VARCHAR(512) NOT NULL,
+    PRIMARY KEY (search_history_id, log_type, row_id)
+);
+CREATE INDEX IF NOT EXISTS idx_search_history_approved_row_history ON search_history_approved_row(search_history_id);
+
+-- 부서 마스터 (계층: code, parent_code). 요건: 20260225-department-approver-hierarchy
+CREATE TABLE IF NOT EXISTS department (
+    code VARCHAR(50) PRIMARY KEY,
+    parent_code VARCHAR(50),
+    name VARCHAR(200),
+    sort_order INT DEFAULT 0,
+    CONSTRAINT fk_department_parent FOREIGN KEY (parent_code) REFERENCES department(code) ON DELETE SET NULL
+);
+CREATE INDEX IF NOT EXISTS idx_department_parent ON department(parent_code);
+CREATE INDEX IF NOT EXISTS idx_department_parent_sort ON department(parent_code, sort_order);
+
+-- 앱 사용자 (복호화 결재자 지정 요건: 20260224-decryption-approver-designation)
+-- position: 요건 20250227-department-approver-position (직책, 팀장 지정 등)
+-- rank: 요건 20250227-remove-department-approver-screen-user-mgmt-improvements (직급)
+-- API/UI canonical user ID = app_user.id (numeric); req 20260316-user-id-numeric-userid-naming.
+CREATE TABLE IF NOT EXISTS app_user (
+    id BIGSERIAL PRIMARY KEY,
+    username VARCHAR(100) NOT NULL UNIQUE,
+    password_hash VARCHAR(255) NOT NULL,
+    role VARCHAR(20) NOT NULL,
+    department_code VARCHAR(50),
+    position VARCHAR(50) NULL,
+    rank VARCHAR(50) NULL,
+    name VARCHAR(200) NULL,
+    is_system_admin BOOLEAN NOT NULL DEFAULT false,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT chk_app_user_role CHECK (role IN ('ADMIN', 'USER')),
+    CONSTRAINT fk_app_user_department FOREIGN KEY (department_code) REFERENCES department(code) ON DELETE SET NULL
+);
+CREATE INDEX IF NOT EXISTS idx_app_user_username ON app_user(username);
+
+DROP TRIGGER IF EXISTS update_app_user_updated_at ON app_user;
+CREATE TRIGGER update_app_user_updated_at
+    BEFORE UPDATE ON app_user
+    FOR EACH ROW
+    EXECUTE FUNCTION update_updated_at_column();
+
+-- search_history.user_id FK (app_user created after search_history). Fresh install only; existing DBs use migrate-search-history-user-id-to-bigint.sql.
+DO $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = current_schema()::text AND table_name = 'search_history' AND column_name = 'user_id' AND data_type = 'bigint') THEN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'fk_search_history_app_user') THEN
+      ALTER TABLE search_history ADD CONSTRAINT fk_search_history_app_user FOREIGN KEY (user_id) REFERENCES app_user(id);
+    END IF;
+  END IF;
+END $$;
+
+-- 복호화 결재자 지정. user_id = app_user.username (legacy); app_user_id = app_user.id (canonical). 부서별 지정: department_code NULL = 전역 결재자 (20260225).
+-- Req 20260316-decrypt-approval-use-user-id-everywhere: permission checks use app_user_id; user_id kept for backward compat. Backfill: migrate-decrypt-approval-use-user-id.sql.
+-- 마이그레이션: 기존 단일 PK 구조에서 확장. 신규 설치 시 아래 CREATE만 실행됨.
+-- 주의: DROP TABLE로 인해 기존 decrypt_approver 데이터가 삭제됨. 이미 데이터가 있는 배포 환경에서는
+-- 대안: decrypt_approver 백업 후 ALTER TABLE로 id/department_code 추가, 기존 행 backfill, partial unique 인덱스 추가 후
+-- 기존 PK 제거 방식의 마이그레이션 스크립트를 별도 적용하는 것을 권장. (참고: migration-20260225-decrypt-approver-note.md)
+DROP TABLE IF EXISTS decrypt_approver;
+CREATE TABLE decrypt_approver (
+    id BIGSERIAL PRIMARY KEY,
+    user_id VARCHAR(100) NOT NULL,
+    app_user_id BIGINT NULL REFERENCES app_user(id),
+    department_code VARCHAR(50) NULL,
+    CONSTRAINT fk_decrypt_approver_department FOREIGN KEY (department_code) REFERENCES department(code) ON DELETE SET NULL
+);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_decrypt_approver_global ON decrypt_approver (user_id) WHERE department_code IS NULL;
+CREATE UNIQUE INDEX IF NOT EXISTS idx_decrypt_approver_dept ON decrypt_approver (user_id, department_code) WHERE department_code IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_decrypt_approver_user ON decrypt_approver(user_id);
+CREATE INDEX IF NOT EXISTS idx_decrypt_approver_app_user ON decrypt_approver(app_user_id);
+CREATE INDEX IF NOT EXISTS idx_decrypt_approver_department ON decrypt_approver(department_code);
+
+-- 복호화 허용 저장소: 사용자·화면별 허용 GUID와 유효기간. 권한 판단만 사용; search_history_approved_row는 감사용 유지.
+-- Req: docs/requirements/20260318-decryption-allowed-store-and-decrypt-ui.md. §2.1: user_id, screen, guid, valid_until only.
+CREATE TABLE IF NOT EXISTS user_decryption_allowed (
+    user_id    BIGINT NOT NULL REFERENCES app_user(id) ON DELETE CASCADE,
+    screen     VARCHAR(50) NOT NULL,
+    guid       VARCHAR(512) NOT NULL,
+    valid_until TIMESTAMP NOT NULL,
+    PRIMARY KEY (user_id, screen, guid)
+);
+CREATE INDEX IF NOT EXISTS idx_user_decryption_allowed_get ON user_decryption_allowed(user_id, screen, valid_until);
+CREATE INDEX IF NOT EXISTS idx_user_decryption_allowed_cleanup ON user_decryption_allowed(user_id, valid_until);
+
+-- 권한 그룹 (요건: 20250227-user-permission-hierarchy-group). DBA 검토 반영.
+CREATE TABLE IF NOT EXISTS permission_group (
+    id BIGSERIAL PRIMARY KEY,
+    code VARCHAR(50) NOT NULL UNIQUE,
+    name VARCHAR(200) NOT NULL,
+    description TEXT NULL,
+    sort_order INT DEFAULT 0
+);
+
+-- 사용자–권한 그룹 1:1 (user_id = app_user.username, UNIQUE). permission_group 삭제 시 CASCADE; 역방향 조회용 인덱스.
+-- req 20250304-single-permission-group-per-user: 사용자당 최대 1개 권한 그룹.
+CREATE TABLE IF NOT EXISTS app_user_permission_group (
+    user_id VARCHAR(100) NOT NULL,
+    permission_group_id BIGINT NOT NULL,
+    PRIMARY KEY (user_id, permission_group_id),
+    CONSTRAINT uq_user_permission_group_user UNIQUE (user_id),
+    CONSTRAINT fk_app_user_permission_group_user FOREIGN KEY (user_id) REFERENCES app_user(username) ON DELETE CASCADE,
+    CONSTRAINT fk_app_user_permission_group_group FOREIGN KEY (permission_group_id) REFERENCES permission_group(id) ON DELETE CASCADE
+);
+CREATE INDEX IF NOT EXISTS idx_app_user_permission_group_group ON app_user_permission_group(permission_group_id);
+
+-- 권한 그룹별 접근 화면 (요건: 20250227-permission-group-screen-menu-access, 20250303-activity-statistics-self-only-scope, 20250303-screen-function-checkbox-selection)
+CREATE TABLE IF NOT EXISTS permission_group_screen (
+    permission_group_id BIGINT NOT NULL REFERENCES permission_group(id) ON DELETE CASCADE,
+    screen_id VARCHAR(50) NOT NULL,
+    scope VARCHAR(10) NULL,
+    read BOOLEAN NULL,
+    write BOOLEAN NULL,
+    approve BOOLEAN NULL,
+    decrypt BOOLEAN NULL,
+    PRIMARY KEY (permission_group_id, screen_id),
+    CONSTRAINT chk_permission_group_screen_scope CHECK (scope IS NULL OR scope IN ('self', 'all', 'team'))
+);
+CREATE INDEX IF NOT EXISTS idx_permission_group_screen_screen ON permission_group_screen(screen_id);

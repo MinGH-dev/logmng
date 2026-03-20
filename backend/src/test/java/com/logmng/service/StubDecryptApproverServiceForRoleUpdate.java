@@ -60,6 +60,6 @@ public class StubDecryptApproverServiceForRoleUpdate extends DecryptApproverServ
         if (result != null) {
             return result;
         }
-        return new UserListItemResponse(targetUserId, role, null, false);
+        return new UserListItemResponse(20260001L, targetUserId, role, null, false, null, null, false);
     }
 }

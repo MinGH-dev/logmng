@@ -59,6 +59,8 @@ Use a requirement doc first. Add or update specs when the change needs technical
 - Use scope ownership correctly: frontend work in `frontend/`, backend work in `backend/`, DB work in DB-owned files.
 - If the change is subagent-owned, use the appropriate subagent and pass an English handoff prompt.
 
+**For error fixes:** Do not implement based on a suspected cause. Before changing logic, complete a **diagnostic phase**: add diagnostic (debug) logs in suspected areas (e.g. key variables, branch outcomes, per-item results), reproduce the error, capture logs, and analyze them to confirm the root cause. Only after the cause is confirmed from logs, implement the fix. Diagnostic logs used for this verification must **not** run in production (use DEBUG level, a feature flag / dev-only path, or remove/reduce them after the fix is verified).
+
 ### Step 5. Run tests
 
 - Backend: run `mvn test` or the required backend test command.
@@ -74,6 +76,7 @@ Use a requirement doc first. Add or update specs when the change needs technical
 ### Step 7. Update documentation
 
 - Update requirement-doc §5, and §6 for error fixes.
+- Change the checklist item `- [ ] Requirement doc completed` to `- [x] Requirement doc completed` only when the requirement doc has reached its final completed state after tests/verification. This checklist transition is the canonical completion trigger used by automation, and it is also when `TOPIC-INDEX.md` auto-maintenance runs for that document.
 - Update related docs if the change affects release, contract, or user/ops documentation.
 
 ### Step 8. Commit

@@ -5,29 +5,58 @@ import com.logmng.dto.request.AdvancedSearchRequest;
 import com.logmng.dto.request.LogDbSearchRequest;
 import com.logmng.dto.response.ApiResponse;
 import com.logmng.dto.response.LogDbSearchResponse;
+import com.logmng.dto.response.LoginResponse;
+import com.logmng.exception.CustomException;
+import com.logmng.service.AuthService;
 import com.logmng.service.LogDbService;
+import com.logmng.util.LogTypeScreenHelper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-import jakarta.validation.Valid;
+import jakarta.servlet.http.HttpServletRequest;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 /**
- * DB 기반 로그 컨트롤러
+ * DB 기반 로그 컨트롤러. Per req 20260318: logType↔screen enforced; 403 LOG_TYPE_NOT_ALLOWED when user lacks screen for requested log type.
  */
 @RestController
 @RequestMapping("/api/logs/db-refactored")
 public class LogDbController {
-    
+
     private static final Logger log = LoggerFactory.getLogger(LogDbController.class);
-    
+
     private final LogDbService logDbService;
-    
-    public LogDbController(LogDbService logDbService) {
+    private final AuthService authService;
+
+    public LogDbController(LogDbService logDbService, AuthService authService) {
         this.logDbService = logDbService;
+        this.authService = authService;
+    }
+
+    /**
+     * Ensures the current user is allowed to access the given log type (logType↔screen). Throws 403 LOG_TYPE_NOT_ALLOWED if not.
+     */
+    private void requireLogTypeAccess(HttpServletRequest request, String logType) {
+        LoginResponse user = authService.getCurrentUserInfo(request);
+        if (user == null) {
+            throw CustomException.unauthorized("로그인이 필요합니다.", "UNAUTHORIZED");
+        }
+        if (Boolean.TRUE.equals(user.getIsSystemAdmin())) {
+            return;
+        }
+        String screenId = LogTypeScreenHelper.screenIdForLogType(logType);
+        if (screenId == null) {
+            throw CustomException.badRequest("지원하지 않는 로그 타입입니다: " + logType, "UNSUPPORTED_LOG_TYPE");
+        }
+        List<String> allowed = user.getAllowedScreenIds();
+        if (allowed == null || !allowed.contains(screenId)) {
+            log.warn("Log type access denied: logType={} requiredScreen={} user={}", logType, screenId, user.getUsername());
+            throw CustomException.forbidden("해당 로그 타입에 대한 접근 권한이 없습니다.", "LOG_TYPE_NOT_ALLOWED");
+        }
     }
     
     /**
@@ -37,15 +66,27 @@ public class LogDbController {
     @ActivityLog(actionType = "SEARCH", description = "로그 검색", includeParams = true, includeResponse = true)
     @PostMapping("/search")
     public ResponseEntity<ApiResponse<LogDbSearchResponse>> searchLogs(
-            @RequestBody LogDbSearchRequest request) {
-        
-        log.info("🔍 DB 로그 검색 요청 수신");
+            @RequestBody LogDbSearchRequest request,
+            HttpServletRequest httpRequest) {
+
         String reqLogType = request.getLogType() != null ? request.getLogType() : "pb_feplog";
-        log.info("🔍 요청 파라미터 상세: logType={}, startDate={}, endDate={}, application={}, servicegroup={}, service={}, datastring={}, headerstring={}, keywords={}",
+        requireLogTypeAccess(httpRequest, reqLogType);
+
+        log.info("🔍 DB 로그 검색 요청 수신");
+        // Per req 20260318: do not log full datastring/headerstring/keywords (sensitive). DEBUG/length-only only.
+        log.debug("searchLogs request: logType={}, startDate={}, endDate={}, application={}, servicegroup={}, service={}, page={}, pageSize={}",
                 reqLogType, request.getStartDate(), request.getEndDate(),
                 request.getApplication(), request.getServicegroup(), request.getService(),
-                request.getDatastring(), request.getHeaderstring(), request.getKeywords());
+                request.getPage(), request.getPageSize());
         if ("java_fw_imglog".equals(reqLogType)) {
+            int dsLen = request.getDatastring() != null ? request.getDatastring().length() : -1;
+            int hsLen = request.getHeaderstring() != null ? request.getHeaderstring().length() : -1;
+            int kwSize = request.getKeywords() != null ? request.getKeywords().size() : -1;
+            log.debug("image log search params (length/null only): datastring null={}, length={}, headerstring null={}, length={}, keywords null={}, size={}",
+                    request.getDatastring() == null, dsLen, request.getHeaderstring() == null, hsLen, request.getKeywords() == null, kwSize);
+            // Temporary INFO for diagnosis only: remove or downgrade to DEBUG after root cause found (req 20260318 follow-up).
+            log.info("[DIAG] image log request binding: datastring null? {}, length={}; headerstring null? {}, length={}; keywords null? {}, size={}",
+                    request.getDatastring() == null, dsLen, request.getHeaderstring() == null, hsLen, request.getKeywords() == null, kwSize);
             log.info("🔍 이미지 로그 검색 분기: searchJavaFwImglog 호출 예정");
         }
         log.debug("DB 로그 검색 요청: {}", request);
@@ -75,10 +116,12 @@ public class LogDbController {
     public ResponseEntity<ApiResponse<Map<String, Object>>> getLogDetail(
             @PathVariable String logType,
             @PathVariable String type,
-            @PathVariable String identifier) {
-        
+            @PathVariable String identifier,
+            HttpServletRequest httpRequest) {
+
+        requireLogTypeAccess(httpRequest, logType);
         log.debug("DB 로그 상세 조회: logType={}, type={}, identifier={}", logType, type, identifier);
-        
+
         Map<String, Object> data = logDbService.getLogDetail(logType, type, identifier);
         
         ApiResponse<Map<String, Object>> response = ApiResponse.success(data);
@@ -94,10 +137,12 @@ public class LogDbController {
     public ResponseEntity<ApiResponse<Map<String, Object>>> getDecryptedData(
             @PathVariable String logType,
             @PathVariable String type,
-            @PathVariable String identifier) {
-        
+            @PathVariable String identifier,
+            HttpServletRequest httpRequest) {
+
+        requireLogTypeAccess(httpRequest, logType);
         log.debug("복호화된 데이터 조회: logType={}, type={}, identifier={}", logType, type, identifier);
-        
+
         Map<String, Object> data = logDbService.getDecryptedData(logType, type, identifier);
         
         ApiResponse<Map<String, Object>> response = ApiResponse.success(data);
@@ -163,11 +208,14 @@ public class LogDbController {
     @ActivityLog(actionType = "ADVANCED_SEARCH", description = "고급 검색", includeParams = true)
     @PostMapping("/advanced-search")
     public ResponseEntity<ApiResponse<LogDbSearchResponse>> advancedSearch(
-            @RequestBody AdvancedSearchRequest request) {
-        
+            @RequestBody AdvancedSearchRequest request,
+            HttpServletRequest httpRequest) {
+
+        String logType = request.getLogType();
+        requireLogTypeAccess(httpRequest, logType != null ? logType : "");
         log.debug("고급 검색 요청: logType={}, filters={}", request.getLogType(), request.getFilters());
-        
-        if (!"java_fw_imglog".equals(request.getLogType())) {
+
+        if (!"java_fw_imglog".equals(logType)) {
             ApiResponse<LogDbSearchResponse> errorResponse = 
                     ApiResponse.failure("현재 java_fw_imglog만 지원됩니다.", "UNSUPPORTED_LOG_TYPE");
             return ResponseEntity.badRequest().body(errorResponse);

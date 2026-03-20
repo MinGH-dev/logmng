@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import logger from '../utils/logger';
 import './SearchForm.css';
 
 const ImageLogSearchForm = ({ onSearch, initialFormValues }) => {
@@ -120,9 +121,23 @@ const ImageLogSearchForm = ({ onSearch, initialFormValues }) => {
       headerstring: formData.headerstring ? String(formData.headerstring).trim() : '',
       application: formData.application ? String(formData.application).trim() : '',
       servicegroup: formData.servicegroup ? String(formData.servicegroup).trim() : '',
-      service: formData.service ? String(formData.service).trim() : ''
+      service: formData.service ? String(formData.service).trim() : '',
+      decryptData: Boolean(formData.decryptData)
     };
-    
+
+    // Diagnostic (DEBUG only; req 20260318): confirm datastring, headerstring, keywords present — length/presence only, no values
+    logger.debug('[ImageLogSearchForm] payload diagnostic (length/presence only)', {
+      imageLogPayloadDiagnostic: {
+        hasDatastring: 'datastring' in searchParams,
+        datastringLength: searchParams.datastring?.length ?? 0,
+        hasHeaderstring: 'headerstring' in searchParams,
+        headerstringLength: searchParams.headerstring?.length ?? 0,
+        hasKeywords: 'keywords' in searchParams,
+        keywordsIsArray: Array.isArray(searchParams.keywords),
+        keywordsLength: searchParams.keywords?.length ?? 0
+      }
+    });
+
     if (typeof onSearch === 'function') {
       onSearch(searchParams);
     } else {

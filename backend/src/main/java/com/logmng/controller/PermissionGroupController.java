@@ -7,6 +7,7 @@ import com.logmng.dto.response.AssignUserToGroupResponse;
 import com.logmng.dto.response.PermissionGroupResponse;
 import com.logmng.dto.response.UserListItemResponse;
 import com.logmng.exception.CustomException;
+import com.logmng.service.AppUserResolver;
 import com.logmng.service.AuthService;
 import com.logmng.service.PermissionGroupService;
 import jakarta.servlet.http.HttpServletRequest;
@@ -31,11 +32,26 @@ public class PermissionGroupController {
 
     private final PermissionGroupService permissionGroupService;
     private final AuthService authService;
+    private final AppUserResolver appUserResolver;
 
     public PermissionGroupController(PermissionGroupService permissionGroupService,
-                                     AuthService authService) {
+                                     AuthService authService,
+                                     AppUserResolver appUserResolver) {
         this.permissionGroupService = permissionGroupService;
         this.authService = authService;
+        this.appUserResolver = appUserResolver;
+    }
+
+    /** Parse request body userId (number or numeric string) to Long. */
+    private static Long parseUserIdNumeric(Object value) {
+        if (value == null) return null;
+        if (value instanceof Number) return ((Number) value).longValue();
+        if (value instanceof String) {
+            String s = ((String) value).trim();
+            if (s.isEmpty()) return null;
+            try { return Long.parseLong(s); } catch (NumberFormatException e) { return null; }
+        }
+        return null;
     }
 
     /** Allows isSystemAdmin OR allowedScreenIds contains user-management or user-permission-hierarchy. Per spec §4.3. */
@@ -120,34 +136,46 @@ public class PermissionGroupController {
     }
 
     /**
-     * POST /api/permission-groups/{id}/users — assign user. §14.6
+     * POST /api/permission-groups/{id}/users — assign user. §14.6. Body userId = numeric app_user.id (req 20260316).
      */
     @PostMapping("/{id}/users")
     public ResponseEntity<ApiResponse<AssignUserToGroupResponse>> assignUser(
             @PathVariable Long id,
-            @Valid @RequestBody Map<String, String> body,
+            @Valid @RequestBody Map<String, Object> body,
             HttpServletRequest request) {
         requireUserManagementAccess(request);
         requireWriteForManagement(request);
-        String userId = body != null ? body.get("userId") : null;
-        if (userId == null || userId.isBlank()) {
+        Object userIdObj = body != null ? body.get("userId") : null;
+        if (userIdObj == null) {
             throw CustomException.badRequest("userId는 필수이며 비어 있을 수 없습니다.", "INVALID_INPUT");
         }
-        AssignUserToGroupResponse data = permissionGroupService.assignUser(id, userId.trim());
+        Long userIdNum = parseUserIdNumeric(userIdObj);
+        if (userIdNum == null) {
+            throw CustomException.badRequest("userId는 숫자(app_user.id)여야 합니다.", "INVALID_INPUT");
+        }
+        String username = appUserResolver.getUsernameById(userIdNum);
+        if (username == null || username.isBlank()) {
+            throw CustomException.badRequest("해당 사용자를 찾을 수 없습니다.", "USER_NOT_FOUND");
+        }
+        AssignUserToGroupResponse data = permissionGroupService.assignUser(id, username);
         return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.success(data));
     }
 
     /**
-     * DELETE /api/permission-groups/{id}/users/{userId} — remove user. §14.7
+     * DELETE /api/permission-groups/{id}/users/{userId} — remove user. §14.7. Path userId = numeric app_user.id (req 20260316).
      */
     @DeleteMapping("/{id}/users/{userId}")
     public ResponseEntity<ApiResponse<Void>> unassignUser(
             @PathVariable Long id,
-            @PathVariable String userId,
+            @PathVariable Long userId,
             HttpServletRequest request) {
         requireUserManagementAccess(request);
         requireWriteForManagement(request);
-        permissionGroupService.unassignUser(id, userId);
+        String username = appUserResolver.getUsernameById(userId);
+        if (username == null || username.isBlank()) {
+            throw CustomException.badRequest("해당 사용자를 찾을 수 없습니다.", "USER_NOT_FOUND");
+        }
+        permissionGroupService.unassignUser(id, username);
         return ResponseEntity.ok(ApiResponse.success(null));
     }
 

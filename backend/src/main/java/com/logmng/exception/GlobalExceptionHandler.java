@@ -9,6 +9,7 @@ import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -61,17 +62,56 @@ public class GlobalExceptionHandler {
     }
     
     /**
+     * 잘못된 입력값 (e.g. search-history requestedAtFrom/To format). 400 반환.
+     */
+    @ExceptionHandler(IllegalArgumentException.class)
+    public ResponseEntity<ApiResponse<Object>> handleIllegalArgument(IllegalArgumentException e) {
+        log.warn("입력값 검증 실패: {}", e.getMessage());
+        ApiResponse<Object> response = ApiResponse.failure(e.getMessage(), "BAD_REQUEST");
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
+    }
+
+    /**
+     * 요청 파라미터 타입 불일치 (e.g. empty string for int, non-numeric for Long).
+     * 500 대신 400 반환하여 "서버 오류" 대신 클라이언트 오류로 처리.
+     */
+    @ExceptionHandler(MethodArgumentTypeMismatchException.class)
+    public ResponseEntity<ApiResponse<Object>> handleTypeMismatch(MethodArgumentTypeMismatchException e) {
+        log.warn("요청 파라미터 타입 불일치: name={}, value={}", e.getName(), e.getValue(), e);
+        ApiResponse<Object> response = ApiResponse.failure(
+                "요청 파라미터가 올바르지 않습니다. (" + (e.getName() != null ? e.getName() : "") + ")",
+                "BAD_REQUEST"
+        );
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
+    }
+
+    /**
      * 일반 예외 처리
      */
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ApiResponse<Object>> handleException(Exception e) {
-        log.error("예상치 못한 예외 발생", e);
-        
+        log.error("예상치 못한 예외 발생: type={}", e.getClass().getName(), e);
+
         ApiResponse<Object> response = ApiResponse.failure(
                 "서버 오류가 발생했습니다.",
                 "INTERNAL_SERVER_ERROR"
         );
-        
+
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
+    }
+
+    /**
+     * Error 및 기타 Throwable (컨트롤러 밖 직렬화 실패 등). 로깅 후 500 반환.
+     */
+    @ExceptionHandler(Throwable.class)
+    public ResponseEntity<ApiResponse<Object>> handleThrowable(Throwable t) {
+        log.error("예상치 못한 Throwable: type={}, message={}", t.getClass().getName(), t.getMessage(), t);
+
+        ApiResponse<Object> response = ApiResponse.failure(
+                "서버 오류가 발생했습니다.",
+                "INTERNAL_SERVER_ERROR"
+        );
+
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
     }
 }

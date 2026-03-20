@@ -75,6 +75,57 @@ export const getScreenFunctions = (user) => {
 };
 
 /**
+ * Coerce API userId to number when present and numeric. Fallback: empty string.
+ * Backend returns numeric app_user.id (req 20260316).
+ * @param {number|string|null|undefined} raw
+ * @returns {number|''}
+ */
+const normalizeUserIdFromApi = (raw) => {
+  if (raw == null || raw === '') return '';
+  if (typeof raw === 'number' && !Number.isNaN(raw)) return raw;
+  const n = Number(raw);
+  return Number.isNaN(n) ? '' : n;
+};
+
+/**
+ * Normalize selfContext from user-like object (handles camelCase and snake_case).
+ * userId from API is numeric (app_user.id); normalized to number or '' (req 20260316).
+ * Fallback: if API sends string numeric, coerced to number; if missing or non-numeric, userId is ''.
+ * @param {object} user - User or userData object
+ * @returns {{department: string, username: string, userId: number|''}|null} selfContext or null
+ */
+export const getSelfContext = (user) => {
+  if (!user) return null;
+  const ctx = user.selfContext ?? user.self_context;
+  if (!ctx || typeof ctx !== 'object') return null;
+
+  const rawUserId = ctx.userId ?? ctx.user_id;
+  return {
+    department: ctx.department ?? '',
+    username: ctx.username ?? '',
+    userId: normalizeUserIdFromApi(rawUserId),
+  };
+};
+
+/**
+ * Self-context for display when scope=self. Prefers auth selfContext (userId numeric from API);
+ * if missing, falls back to username so at least name/ID are visible (req 20260316).
+ * @param {object} user - User or userData object
+ * @returns {{department: string, username: string, userId: number|string}|null}
+ */
+export const getSelfContextForDisplay = (user) => {
+  const fromAuth = getSelfContext(user);
+  if (fromAuth && (fromAuth.username || fromAuth.userId !== '' || (fromAuth.department != null && fromAuth.department !== ''))) {
+    return fromAuth;
+  }
+  const uname = user?.username ?? user?.user_name;
+  if (uname != null && String(uname).trim() !== '') {
+    return { department: '', username: String(uname).trim(), userId: String(uname).trim() };
+  }
+  return fromAuth;
+};
+
+/**
  * Derive minimal screenFunctions from allowedScreenIds when backend does not provide screenFunctions.
  * Returns read-only capability; write/approve default to false (safe fallback).
  * @param {string[]|null} allowedScreenIds
@@ -103,6 +154,7 @@ export const saveMinimalUserData = (userData) => {
   }
 
   const sf = getScreenFunctions(userData);
+  const selfContext = getSelfContext(userData);
   // 필요한 최소한의 정보만 저장 (isSystemAdmin, allowedScreenIds, screenScopes, screenFunctions — 메뉴·화면 접근·액션 제어용)
   const minimalData = {
     username: userData.username || null,
@@ -110,6 +162,7 @@ export const saveMinimalUserData = (userData) => {
     allowedScreenIds: getAllowedScreenIds(userData),
     screenScopes: userData.screenScopes && typeof userData.screenScopes === 'object' ? userData.screenScopes : null,
     screenFunctions: sf && typeof sf === 'object' ? sf : null,
+    selfContext,
   };
 
   setSecureStorage('user', minimalData);
@@ -184,6 +237,8 @@ const securityUtils = {
   getMinimalUserData,
   getAllowedScreenIds,
   getScreenFunctions,
+  getSelfContext,
+  getSelfContextForDisplay,
   deriveScreenFunctionsFromAllowed,
   clearUserData,
   sanitizeErrorMessage,

@@ -71,7 +71,7 @@ When the **Requirements** subagent writes the requirement doc, it **must not wri
    - Missing a change target (e.g. Frontend configuration UI) causes incomplete implementation; the implementing agent (Step 4) only changes what is listed in the doc. So the Requirements author **must** complete this verification before handing off.
 
 6. **Finalize**  
-   Complete **§3** (test plan, with **Scope tag** per TC — see `REQUIREMENT_TEMPLATE.md`) and the requirement doc. When the doc is complete, the flow continues: Step 2 (Security if needed and not yet consulted in step 4), Step 3 (Contract/DBA/… if needed and not yet consulted), then **Step 4** — the responsible subagent implements; after implementation, **Step 5** (QA) and so on.
+   Complete **§3** (test plan, with **Scope tag** per TC — see `REQUIREMENT_TEMPLATE.md`) and the requirement doc. The checklist line `- [ ] Requirement doc completed` is the canonical machine-readable completion marker for automation, so it must remain unchecked during draft authoring and be changed to `- [x] Requirement doc completed` only when that single requirement document has truly reached its final completed state in the workflow. That completion transition is also the trigger for automatic `docs/requirements/TOPIC-INDEX.md` maintenance, so ordinary draft saves must not be used as an index-update mechanism. When the doc is complete, the flow continues: Step 2 (Security if needed and not yet consulted in step 4), Step 3 (Contract/DBA/… if needed and not yet consulted), then **Step 4** — the responsible subagent implements; after implementation, **Step 5** (QA) and so on.
 
    Note: If Security, Contract, DBA, or Architecture was already consulted in step 4 above and their input is reflected in §2, Step 2/3 may still be invoked for **formal review** of the complete doc if the scope warrants it (e.g. Security writes §2.1 formally; Contract updates `specs/*.spec.yaml`). The step-4 consultation provides **early input**; Steps 2/3 provide **formal output**.
 
@@ -88,6 +88,22 @@ When the **Requirements** subagent writes the requirement doc, it **must not wri
 - The requirement doc §2 lists **planned change file list (expected change targets)** when authored. Requirements (and parallel inputs) list **expected** files; do not use "Actual files changed" as the **section name** at authoring time. The **implementing agent (Step 4)** — Backend, Frontend, DB, or module-specific (e.g. Backend-Log) — **confirms or amends** this list when implementation is complete.
 - The implementing subagent **updates the requirement doc** §2 change file list with the files it actually changed (add/remove/amend vs the planned list). If **multiple** implementing agents work on the same requirement (e.g. Backend and Frontend), each updates the list with the files **it** changed (add or amend its own section). If the requirement doc has **no** change file list section (e.g. older docs), the implementing agent **adds** it. This keeps the requirement doc and implementation scope in sync.
 - Use **requirement tone** in §2 and in the change file list when authoring: **must**, **verify**, **align**, **confirm**. Avoid implementation-complete phrasing ("No change", "already present", "confirmed by implementing agent") in the initial draft; reserve those for §5 or the implementing agent's update. For **optional or unconfirmed** items, mark clearly (e.g. "implement only if product confirms") so implementers do not treat them as mandatory.
+
+---
+
+## 1.3 When the requirement is an error/bug fix
+
+When the requirement is an **error fix or bug fix** (user input is mainly an error message, stack trace, or "fix this error"):
+
+- **Do not fix based on hypothesis.** The solution approach in §2 must **not** instruct implementers to change logic immediately based on a suspected cause.
+- **Diagnostic phase (mandatory):** §2 must require:
+  1. Add **diagnostic (debug) logs** in the suspected areas (e.g. key variables, branch outcomes, per-item results) so the root cause can be verified from logs.
+  2. Reproduce the error once and **capture logs**.
+  3. **Analyze logs** to confirm the actual root cause (not assumption).
+  4. Only **after** the cause is confirmed from logs, proceed to the logic/code fix.
+- **Diagnostic logs must not run in production:** §2 (or a short implementation note) must state that diagnostic logs must be either: **(a)** at DEBUG level (or equivalent) so they are off in production, or **(b)** behind a feature flag / dev-only path, or **(c)** removed or downgraded after the fix is verified. This ensures the "add logs to verify" step does not leave production logging sensitive or verbose data.
+
+Apply this subsection whenever the requirement is classified as an error/bug fix (e.g. from the error-first workflow or user-reported failure). The implementing agent (Step 4) must follow the diagnostic phase before applying the fix.
 
 ---
 

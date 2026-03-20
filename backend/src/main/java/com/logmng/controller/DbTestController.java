@@ -1,9 +1,11 @@
 package com.logmng.controller;
 
+import com.logmng.config.PgSchemaSupport;
 import com.logmng.dto.response.ApiResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -24,9 +26,21 @@ import java.util.Map;
 public class DbTestController {
     
     private static final Logger log = LoggerFactory.getLogger(DbTestController.class);
-    
-    @Autowired
-    private DataSource dataSource;
+
+    private final DataSource primaryDataSource;
+    private final DataSource imagelogDataSource;
+    private final String pbSchema;
+    private final String imagelogSchema;
+
+    public DbTestController(@Qualifier("dataSource") DataSource primaryDataSource,
+                           @Qualifier("imagelogDataSource") DataSource imagelogDataSource,
+                           @Value("${app.db.schema.pb:public}") String pbSchema,
+                           @Value("${app.db.schema.imagelog:public}") String imagelogSchema) {
+        this.primaryDataSource = primaryDataSource;
+        this.imagelogDataSource = imagelogDataSource;
+        this.pbSchema = PgSchemaSupport.requireValidSchemaName(pbSchema);
+        this.imagelogSchema = PgSchemaSupport.requireValidSchemaName(imagelogSchema);
+    }
     
     /**
      * 데이터베이스 연결 테스트
@@ -38,7 +52,7 @@ public class DbTestController {
         
         Map<String, Object> result = new HashMap<>();
         
-        try (Connection connection = dataSource.getConnection()) {
+        try (Connection connection = primaryDataSource.getConnection()) {
             DatabaseMetaData metaData = connection.getMetaData();
             
             result.put("connected", true);
@@ -46,21 +60,20 @@ public class DbTestController {
             result.put("databaseProductVersion", metaData.getDatabaseProductVersion());
             result.put("driverName", metaData.getDriverName());
             result.put("driverVersion", metaData.getDriverVersion());
-            result.put("url", metaData.getURL());
+            // Backward-compatible key; value is masked if user:pass@ appears in URL (TC-04 / security).
+            result.put("url", maskPossibleUserInfo(metaData.getURL()));
             result.put("username", metaData.getUserName());
             result.put("readOnly", connection.isReadOnly());
             result.put("autoCommit", connection.getAutoCommit());
             
-            // 테이블 존재 확인
-            try (ResultSet tables = metaData.getTables(null, null, "pb_send", null)) {
+            try (ResultSet tables = metaData.getTables(null, pbSchema, "pb_send", null)) {
                 result.put("pb_send_table_exists", tables.next());
             }
             
-            try (ResultSet tables = metaData.getTables(null, null, "pb_recv", null)) {
+            try (ResultSet tables = metaData.getTables(null, pbSchema, "pb_recv", null)) {
                 result.put("pb_recv_table_exists", tables.next());
             }
             
-            // 데이터 개수 확인
             try (var stmt = connection.createStatement();
                  var rs = stmt.executeQuery("SELECT COUNT(*) FROM pb_send")) {
                 if (rs.next()) {
@@ -75,7 +88,7 @@ public class DbTestController {
                 }
             }
             
-            log.info("✅ 데이터베이스 연결 성공: {}", metaData.getDatabaseProductName());
+            log.debug("Primary DB connection OK: {}", metaData.getDatabaseProductName());
             
         } catch (Exception e) {
             log.error("❌ 데이터베이스 연결 실패", e);
@@ -83,9 +96,47 @@ public class DbTestController {
             result.put("error", e.getMessage());
             result.put("errorClass", e.getClass().getName());
         }
+
+        boolean imagelogUsesPrimaryFallback = primaryDataSource == imagelogDataSource;
+        result.put("imagelogUsesPrimaryFallback", imagelogUsesPrimaryFallback);
+        Map<String, Object> imagelogProbe = probeImagelog();
+        result.put("imagelog", imagelogProbe);
         
         ApiResponse<Map<String, Object>> response = ApiResponse.success(result);
         return ResponseEntity.ok(response);
+    }
+
+    private Map<String, Object> probeImagelog() {
+        Map<String, Object> m = new HashMap<>();
+        try (Connection connection = imagelogDataSource.getConnection()) {
+            m.put("connected", true);
+            DatabaseMetaData metaData = connection.getMetaData();
+            try (ResultSet tables = metaData.getTables(null, imagelogSchema, "imagelog", null)) {
+                m.put("imagelog_table_exists", tables.next());
+            }
+            try (var stmt = connection.createStatement();
+                 var rs = stmt.executeQuery("SELECT COUNT(*) FROM imagelog")) {
+                if (rs.next()) {
+                    m.put("imagelog_row_count", rs.getInt(1));
+                }
+            }
+        } catch (Exception e) {
+            log.warn("ImageLog datasource probe failed (non-fatal for this endpoint): {}", e.getMessage());
+            m.put("connected", false);
+            m.put("error", e.getMessage());
+            m.put("errorClass", e.getClass().getName());
+        }
+        return m;
+    }
+
+    /**
+     * Strips user:password@ from JDBC URLs if present (never log or return raw credentials).
+     */
+    static String maskPossibleUserInfo(String url) {
+        if (url == null) {
+            return null;
+        }
+        return url.replaceAll("://([^:/@]+):([^@/]+)@", "://$1:***@");
     }
     
     /**
@@ -98,12 +149,11 @@ public class DbTestController {
         
         Map<String, Object> result = new HashMap<>();
         
-        try (Connection connection = dataSource.getConnection()) {
+        try (Connection connection = primaryDataSource.getConnection()) {
             DatabaseMetaData metaData = connection.getMetaData();
             
-            // pb_send 테이블 컬럼 정보
             Map<String, Object> sendColumns = new HashMap<>();
-            try (ResultSet columns = metaData.getColumns(null, null, "pb_send", null)) {
+            try (ResultSet columns = metaData.getColumns(null, pbSchema, "pb_send", null)) {
                 while (columns.next()) {
                     Map<String, Object> columnInfo = new HashMap<>();
                     columnInfo.put("name", columns.getString("COLUMN_NAME"));
@@ -115,9 +165,8 @@ public class DbTestController {
             }
             result.put("pb_send_columns", sendColumns);
             
-            // pb_recv 테이블 컬럼 정보
             Map<String, Object> recvColumns = new HashMap<>();
-            try (ResultSet columns = metaData.getColumns(null, null, "pb_recv", null)) {
+            try (ResultSet columns = metaData.getColumns(null, pbSchema, "pb_recv", null)) {
                 while (columns.next()) {
                     Map<String, Object> columnInfo = new HashMap<>();
                     columnInfo.put("name", columns.getString("COLUMN_NAME"));
@@ -138,4 +187,3 @@ public class DbTestController {
         return ResponseEntity.ok(response);
     }
 }
-

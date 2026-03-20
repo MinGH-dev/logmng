@@ -14,7 +14,7 @@ public class StubAuthServiceForStatistics extends AuthService {
     private final String scope; // "self", "team", "all"
 
     public StubAuthServiceForStatistics(String scope) {
-        super(null, null, null, null);
+        super(null, null, null, null, null);
         this.scope = scope != null ? scope : "team";
     }
 

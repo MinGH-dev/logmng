@@ -60,11 +60,13 @@ Other screens ignore scope; only screen access is checked.
 
 On POST/PUT permission-groups, validate each `allowedScreens` item against per-screen allowed functions. 400 `INVALID_SCREEN_FUNCTION` when invalid.
 
-**main**: main supports read and optional decrypt. write=true or approve=true → INVALID_SCREEN_FUNCTION. decrypt only for main; decrypt=true on other screens → INVALID_SCREEN_FUNCTION.
+**main** (deprecated): same as pb-feplog/java-fw-imagelog; use pb-feplog, java-fw-imagelog for new config (req 20260318). **pb-feplog, java-fw-imagelog**: read + optional decrypt; write/approve forbidden.
 
 | screen_id | read | write | approve | decrypt | Validation |
 |-----------|------|-------|---------|--------|------------|
-| main | ✓ | — | — | ✓ optional | read=true implied; write/approve must be false or omitted. decrypt optional (default false). If write=true or approve=true → INVALID_SCREEN_FUNCTION. decrypt only for main. |
+| main | ✓ | — | — | ✓ optional | (deprecated) read + optional decrypt; write/approve must be false or omitted. |
+| pb-feplog | ✓ | — | — | ✓ optional | read required; decrypt optional. write/approve must be false or omitted. |
+| java-fw-imagelog | ✓ | — | — | ✓ optional | read required; decrypt optional. write/approve must be false or omitted. |
 | search-history | ✓ | — | ✓ | — | read required; approve optional. write/decrypt must be false or omitted |
 | activity-log | ✓ | — | — | — | read only |
 | statistics | ✓ | — | — | — | read only |
@@ -128,23 +130,23 @@ On POST/PUT permission-groups, validate each `allowedScreens` item against per-s
 - **DELETE** `/api/permission-groups/{id}/users/{userId}` — remove user from group.
 - **GET** `/api/permission-groups/{id}/users` — list users in group (optional).
 
-**Contract choice**: Option A for consistency with department approvers (`/api/departments/{code}/approvers`). userId = `app_user.username` (string).
+**Contract choice**: Option A for consistency with department approvers (`/api/departments/{code}/approvers`). **API userId** = numeric `app_user.id` (JSON number). DB column `app_user_permission_group.user_id` may remain username for FK; backend maps id↔username.
 
 ### POST /api/permission-groups/{id}/users
 - **Path**: `id` — permission group ID (Long).
-- **Request body** (JSON): `{ "userId": string }` — username (app_user.username).
-- **Response (data)**: e.g. `{ "userId", "permissionGroupId", "permissionGroupCode" }` or success message.
+- **Request body** (JSON): `{ "userId": number }` — numeric `app_user.id`.
+- **Response (data)**: e.g. `{ "userId", "permissionGroupId", "permissionGroupCode" }` (userId number) or success message.
 - **Status**: 201 or 200.
 - **Behavior**: If the user is already assigned to a **different** group, the old assignment is removed first (auto-replace). DB UNIQUE constraint on `user_id` enforces at most one group per user.
 - **Errors**: 400 (userId empty), 401, 403, 404 group → "PERMISSION_GROUP_NOT_FOUND", 404 user → "USER_NOT_FOUND", 400 same group → "USER_ALREADY_IN_GROUP"
 
 ### DELETE /api/permission-groups/{id}/users/{userId}
-- **Path**: `id` — group ID (Long); `userId` — username (string).
+- **Path**: `id` — group ID (Long); `userId` — numeric `app_user.id`.
 - **Response (data)**: null or success message. **Status**: 200 or 204.
 - **Errors**: 401, 403, 404
 
 ### GET /api/permission-groups/{id}/users (optional)
-- **Response (data)**: array of user summary objects, e.g. `{ "userId", "username", "departmentCode", "isSystemAdmin" }` (role 제외, req 20250303).
+- **Response (data)**: array of user summary objects, e.g. `{ "userId" (number), "username", "departmentCode", "isSystemAdmin" }` (role 제외, req 20250303).
 - **Errors**: 401, 403, 404
 
 ## 1.3 User-permission hierarchy
@@ -160,7 +162,7 @@ Single endpoint that returns department tree with users and their permission gro
   - `code`, `parentCode`, `name`, `sortOrder` (per existing department)
   - `children`: array (recursive same structure)
   - `users`: array of user-permission objects:
-    - `userId` (username): string
+    - `userId` (numeric app_user.id): number
     - `isSystemAdmin`: boolean — system administrator flag (immutable; req 20250303)
     - `permissionGroups`: array of `{ "id", "code", "name" }` (0 or 1 element; single group per user, req 20250304)
 - **Flat format**: array of department nodes with `code`, `parentCode`, `name`, `sortOrder`, `users` (same shape as above). No `children`.
@@ -196,7 +198,7 @@ Single endpoint that returns department tree with users and their permission gro
   - FK to permission_group(id) ON DELETE CASCADE (or RESTRICT)
 - **Indexes**: index on permission_group_id for "users in group" queries.
 
-**Note**: app_user PK is `id` (BIGSERIAL); `username` is UNIQUE. Using username in app_user_permission_group aligns with existing decrypt_approver convention (user_id = username).
+**Note**: app_user PK is `id` (BIGSERIAL); `username` is UNIQUE. Using username in app_user_permission_group aligns with existing decrypt_approver convention (user_id = username). API/UI canonical userId is numeric app_user.id (req 20260316); DB user_id may remain username for FK; backend maps id↔username when reading/writing API.
 
 ### permission_group_screen
 - **Definition**: `backend/src/main/resources/db/schema.sql`
@@ -217,6 +219,11 @@ Single endpoint that returns department tree with users and their permission gro
 
 - **department**: code, parent_code, name, sort_order — unchanged.
 - **app_user**: id, username, role, department_code, ... — unchanged.
+
+## 2.3 search_history (join and storage semantics)
+
+- **search_history.user_id** stores numeric **app_user.id** (requester). Join condition everywhere: **app_user.id = search_history.user_id**. Do not store username in `search_history.user_id`; do not join on `app_user.username = search_history.user_id`.
+- API list requester filter `userId` and response `userId` are numeric `app_user.id`. See docs/contract.md, docs/api-definition.md §6.1.
 
 ---
 # 3. Error codes (api-definition §11)
@@ -244,7 +251,8 @@ Existing: USER_NOT_FOUND, FORBIDDEN, INVALID_INPUT, SELF_DEMOTION_BLOCKED, LAST_
 
 | code | Meaning |
 |------|--------|
-| FUNCTION_NOT_ALLOWED | User lacks the required function (approve, write) for the action. 403. Use generic message; avoid revealing resource existence or internal structure. |
+| FUNCTION_NOT_ALLOWED | User lacks the required function (approve, write, decrypt) for the action. 403. Use generic message; avoid revealing resource existence or internal structure. |
+| LOG_TYPE_NOT_ALLOWED | User lacks the screen for the requested log type (logType↔screen: pb_feplog→pb-feplog, java_fw_imglog→java-fw-imagelog). Log search/detail/decrypt API returns 403. req 20260318. |
 
 **Related**: INVALID_SCREEN_FUNCTION (§3.1) — 400 when POST/PUT permission-groups `allowedScreens` has invalid read/write/approve per screen (e.g. main with write=true, approve on unsupported screen).
 
@@ -255,11 +263,13 @@ Existing: USER_NOT_FOUND, FORBIDDEN, INVALID_INPUT, SELF_DEMOTION_BLOCKED, LAST_
 
 | screen_id | Description (frontend MENU_TREE view) |
 |-----------|--------------------------------------|
-| main | 검색하기 (log search main) |
+| main | (deprecated) 검색하기 — use pb-feplog / java-fw-imagelog (req 20260318) |
+| pb-feplog | PB FEP Log (로그 검색) |
+| java-fw-imagelog | Java FW Image Log (로그 검색) |
 | search-history | 검색 이력 |
 | activity-log | 활동 이력 |
 | statistics | 활동로그 통계 |
-| pending-approvals | 승인 대기 |
+| pending-approvals | 복호화 승인 관리 (승인 대기 → 라벨 변경) |
 | user-management | 사용자 관리 |
 | department-approvers | 부서별 결재자 |
 | user-permission-hierarchy | 사용자 권한 계층 |
@@ -272,6 +282,7 @@ Validation: PUT/POST permission-groups with `allowedScreens` must have each valu
 **POST /api/auth/login** and **GET /api/auth/me** (or equivalent) response (user object) includes:
 - `allowedScreenIds`: string[] — allowed screens from the user's permission group (single group per user, req 20250304). If user is system admin (is_system_admin=true), return all screen IDs.
 - `screenScopes`: Record<string, 'self'|'team'|'all'> — per-screen **list/read scope** (조회 범위) for screens that support it (activity-log, statistics, search-history, pending-approvals). Key = screen_id, value = 'self' (본인), 'team' (부서), or 'all' (전체). **Purpose**: Controls which data is listed (self → own only; team → same department; all → all). Approval (승인) is always department-scoped and not configurable; this field does not change who can approve.
+- `selfContext`: `{ department: string | null, username: string, userId: number }` — authoritative display payload for **visible locked self-context** on applicable shared-pattern screens when effective scope is `self`. **`userId`** is **numeric** **`app_user.id`** (JSON number). Login identifier remains `app_user.username`; only the exposed "userId" in API/UI is numeric id.
 
 ## 4.3 Screen-based API access enforcement
 
@@ -279,18 +290,28 @@ APIs that correspond to screens must validate: user has is_system_admin=true **o
 
 **Scope enforcement (activity-log, statistics, search-history, pending-approvals)** — when is_system_admin=false:
 - Use scope from permission group for that screen (from `screenScopes` or permission_group_screen.scope). Default for scope-supporting screens = 'team' when null/omitted.
-- scope='self': Backend overrides userId with current user; ignores department, ip params. For `GET /api/search-history`, backend also ignores requester filters (`department`, `username`, `userId`) and returns only the current requester's rows. For detail/getById: enforce ownership; return 403/404 if accessing another user's data.
-- scope='team': Filter by current user's department (same department_code only). For `GET /api/search-history`, requester filters are allowed only as additional narrowing filters inside that same-department set.
+- scope='self': Backend must keep the result set fixed to the current authenticated user. On applicable shared-pattern screens (`activity-log`, `statistics`, `search-history`), this scope means **visible locked self-context**, not hidden user/requester fields: `department`, `username`, and `userId` stay visible in `department -> username -> userId` order, are not editable, and must be populated from auth/current-user `selfContext`. For `activity-log`, backend overrides `userId` with the current user and ignores or safely overrides widening inputs such as `username`, `department`, `departmentCode`, `ipAddress`, and equivalent "all departments" representations (`all`, `ALL`, `전체`, empty value, etc.), so those inputs never widen scope. For `GET /api/search-history`, backend also ignores requester filters (`department`, `username`, `userId`) and returns only the current requester's rows. For detail/getById: enforce ownership; return 403/404 if accessing another user's data.
+- scope='team': Filter by current user's department (same department_code only). For `GET /api/search-history`, requester filters are allowed only as additional narrowing filters inside that same-department set. For the shared department filter-options endpoint `GET /api/filter-options/departments?screen={screenId}`, return **only the current user's own department** as the sole selectable option; do not expose sibling or unrelated departments.
 - scope='all': Pass request params as-is; no override. For `GET /api/search-history`, requester filters narrow the full visible set and never expand scope.
 - scope null/omitted: Treated as 'team' (default for scope-supporting screens).
 - is_system_admin=true: Always full scope; ignore permission group scope.
 
+**Shared filter-options contract**:
+- `GET /api/filter-options/departments?screen={screenId}` is the authoritative contract for **editable department select options** on `activity-log`, `statistics`, and `search-history`.
+- Query parameter `screen` is required and must be one of `activity-log`, `statistics`, `search-history`.
+- Backend must validate access against the requested `screenId`, not against a separate shared screen.
+- `scope='self'` for the requested screen must **not** be documented or implemented as the authoritative source of locked self display values. The locked Department/Username/User ID values come from auth/current-user `selfContext`. Because the endpoint is only for editable options, implementations may return an empty option list or skip calling it in `scope='self'`.
+- `scope='team'` for the requested screen returns only the current user's own department option.
+- `scope='all'` (or `is_system_admin=true`) returns the full current department option set.
+
 | screen_id | APIs (require this screen or is_system_admin=true) | Scope enforcement when is_system_admin=false |
 |-----------|------------------------------------|---------------------------------------------|
-| main | /api/logs/db-refactored/*, /api/log-types/* | — |
-| search-history | /api/search-history/* | Use scope: self → own only and ignore requester filters (`department`, `username`, `userId`); team → same department first, then requester filters narrow within that set; all → pass requester filters as narrowing-only params |
-| activity-log | /api/activity-log/* | Use scope: self → override userId; team → same department; all → pass params as-is |
-| statistics | /api/statistics/* | Use scope: self → override userId, ignore dept/ip; team → same department; all → pass params as-is |
+| main | (deprecated) same as log-type screens | — |
+| pb-feplog | /api/logs/db-refactored/* (when logType=pb_feplog), /api/logs/decrypt/pb_feplog, GET /api/decrypt/allowed?screen=pb-feplog. **logType↔screen**: request logType must match user's allowed screen; else 403 LOG_TYPE_NOT_ALLOWED. | — |
+| java-fw-imagelog | /api/logs/db-refactored/* (when logType=java_fw_imglog), /api/logs/decrypt/java_fw_imglog, GET /api/decrypt/allowed?screen=java-fw-imagelog. **logType↔screen**: same as above. Decrypt function required for decrypt APIs. | — |
+| search-history | /api/search-history/*, /api/filter-options/departments?screen=search-history | Use scope: self → own only, ignore requester filters (`department`, `username`, `userId`), and show visible locked self-context from auth/current-user `selfContext`; shared filter-options endpoint is not the source of those locked values and may return `[]`; team → same department first, then requester filters narrow within that set, and shared filter-options endpoint returns only the current user's own department option; all → pass requester filters as narrowing-only params |
+| activity-log | /api/activity-log/*, /api/filter-options/departments?screen=activity-log | Use scope: self → override `userId`, ignore or safely override `username`, `department`, `departmentCode`, `ipAddress`, and equivalent "all" inputs so the result remains current-user-only, and show visible locked self-context from auth/current-user `selfContext`; shared filter-options endpoint is not the source of those locked values and may return `[]`; team → same department and shared filter-options endpoint returns only the current user's own department option; all → pass params as-is |
+| statistics | /api/statistics/*, /api/filter-options/departments?screen=statistics | Use scope: self → override userId, ignore dept/ip, and show visible locked self-context from auth/current-user `selfContext`; shared filter-options endpoint is not the source of those locked values and may return `[]`; team → same department and shared filter-options endpoint returns only the current user's own department option; all → pass params as-is |
 | pending-approvals | /api/search-history/pending, /api/search-history/{id}/approve, /api/search-history/{id}/reject | Use scope: self → own requests only (requester=current user); team → same department requesters + canApproveForRequester; all → all approvable (current behavior). |
 | user-management | /api/users, /api/users/approvers, /api/users/approvers/{userId} | — |
 | department-approvers | /api/departments, /api/departments/{code}/approvers, /api/departments/{code}/members, /api/departments/{code}/approvers/default | — |
@@ -308,7 +329,7 @@ type ScreenFunctionCapability = {
   read: boolean;
   write?: boolean;   // present only for screens that support write
   approve?: boolean; // present only for screens that support approve
-  decrypt?: boolean; // present only for main; when true, user may request decryption (decrypt API). req 20260306.
+  decrypt?: boolean; // present for pb-feplog, java-fw-imagelog (and main deprecated); when true, user may request decryption (decrypt API). req 20260318.
 };
 
 // Auth response (login, GET /api/auth/me)
@@ -322,7 +343,7 @@ screenFunctions: Record<screenId, ScreenFunctionCapability>
 | **Explicit** | `permission_group_screen` stores `read`, `write`, `approve` per (permission_group_id, screen_id). Auth response uses these values when non-null. UI sends explicit checkbox values via allowedScreens. |
 | **Derived** | When DB has no explicit read/write/approve (legacy rows or omitted), apply derivation rules below. Backward compat: existing data behaves as before. NULL = use derived default. |
 
-**Explicit storage**: Admin selects read/write/approve via checkboxes per screen. Stored in `permission_group_screen.read`, `.write`, `.approve`. main: read-only (no write/approve checkboxes).
+**Explicit storage**: Admin selects read/write/approve via checkboxes per screen. Stored in `permission_group_screen.read`, `.write`, `.approve`. main, pb-feplog, java-fw-imagelog: read + optional decrypt (no write/approve checkboxes). req 20260318.
 
 **Migration**: New columns `read`, `write`, `approve` in `permission_group_screen` (§2.1). NULL = use derived default. After migration, UI can set explicit values via POST/PUT allowedScreens.
 
@@ -336,7 +357,9 @@ screenFunctions: Record<screenId, ScreenFunctionCapability>
 
 | screen_id | read | write | approve | decrypt | Explicit config | Runtime (screenFunctions) |
 |-----------|------|-------|---------|--------|-----------------|---------------------------|
-| main | ✓ | — | — | ✓ | read + decrypt optional; write/approve forbidden | `{ read: true, decrypt: pgs.decrypt ?? false }` when in allowedScreenIds |
+| main | ✓ | — | — | ✓ | (deprecated) read + decrypt optional | `{ read: true, decrypt: pgs.decrypt ?? false }` when in allowedScreenIds |
+| pb-feplog | ✓ | — | — | ✓ | read + decrypt optional | `{ read: true, decrypt: pgs.decrypt ?? false }` when in allowedScreenIds |
+| java-fw-imagelog | ✓ | — | — | ✓ | read + decrypt optional | `{ read: true, decrypt: pgs.decrypt ?? false }` when in allowedScreenIds |
 | search-history | ✓ | — | ✓ | — | read + approve optional | approve = (group.approve) AND (decrypt_approver or is_system_admin) |
 | activity-log | ✓ | — | — | — | read only | scope from screenScopes |
 | statistics | ✓ | — | — | — | read only | scope from screenScopes |
@@ -346,15 +369,17 @@ screenFunctions: Record<screenId, ScreenFunctionCapability>
 | user-permission-hierarchy | ✓ | ✓ | — | — | read + write optional | write from group or derived |
 | permission-group-management | ✓ | ✓ | — | — | same as user-permission-hierarchy | same |
 
-### main (검색하기) special case
+### Log search screens (pb-feplog, java-fw-imagelog) — req 20260318
 
-- main is `{ read: true, decrypt?: boolean }` when user has main in allowedScreenIds.
-- No write, no approve. Search and view only.
-- **decrypt**: When permission_group_screen.decrypt is true for main, user may call the decrypt API (subject to DECRYPTION_NOT_APPROVED and ROW_NOT_IN_APPROVED_SNAPSHOT). When false or NULL (default), decrypt API returns 403 FUNCTION_NOT_ALLOWED. Configurable in permission management UI (req 20260306).
+- **pb-feplog** (PB FEP Log), **java-fw-imagelog** (Java FW Image Log): each is `{ read: true, decrypt?: boolean }` when user has that screen in allowedScreenIds. main is deprecated; same semantics for backward compat.
+- No write, no approve. Search and view only. **logType↔screen**: pb_feplog → pb-feplog, java_fw_imglog → java-fw-imagelog. Log search/decrypt APIs validate request logType against user's allowed screens; 403 LOG_TYPE_NOT_ALLOWED when not allowed.
+- **decrypt**: When permission_group_screen.decrypt is true for that screen, user may call the decrypt API for that log type (subject to decryption-allowed store: user_id, **screen** (pb-feplog or java-fw-imagelog), guid, valid_until). searchHistoryId is not used for authorization (optional for audit).
 
 ### API enforcement (function-level)
 
-- **Decrypt API** (POST /api/logs/decrypt/*): Require main screen **and** screenFunctions.main.decrypt === true (or is_system_admin). Otherwise 403 FUNCTION_NOT_ALLOWED. Then service layer enforces DECRYPTION_NOT_APPROVED, ROW_NOT_IN_APPROVED_SNAPSHOT. req 20260306.
+- **Decrypt allowed list** (GET /api/decrypt/allowed): Require query `screen` (pb-feplog or java-fw-imagelog) **and** screenFunctions[screen].decrypt === true (or is_system_admin). Response: `{ screen, validUntil, guids }`. req 20260318.
+- **Decrypt API** (POST /api/logs/decrypt/{logType}): Resolve screen from logType (java_fw_imglog → java-fw-imagelog). Require that screen **and** screenFunctions[screen].decrypt === true (or is_system_admin). Otherwise 403 FUNCTION_NOT_ALLOWED. Authorization: decryption-allowed store (current user, **screen**, guid, valid_until). On guid not in store or expired: 403 DECRYPTION_NOT_APPROVED. req 20260318.
+- **Log search/detail/advanced-search** (POST/GET /api/logs/db-refactored/*): Require screen for request logType (logType↔screen). Else 403 LOG_TYPE_NOT_ALLOWED.
 - **Approve APIs** (POST /api/search-history/{id}/approve, POST /api/search-history/{id}/reject): Require approve=true (decrypt_approver or is_system_admin). **Service layer**: Each approve/reject call enforces `canApproveForRequester(approver, requester)` — only the department's designated approver (or global approver / is_system_admin) can approve that request; otherwise 403, `code: "FUNCTION_NOT_ALLOWED"`. Same rule as search-history; pending-approvals list and actions are both restricted to approvers for that requester's department.
 - **Write APIs** (user CRUD, permission group CRUD, department approvers, etc.): Require write=true for the corresponding screen. Otherwise 403, `code: "FUNCTION_NOT_ALLOWED"`.
 - **Write + scope**: Write APIs must validate both function (write) and scope (self/all). When scope=self, editing another user's data must return 403.
@@ -366,11 +391,11 @@ screenFunctions: Record<screenId, ScreenFunctionCapability>
 ## 5.1 Definition (condition-based, group name irrelevant)
 
 A permission group is **approval-only** when ALL of the following are true:
-- `allowedScreenIds` does **NOT** include `main` (no log search access)
+- `allowedScreenIds` does **NOT** include any log search screen (`pb-feplog`, `java-fw-imagelog`; or deprecated `main`) (no log search access)
 - `allowedScreenIds` **includes** `pending-approvals` (approval screen access)
 - (Optional) `approve=true` for the pending-approvals screen (can perform approve/reject)
 
-This definition applies to **any** group matching the condition — e.g. APPROVE_USER, TEAM_APPROVER, REGIONAL_APPROVER. The group **name/code is irrelevant**; only the screen configuration matters.
+This definition applies to **any** group matching the condition — e.g. APPROVE_USER, TEAM_APPROVER, REGIONAL_APPROVER. The group **name/code is irrelevant**; only the screen configuration matters. req 20260318: use pb-feplog/java-fw-imagelog instead of main.
 
 ## 5.2 Applicable rules
 
@@ -378,10 +403,10 @@ The following rules apply identically to **all** approval-only groups:
 
 | Rule | Behavior |
 |------|----------|
-| **Login redirect** | If `main` is not in `allowedScreenIds`, redirect to the first allowed screen (e.g. pending-approvals). |
-| **Menu filtering** | Sidebar shows only screens in `allowedScreenIds`. No `main` → no "로그 검색", "통계" menus. |
-| **API enforcement** | `main` not in `allowedScreenIds` → log search API returns 403 FORBIDDEN. `pending-approvals` + `decrypt_approver` → approve/reject API allowed. |
-| **Action hiding** | Screen action buttons that navigate to or depend on a screen the user lacks access to must be hidden (e.g. 재조회, 재요청 hidden when no `main`). |
+| **Login redirect** | If no log search screen (pb-feplog, java-fw-imagelog) in `allowedScreenIds`, redirect to the first allowed screen (e.g. pending-approvals). |
+| **Menu filtering** | Sidebar shows only screens in `allowedScreenIds`. No log search screens → no "로그 검색" items. |
+| **API enforcement** | No pb-feplog/java-fw-imagelog in `allowedScreenIds` → log search API returns 403 FORBIDDEN or LOG_TYPE_NOT_ALLOWED. `pending-approvals` + `decrypt_approver` → approve/reject API allowed. |
+| **Action hiding** | Screen action buttons that navigate to or depend on a screen the user lacks access to must be hidden (e.g. 재조회, 재요청 hidden when no log search screen). |
 
 ## 5.3 Examples
 

@@ -9,20 +9,201 @@
   font-size: 1.25rem;
 }
 
+/* Two-row layout per req 20260317-search-history-labels-layout-decrypt-dropdown: row 1 = 검색일시 only, row 2 = 요청자 | 복호화 승인 여부 | 요청 사유 + Search/Reset. */
 .search-history-toolbar {
   display: flex;
-  flex-wrap: wrap;
-  align-items: flex-end;
-  gap: var(--sf-row-gap);
+  flex-direction: column;
+  gap: var(--sf-block-gap);
   width: 100%;
   max-width: var(--sf-panel-max-width, 1400px);
   margin-bottom: var(--sf-block-gap);
 }
 
-.search-history-toolbar .user-context-filter-block {
+.search-history-toolbar__row-1 {
+  flex: 0 0 auto;
+}
+
+.search-history-toolbar__date-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: var(--sf-row-gap);
+}
+
+.search-history-toolbar__row-2 {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: var(--sf-row-gap);
+}
+
+.search-history-toolbar__row-2 .user-context-filter-block {
   flex: 0 0 auto;
   min-width: var(--sf-field-user-block-min);
   max-width: var(--sf-field-user-block-max);
+}
+
+.search-history-toolbar__extra {
+  flex: 0 0 auto;
+}
+
+.search-history-field-group {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.search-history-field-group label,
+.search-history-extra-label {
+  font-size: 14px;
+  color: #495057;
+  font-weight: 500;
+}
+
+.search-history-field-group input[type="datetime-local"] {
+  min-width: var(--sf-field-date-min);
+  max-width: var(--sf-field-date-max);
+  width: 100%;
+}
+
+.search-history-field-group input#search-history-request-reason {
+  min-width: var(--sf-field-extra-min);
+  max-width: var(--sf-field-extra-max);
+  width: 100%;
+}
+
+.search-history-date-preset select {
+  min-width: 72px;
+  max-width: 88px;
+  width: 100%;
+}
+
+/* Exception (req 20260317-search-history-screen-improvements): decryption-approval dropdown same background as other editable filter fields; no dark/read-only look. Align with search-filter-standard.css. */
+.search-history-approval-dropdown {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.search-history-approval-dropdown__trigger-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.search-history-approval-dropdown__label {
+  font-size: 14px;
+  color: #495057;
+  font-weight: 500;
+}
+
+/* Same background as other editable controls (form-control); req 20260317. Override any reset (e.g. transparent button) and native button appearance so trigger looks editable, not dark/read-only. */
+.search-history-approval-dropdown__trigger {
+  appearance: none;
+  -webkit-appearance: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: space-between;
+  min-width: var(--sf-field-extra-min);
+  max-width: 200px;
+  height: var(--sf-control-height);
+  min-height: var(--sf-control-height);
+  padding: var(--sf-control-padding);
+  border: var(--sf-control-border);
+  border-radius: var(--sf-control-border-radius);
+  font-size: var(--sf-control-font-size);
+  background-color: #fff;
+  background-image: none;
+  color: #212529;
+  cursor: pointer;
+  text-align: left;
+  box-sizing: border-box;
+}
+
+/* Ensure trigger stays light when inside sf-compact-panel (panel bg must not show through); higher specificity over global button/reset. */
+.search-history-list .search-history-approval-dropdown__trigger {
+  background-color: #fff;
+  background-image: none;
+  color: #212529;
+}
+
+.search-history-approval-dropdown__trigger:hover {
+  border-color: #999;
+}
+
+.search-history-approval-dropdown__trigger:focus {
+  outline: none;
+  border-color: var(--sf-focus-border-color);
+  box-shadow: var(--sf-focus-shadow);
+}
+
+.search-history-approval-dropdown__summary {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.search-history-approval-dropdown__chevron {
+  flex-shrink: 0;
+  margin-left: 6px;
+}
+
+/* Panel same editable look as trigger; req 20260317. */
+.search-history-approval-dropdown__panel {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  margin-top: 4px;
+  min-width: 100%;
+  max-height: 240px;
+  overflow-y: auto;
+  background: #fff;
+  border: var(--sf-control-border);
+  border-radius: var(--sf-control-border-radius);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  z-index: 100;
+  display: flex;
+  flex-direction: column;
+}
+
+.search-history-approval-dropdown__option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 8px 12px;
+  border: none;
+  border-radius: 0;
+  background: #fff;
+  font-size: var(--sf-control-font-size);
+  text-align: left;
+  cursor: pointer;
+}
+
+.search-history-approval-dropdown__option:hover,
+.search-history-approval-dropdown__option:focus {
+  background: #f0f0f0;
+  outline: none;
+}
+
+.search-history-approval-dropdown__option[aria-selected="true"] {
+  background: #e6f2ff;
+}
+
+.search-history-approval-dropdown__select-all {
+  border-bottom: 1px solid #eee;
+  font-weight: 500;
+}
+
+.search-history-approval-dropdown__checkbox {
+  flex-shrink: 0;
+}
+
+.search-history-field-error {
+  font-size: 13px;
+  color: #c00;
+  align-self: center;
 }
 
 .search-history-toolbar__actions {
@@ -44,6 +225,14 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+/* 검색건수 / 암호화건수 columns: numeric only */
+.search-history-counts-cell {
+  text-align: right;
+  white-space: nowrap;
+  font-size: 0.8125rem;
+  min-width: 4rem;
 }
 
 .search-history-btn {
@@ -85,11 +274,12 @@
   z-index: 1000;
 }
 
+/* Wider detail modal so 복호화 요청 대상 table and body text have room (desktop); mobile stays within viewport. */
 .search-history-detail-dialog {
   background: #fff;
   border-radius: 8px;
-  max-width: 560px;
-  width: 90%;
+  width: min(95vw, 960px);
+  max-width: min(95vw, 960px);
   max-height: 85vh;
   display: flex;
   flex-direction: column;
@@ -169,16 +359,121 @@
   word-break: break-word;
 }
 
+/* 검색 결과 / 복호화 대상 건수 (상세 모달, 복호화 요청 대상 위) */
+.search-history-detail-summary-counts {
+  margin: 0.75rem 0 0.5rem;
+  padding: 0.5rem 0;
+  border-top: 1px solid #eee;
+  font-size: 0.9rem;
+  line-height: 1.4;
+}
+
+.search-history-detail-summary-counts__line + .search-history-detail-summary-counts__line {
+  margin-top: 4px;
+}
+
+/* Req 20260318-search-history-detail-modal-decryption-list: decryption-requested section and table in detail modal. */
+.search-history-decryption-requested-section {
+  margin-top: 1rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid #eee;
+}
+
+.search-history-decryption-requested-title {
+  margin: 0 0 0.5rem 0;
+  font-size: 1rem;
+  font-weight: 600;
+  color: #444;
+}
+
+.search-history-decryption-requested-wrapper {
+  max-height: 200px;
+  overflow-y: auto;
+  overflow-x: auto;
+  border: 1px solid #e0e0e0;
+  border-radius: 4px;
+}
+
+.search-history-decryption-requested-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+}
+
+.search-history-decryption-requested-table th,
+.search-history-decryption-requested-table td {
+  padding: 0.4rem 0.6rem;
+  text-align: left;
+  border-bottom: 1px solid #eee;
+}
+
+.search-history-decryption-requested-table thead th {
+  background: #f5f5f5;
+  font-weight: 600;
+  color: #444;
+}
+
+.search-history-decryption-requested-table tbody tr:hover {
+  background: #f9f9f9;
+}
+
+.search-history-decryption-requested-table td {
+  word-break: break-word;
+}
+
+.search-history-decryption-requested-none {
+  margin: 0;
+  color: #666;
+  font-size: 0.9rem;
+}
+
 .search-history-btn.detail {
   margin-right: 0.5rem;
 }
 
-@media (max-width: 768px) {
-  .search-history-toolbar {
-    align-items: stretch;
-  }
+/* Exception (req 20260317-search-history-screen-improvements): narrower columns for seq and 복호화 so they fit content. */
+.search-history-list .log-table th:nth-child(1),
+.search-history-list .log-table td:nth-child(1) {
+  width: 1%;
+  min-width: 56px;
+  max-width: 80px;
+}
+/* 검색건수, 암호화건수: numeric columns */
+.search-history-list .log-table th:nth-child(7),
+.search-history-list .log-table td:nth-child(7),
+.search-history-list .log-table th:nth-child(8),
+.search-history-list .log-table td:nth-child(8) {
+  width: 1%;
+  min-width: 56px;
+  max-width: 88px;
+}
 
-  .search-history-toolbar .user-context-filter-block {
+/* Exception (req 20260317-search-history-grid-columns-filter-fix): 사용자ID column width fits 8-digit numbers (search-field-definition-items.md §4.5). */
+.search-history-list .log-table th:nth-child(4),
+.search-history-list .log-table td:nth-child(4) {
+  width: 1%;
+  min-width: 72px;
+  max-width: 96px;
+}
+
+/* Exception (req 20260317-search-history-grid-columns-filter-fix): 검색 조건 column width fits the "검색 조건 보기" button only. */
+.search-history-list .log-table th:nth-child(6),
+.search-history-list .log-table td:nth-child(6) {
+  width: 1%;
+  min-width: 120px;
+  max-width: 160px;
+}
+
+/* 복호화(승인 여부) column remains narrow */
+.search-history-list .log-table th:nth-child(9),
+.search-history-list .log-table td:nth-child(9) {
+  width: 1%;
+  min-width: 56px;
+  max-width: 72px;
+}
+
+@media (max-width: 768px) {
+  .search-history-toolbar__row-2 .user-context-filter-block {
     min-width: 0;
     max-width: none;
     width: 100%;

@@ -1,9 +1,11 @@
 package com.logmng.service;
 
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.logmng.exception.CustomException;
 import com.logmng.dto.request.UserActivityLogSearchRequest;
 import com.logmng.dto.response.UserActivityLogResponse;
+import com.logmng.exception.CustomException;
+import com.logmng.util.ScopeHelper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -11,7 +13,6 @@ import org.springframework.stereotype.Service;
 import javax.sql.DataSource;
 import java.sql.*;
 import java.time.LocalDate;
-import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
 
@@ -105,26 +106,29 @@ public class UserActivityLogService {
      * 사용자 활동 이력 검색
      */
     public UserActivityLogResponse searchActivityLogs(UserActivityLogSearchRequest request) {
+        String normalizedUserId = ScopeHelper.normalizeOptionalParam(request.getUserIdForFilter());
+        String normalizedUsername = ScopeHelper.normalizeOptionalParam(request.getUsername());
+        String normalizedDepartment = ScopeHelper.normalizeDepartmentFilter(request.getDepartment());
+        String normalizedIpAddress = ScopeHelper.normalizeOptionalParam(request.getIpAddress());
+        List<String> normalizedAllowedUserIds = ScopeHelper.normalizeAllowedUserIds(request.getAllowedUserIds());
+
         log.info("🔍 사용자 활동 이력 검색 요청: userId={}, actionType={}, startDate={}, endDate={}",
-                request.getUserId(), request.getActionType(), request.getStartDate(), request.getEndDate());
+                normalizedUserId, request.getActionType(), request.getStartDate(), request.getEndDate());
         
         List<Map<String, Object>> results = new ArrayList<>();
         
         try (Connection connection = dataSource.getConnection()) {
-            boolean useDepartmentJoin = request.getDepartment() != null && !request.getDepartment().trim().isEmpty();
-            String tableRef = useDepartmentJoin ? "u" : "user_activity_log";
-            String prefix = useDepartmentJoin ? "u." : "";
+            boolean useDepartmentJoin = normalizedDepartment != null;
+            String prefix = "u.";
 
             StringBuilder sql = new StringBuilder();
-            sql.append("SELECT ").append(prefix).append("id, ").append(prefix).append("user_id, ").append(prefix).append("username, ").append(prefix).append("action_type, ").append(prefix).append("action_detail, ").append(prefix).append("ip_address, ");
+            sql.append("SELECT ").append(prefix).append("id, ").append(prefix).append("user_id, ").append(prefix).append("username, ");
+            sql.append("a.id AS \"userId\", ");
+            sql.append(prefix).append("action_type, ").append(prefix).append("action_detail, ").append(prefix).append("ip_address, ");
             sql.append(prefix).append("user_agent, ").append(prefix).append("request_method, ").append(prefix).append("request_path, ").append(prefix).append("request_params, ");
             sql.append(prefix).append("response_status, ").append(prefix).append("response_time_ms, ").append(prefix).append("success, ").append(prefix).append("error_message, ");
             sql.append(prefix).append("created_at, ").append(prefix).append("updated_at ");
-            if (useDepartmentJoin) {
-                sql.append("FROM user_activity_log u INNER JOIN app_user a ON u.user_id = a.username WHERE 1=1 ");
-            } else {
-                sql.append("FROM user_activity_log WHERE 1=1 ");
-            }
+            sql.append("FROM user_activity_log u LEFT JOIN app_user a ON u.user_id = a.username WHERE 1=1 ");
 
             List<Object> params = new ArrayList<>();
 
@@ -141,32 +145,40 @@ public class UserActivityLogService {
                 params.add(java.sql.Date.valueOf(endDate));
             }
 
-            // 사용자 ID 조건: scope=team → allowedUserIds; scope=self → userId; else optional userId from request
-            if (request.getAllowedUserIds() != null && !request.getAllowedUserIds().isEmpty()) {
-                List<String> ids = request.getAllowedUserIds();
-                if (ids.size() == 1) {
+            // 사용자 ID 조건: allowedUserIds(scope=team) is always a hard boundary; userId can only narrow within it.
+            if (normalizedAllowedUserIds != null) {
+                if (normalizedAllowedUserIds.isEmpty()) {
+                    sql.append("AND 1 = 0 ");
+                } else if (normalizedUserId != null) {
+                    if (normalizedAllowedUserIds.contains(normalizedUserId)) {
+                        sql.append("AND ").append(prefix).append("user_id = ? ");
+                        params.add(normalizedUserId);
+                    } else {
+                        sql.append("AND 1 = 0 ");
+                    }
+                } else if (normalizedAllowedUserIds.size() == 1) {
                     sql.append("AND ").append(prefix).append("user_id = ? ");
-                    params.add(ids.get(0));
+                    params.add(normalizedAllowedUserIds.get(0));
                 } else {
-                    String placeholders = String.join(",", Collections.nCopies(ids.size(), "?"));
+                    String placeholders = String.join(",", Collections.nCopies(normalizedAllowedUserIds.size(), "?"));
                     sql.append("AND ").append(prefix).append("user_id IN (").append(placeholders).append(") ");
-                    params.addAll(ids);
+                    params.addAll(normalizedAllowedUserIds);
                 }
-            } else if (request.getUserId() != null && !request.getUserId().trim().isEmpty()) {
+            } else if (normalizedUserId != null) {
                 sql.append("AND ").append(prefix).append("user_id = ? ");
-                params.add(request.getUserId());
+                params.add(normalizedUserId);
             }
 
             // 부서 조건: app_user 조인 시 department_code 필터
             if (useDepartmentJoin) {
                 sql.append("AND a.department_code = ? ");
-                params.add(request.getDepartment().trim());
+                params.add(normalizedDepartment);
             }
 
             // 사용자명 조건
-            if (request.getUsername() != null && !request.getUsername().trim().isEmpty()) {
+            if (normalizedUsername != null) {
                 sql.append("AND ").append(prefix).append("username LIKE ? ");
-                params.add("%" + request.getUsername() + "%");
+                params.add("%" + normalizedUsername + "%");
             }
 
             // 액션 타입 조건
@@ -176,9 +188,9 @@ public class UserActivityLogService {
             }
 
             // IP 주소 조건
-            if (request.getIpAddress() != null && !request.getIpAddress().trim().isEmpty()) {
+            if (normalizedIpAddress != null) {
                 sql.append("AND ").append(prefix).append("ip_address = ? ");
-                params.add(request.getIpAddress());
+                params.add(normalizedIpAddress);
             }
 
             // 정렬
@@ -239,7 +251,9 @@ public class UserActivityLogService {
                         if (row.get("action_detail") != null && row.get("action_detail") instanceof String) {
                             try {
                                 String actionDetailJson = (String) row.get("action_detail");
-                                Map<String, Object> actionDetail = objectMapper.readValue(actionDetailJson, Map.class);
+                                Map<String, Object> actionDetail = objectMapper.readValue(
+                                        actionDetailJson,
+                                        new TypeReference<Map<String, Object>>() {});
                                 row.put("action_detail", actionDetail);
                             } catch (Exception e) {
                                 log.debug("action_detail JSON 파싱 실패: {}", e.getMessage());
@@ -277,11 +291,11 @@ public class UserActivityLogService {
         log.info("🔍 사용자 활동 이력 상세 조회: id={}", id);
         
         try (Connection connection = dataSource.getConnection()) {
-            String sql = "SELECT id, user_id, username, action_type, action_detail, ip_address, " +
-                        "user_agent, request_method, request_path, request_params, " +
-                        "response_status, response_time_ms, success, error_message, " +
-                        "created_at, updated_at " +
-                        "FROM user_activity_log WHERE id = ?";
+            String sql = "SELECT u.id, u.user_id, u.username, a.id AS \"userId\", u.action_type, u.action_detail, u.ip_address, " +
+                        "u.user_agent, u.request_method, u.request_path, u.request_params, " +
+                        "u.response_status, u.response_time_ms, u.success, u.error_message, " +
+                        "u.created_at, u.updated_at " +
+                        "FROM user_activity_log u LEFT JOIN app_user a ON u.user_id = a.username WHERE u.id = ?";
             
             try (PreparedStatement stmt = connection.prepareStatement(sql)) {
                 stmt.setLong(1, id);
@@ -315,7 +329,9 @@ public class UserActivityLogService {
                         if (row.get("action_detail") != null && row.get("action_detail") instanceof String) {
                             try {
                                 String actionDetailJson = (String) row.get("action_detail");
-                                Map<String, Object> actionDetail = objectMapper.readValue(actionDetailJson, Map.class);
+                                Map<String, Object> actionDetail = objectMapper.readValue(
+                                        actionDetailJson,
+                                        new TypeReference<Map<String, Object>>() {});
                                 row.put("action_detail", actionDetail);
                             } catch (Exception e) {
                                 log.debug("action_detail JSON 파싱 실패: {}", e.getMessage());

@@ -4,6 +4,7 @@ import javax.sql.DataSource;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 /**
  * Test stub for SearchHistoryService (used when Mockito cannot mock concrete class on Java 17+).
@@ -27,12 +28,17 @@ public class StubSearchHistoryService extends SearchHistoryService {
     }
 
     @Override
-    public boolean isValidApprovalForUser(Long searchHistoryId, String userId) {
+    public boolean isValidApprovalForUser(Long searchHistoryId, Long userId) {
         return validApprovalForUser;
     }
 
     @Override
     public boolean isRowInApprovedSnapshot(Long searchHistoryId, String logType, String rowId) {
         return rowInApprovedSnapshot;
+    }
+
+    @Override
+    public Optional<ApprovalFailureDiagnostic> getApprovalFailureReason(Long searchHistoryId, Long userId) {
+        return Optional.empty();
     }
 }

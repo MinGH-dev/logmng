@@ -54,10 +54,11 @@ prompt: |
      per docs/analysis-search-consistency-by-screen.md §3.
 
   4. Orchestrate §1 (user scenario: "모든 검색 UI를 같은 컨셉으로 통일"), §2 (design:
-     user-context screens → 부서·이름·사용자ID 공통; scope=self → hide user/department filter
+     user-context screens → 부서·이름·사용자ID 공통; applicable scope=self → keep the
+     user/requester block visible, fixed to current user, and not editable
      block; main → date + log type + type-specific only; change file list by scope Frontend
      [and Backend if API params added]), §3 test cases with Scope tags (Frontend, Integration,
-     scope=self hiding, per-screen axes).
+     visible locked self presentation for applicable user/requester blocks, per-screen axes).
 
   5. Run change target verification per REQUIREMENTS-CHANGE-TARGET-CHECKLIST.md so no
      touchpoint (e.g. activity-log + statistics + search-history + …) is missed.
@@ -111,13 +112,15 @@ prompt: |
 
   §1 summary: 사용자 요청 "검색UI를 모두 같은 컨셉트로 통일해줘". 사용자 맥락 화면(활동 이력,
   통계, 사용자관리, 권한그룹, 검색이력, 승인대기)에서 검색/필터를 부서·이름·사용자ID로 통일하고,
-  scope=self일 때 해당 필터 블록 숨김. main(로그 검색)은 날짜·로그타입·타입별 필드만.
+  applicable scope=self일 때 해당 사용자/요청자 블록은 숨기지 않고 현재 사용자로 고정 표시.
+  main(로그 검색)은 날짜·로그타입·타입별 필드만.
 
   §2 (relevant to UX): Frontend design — forms/filters consistency; reference
   docs/analysis-search-consistency-by-screen.md and docs/design/forms-and-filters.md.
 
   Please provide § UX review or design recommendations (form layout, filter group order,
-  labels, scope=self hiding of filter block). No code. Frontend will implement.
+  labels, visible locked self presentation of applicable user/requester blocks). No code.
+  Frontend will implement.
   If this is forms/filters/component consistency only, you may delegate to UX-Components
   per docs/workflow/UX-ROLE-SEPARATION-DESIGN.md §4.5.
 ```

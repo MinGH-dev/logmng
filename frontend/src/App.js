@@ -3,7 +3,6 @@ import { ThemeProvider, Box } from '@mui/material';
 import { appTheme } from './theme';
 import './App.css';
 import LoginForm from './components/LoginForm';
-import LogTypeSelector from './components/LogTypeSelector';
 import LogGrid from './components/LogGrid';
 import UserActivityLogList from './components/UserActivityLog/UserActivityLogList';
 import ActivityStatistics from './components/ActivityStatistics';
@@ -13,16 +12,30 @@ import PermissionGroupManagement from './components/PermissionGroupManagement/Pe
 import PendingApprovals from './components/PendingApprovals/PendingApprovals';
 import AppSidebar from './components/AppSidebar';
 import AppBar from './components/AppBar';
-import { saveMinimalUserData, getMinimalUserData, getAllowedScreenIds, getScreenFunctions, deriveScreenFunctionsFromAllowed, clearUserData } from './utils/security';
+import { ORDERED_SCREEN_IDS } from './constants/menuTree';
+import {
+  saveMinimalUserData,
+  getMinimalUserData,
+  getAllowedScreenIds,
+  getScreenFunctions,
+  getSelfContext,
+  deriveScreenFunctionsFromAllowed,
+  clearUserData,
+} from './utils/security';
 import logger from './utils/logger';
+
+/** logType objects for log-search screens (req 20260318). */
+const LOG_TYPE_BY_VIEW = {
+  'pb-feplog': { id: 'pb_feplog', name: 'PB FEP Log', description: '' },
+  'java-fw-imagelog': { id: 'java_fw_imglog', name: 'Java FW Image Log', description: '' },
+};
 
 function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [sidebarOpen, setSidebarOpen] = useState(true);
-  const [selectedLogType, setSelectedLogType] = useState(null);
-  const [currentView, setCurrentView] = useState('main'); // 'main' | 'activity-log' | 'statistics' | 'search-history' | 'user-management' | 'user-permission-hierarchy' | 'permission-group-management' | 'pending-approvals'
+  const [currentView, setCurrentView] = useState('pb-feplog'); // 'pb-feplog' | 'java-fw-imagelog' | 'activity-log' | ...
   const [initialSearchParams, setInitialSearchParams] = useState(null);
   const [initialSearchApprovalId, setInitialSearchApprovalId] = useState(null);
 
@@ -40,31 +53,30 @@ function App() {
   };
 
   const getFirstAllowedScreen = (u) => {
-    if (u?.isSystemAdmin === true) return 'main';
+    if (u?.isSystemAdmin === true) return ORDERED_SCREEN_IDS[0];
     const ids = getAllowedScreenIds(u);
-    return (ids && ids.length > 0) ? ids[0] : 'main';
+    if (!ids || ids.length === 0) return ORDERED_SCREEN_IDS[0];
+    const first = ORDERED_SCREEN_IDS.find((sid) => ids.includes(sid));
+    return first ?? ORDERED_SCREEN_IDS[0];
   };
 
   useEffect(() => {
     checkAuthStatus();
-    const savedLogType = localStorage.getItem('selectedLogType');
-    if (savedLogType) {
-      try {
-        setSelectedLogType(JSON.parse(savedLogType));
-      } catch (e) {
-        logger.error('로그 타입 복원 실패:', { error: e.message });
-      }
-    }
   }, []);
 
   useEffect(() => {
     if (!isAuthenticated || !user) return;
-    if (user?.isSystemAdmin === true) return;
     const ids = getAllowedScreenIds(user);
-    if (ids && ids.includes('main')) return;
-    if (currentView === 'main') {
-      setCurrentView(getFirstAllowedScreen(user));
-    }
+    const allowed = user?.isSystemAdmin === true || (ids && ids.length > 0);
+    if (!allowed) return;
+    const canAccess =
+      user?.isSystemAdmin === true ||
+      (currentView === 'user-management' || currentView === 'user-permission-hierarchy'
+        ? ids.includes('user-management') || ids.includes('user-permission-hierarchy')
+        : currentView === 'permission-group-management'
+          ? ids.includes('permission-group-management') || ids.includes('user-permission-hierarchy')
+          : ids.includes(currentView));
+    if (!canAccess) setCurrentView(getFirstAllowedScreen(user));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isAuthenticated, user]);
 
@@ -86,6 +98,8 @@ function App() {
         setIsAuthenticated(true);
         const savedUser = getMinimalUserData();
         const fromApi = result.data;
+        const apiSelfContext = getSelfContext(fromApi);
+        const savedSelfContext = getSelfContext(savedUser);
         const apiScreenFunctions = getScreenFunctions(fromApi);
         const mergedScreenFunctions = apiScreenFunctions && typeof apiScreenFunctions === 'object'
           ? apiScreenFunctions
@@ -102,6 +116,7 @@ function App() {
                 ? fromApi.screenScopes
                 : savedUser?.screenScopes ?? null,
               screenFunctions: mergedScreenFunctions ?? fallbackScreenFunctions,
+              selfContext: apiSelfContext ?? savedSelfContext,
             }
           : fromApi?.username
             ? {
@@ -110,6 +125,7 @@ function App() {
                 allowedScreenIds: getAllowedScreenIds(fromApi),
                 screenScopes: fromApi?.screenScopes && typeof fromApi.screenScopes === 'object' ? fromApi.screenScopes : null,
                 screenFunctions: mergedScreenFunctions ?? fallbackScreenFunctions,
+                selfContext: apiSelfContext,
               }
             : null;
         if (merged) {
@@ -135,12 +151,14 @@ function App() {
       return;
     }
     const sf = getScreenFunctions(userData);
+    const selfContext = getSelfContext(userData);
     const minimalUserData = {
       username: userData.username || null,
       isSystemAdmin: userData.isSystemAdmin === true,
       allowedScreenIds: getAllowedScreenIds(userData),
       screenScopes: userData.screenScopes && typeof userData.screenScopes === 'object' ? userData.screenScopes : null,
       screenFunctions: sf && typeof sf === 'object' ? sf : deriveScreenFunctionsFromAllowed(getAllowedScreenIds(userData), userData.isSystemAdmin === true),
+      selfContext,
     };
     setUser(minimalUserData);
     setIsAuthenticated(true);
@@ -159,20 +177,9 @@ function App() {
     } finally {
       setUser(null);
       setIsAuthenticated(false);
-      setSelectedLogType(null);
       clearUserData();
+      setCurrentView('pb-feplog');
     }
-  };
-
-  const handleLogTypeSelect = (logType) => {
-    setSelectedLogType(logType);
-    localStorage.setItem('selectedLogType', JSON.stringify(logType));
-  };
-
-  const handleSearchMain = () => {
-    setCurrentView('main');
-    setSelectedLogType(null);
-    localStorage.removeItem('selectedLogType');
   };
 
   useEffect(() => {
@@ -201,10 +208,10 @@ function App() {
 
   const handleReSearchFromHistory = (data) => {
     if (!data || !data.logType) return;
-    setSelectedLogType({ id: data.logType, name: data.logType });
+    const view = data.logType === 'pb_feplog' ? 'pb-feplog' : 'java-fw-imagelog';
     setInitialSearchParams(data.searchParams || null);
     setInitialSearchApprovalId(data.id != null ? data.id : null);
-    setCurrentView('main');
+    setCurrentView(view);
   };
 
   const handleInitialSearchDone = () => {
@@ -246,7 +253,6 @@ function App() {
           allowedScreenIds={getAllowedScreenIds(user) ?? []}
           currentView={currentView}
           onNavigate={handleNavigate}
-          onSearchMain={handleSearchMain}
         />
         <Box
           component="main"
@@ -263,7 +269,8 @@ function App() {
           <AppBar
             sidebarOpen={sidebarOpen}
             onToggleSidebar={() => setSidebarOpen((o) => !o)}
-            username={user?.username}
+            teamName={user?.selfContext?.department ?? ''}
+            userName={user?.selfContext?.username ?? user?.username ?? ''}
             onLogout={handleLogout}
           />
           <Box sx={{ flex: 1, p: 2, mt: 7, overflowY: 'auto', minHeight: 0 }}>
@@ -277,15 +284,22 @@ function App() {
             )}
             {currentView === 'permission-group-management' && <PermissionGroupManagement user={user} />}
             {currentView === 'pending-approvals' && <PendingApprovals user={user} />}
-            {currentView === 'main' && canAccessView('main') && !selectedLogType && (
-              <LogTypeSelector onSelectLogType={handleLogTypeSelect} />
-            )}
-            {currentView === 'main' && canAccessView('main') && selectedLogType && (
+            {currentView === 'pb-feplog' && canAccessView('pb-feplog') && (
               <LogGrid
-                logType={selectedLogType}
+                logType={LOG_TYPE_BY_VIEW['pb-feplog']}
                 initialSearchParams={initialSearchParams}
                 initialSearchApprovalId={initialSearchApprovalId}
                 onInitialSearchDone={handleInitialSearchDone}
+                hasDecryptPermission={user?.isSystemAdmin === true || getScreenFunctions(user)?.['pb-feplog']?.decrypt === true}
+              />
+            )}
+            {currentView === 'java-fw-imagelog' && canAccessView('java-fw-imagelog') && (
+              <LogGrid
+                logType={LOG_TYPE_BY_VIEW['java-fw-imagelog']}
+                initialSearchParams={initialSearchParams}
+                initialSearchApprovalId={initialSearchApprovalId}
+                onInitialSearchDone={handleInitialSearchDone}
+                hasDecryptPermission={user?.isSystemAdmin === true || getScreenFunctions(user)?.['java-fw-imagelog']?.decrypt === true}
               />
             )}
           </Box>

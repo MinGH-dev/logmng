@@ -1,5 +1,5 @@
 ---
-description: When changing search/filter form UI, follow field-level design docs; use single wrapper for control sizing; width by role; if standard undefined, inform user and do not implement first.
+description: When changing search/filter form UI, follow field-level design docs; use single wrapper for control sizing; width by role; keep self-scope user blocks visible and locked where applicable; if standard undefined, inform user and do not implement first.
 globs: "frontend/**/SearchForm*,**/StatisticsFilters*,**/UserActivityLog*,**/AdvancedSearchForm*,**/ImageLogSearchForm*,**/UserContextFilterBlock*,**/StatisticsHeader*"
 alwaysApply: false
 ---
@@ -14,6 +14,19 @@ When you add or change **search/filter form** UI (for example main search, activ
 2. **Per-screen field definitions**: `docs/design/search-fields-by-screen.md` (per-screen field definitions; statistics follows the same user and extra-block rules as activity log)
 3. **Form/filter layout and rules**: `docs/design/forms-and-filters.md` (filter group title placement, compact variant, panel width, **single application point**, **width by role**)
 4. **CSS standard and exceptions**: `frontend/src/styles/search-filter-standard.css` (single source; **use wrapper class** so control sizing is applied in one place). For screen-specific overrides: component CSS only, with comment and `docs/design/css-standard-and-exceptions.md` §5 Exception index. See `docs/design/css-standard-and-exceptions.md`.
+
+## Select option source must be explicit
+
+- **Document the authoritative source**: For every `select` field, `dataSource` in docs and handoffs must name the real authoritative API/domain source and expected option shape. A prop or local variable name such as `departmentList` is not sufficient.
+- **Shared contract across aligned screens**: If multiple aligned screens use the same select options, document that as one shared option contract and keep the wording consistent across those screens. For the `department` field on activity-log, statistics, and search-history, the authoritative source is the new shared filter-options API for department options, not `/api/statistics/departments`, and the shared contract must stay aligned.
+- **Scope rule is part of the contract**: If options differ by scope, write that rule explicitly in the doc/handoff. For the shared `department` contract above, `scope=team` must show only the current user's own department unless a newer requirement updates the standard.
+
+## Self-scope user/requester presentation
+
+- **Replace old wording**: For applicable self-scoped user-context or requester-context blocks, do not document or implement `hide-on-self` / `hidden on self`. The shared wording is **visible, fixed to current user, not editable**.
+- **Keep common order**: The locked self presentation must preserve `department -> username -> userId` in the same shared block order across aligned screens.
+- **Use auth/current-user data as display source**: The visible locked self values must come from the authenticated current-user payload or another explicitly documented auth-owned current-user source. Do not treat stale local form state or arbitrary client-entered filter values as the source of truth.
+- **Backend remains authoritative**: Visible locked fields are presentation-only. Do not document or implement them as permission enforcement; backend self-scope normalization and enforcement remain authoritative.
 
 ## Single application point for control sizing
 
@@ -33,12 +46,12 @@ If a field exists on **multiple screens with different semantics** (for example 
 
 ## When standard is undefined or ambiguous
 
-Before implementing, check that the following are defined and clear: **common layout**, **search/filter field placement**, **input/select/button size** (wrapper + vars), **width by role**, **label/placeholder/button order**. If any is missing or ambiguous, **do not implement**. Respond with: (1) list of undefined/ambiguous items, (2) why each is needed, (3) request to define the standard first and then proceed, (4) optional recommended standard draft. Full checklist and response format: `docs/design/ux-frontend-standard-principles.md` §2.
+Before implementing, check that the following are defined and clear: **common layout**, **search/filter field placement**, **input/select/button size** (wrapper + vars), **width by role**, **label/placeholder/button order**, **select option source and scope rule**. If any is missing or ambiguous, **do not implement**. Respond with: (1) list of undefined/ambiguous items, (2) why each is needed, (3) request to define the standard first and then proceed, (4) optional recommended standard draft. Full checklist and response format: `docs/design/ux-frontend-standard-principles.md` §2.
 
 ## Required workflow before implementation
 
 1. Classify the request by **role** (e.g. date, user-context block, extra block, action buttons).
-2. Check that a **common standard exists** for that role (search-fields-by-screen.md, search-filter-standard.css, forms-and-filters.md).
+2. Check that a **common standard exists** for that role (search-fields-by-screen.md, search-filter-standard.css, forms-and-filters.md), including any `select` field's authoritative option source and scope rule.
 3. If yes → apply the standard; do not re-define in component CSS.
 4. If no or unclear → inform the user per `ux-frontend-standard-principles.md` §2; do not implement until the standard is defined or the user confirms.
 
@@ -47,6 +60,9 @@ Before implementing, check that the following are defined and clear: **common la
 - Re-defining **height, padding, border, border-radius** for `.form-control` or filter buttons in component or shared block CSS when they are inside the standard wrapper.
 - Using **different min/max width** for the same role on different screens (e.g. 220px on one, 180px on another for date/single-select).
 - **Hardcoding** `height`, `padding`, `gap`, `min-width`, `max-width` in component CSS when the value exists in the standard; use `var(--sf-*)` or the wrapper.
+- Describing a `select` field source only as a prop/local variable (for example `departmentList`) without naming the upstream authoritative API/domain source, response shape, and scope rule.
+- Keeping `/api/statistics/departments` as the documented source for the shared `department` select used by activity-log, statistics, and search-history after the shared filter-options API contract was adopted.
+- Hiding an applicable self-scoped user/requester block by default when the current standard requires visible locked self values.
 - **Implementing** without checking the standard or without user feedback when the standard is unclear.
 
 ## Who uses this

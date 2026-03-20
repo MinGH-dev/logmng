@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import DataTable, { EmptyTableBody } from './DataTable';
 import './ImageLogTable.css';
 import logger from '../utils/logger';
-import { getUserFriendlyErrorMessage } from '../utils/security';
+import { getUserFriendlyErrorMessage, DECRYPTION_NOT_APPROVED_MESSAGE } from '../utils/security';
 
 const IMAGE_LOG_COLUMNS = [
   { key: 'insert_time', label: 'insert_time', sortable: true },
@@ -31,7 +31,19 @@ const ImageLogTable = ({
   keywords = [],
   searchParams = {},
   searchHistoryId = null,
+  hasDecryptPermission = true,
+  decryptionAllowed = null,
+  screenId = null,
 }) => {
+  // decryptionAllowed: { validUntil: string | null, guids: string[] } from GET /api/decrypt/allowed (req 20260318)
+  const allowedGuids = decryptionAllowed && Array.isArray(decryptionAllowed.guids) ? decryptionAllowed.guids : [];
+  const validUntil = decryptionAllowed?.validUntil ?? null;
+  const isAllowedForGuid = (guid) => {
+    if (!guid || !allowedGuids.length) return false;
+    const until = validUntil ? new Date(validUntil) : null;
+    if (until && until.getTime() <= Date.now()) return false;
+    return allowedGuids.includes(guid);
+  };
   // 시간 포맷팅
   const formatTime = (timeString) => {
     if (!timeString) return '';
@@ -245,10 +257,13 @@ const ImageLogTable = ({
     
     try {
       const apiBaseUrl = process.env.REACT_APP_API_BASE_URL || 'http://localhost:9200/api';
-      logger.debug('🔓 복호화 API 호출:', { apiUrl: `${apiBaseUrl}/logs/decrypt/java_fw_imglog`, guid, status });
+      const decryptUrl = screenId
+        ? `${apiBaseUrl}/logs/decrypt/java_fw_imglog?screen=${encodeURIComponent(screenId)}`
+        : `${apiBaseUrl}/logs/decrypt/java_fw_imglog`;
+      logger.debug('🔓 복호화 API 호출:', { apiUrl: decryptUrl, guid, status, screenId });
       const body = { guid, status };
       if (searchHistoryId != null) body.searchHistoryId = searchHistoryId;
-      const response = await fetch(`${apiBaseUrl}/logs/decrypt/java_fw_imglog`, {
+      const response = await fetch(decryptUrl, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -267,6 +282,8 @@ const ImageLogTable = ({
         } catch (_) {
           result = {};
         }
+        // 403 body is in result; log so user can see code, detailCode, error in console
+        logger.debug('🔓 복호화 API 403 응답 body:', { code: result?.code, detailCode: result?.detailCode, error: result?.error });
         if (result.code === 'DECRYPTION_NOT_APPROVED') {
           logger.debug('🔓 복호화 승인 미완료:', { code: result.code });
           alert(getUserFriendlyErrorMessage('복호화', result));
@@ -496,17 +513,27 @@ const ImageLogTable = ({
                     </td>
                     <td className="decrypt-action-cell">
                       {(() => {
-                        // 암호화된 값이 있는지 확인 (datastring, headerstring에 [...] 형태가 있거나, data, header 필드가 있는 경우)
-                        const hasEncryptedData = 
-                          (log.datastring && log.datastring.includes('[') && log.datastring.includes(']')) ||
-                          (log.headerstring && log.headerstring.includes('[') && log.headerstring.includes(']')) ||
-                          (log.data && typeof log.data === 'string' && log.data.length > 0) ||
-                          (log.header && typeof log.header === 'string' && log.header.length > 0);
-                        
+                        // Encrypted for decrypt-button visibility: datastring or headerstring must contain
+                        // at least one quoted bracket-wrapped value (e.g. "[ciphertext]" as a JSON string value).
+                        // Do not use log.data/log.header presence; plain rows may have non-empty data/header.
+                        // Plain JSON arrays like [1,2,3] are not matched (no surrounding quotes).
+                        const quotedBracketPattern = /"\[[^\]]*\]"/;
+                        const hasEncryptedData = [log.datastring, log.headerstring].some(
+                          (s) => typeof s === 'string' && quotedBracketPattern.test(s)
+                        );
+
                         if (!hasEncryptedData) {
                           return <span className="no-encrypted-data">-</span>;
                         }
-                        
+
+                        if (!hasDecryptPermission) {
+                          return (
+                            <span className="decrypt-permission-message" role="status" title="복호화 권한이 없습니다.">
+                              복호화 권한이 없습니다.
+                            </span>
+                          );
+                        }
+
                         // 복호화 상태에 따라 버튼 텍스트와 동작 변경
                         if (isDecryptedRow) {
                           return (
@@ -526,7 +553,27 @@ const ImageLogTable = ({
                             </button>
                           );
                         }
-                        
+
+                        // req 20260318: 허용 목록(decryption-allowed) 기준으로 normal vs dimmed
+                        const allowed = isAllowedForGuid(logGuid);
+                        if (!allowed) {
+                          return (
+                            <button
+                              type="button"
+                              className="decrypt-btn decrypt-btn--not-allowed"
+                              onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                alert(DECRYPTION_NOT_APPROVED_MESSAGE);
+                              }}
+                              title="복호화 승인 요청을 먼저 진행해 주세요"
+                              aria-label="복호화 (승인 필요)"
+                            >
+                              복호화
+                            </button>
+                          );
+                        }
+
                         return (
                           <button
                             type="button"

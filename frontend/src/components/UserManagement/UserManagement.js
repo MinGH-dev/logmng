@@ -70,6 +70,7 @@ const HierarchyTree = ({
                     <table className="log-table hierarchy-users-table" aria-label={`${code} 부서 사용자 목록`}>
                       <thead>
                         <tr>
+                          <th scope="col">사용자명</th>
                           <th scope="col">사용자 ID</th>
                           <th scope="col">직급</th>
                           <th scope="col">직책</th>
@@ -179,6 +180,7 @@ const UserManagement = ({ user }) => {
 
   const renderUserRow = (u, isApprover, allGroups, onRefresh) => {
     const userId = u.userId ?? u.username;
+    const displayName = u.userName ?? userId;
     const rank = u.rank ?? '-';
     const position = u.position ?? '-';
     const permissionGroups = u.permissionGroups || [];
@@ -186,6 +188,7 @@ const UserManagement = ({ user }) => {
 
     return (
       <tr key={userId}>
+        <td>{displayName}</td>
         <td>
           {userId}
           {isSystemAdmin && (

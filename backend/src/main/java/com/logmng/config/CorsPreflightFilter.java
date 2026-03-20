@@ -16,9 +16,11 @@ import java.util.List;
  */
 public class CorsPreflightFilter extends OncePerRequestFilter {
 
-    private static final List<String> ALLOWED_ORIGINS = List.of(
-            "http://localhost:3000", "http://localhost:3001",
-            "http://127.0.0.1:3000", "http://127.0.0.1:3001");
+    private final List<String> allowedOrigins;
+
+    public CorsPreflightFilter(List<String> allowedOrigins) {
+        this.allowedOrigins = List.copyOf(allowedOrigins);
+    }
 
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response,
@@ -28,7 +30,7 @@ public class CorsPreflightFilter extends OncePerRequestFilter {
             return;
         }
         String origin = request.getHeader("Origin");
-        if (origin != null && ALLOWED_ORIGINS.contains(origin)) {
+        if (origin != null && allowedOrigins.contains(origin)) {
             response.setHeader("Access-Control-Allow-Origin", origin);
         }
         response.setHeader("Access-Control-Allow-Credentials", "true");

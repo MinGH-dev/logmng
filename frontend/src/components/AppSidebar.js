@@ -15,14 +15,10 @@ function AppSidebar({
   allowedScreenIds = [],
   currentView,
   onNavigate,
-  onSearchMain,
 }) {
   const theme = useTheme();
 
-  const isActive = (item) => {
-    if (item.view === 'main') return currentView === 'main';
-    return currentView === item.view;
-  };
+  const isActive = (item) => currentView === item.view;
 
   const filteredTree = useMemo(() => {
     const ids = Array.isArray(allowedScreenIds) ? allowedScreenIds : [];
@@ -59,11 +55,7 @@ function AppSidebar({
     setOpenMenus((prev) => ({ ...prev, [nodeId]: open }));
 
   const handleChildClick = (child) => {
-    if (child.view === 'main') {
-      onSearchMain();
-    } else {
-      onNavigate(child.view);
-    }
+    onNavigate(child.view);
   };
 
   const menuItemStyles = useMemo(
@@ -107,7 +99,7 @@ function AppSidebar({
         label: {
           fontFamily: theme.typography.fontFamily,
         },
-        /** §2.1: Submenu content indent so "검색하기"/"검색 이력" align with "활동 이력"/"승인 대기" */
+        /** §2.1: Submenu content indent so "PB FEP Log"/"검색 이력" align with "활동 이력"/"복호화 승인 관리" */
         subMenuContent: {
           paddingLeft: SUBMENU_INDENT_PX,
         },

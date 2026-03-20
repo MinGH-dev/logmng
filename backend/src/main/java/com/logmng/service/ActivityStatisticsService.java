@@ -218,10 +218,11 @@ public class ActivityStatisticsService {
         for (String typeId : STATISTICS_LOG_TYPE_IDS) {
             List<Map<String, Object>> list = getOneLogTypeUserStatistics(startDate, endDate, typeId, userId, allowedUserIds, department, ip, username);
             for (Map<String, Object> row : list) {
-                String uId = (String) row.get("userId");
+                // Key is string for grouping; map stores Long for contract (userId from DB is Long).
+                String uId = String.valueOf(row.get("userId"));
                 byUserId.computeIfAbsent(uId, id -> {
                     Map<String, Object> m = new LinkedHashMap<>();
-                    m.put("userId", id);
+                    m.put("userId", row.get("userId"));
                     m.put("userName", row.get("userName"));
                     m.put("totalCount", 0L);
                     m.put("loginCount", 0L);
@@ -241,19 +242,19 @@ public class ActivityStatisticsService {
         return list;
     }
 
-    /** 단일 로그타입에 대한 사용자별 통계 */
+    /** 단일 로그타입에 대한 사용자별 통계. userId = numeric app_user.id (req 20260316). */
     private List<Map<String, Object>> getOneLogTypeUserStatistics(String startDate, String endDate,
                                                                     String logType, String userId, List<String> allowedUserIds, String department, String ip, String username) {
-        String where = buildDailyMonthlyWhere(startDate, endDate, logType, userId, allowedUserIds, department, ip, username);
+        String where = buildDailyMonthlyWhere(startDate, endDate, logType, userId, allowedUserIds, department, ip, username, "u.");
 
         String query =
-                "SELECT user_id AS \"userId\", username AS \"userName\", " +
+                "SELECT a.id AS \"userId\", COALESCE(a.name, u.username) AS \"userName\", " +
                 "  COUNT(*) AS \"totalCount\", " +
-                "  COUNT(*) FILTER (WHERE action_type = 'LOGIN') AS \"loginCount\", " +
-                "  COUNT(*) FILTER (WHERE action_type IN ('SEARCH','ADVANCED_SEARCH','STATS_VIEW')) AS \"searchCount\", " +
-                "  COUNT(*) FILTER (WHERE action_type = 'DECRYPT') AS \"decryptCount\" " +
-                "FROM user_activity_log " + where +
-                "GROUP BY user_id, username ORDER BY \"totalCount\" DESC";
+                "  COUNT(*) FILTER (WHERE u.action_type = 'LOGIN') AS \"loginCount\", " +
+                "  COUNT(*) FILTER (WHERE u.action_type IN ('SEARCH','ADVANCED_SEARCH','STATS_VIEW')) AS \"searchCount\", " +
+                "  COUNT(*) FILTER (WHERE u.action_type = 'DECRYPT') AS \"decryptCount\" " +
+                "FROM user_activity_log u INNER JOIN app_user a ON u.user_id = a.username " + where +
+                "GROUP BY a.id, a.name, u.username ORDER BY \"totalCount\" DESC";
 
         List<Map<String, Object>> list = new ArrayList<>();
         try (Connection conn = dataSource.getConnection();
@@ -274,7 +275,7 @@ public class ActivityStatisticsService {
             try (ResultSet rs = ps.executeQuery()) {
                 while (rs.next()) {
                     Map<String, Object> row = new LinkedHashMap<>();
-                    row.put("userId", rs.getString("userId"));
+                    row.put("userId", rs.getObject("userId", Long.class));
                     row.put("userName", rs.getString("userName"));
                     row.put("totalCount", rs.getLong("totalCount"));
                     row.put("loginCount", rs.getLong("loginCount"));
@@ -290,24 +291,55 @@ public class ActivityStatisticsService {
         return list;
     }
 
-    public List<Map<String, String>> getUsers() {
+    public List<Map<String, Object>> getUsers() {
         return getUsers(null, null);
     }
 
-    /** When userIdFilter is not null, return only that user (scope=self). When allowedUserIds is set, filter by IN list (scope=team). */
-    public List<Map<String, String>> getUsers(String userIdFilter, List<String> allowedUserIds) {
+    /** When userIdFilter is not null, return only that user (scope=self). When allowedUserIds is set, filter by IN list (scope=team). Empty allowedUserIds = no users (req 20260317). */
+    public List<Map<String, Object>> getUsers(String userIdFilter, List<String> allowedUserIds) {
+        if (allowedUserIds != null && allowedUserIds.isEmpty()) {
+            return Collections.emptyList();
+        }
+        String sql;
+        List<Object> params = new ArrayList<>();
         if (allowedUserIds != null && !allowedUserIds.isEmpty()) {
             if (allowedUserIds.size() == 1) {
-                return runListQueryWithParam("SELECT DISTINCT user_id AS \"userId\", username AS \"userName\" FROM user_activity_log WHERE user_id = ? ORDER BY user_id", "userId", "userName", allowedUserIds.get(0));
+                sql = "SELECT DISTINCT a.id AS \"userId\", COALESCE(a.name, u.username) AS \"userName\" FROM user_activity_log u INNER JOIN app_user a ON u.user_id = a.username WHERE u.user_id = ? ORDER BY a.id";
+                params.add(allowedUserIds.get(0));
+            } else {
+                String ph = String.join(",", Collections.nCopies(allowedUserIds.size(), "?"));
+                sql = "SELECT DISTINCT a.id AS \"userId\", COALESCE(a.name, u.username) AS \"userName\" FROM user_activity_log u INNER JOIN app_user a ON u.user_id = a.username WHERE u.user_id IN (" + ph + ") ORDER BY a.id";
+                params.addAll(allowedUserIds);
             }
-            String placeholders = String.join(",", Collections.nCopies(allowedUserIds.size(), "?"));
-            String sql = "SELECT DISTINCT user_id AS \"userId\", username AS \"userName\" FROM user_activity_log WHERE user_id IN (" + placeholders + ") ORDER BY user_id";
-            return runListQueryWithParams(sql, "userId", "userName", allowedUserIds);
+        } else if (userIdFilter != null && !userIdFilter.isEmpty()) {
+            sql = "SELECT DISTINCT a.id AS \"userId\", COALESCE(a.name, u.username) AS \"userName\" FROM user_activity_log u INNER JOIN app_user a ON u.user_id = a.username WHERE u.user_id = ? ORDER BY a.id";
+            params.add(userIdFilter);
+        } else {
+            sql = "SELECT DISTINCT a.id AS \"userId\", COALESCE(a.name, u.username) AS \"userName\" FROM user_activity_log u INNER JOIN app_user a ON u.user_id = a.username ORDER BY a.id";
         }
-        if (userIdFilter != null && !userIdFilter.isEmpty()) {
-            return runListQueryWithParam("SELECT DISTINCT user_id AS \"userId\", username AS \"userName\" FROM user_activity_log WHERE user_id = ? ORDER BY user_id", "userId", "userName", userIdFilter);
+        return runListQueryUsersWithId(sql, params);
+    }
+
+    private List<Map<String, Object>> runListQueryUsersWithId(String sql, List<Object> params) {
+        List<Map<String, Object>> list = new ArrayList<>();
+        try (Connection conn = dataSource.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            for (int i = 0; i < params.size(); i++) {
+                ps.setObject(i + 1, params.get(i));
+            }
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    Map<String, Object> row = new LinkedHashMap<>();
+                    row.put("userId", rs.getObject("userId", Long.class));
+                    row.put("userName", rs.getString("userName"));
+                    list.add(row);
+                }
+            }
+        } catch (SQLException e) {
+            log.error("목록 조회 실패: {}", sql, e);
+            throw new RuntimeException("목록 조회 중 오류가 발생했습니다: " + e.getMessage(), e);
         }
-        return runListQuery("SELECT DISTINCT user_id AS \"userId\", username AS \"userName\" FROM user_activity_log ORDER BY user_id", "userId", "userName");
+        return list;
     }
 
     public List<String> getDepartments() {
@@ -319,8 +351,11 @@ public class ActivityStatisticsService {
         return getIps(null, null);
     }
 
-    /** When userIdFilter or allowedUserIds is set, filter IPs by that user or user list (scope=self or team). */
+    /** When userIdFilter or allowedUserIds is set, filter IPs by that user or user list (scope=self or team). Empty allowedUserIds = no IPs (req 20260317). */
     public List<String> getIps(String userIdFilter, List<String> allowedUserIds) {
+        if (allowedUserIds != null && allowedUserIds.isEmpty()) {
+            return Collections.emptyList();
+        }
         if (allowedUserIds != null && !allowedUserIds.isEmpty()) {
             String placeholders = String.join(",", Collections.nCopies(allowedUserIds.size(), "?"));
             String sql = "SELECT DISTINCT ip_address FROM user_activity_log WHERE user_id IN (" + placeholders + ") AND ip_address IS NOT NULL AND ip_address != '' ORDER BY ip_address";
@@ -436,30 +471,39 @@ public class ActivityStatisticsService {
     /**
      * WHERE 절과 파라미터 순서: startDate, endDate, (optional) logType, [userId or allowedUserIds...], department, ip, username
      * When allowedUserIds is non-null and non-empty, user filter is user_id IN (?,?,...); else when userId set, user_id = ?.
+     * @param tablePrefix optional prefix for column names (e.g. "u." when FROM user_activity_log u JOIN app_user a)
      */
     private String buildDailyMonthlyWhere(String startDate, String endDate,
                                            String logType, String userId, List<String> allowedUserIds, String department, String ip, String username) {
+        return buildDailyMonthlyWhere(startDate, endDate, logType, userId, allowedUserIds, department, ip, username, "");
+    }
+
+    private String buildDailyMonthlyWhere(String startDate, String endDate,
+                                           String logType, String userId, List<String> allowedUserIds, String department, String ip, String username, String tablePrefix) {
         StringBuilder sb = new StringBuilder(" WHERE 1=1 ");
         if (startDate != null && !startDate.isEmpty()) {
-            sb.append(" AND created_at >= ?::date ");
+            sb.append(" AND ").append(tablePrefix).append("created_at >= ?::date ");
         }
         if (endDate != null && !endDate.isEmpty()) {
-            sb.append(" AND created_at <= ?::date + INTERVAL '1 day' ");
+            sb.append(" AND ").append(tablePrefix).append("created_at <= ?::date + INTERVAL '1 day' ");
         }
         if (logType != null && !logType.isEmpty()) {
             if ("LOGIN".equalsIgnoreCase(logType)) {
-                sb.append(" AND action_type = ? ");
+                sb.append(" AND ").append(tablePrefix).append("action_type = ? ");
             } else {
-                sb.append(" AND action_detail::text LIKE ? ");
+                sb.append(" AND ").append(tablePrefix).append("action_detail::text LIKE ? ");
             }
         }
         if (allowedUserIds != null && !allowedUserIds.isEmpty()) {
-            sb.append(" AND user_id IN (").append(String.join(",", Collections.nCopies(allowedUserIds.size(), "?"))).append(") ");
+            sb.append(" AND ").append(tablePrefix).append("user_id IN (").append(String.join(",", Collections.nCopies(allowedUserIds.size(), "?"))).append(") ");
+        } else if (allowedUserIds != null && allowedUserIds.isEmpty()) {
+            /* scope=team with no department or null username: allow no rows (req 20260317) */
+            sb.append(" AND 1=0 ");
         } else if (userId != null && !userId.isEmpty()) {
-            sb.append(" AND user_id = ? ");
+            sb.append(" AND ").append(tablePrefix).append("user_id = ? ");
         }
-        if (ip != null && !ip.isEmpty()) sb.append(" AND ip_address = ? ");
-        if (username != null && !username.isEmpty()) sb.append(" AND username LIKE ? ");
+        if (ip != null && !ip.isEmpty()) sb.append(" AND ").append(tablePrefix).append("ip_address = ? ");
+        if (username != null && !username.isEmpty()) sb.append(" AND ").append(tablePrefix).append("username LIKE ? ");
         return sb.toString();
     }
 

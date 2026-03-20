@@ -12,7 +12,7 @@ Copy this template to create `docs/requirements/yyyyMMdd-short-name.md`. Use low
 
 **Date**: For `yyyyMMdd` and in-document dates (Date, Completed, §5 test run date, authored date), use the **current year and date** from `.cursor/CURRENT-DATE-CONVENTION.md` so the correct year is used even when the conversation context is wrong.
 
-**After verification**: Add the new doc to `docs/requirements/TOPIC-INDEX.md` under the matching topic (one line: `- doc-id | one-line §1 summary`). Run `./scripts/generate-requirements-index.sh` to check for docs not yet in the index.
+**After verification**: Add the new doc to `docs/requirements/TOPIC-INDEX.md` under the matching topic (one line: `- doc-id | one-line §1 summary`). Run `./scripts/generate-requirements-index.sh` to check for docs not yet in the index. Cursor automation treats the checklist transition `- [ ] Requirement doc completed` -> `- [x] Requirement doc completed` as the canonical requirement-completion trigger, and that completion flow now auto-adds the doc to the best-matching `TOPIC-INDEX.md` section (or `misc` when no clear topic matches). Check that item only when the doc has truly reached its final completed state for the workflow.
 
 ---
 
@@ -51,6 +51,15 @@ When **Security** subagent has reviewed: summarize risks, acceptance criteria, a
 #### Problem analysis
 1. [Problem 1]
 2. [Problem 2]
+
+#### Diagnostic phase (mandatory for error/bug fix only)
+
+When this requirement is an **error fix or bug fix** (user input was mainly error message, stack trace, or "fix this error"), §2 must require the implementer to **verify root cause from logs before changing logic**. Do not instruct a code fix based on hypothesis alone.
+
+- **Phase 0 (diagnostic):** (1) Add diagnostic (debug) logs in suspected areas (key variables, branch outcomes, per-item results). (2) Reproduce the error and capture logs. (3) Analyze logs to confirm the actual root cause. (4) Only after cause is confirmed, proceed to the logic/code fix.
+- **Production safety:** Diagnostic logs must be either at **DEBUG** level (off in production), or behind a **feature flag / dev-only path**, or **removed/downgraded** after the fix is verified. They must not be emitted in production.
+
+*(Omit this subsection when the requirement is a feature or non-error change.)*
 
 #### Solution approach
 

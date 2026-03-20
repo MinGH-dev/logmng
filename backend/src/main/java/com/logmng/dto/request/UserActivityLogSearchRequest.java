@@ -1,5 +1,6 @@
 package com.logmng.dto.request;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 import java.time.LocalDate;
@@ -8,15 +9,19 @@ import java.time.format.DateTimeFormatter;
 import java.util.List;
 
 /**
- * 사용자 활동 이력 검색 요청 DTO
+ * 사용자 활동 이력 검색 요청 DTO. API userId = numeric app_user.id (req 20260316); server resolves to username for DB (userIdForFilter).
  */
 public class UserActivityLogSearchRequest {
     
     private String startDate;
     private String endDate;
     
+    /** API: numeric app_user.id (Long). */
     @JsonProperty("userId")
-    private String userId;
+    private Long userId;
+    
+    /** Resolved username for DB filter; set by controller/ScopeHelper. Not from JSON. */
+    private String userIdForFilter;
     
     @JsonProperty("username")
     private String username;
@@ -38,7 +43,7 @@ public class UserActivityLogSearchRequest {
         }
     }
 
-    /** When scope=team, set by controller: only logs for these user ids are returned. Not from client. */
+    /** When scope=team, set by server-side scope enforcement only. Never trust client input. */
     private List<String> allowedUserIds;
 
     private Integer page = 1;
@@ -63,12 +68,21 @@ public class UserActivityLogSearchRequest {
         this.endDate = endDate;
     }
     
-    public String getUserId() {
+    public Long getUserId() {
         return userId;
     }
     
-    public void setUserId(String userId) {
+    public void setUserId(Long userId) {
         this.userId = userId;
+    }
+
+    /** Username used for DB filter (resolved from userId or set by scope enforcement). */
+    public String getUserIdForFilter() {
+        return userIdForFilter;
+    }
+
+    public void setUserIdForFilter(String userIdForFilter) {
+        this.userIdForFilter = userIdForFilter;
     }
     
     public String getUsername() {
@@ -103,10 +117,12 @@ public class UserActivityLogSearchRequest {
         this.department = department;
     }
 
+    @JsonIgnore
     public List<String> getAllowedUserIds() {
         return allowedUserIds;
     }
 
+    @JsonIgnore
     public void setAllowedUserIds(List<String> allowedUserIds) {
         this.allowedUserIds = allowedUserIds;
     }

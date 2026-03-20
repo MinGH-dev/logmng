@@ -1,6 +1,6 @@
 package com.logmng.dto.request;
 
-import com.fasterxml.jackson.annotation.JsonFormat;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -10,8 +10,10 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * DB 기반 로그 검색 요청 DTO
+ * DB 기반 로그 검색 요청 DTO.
+ * UI-only fields (e.g. showDecryptOption) in stored search_params are ignored on deserialize.
  */
+@JsonIgnoreProperties(ignoreUnknown = true)
 public class LogDbSearchRequest {
     
     private static final Logger log = LoggerFactory.getLogger(LogDbSearchRequest.class);

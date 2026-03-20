@@ -37,9 +37,11 @@ public class PermissionGroupService {
     private static final int MAX_USER_ID_LENGTH = 100;
 
     private final DataSource dataSource;
+    private final AppUserResolver appUserResolver;
 
-    public PermissionGroupService(DataSource dataSource) {
+    public PermissionGroupService(DataSource dataSource, AppUserResolver appUserResolver) {
         this.dataSource = dataSource;
+        this.appUserResolver = appUserResolver;
     }
 
     public List<PermissionGroupResponse> listAll() {
@@ -219,7 +221,8 @@ public class PermissionGroupService {
             log.error("Assign user to group failed: groupId={}, userId={}", groupId, uid, e);
             throw new RuntimeException("사용자 배정 중 오류가 발생했습니다: " + e.getMessage(), e);
         }
-        return new AssignUserToGroupResponse(uid, groupId, group.getCode());
+        Long numericUserId = appUserResolver.getIdByUsername(uid);
+        return new AssignUserToGroupResponse(numericUserId, groupId, group.getCode());
     }
 
     public void unassignUser(Long groupId, String userId) {
@@ -382,19 +385,21 @@ public class PermissionGroupService {
         findById(groupId);
         List<UserListItemResponse> list = new ArrayList<>();
         try (Connection conn = dataSource.getConnection()) {
-            String sql = "SELECT u.username, u.role, u.department_code, u.position, u.rank, u.is_system_admin FROM app_user u " +
+            String sql = "SELECT u.id, u.username, u.role, u.department_code, u.position, u.rank, u.is_system_admin FROM app_user u " +
                     "INNER JOIN app_user_permission_group a ON u.username = a.user_id WHERE a.permission_group_id = ? ORDER BY u.username";
             try (PreparedStatement ps = conn.prepareStatement(sql)) {
                 ps.setLong(1, groupId);
                 try (ResultSet rs = ps.executeQuery()) {
                     while (rs.next()) {
+                        Long id = rs.getObject("id", Long.class);
                         String username = rs.getString("username");
                         String role = rs.getString("role");
                         String departmentCode = rs.getString("department_code");
                         String position = rs.getString("position");
                         String rank = rs.getString("rank");
                         boolean isSystemAdmin = Boolean.TRUE.equals(rs.getObject("is_system_admin", Boolean.class));
-                        list.add(new UserListItemResponse(username, role, departmentCode, false, position, rank, isSystemAdmin));
+                        boolean isApprover = false; // not loaded here; hierarchy uses DecryptApproverService for approver
+                        list.add(new UserListItemResponse(id, username, role, departmentCode, isApprover, position, rank, isSystemAdmin));
                     }
                 }
             }
@@ -515,15 +520,19 @@ public class PermissionGroupService {
         return s != null ? s.trim() : "";
     }
 
+    private static String normalizeScreenId(String screenId) {
+        return ScreenConstants.normalizeScreenIdForPermissionGroup(screenId);
+    }
+
     private void validateAllowedScreens(List<AllowedScreenItem> items) {
         if (items == null || items.isEmpty()) {
             return;
         }
         for (AllowedScreenItem item : items) {
             if (item == null || item.getScreenId() == null || item.getScreenId().isBlank()) continue;
-            String screenId = item.getScreenId().trim();
+            String screenId = normalizeScreenId(item.getScreenId());
             if (!ScreenConstants.isValid(screenId)) {
-                throw CustomException.badRequest("유효하지 않은 화면 ID입니다: " + screenId, "INVALID_SCREEN_ID");
+                throw CustomException.badRequest("유효하지 않은 화면 ID입니다: " + item.getScreenId().trim(), "INVALID_SCREEN_ID");
             }
             if (ScreenConstants.supportsScope(screenId)) {
                 String scope = item.getScope();
@@ -536,12 +545,14 @@ public class PermissionGroupService {
     }
 
     /**
-     * Validates read/write/approve/decrypt per screen per §1.1.1. main: read + optional decrypt; write/approve only on supported screens; decrypt only for main (req 20260306).
+     * Validates read/write/approve/decrypt per screen per §1.1.1. main, pb-feplog, java-fw-imagelog: read + optional decrypt; write/approve not allowed (req 20260318).
      */
     private void validateScreenFunctions(String screenId, Boolean read, Boolean write, Boolean approve, Boolean decrypt) {
-        if (ScreenConstants.MAIN.equals(screenId)) {
+        if (ScreenConstants.MAIN.equals(screenId)
+                || ScreenConstants.PB_FEPLOG.equals(screenId)
+                || ScreenConstants.JAVA_FW_IMAGELOG.equals(screenId)) {
             if (Boolean.TRUE.equals(write) || Boolean.TRUE.equals(approve)) {
-                throw CustomException.badRequest("main 화면은 조회만 지원합니다. write 또는 approve를 지정할 수 없습니다.", "INVALID_SCREEN_FUNCTION");
+                throw CustomException.badRequest("해당 화면은 조회 및 복호화만 지원합니다. write 또는 approve를 지정할 수 없습니다: " + screenId, "INVALID_SCREEN_FUNCTION");
             }
         }
         if (Boolean.TRUE.equals(write) && !ScreenConstants.supportsWrite(screenId)) {
@@ -551,7 +562,7 @@ public class PermissionGroupService {
             throw CustomException.badRequest("해당 화면은 approve를 지원하지 않습니다: " + screenId, "INVALID_SCREEN_FUNCTION");
         }
         if (Boolean.TRUE.equals(decrypt) && !ScreenConstants.supportsDecrypt(screenId)) {
-            throw CustomException.badRequest("해당 화면은 decrypt(복호화)를 지원하지 않습니다: " + screenId + ". decrypt는 main(검색하기) 전용입니다.", "INVALID_SCREEN_FUNCTION");
+            throw CustomException.badRequest("해당 화면은 decrypt(복호화)를 지원하지 않습니다: " + screenId, "INVALID_SCREEN_FUNCTION");
         }
     }
 
@@ -566,8 +577,9 @@ public class PermissionGroupService {
                     String scope = rs.getString("scope");
                     if (screenId != null && !screenId.isBlank()) {
                         AllowedScreenItem item = new AllowedScreenItem();
-                        item.setScreenId(screenId);
-                        if (ScreenConstants.supportsScope(screenId)) {
+                        String normalized = normalizeScreenId(screenId);
+                        item.setScreenId(normalized);
+                        if (ScreenConstants.supportsScope(normalized)) {
                             String scopeVal = (scope == null || scope.isBlank()) ? "team"
                                     : "all".equalsIgnoreCase(scope) ? "all" : "team".equalsIgnoreCase(scope) ? "team" : "self";
                             item.setScope(scopeVal);
@@ -599,7 +611,7 @@ public class PermissionGroupService {
             try (PreparedStatement ps = conn.prepareStatement(insertSql)) {
                 for (AllowedScreenItem item : items) {
                     if (item == null || item.getScreenId() == null || item.getScreenId().isBlank()) continue;
-                    String screenId = item.getScreenId().trim();
+                    String screenId = normalizeScreenId(item.getScreenId());
                     ps.setLong(1, groupId);
                     ps.setString(2, screenId);
                     String scope = null;

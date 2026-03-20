@@ -30,7 +30,7 @@ class PermissionGroupServiceTest {
     @BeforeEach
     void setUp() throws Exception {
         dataSource = createH2DataSource();
-        service = new PermissionGroupService(dataSource);
+        service = new PermissionGroupService(dataSource, new AppUserResolver(dataSource));
     }
 
     private static DataSource createH2DataSource() throws Exception {
@@ -187,6 +187,89 @@ class PermissionGroupServiceTest {
                 assertThat(rs.getString("scope")).isEqualTo("team");
             }
         }
+    }
+
+    /**
+     * TC-05 (req 20260318): POST permission-groups with allowedScreens pb-feplog, java-fw-imagelog (read + decrypt) → 201, stored.
+     */
+    @Test
+    void create_withPbFeplogAndJavaFwImagelogReadDecrypt_storesSuccessfully() {
+        PermissionGroupCreateRequest req = new PermissionGroupCreateRequest();
+        req.setCode("log_search_group");
+        req.setName("Log Search Two Screens");
+        AllowedScreenItem pbFeplog = new AllowedScreenItem();
+        pbFeplog.setScreenId("pb-feplog");
+        pbFeplog.setRead(true);
+        pbFeplog.setDecrypt(true);
+        AllowedScreenItem javaFwImagelog = new AllowedScreenItem();
+        javaFwImagelog.setScreenId("java-fw-imagelog");
+        javaFwImagelog.setRead(true);
+        javaFwImagelog.setDecrypt(true);
+        req.setAllowedScreens(List.of(pbFeplog, javaFwImagelog));
+
+        var response = service.create(req);
+        assertThat(response).isNotNull();
+        assertThat(response.getCode()).isEqualTo("log_search_group");
+        assertThat(response.getAllowedScreens()).hasSize(2);
+        assertThat(response.getAllowedScreens()).anyMatch(s -> "pb-feplog".equals(s.getScreenId()) && Boolean.TRUE.equals(s.getDecrypt()));
+        assertThat(response.getAllowedScreens()).anyMatch(s -> "java-fw-imagelog".equals(s.getScreenId()) && Boolean.TRUE.equals(s.getDecrypt()));
+    }
+
+    /**
+     * TC-01b: screenId with Unicode hyphen (U+2011) in java-fw-imagelog is accepted (same as ASCII hyphen-minus).
+     */
+    @Test
+    void create_withUnicodeHyphenInJavaFwImagelog_normalizesAndStoresCanonical() {
+        PermissionGroupCreateRequest req = new PermissionGroupCreateRequest();
+        req.setCode("unicode_hyphen_im");
+        req.setName("Unicode Hyphen");
+        AllowedScreenItem item = new AllowedScreenItem();
+        item.setScreenId("java\u2011fw\u2011imagelog");
+        item.setRead(true);
+        item.setDecrypt(true);
+        req.setAllowedScreens(List.of(item));
+
+        var response = service.create(req);
+        assertThat(response.getAllowedScreens()).hasSize(1);
+        assertThat(response.getAllowedScreens().get(0).getScreenId()).isEqualTo("java-fw-imagelog");
+    }
+
+    /**
+     * TC-01 (req 20260318-permission-group-menu-invalid-screen-id-imagelog): Create with legacy screenId java-fw_imagelog
+     * is accepted and stored/returned as java-fw-imagelog.
+     */
+    @Test
+    void create_withLegacyImagelogScreenId_normalizesAndStoresCanonical() {
+        PermissionGroupCreateRequest req = new PermissionGroupCreateRequest();
+        req.setCode("legacy_imagelog");
+        req.setName("Legacy Imagelog Group");
+        AllowedScreenItem item = new AllowedScreenItem();
+        item.setScreenId("java-fw_imagelog");
+        item.setRead(true);
+        item.setDecrypt(true);
+        req.setAllowedScreens(List.of(item));
+
+        var response = service.create(req);
+        assertThat(response).isNotNull();
+        assertThat(response.getAllowedScreens()).hasSize(1);
+        assertThat(response.getAllowedScreens().get(0).getScreenId()).isEqualTo("java-fw-imagelog");
+        assertThat(response.getAllowedScreens().get(0).getDecrypt()).isTrue();
+    }
+
+    /**
+     * TC-03 (req 20260318): GET group returns canonical java-fw-imagelog when DB has legacy java-fw_imagelog.
+     */
+    @Test
+    void findById_whenDbHasLegacyImagelog_returnsCanonicalScreenId() throws Exception {
+        try (Connection conn = dataSource.getConnection();
+             Statement stmt = conn.createStatement()) {
+            stmt.executeUpdate("INSERT INTO permission_group (id, code, name, description, sort_order) VALUES (200, 'legacy_pg', 'Legacy', NULL, 0)");
+            stmt.executeUpdate("INSERT INTO permission_group_screen (permission_group_id, screen_id, scope, read, write, approve, decrypt) VALUES (200, 'java-fw_imagelog', NULL, true, false, false, true)");
+        }
+        var response = service.findById(200L);
+        assertThat(response).isNotNull();
+        assertThat(response.getAllowedScreens()).hasSize(1);
+        assertThat(response.getAllowedScreens().get(0).getScreenId()).isEqualTo("java-fw-imagelog");
     }
 
     /**

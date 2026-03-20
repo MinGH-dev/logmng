@@ -125,18 +125,30 @@ const PermissionGroupPanel = ({ user, onRefreshHierarchy }) => {
   /** Screens where approval scope is fixed to team. req 20260306-approval-scope-fixed-department */
   const APPROVAL_SCOPE_FIXED_SCREENS = ['search-history', 'pending-approvals'];
 
+  /** Legacy + Unicode hyphen normalization (req 20260318-permission-group-menu-invalid-screen-id-imagelog). */
+  const normalizeScreenId = (id) => {
+    if (id == null || id === '') return id;
+    let s = String(id).trim();
+    s = s.replace(/[\u200B-\u200D\uFEFF]/g, '');
+    s = s.replace(/[\u2010-\u2015\u2212\uFE58\uFE63\uFF0D]/g, '-');
+    if (s === 'java-fw_imagelog') return 'java-fw-imagelog';
+    return s;
+  };
+
   /** Normalize allowedScreens to [{ screenId, scope?, read?, write?, approve?, decrypt? }]. API may return string[] or object array.
    * Preserves explicit false for write/approve/decrypt when API returns partial data. When approve=true for approval-fixed screens, scope is set to 'team'. req 20250303, 20260306, 20260306-search-screen-decrypt-permission */
   const normalizeAllowedScreens = (arr) => {
     const scopeScreens = ['activity-log', 'statistics', 'search-history', 'pending-approvals'];
-    const decryptScreens = ['main'];
+    const decryptScreens = ['pb-feplog', 'java-fw-imagelog'];
     if (!Array.isArray(arr)) return [];
     return arr.map((s) => {
+      const rawId = typeof s === 'string' ? s : s.screenId;
+      const screenId = normalizeScreenId(rawId);
       const base = typeof s === 'string'
-        ? { screenId: s, scope: scopeScreens.includes(s) ? 'self' : undefined }
+        ? { screenId, scope: scopeScreens.includes(screenId) ? 'self' : undefined }
         : {
-            screenId: s.screenId,
-            scope: s.scope || (scopeScreens.includes(s.screenId) ? 'self' : undefined),
+            screenId,
+            scope: s.scope || (scopeScreens.includes(screenId) ? 'self' : undefined),
             read: s.read,
             write: s.write,
             approve: s.approve,
@@ -291,11 +303,12 @@ const PermissionGroupPanel = ({ user, onRefreshHierarchy }) => {
 
   const handleAddUserToGroup = async () => {
     if (!usersDialogGroup || !addUserId?.trim()) return;
-    const userId = addUserId.trim();
-    setUsersDialogActionId(userId);
+    const userIdNum = Number(addUserId.trim());
+    if (Number.isNaN(userIdNum)) return;
+    setUsersDialogActionId(String(userIdNum));
     setUsersDialogError(null);
     try {
-      await addUserToGroup(usersDialogGroup.id, userId);
+      await addUserToGroup(usersDialogGroup.id, userIdNum);
       setAddUserId('');
       const list = await listUsersInGroup(usersDialogGroup.id);
       setUsersInGroup(Array.isArray(list) ? list : []);
@@ -310,7 +323,7 @@ const PermissionGroupPanel = ({ user, onRefreshHierarchy }) => {
 
   const handleRemoveUserFromGroup = async (userId) => {
     if (!usersDialogGroup) return;
-    setUsersDialogActionId(userId);
+    setUsersDialogActionId(String(userId));
     setUsersDialogError(null);
     try {
       await removeUserFromGroup(usersDialogGroup.id, userId);
@@ -346,10 +359,10 @@ const PermissionGroupPanel = ({ user, onRefreshHierarchy }) => {
     setUsersDialogError(null);
   }, []);
 
-  const alreadyInGroup = (userId) => usersInGroup.some((u) => (u.userId || u.username) === userId);
+  const alreadyInGroup = (userId) => usersInGroup.some((u) => String(u.userId ?? u.username) === String(userId));
   const addableUsers = userList.filter((u) => {
     const id = u.userId ?? u.username;
-    return id && !alreadyInGroup(id);
+    return id != null && id !== '' && !alreadyInGroup(id);
   });
 
   return (
@@ -557,7 +570,7 @@ const PermissionGroupPanel = ({ user, onRefreshHierarchy }) => {
                   {addableUsers.map((u) => {
                     const id = u.userId ?? u.username;
                     return (
-                      <option key={id} value={id}>
+                      <option key={id} value={String(id)}>
                         {id} {u.departmentCode ? `(${u.departmentCode})` : ''}
                       </option>
                     );
@@ -595,8 +608,8 @@ const PermissionGroupPanel = ({ user, onRefreshHierarchy }) => {
                               <tr key={uid}>
                                 <td>{uid}</td>
                                 <td>
-                                  <button type="button" className="user-management-btn remove" onClick={() => handleRemoveUserFromGroup(uid)} disabled={usersDialogActionId === uid} aria-label={`제거, ${uid}`}>
-                                    {usersDialogActionId === uid ? '처리 중...' : '제거'}
+                                  <button type="button" className="user-management-btn remove" onClick={() => handleRemoveUserFromGroup(uid)} disabled={usersDialogActionId === String(uid)} aria-label={`제거, ${uid}`}>
+                                    {usersDialogActionId === String(uid) ? '처리 중...' : '제거'}
                                   </button>
                                 </td>
                               </tr>

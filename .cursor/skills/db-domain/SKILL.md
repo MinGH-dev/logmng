@@ -15,8 +15,9 @@ Use for **schema, migrations, and DB config** in this repo. Scope: `backend/src/
 
 ## Quick reference
 
-- **Stack**: PostgreSQL (port 5432, DB name `logmng`). See `docs/contract.md` for env table.
-- **Scope**: schema.sql, setup.sh, init-data.sql, migrations, check-db.sh, backend/DB_*.md. No Java, API, or frontend.
+- **Stack**: PostgreSQL (port 5432). Default dev: single DB `logmng`. **Split ops**: DB **A** (`DB_A_NAME`) for system + PB schemas (`SCHEMA_SYS`, `SCHEMA_PB`); DB **B** (`DB_B_NAME`) for ImageLog (`SCHEMA_IMAGELOG`). See `backend/DB_SETUP_GUIDE.md` and `docs/contract.md` (multi-datasource + env table). Req: `docs/requirements/20260320-multi-datasource-schema-configuration.md`.
+- **DDL layout**: `schema.sql` includes `schema_pb_fep.sql` and `schema_sys.sql`; ImageLog remains `schema_imagelog.sql` (often applied to B when split).
+- **Scope**: `backend/src/main/resources/db/` (schema*.sql, setup.sh, check-db.sh, migrations, init-data), `backend/DB_*.md`. No Java, API, or frontend.
 - **Workflow**: Requirement doc + §3 test plan before schema/script changes. After schema change, state "backend/spec update needed".
 
 ## When to use

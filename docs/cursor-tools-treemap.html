@@ -955,6 +955,7 @@ const TREEMAP_DATA = {
     "DEVELOPMENT-QUERY-EXPERTS.md": "docs/workflow/DEVELOPMENT-QUERY-EXPERTS.md",
     "DEVELOPMENT_WORKFLOW.md": "docs/workflow/DEVELOPMENT_WORKFLOW.md",
     "DOC-CODE-SYNC.md": "docs/workflow/DOC-CODE-SYNC.md",
+    "DOC-MENU-PERMISSION-RESTRUCTURE-VERIFICATION.md": "docs/workflow/DOC-MENU-PERMISSION-RESTRUCTURE-VERIFICATION.md",
     "DOCUMENT-LANGUAGE-POLICY.md": "docs/workflow/DOCUMENT-LANGUAGE-POLICY.md",
     "DRYRUN-20260311-activity-log-row1-date-row2-rest.md": "docs/workflow/DRYRUN-20260311-activity-log-row1-date-row2-rest.md",
     "DRYRUN-20260311-activity-log-single-row-handoff.md": "docs/workflow/DRYRUN-20260311-activity-log-single-row-handoff.md",
@@ -2348,7 +2349,7 @@ const TREEMAP_DATA = {
         },
         {
           "name": "search-filter-form-design.mdc",
-          "desc": "When changing search/filter form UI, follow field-level design docs; use single wrapper for control sizing; width by role; if standard undefined, inform user and do not implement first.",
+          "desc": "When changing search/filter form UI, follow field-level design docs; use single wrapper for control sizing; width by role; keep self-scope user blocks visible and locked where applicable; if standard undefined, inform user and do not implement first.",
           "refs": [
             {
               "name": "docs/design/ux-frontend-standard-principles.md",
@@ -2454,14 +2455,14 @@ const TREEMAP_DATA = {
               "path": "docs/workflow/RECOMMENDATION-requirement-doc-ref-display.md"
             },
             {
-              "name": "after-file-edit-treemap.sh",
-              "type": "other",
-              "path": ".cursor/hooks/after-file-edit-treemap.sh"
-            },
-            {
               "name": "hooks.json",
               "type": "other",
               "path": ".cursor/hooks.json"
+            },
+            {
+              "name": "after-file-edit-treemap.sh",
+              "type": "other",
+              "path": ".cursor/hooks/after-file-edit-treemap.sh"
             },
             {
               "name": "setup-hooks.sh",
@@ -2803,9 +2804,44 @@ const TREEMAP_DATA = {
             "category": "domain",
             "refs": [
               {
+                "name": "DB_SETUP_GUIDE.md",
+                "type": "other",
+                "path": "backend/DB_SETUP_GUIDE.md"
+              },
+              {
                 "name": "docs/contract.md",
                 "type": "other",
                 "path": "docs/contract.md"
+              },
+              {
+                "name": "docs/requirements/20260320-multi-datasource-schema-configuration.md",
+                "type": "other",
+                "path": "docs/requirements/20260320-multi-datasource-schema-configuration.md"
+              },
+              {
+                "name": "schema.sql",
+                "type": "other",
+                "path": "schema.sql"
+              },
+              {
+                "name": "schema_pb_fep.sql",
+                "type": "other",
+                "path": "schema_pb_fep.sql"
+              },
+              {
+                "name": "schema_sys.sql",
+                "type": "other",
+                "path": "schema_sys.sql"
+              },
+              {
+                "name": "schema_imagelog.sql",
+                "type": "other",
+                "path": "schema_imagelog.sql"
+              },
+              {
+                "name": "DB_*.md",
+                "type": "other",
+                "path": "backend/DB_*.md"
               },
               {
                 "name": "schema.sql",
@@ -2821,11 +2857,6 @@ const TREEMAP_DATA = {
                 "name": "DEVELOPMENT_WORKFLOW.md",
                 "type": "workflow",
                 "path": "docs/workflow/DEVELOPMENT_WORKFLOW.md"
-              },
-              {
-                "name": "DB_SETUP_GUIDE.md",
-                "type": "other",
-                "path": "backend/DB_SETUP_GUIDE.md"
               }
             ]
           },
@@ -2874,20 +2905,20 @@ const TREEMAP_DATA = {
             "category": "domain",
             "refs": [
               {
-                "name": "docs/api-definition.md",
-                "type": "other",
-                "path": "docs/api-definition.md"
-              },
-              {
                 "name": "docs/contract.md",
                 "type": "other",
                 "path": "docs/contract.md"
+              },
+              {
+                "name": "docs/api-definition.md",
+                "type": "other",
+                "path": "docs/api-definition.md"
               }
             ]
           },
           {
             "name": "search-consistency-domain",
-            "desc": "Screen-by-screen search/filter consistency, shared user axes, and scope=self hiding rules.",
+            "desc": "Screen-by-screen search/filter consistency, shared user axes, and visible locked self rules for applicable scope=self user/requester blocks.",
             "category": "domain",
             "refs": [
               {
@@ -2918,6 +2949,11 @@ const TREEMAP_DATA = {
             "category": "domain",
             "refs": [
               {
+                "name": "docs/requirements/20260318-decryption-approval-guids-encrypted-only.md",
+                "type": "other",
+                "path": "docs/requirements/20260318-decryption-approval-guids-encrypted-only.md"
+              },
+              {
                 "name": "docs/api-definition.md",
                 "type": "other",
                 "path": "docs/api-definition.md"
@@ -2931,6 +2967,11 @@ const TREEMAP_DATA = {
                 "name": "docs/requirements/20260224-decryption-approval-snapshot-guide.md",
                 "type": "other",
                 "path": "docs/requirements/20260224-decryption-approval-snapshot-guide.md"
+              },
+              {
+                "name": "docs/requirements/20260316-decrypt-approval-use-user-id-everywhere.md",
+                "type": "other",
+                "path": "docs/requirements/20260316-decrypt-approval-use-user-id-everywhere.md"
               }
             ]
           },
@@ -4069,6 +4110,11 @@ const TREEMAP_DATA = {
                 "path": "docs/requirements/yyyyMMdd-name.md"
               },
               {
+                "name": "TOPIC-INDEX.md",
+                "type": "other",
+                "path": "TOPIC-INDEX.md"
+              },
+              {
                 "name": "REQUIREMENT_TEMPLATE.md",
                 "type": "templates",
                 "path": "docs/template/REQUIREMENT_TEMPLATE.md"
@@ -4123,6 +4169,22 @@ const TREEMAP_DATA = {
                 "name": "contract-first.mdc",
                 "type": "rules",
                 "path": ".cursor/rules/contract-first.mdc"
+              }
+            ]
+          },
+          {
+            "name": "DOC-MENU-PERMISSION-RESTRUCTURE-VERIFICATION.md",
+            "desc": "Documentation verification: menu/permission restructure (20260318)",
+            "refs": [
+              {
+                "name": "docs/requirements/20260318-menu-and-permission-restructure.md",
+                "type": "other",
+                "path": "docs/requirements/20260318-menu-and-permission-restructure.md"
+              },
+              {
+                "name": "20260318-menu-and-permission-restructure.md",
+                "type": "other",
+                "path": "20260318-menu-and-permission-restructure.md"
               }
             ]
           },

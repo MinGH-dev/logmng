@@ -4,201 +4,154 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * 암호화된 샘플 데이터 생성 유틸리티
- * 실제 암호화 기능을 사용하여 샘플 데이터 생성
+ * Generates imagelog sample data: a mix of rows without encrypted content (plain/empty)
+ * and rows with encrypted or bracket-wrapped content. Used by GenerateSampleDataScript
+ * for startup seed when imagelog is empty. Target total ~100 rows (95–105).
  */
 public class GenerateEncryptedSampleData {
-    
+
+    /** Target total sample rows (within 95–105 per requirement). */
+    public static final int TARGET_TOTAL = 100;
+    /** Number of rows with no encrypted data (plain or empty data/datastring/header/headerstring). */
+    public static final int NON_ENCRYPTED_COUNT = 20;
+    /** Number of rows with encrypted or bracket-wrapped content. */
+    public static final int ENCRYPTED_COUNT = TARGET_TOTAL - NON_ENCRYPTED_COUNT;
+
     private final CryptoUtil cryptoUtil;
-    
+
     public GenerateEncryptedSampleData(CryptoUtil cryptoUtil) {
         this.cryptoUtil = cryptoUtil;
     }
-    
+
     /**
-     * 암호화된 샘플 데이터 생성
+     * Generates approximately 100 sample rows: first {@value #NON_ENCRYPTED_COUNT} rows
+     * with plain/empty sensitive fields, then {@value #ENCRYPTED_COUNT} rows with
+     * encrypted or bracket-wrapped content.
      */
     public List<SampleData> generateSampleData() {
-        List<SampleData> samples = new ArrayList<>();
-        
-        // Sample 1: input 상태
-        SampleData sample1 = new SampleData();
-        sample1.application = "LDP";
-        sample1.servicegroup = "EduSG";
-        sample1.service = "SE10002_select";
-        sample1.status = "input";
-        sample1.guid = "250315142429291DAOLCS0TT0S01090000045001";
-        
-        // data 필드 암호화
-        String plainData1 = "{\"id\":\"1110\",\"name\":\"홍길동\",\"age\":30,\"email\":\"hong@example.com\",\"phone\":\"010-1234-5678\"}";
-        sample1.data = cryptoUtil.encrypt(plainData1);
-        
-        // datastring (JSON 내부에 암호화된 값 포함)
-        String encryptedP1 = cryptoUtil.encrypt("password123");
-        sample1.datastring = String.format("{\"id\":\"1110\",\"name\":\"\",\"age\":0,\"r\":\"\",\"p\":\"[%s]\"}", encryptedP1);
-        
-        // header 필드 암호화
-        String plainHeader1 = "{\"flag\":\"\\u0000\",\"inputMsgType\":\"JSON\",\"outputMsgType\":\"JSON\",\"guid\":\"250315142429291DAOLCS0TT0S01090000045001\",\"sessionId\":\"session123\"}";
-        sample1.header = cryptoUtil.encrypt(plainHeader1);
-        
-        // headerstring
-        sample1.headerstring = "{\"flag\":\"\\u0000\",\"inputMsgType\":\"JSON\",\"outputMsgType\":\"JSON\",\"guid\":\"250315142429291DAOLCS0TT0S01090000045001\"}";
-        
-        samples.add(sample1);
-        
-        // Sample 2: input 상태
-        SampleData sample2 = new SampleData();
-        sample2.application = "LDP";
-        sample2.servicegroup = "EduSG";
-        sample2.service = "SE10003_insert";
-        sample2.status = "input";
-        sample2.guid = "250315142429291DAOLCS0TT0S01090000045002";
-        
-        String plainData2 = "{\"id\":\"2220\",\"name\":\"김철수\",\"age\":25,\"email\":\"kim@example.com\",\"phone\":\"010-9876-5432\"}";
-        sample2.data = cryptoUtil.encrypt(plainData2);
-        
-        String encryptedEmail2 = cryptoUtil.encrypt("kim@example.com");
-        sample2.datastring = String.format("{\"id\":\"2220\",\"name\":\"홍길동\",\"age\":30,\"email\":\"[%s]\",\"phone\":\"010-1234-5678\"}", encryptedEmail2);
-        
-        String plainHeader2 = "{\"flag\":\"\\u0000\",\"inputMsgType\":\"JSON\",\"outputMsgType\":\"JSON\",\"guid\":\"250315142429291DAOLCS0TT0S01090000045002\",\"sessionId\":\"session456\"}";
-        sample2.header = cryptoUtil.encrypt(plainHeader2);
-        
-        String encryptedSession2 = cryptoUtil.encrypt("session456");
-        sample2.headerstring = String.format("{\"flag\":\"\\u0000\",\"inputMsgType\":\"JSON\",\"outputMsgType\":\"JSON\",\"guid\":\"250315142429291DAOLCS0TT0S01090000045002\",\"sessionId\":\"[%s]\"}", encryptedSession2);
-        
-        samples.add(sample2);
-        
-        // Sample 3: output 상태
-        SampleData sample3 = new SampleData();
-        sample3.application = "LDP";
-        sample3.servicegroup = "EduSG";
-        sample3.service = "SE10002_select";
-        sample3.status = "output";
-        sample3.guid = "250315142429291DAOLCS0TT0S01090000045003";
-        
-        String plainData3 = "{\"result\":\"success\",\"data\":[{\"id\":\"1110\",\"name\":\"홍길동\",\"age\":30}],\"count\":1}";
-        sample3.data = cryptoUtil.encrypt(plainData3);
-        
-        String encryptedMessage3 = cryptoUtil.encrypt("데이터 조회 성공");
-        sample3.datastring = String.format("{\"result\":\"success\",\"data\":[{\"id\":\"1110\",\"name\":\"김철수\",\"age\":25}],\"count\":1,\"message\":\"[%s]\"}", encryptedMessage3);
-        
-        String plainHeader3 = "{\"flag\":\"\\u0000\",\"inputMsgType\":\"JSON\",\"outputMsgType\":\"JSON\",\"guid\":\"250315142429291DAOLCS0TT0S01090000045003\",\"responseCode\":\"200\"}";
-        sample3.header = cryptoUtil.encrypt(plainHeader3);
-        
-        sample3.headerstring = "{\"flag\":\"\\u0000\",\"inputMsgType\":\"JSON\",\"outputMsgType\":\"JSON\",\"guid\":\"250315142429291DAOLCS0TT0S01090000045003\",\"responseCode\":\"200\"}";
-        
-        samples.add(sample3);
-        
-        // Sample 4: output 상태
-        SampleData sample4 = new SampleData();
-        sample4.application = "LDP";
-        sample4.servicegroup = "EduSG";
-        sample4.service = "SE10003_insert";
-        sample4.status = "output";
-        sample4.guid = "250315142429291DAOLCS0TT0S01090000045004";
-        
-        String plainData4 = "{\"result\":\"success\",\"insertedId\":\"2220\",\"message\":\"데이터가 성공적으로 저장되었습니다\"}";
-        sample4.data = cryptoUtil.encrypt(plainData4);
-        
-        String encryptedTimestamp4 = cryptoUtil.encrypt("2026-02-05T15:00:00");
-        sample4.datastring = String.format("{\"result\":\"success\",\"insertedId\":\"2220\",\"message\":\"데이터가 성공적으로 저장되었습니다\",\"timestamp\":\"[%s]\"}", encryptedTimestamp4);
-        
-        String plainHeader4 = "{\"flag\":\"\\u0000\",\"inputMsgType\":\"JSON\",\"outputMsgType\":\"JSON\",\"guid\":\"250315142429291DAOLCS0TT0S01090000045004\",\"responseCode\":\"201\"}";
-        sample4.header = cryptoUtil.encrypt(plainHeader4);
-        
-        sample4.headerstring = "{\"flag\":\"\\u0000\",\"inputMsgType\":\"JSON\",\"outputMsgType\":\"JSON\",\"guid\":\"250315142429291DAOLCS0TT0S01090000045004\",\"responseCode\":\"201\"}";
-        
-        samples.add(sample4);
-        
-        // Sample 5: error 상태
-        SampleData sample5 = new SampleData();
-        sample5.application = "LDP";
-        sample5.servicegroup = "EduSG";
-        sample5.service = "SE10002_select";
-        sample5.status = "error";
-        sample5.guid = "250315142429291DAOLCS0TT0S01090000045005";
-        
-        String plainData5 = "{\"error\":\"Database connection failed\",\"code\":\"DB_ERROR\",\"details\":\"Connection timeout after 30 seconds\"}";
-        sample5.data = cryptoUtil.encrypt(plainData5);
-        
-        String encryptedDetails5 = cryptoUtil.encrypt("데이터베이스 연결 실패: 타임아웃");
-        sample5.datastring = String.format("{\"error\":\"Database connection failed\",\"code\":\"DB_ERROR\",\"details\":\"[%s]\",\"timestamp\":\"2025-01-15T14:24:29\"}", encryptedDetails5);
-        
-        String plainHeader5 = "{\"flag\":\"\\u0000\",\"inputMsgType\":\"JSON\",\"outputMsgType\":\"JSON\",\"guid\":\"250315142429291DAOLCS0TT0S01090000045005\",\"responseCode\":\"500\",\"errorCode\":\"DB_CONNECTION_ERROR\"}";
-        sample5.header = cryptoUtil.encrypt(plainHeader5);
-        
-        sample5.headerstring = "{\"flag\":\"\\u0000\",\"inputMsgType\":\"JSON\",\"outputMsgType\":\"JSON\",\"guid\":\"250315142429291DAOLCS0TT0S01090000045005\",\"responseCode\":\"500\",\"errorCode\":\"DB_CONNECTION_ERROR\"}";
-        
-        samples.add(sample5);
-        
-        // Sample 6: error 상태
-        SampleData sample6 = new SampleData();
-        sample6.application = "LDP";
-        sample6.servicegroup = "EduSG";
-        sample6.service = "SE10004_update";
-        sample6.status = "error";
-        sample6.guid = "250315142429291DAOLCS0TT0S01090000045006";
-        
-        String plainData6 = "{\"error\":\"Validation failed\",\"code\":\"VALIDATION_ERROR\",\"fields\":[\"name\",\"email\"]}";
-        sample6.data = cryptoUtil.encrypt(plainData6);
-        
-        String encryptedMessage6 = cryptoUtil.encrypt("유효성 검증 실패: 필수 필드 누락");
-        sample6.datastring = String.format("{\"error\":\"Validation failed\",\"code\":\"VALIDATION_ERROR\",\"fields\":[\"name\",\"email\"],\"message\":\"[%s]\"}", encryptedMessage6);
-        
-        String plainHeader6 = "{\"flag\":\"\\u0000\",\"inputMsgType\":\"JSON\",\"outputMsgType\":\"JSON\",\"guid\":\"250315142429291DAOLCS0TT0S01090000045006\",\"responseCode\":\"400\",\"errorCode\":\"VALIDATION_ERROR\"}";
-        sample6.header = cryptoUtil.encrypt(plainHeader6);
-        
-        sample6.headerstring = "{\"flag\":\"\\u0000\",\"inputMsgType\":\"JSON\",\"outputMsgType\":\"JSON\",\"guid\":\"250315142429291DAOLCS0TT0S01090000045006\",\"responseCode\":\"400\",\"errorCode\":\"VALIDATION_ERROR\"}";
-        
-        samples.add(sample6);
-        
-        // Sample 7: 다른 application (input)
-        SampleData sample7 = new SampleData();
-        sample7.application = "SYSTEM_B";
-        sample7.servicegroup = "Group1";
-        sample7.service = "SERVICE_001";
-        sample7.status = "input";
-        sample7.guid = "250315142429291DAOLCS0TT0S01090000045007";
-        
-        String plainData7 = "{\"userId\":\"user123\",\"action\":\"login\",\"password\":\"encrypted_password\"}";
-        sample7.data = cryptoUtil.encrypt(plainData7);
-        
-        String encryptedPassword7 = cryptoUtil.encrypt("mySecretPassword123");
-        sample7.datastring = String.format("{\"userId\":\"user123\",\"action\":\"login\",\"password\":\"[%s]\"}", encryptedPassword7);
-        
-        String plainHeader7 = "{\"flag\":\"\\u0000\",\"inputMsgType\":\"JSON\",\"outputMsgType\":\"JSON\",\"guid\":\"250315142429291DAOLCS0TT0S01090000045007\",\"ipAddress\":\"192.168.1.100\"}";
-        sample7.header = cryptoUtil.encrypt(plainHeader7);
-        
-        sample7.headerstring = "{\"flag\":\"\\u0000\",\"inputMsgType\":\"JSON\",\"outputMsgType\":\"JSON\",\"guid\":\"250315142429291DAOLCS0TT0S01090000045007\",\"ipAddress\":\"192.168.1.100\"}";
-        
-        samples.add(sample7);
-        
-        // Sample 8: 다른 application (output)
-        SampleData sample8 = new SampleData();
-        sample8.application = "SYSTEM_B";
-        sample8.servicegroup = "Group1";
-        sample8.service = "SERVICE_001";
-        sample8.status = "output";
-        sample8.guid = "250315142429291DAOLCS0TT0S01090000045008";
-        
-        String plainData8 = "{\"result\":\"success\",\"token\":\"jwt_token_here\",\"expiresIn\":3600}";
-        sample8.data = cryptoUtil.encrypt(plainData8);
-        
-        String encryptedToken8 = cryptoUtil.encrypt("eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiJ1c2VyMTIzIn0");
-        sample8.datastring = String.format("{\"result\":\"success\",\"token\":\"[%s]\",\"expiresIn\":3600}", encryptedToken8);
-        
-        String plainHeader8 = "{\"flag\":\"\\u0000\",\"inputMsgType\":\"JSON\",\"outputMsgType\":\"JSON\",\"guid\":\"250315142429291DAOLCS0TT0S01090000045008\",\"responseCode\":\"200\"}";
-        sample8.header = cryptoUtil.encrypt(plainHeader8);
-        
-        sample8.headerstring = "{\"flag\":\"\\u0000\",\"inputMsgType\":\"JSON\",\"outputMsgType\":\"JSON\",\"guid\":\"250315142429291DAOLCS0TT0S01090000045008\",\"responseCode\":\"200\"}";
-        
-        samples.add(sample8);
-        
+        List<SampleData> samples = new ArrayList<>(TARGET_TOTAL);
+        for (int i = 0; i < NON_ENCRYPTED_COUNT; i++) {
+            samples.add(buildPlainSample(i));
+        }
+        for (int i = 0; i < ENCRYPTED_COUNT; i++) {
+            samples.add(buildEncryptedSample(i));
+        }
         return samples;
     }
-    
+
     /**
-     * 샘플 데이터 클래스
+     * One row with no encrypted data: data, datastring, header, headerstring are plain or empty.
+     */
+    private SampleData buildPlainSample(int index) {
+        SampleData s = new SampleData();
+        s.application = index % 2 == 0 ? "LDP" : "SYSTEM_B";
+        s.servicegroup = "EduSG";
+        s.service = "SE10002_select";
+        s.status = index % 3 == 0 ? "input" : (index % 3 == 1 ? "output" : "error");
+        s.guid = "250315142429291DAOLCS0TT0S01090000045" + String.format("%03d", index + 1);
+        s.data = "{\"id\":\"plain-" + index + "\",\"name\":\"plain\",\"age\":0}";
+        s.datastring = "{\"id\":\"plain\",\"name\":\"\",\"age\":0}";
+        s.header = "{\"flag\":\"\\u0000\",\"inputMsgType\":\"JSON\",\"guid\":\"" + s.guid + "\"}";
+        s.headerstring = "{\"flag\":\"\\u0000\",\"outputMsgType\":\"JSON\",\"guid\":\"" + s.guid + "\"}";
+        return s;
+    }
+
+    /**
+     * One row with encrypted or bracket-wrapped content. Cycles through 8 templates.
+     */
+    private SampleData buildEncryptedSample(int index) {
+        int t = index % 8;
+        int id = NON_ENCRYPTED_COUNT + index + 1;
+        String guid = "250315142429291DAOLCS0TT0S01090000045" + String.format("%03d", id);
+        SampleData s = new SampleData();
+        s.guid = guid;
+        switch (t) {
+            case 0:
+                s.application = "LDP";
+                s.servicegroup = "EduSG";
+                s.service = "SE10002_select";
+                s.status = "input";
+                s.data = cryptoUtil.encrypt("{\"id\":\"1110\",\"name\":\"홍길동\",\"age\":30,\"email\":\"hong@example.com\"}");
+                s.datastring = String.format("{\"id\":\"1110\",\"name\":\"\",\"age\":0,\"p\":\"[%s]\"}", cryptoUtil.encrypt("password123"));
+                s.header = cryptoUtil.encrypt("{\"flag\":\"\\u0000\",\"inputMsgType\":\"JSON\",\"guid\":\"" + guid + "\",\"sessionId\":\"session123\"}");
+                s.headerstring = "{\"flag\":\"\\u0000\",\"inputMsgType\":\"JSON\",\"guid\":\"" + guid + "\"}";
+                break;
+            case 1:
+                s.application = "LDP";
+                s.servicegroup = "EduSG";
+                s.service = "SE10003_insert";
+                s.status = "input";
+                s.data = cryptoUtil.encrypt("{\"id\":\"2220\",\"name\":\"김철수\",\"age\":25,\"email\":\"kim@example.com\"}");
+                s.datastring = String.format("{\"id\":\"2220\",\"name\":\"홍길동\",\"email\":\"[%s]\"}", cryptoUtil.encrypt("kim@example.com"));
+                s.header = cryptoUtil.encrypt("{\"flag\":\"\\u0000\",\"inputMsgType\":\"JSON\",\"guid\":\"" + guid + "\",\"sessionId\":\"session456\"}");
+                s.headerstring = String.format("{\"flag\":\"\\u0000\",\"guid\":\"" + guid + "\",\"sessionId\":\"[%s]\"}", cryptoUtil.encrypt("session456"));
+                break;
+            case 2:
+                s.application = "LDP";
+                s.servicegroup = "EduSG";
+                s.service = "SE10002_select";
+                s.status = "output";
+                s.data = cryptoUtil.encrypt("{\"result\":\"success\",\"data\":[{\"id\":\"1110\",\"name\":\"홍길동\",\"age\":30}],\"count\":1}");
+                s.datastring = String.format("{\"result\":\"success\",\"count\":1,\"message\":\"[%s]\"}", cryptoUtil.encrypt("데이터 조회 성공"));
+                s.header = cryptoUtil.encrypt("{\"flag\":\"\\u0000\",\"inputMsgType\":\"JSON\",\"guid\":\"" + guid + "\",\"responseCode\":\"200\"}");
+                s.headerstring = "{\"flag\":\"\\u0000\",\"outputMsgType\":\"JSON\",\"guid\":\"" + guid + "\",\"responseCode\":\"200\"}";
+                break;
+            case 3:
+                s.application = "LDP";
+                s.servicegroup = "EduSG";
+                s.service = "SE10003_insert";
+                s.status = "output";
+                s.data = cryptoUtil.encrypt("{\"result\":\"success\",\"insertedId\":\"2220\",\"message\":\"저장되었습니다\"}");
+                s.datastring = String.format("{\"result\":\"success\",\"insertedId\":\"2220\",\"timestamp\":\"[%s]\"}", cryptoUtil.encrypt("2026-02-05T15:00:00"));
+                s.header = cryptoUtil.encrypt("{\"flag\":\"\\u0000\",\"inputMsgType\":\"JSON\",\"guid\":\"" + guid + "\",\"responseCode\":\"201\"}");
+                s.headerstring = "{\"flag\":\"\\u0000\",\"outputMsgType\":\"JSON\",\"guid\":\"" + guid + "\",\"responseCode\":\"201\"}";
+                break;
+            case 4:
+                s.application = "LDP";
+                s.servicegroup = "EduSG";
+                s.service = "SE10002_select";
+                s.status = "error";
+                s.data = cryptoUtil.encrypt("{\"error\":\"Database connection failed\",\"code\":\"DB_ERROR\"}");
+                s.datastring = String.format("{\"error\":\"DB_ERROR\",\"details\":\"[%s]\"}", cryptoUtil.encrypt("데이터베이스 연결 실패: 타임아웃"));
+                s.header = cryptoUtil.encrypt("{\"flag\":\"\\u0000\",\"inputMsgType\":\"JSON\",\"guid\":\"" + guid + "\",\"responseCode\":\"500\"}");
+                s.headerstring = "{\"flag\":\"\\u0000\",\"guid\":\"" + guid + "\",\"responseCode\":\"500\",\"errorCode\":\"DB_CONNECTION_ERROR\"}";
+                break;
+            case 5:
+                s.application = "LDP";
+                s.servicegroup = "EduSG";
+                s.service = "SE10004_update";
+                s.status = "error";
+                s.data = cryptoUtil.encrypt("{\"error\":\"Validation failed\",\"code\":\"VALIDATION_ERROR\",\"fields\":[\"name\",\"email\"]}");
+                s.datastring = String.format("{\"error\":\"VALIDATION_ERROR\",\"message\":\"[%s]\"}", cryptoUtil.encrypt("유효성 검증 실패: 필수 필드 누락"));
+                s.header = cryptoUtil.encrypt("{\"flag\":\"\\u0000\",\"inputMsgType\":\"JSON\",\"guid\":\"" + guid + "\",\"responseCode\":\"400\"}");
+                s.headerstring = "{\"flag\":\"\\u0000\",\"guid\":\"" + guid + "\",\"responseCode\":\"400\",\"errorCode\":\"VALIDATION_ERROR\"}";
+                break;
+            case 6:
+                s.application = "SYSTEM_B";
+                s.servicegroup = "Group1";
+                s.service = "SERVICE_001";
+                s.status = "input";
+                s.data = cryptoUtil.encrypt("{\"userId\":\"user123\",\"action\":\"login\",\"password\":\"encrypted_password\"}");
+                s.datastring = String.format("{\"userId\":\"user123\",\"action\":\"login\",\"password\":\"[%s]\"}", cryptoUtil.encrypt("mySecretPassword123"));
+                s.header = cryptoUtil.encrypt("{\"flag\":\"\\u0000\",\"inputMsgType\":\"JSON\",\"guid\":\"" + guid + "\",\"ipAddress\":\"192.168.1.100\"}");
+                s.headerstring = "{\"flag\":\"\\u0000\",\"inputMsgType\":\"JSON\",\"guid\":\"" + guid + "\",\"ipAddress\":\"192.168.1.100\"}";
+                break;
+            default: // 7
+                s.application = "SYSTEM_B";
+                s.servicegroup = "Group1";
+                s.service = "SERVICE_001";
+                s.status = "output";
+                s.data = cryptoUtil.encrypt("{\"result\":\"success\",\"token\":\"jwt_token_here\",\"expiresIn\":3600}");
+                s.datastring = String.format("{\"result\":\"success\",\"token\":\"[%s]\",\"expiresIn\":3600}", cryptoUtil.encrypt("eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9"));
+                s.header = cryptoUtil.encrypt("{\"flag\":\"\\u0000\",\"inputMsgType\":\"JSON\",\"guid\":\"" + guid + "\",\"responseCode\":\"200\"}");
+                s.headerstring = "{\"flag\":\"\\u0000\",\"outputMsgType\":\"JSON\",\"guid\":\"" + guid + "\",\"responseCode\":\"200\"}";
+                break;
+        }
+        return s;
+    }
+
+    /**
+     * Sample row for imagelog: application, servicegroup, service, status, data, datastring, guid, header, headerstring.
      */
     public static class SampleData {
         public String application;
@@ -212,8 +165,3 @@ public class GenerateEncryptedSampleData {
         public String headerstring;
     }
 }
-
-
-
-
-

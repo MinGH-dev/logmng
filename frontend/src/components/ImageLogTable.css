@@ -324,9 +324,29 @@
   background-color: #c82333;
 }
 
+/* Exception (req 20260318-decryption-allowed-store-and-decrypt-ui): dimmed decrypt button when GUID not in allowed list or validUntil expired; click shows message */
+.decrypt-btn.decrypt-btn--not-allowed {
+  background-color: #6c757d;
+  color: #fff;
+  opacity: 0.85;
+  cursor: pointer;
+}
+
+.decrypt-btn.decrypt-btn--not-allowed:hover {
+  background-color: #5a6268;
+  opacity: 1;
+}
+
 .no-encrypted-data {
   color: #6c757d;
   font-size: 12px;
+}
+
+/* 복호화 권한 없음 메시지 (req 20260317-search-decrypt-permission-ui) */
+.decrypt-permission-message {
+  color: #6c757d;
+  font-size: 12px;
+  font-style: italic;
 }
 
 /* 키워드 하이라이트 스타일 */

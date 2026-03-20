@@ -23,16 +23,16 @@ public class StubDecryptApproverService extends DecryptApproverService {
 
     @Override
     public boolean isAdmin(boolean isSystemAdmin) {
-        return false;
+        return isSystemAdmin;
     }
 
     @Override
-    public boolean isApprover(String userId) {
+    public boolean isApprover(Long appUserId) {
         return true;
     }
 
     @Override
-    public boolean canApproveForRequester(String approverUserId, String requesterUserId) {
+    public boolean canApproveForRequester(Long approverUserId, Long requesterUserId) {
         return true;
     }
 

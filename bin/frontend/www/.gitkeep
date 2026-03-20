@@ -1,0 +1,3 @@
+# Directory for CRA production build output. Populate with:
+#   ./scripts/package-airgap-bin.sh
+# (index.html, static/, asset-manifest.json, …). Do not commit built files.

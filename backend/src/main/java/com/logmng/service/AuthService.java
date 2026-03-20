@@ -37,28 +37,31 @@ public class AuthService {
     private final DataSource dataSource;
     private final PermissionGroupService permissionGroupService;
     private final DecryptApproverService decryptApproverService;
+    private final AppUserResolver appUserResolver;
 
     @Value("${app.security.authorized-ips:127.0.0.1,localhost,0:0:0:0:0:0:0:1}")
     private String authorizedIPs;
 
     public AuthService(IpUtil ipUtil, DataSource dataSource, PermissionGroupService permissionGroupService,
-                      DecryptApproverService decryptApproverService) {
+                      DecryptApproverService decryptApproverService, AppUserResolver appUserResolver) {
         this.ipUtil = ipUtil;
         this.dataSource = dataSource;
         this.permissionGroupService = permissionGroupService;
         this.decryptApproverService = decryptApproverService;
+        this.appUserResolver = appUserResolver;
     }
 
     /**
-     * 로그인 처리. app_user에서 username/password_hash/role 조회 후 비밀번호 검증.
+     * 로그인 처리. app_user에서 id로 조회 후 비밀번호 검증.
+     * 계약: 요청은 userId (app_user.id)와 password만 사용.
      * (개발 환경: password_hash에 평문 저장 시 그대로 비교)
      */
     public LoginResponse login(LoginRequest request, HttpServletRequest httpRequest) {
-        String username = request.getUsername();
+        Long userId = request.getUserId();
         String password = request.getPassword();
 
         String clientIP = ipUtil.getClientIP(httpRequest);
-        log.info("로그인 시도 - IP: {}, 사용자명: {}", clientIP, username);
+        log.info("로그인 시도 - IP: {}, 사용자 ID: {}", clientIP, userId);
 
         if (!ipUtil.isAuthorizedIP(clientIP, authorizedIPs)) {
             log.warn("인가되지 않은 IP에서 로그인 시도: {}", clientIP);
@@ -68,57 +71,72 @@ public class AuthService {
             );
         }
 
+        if (userId == null) {
+            throw CustomException.unauthorized(
+                    "사용자 ID와 비밀번호를 확인해주세요.",
+                    "INVALID_CREDENTIALS"
+            );
+        }
+
+        String username = null;
         String passwordHash = null;
         boolean isSystemAdmin = false;
         try (Connection conn = dataSource.getConnection()) {
-            String sql = "SELECT username, password_hash, is_system_admin FROM app_user WHERE username = ?";
+            String sql = "SELECT id, username, password_hash, is_system_admin FROM app_user WHERE id = ?";
             try (PreparedStatement ps = conn.prepareStatement(sql)) {
-                ps.setString(1, username);
+                ps.setLong(1, userId);
                 try (ResultSet rs = ps.executeQuery()) {
                     if (!rs.next()) {
-                        log.warn("로그인 실패: 사용자 없음 ({})", username);
+                        log.warn("로그인 실패: 사용자 없음 (id={})", userId);
                         throw CustomException.unauthorized(
-                                "인증 정보가 올바르지 않습니다. 사용자명과 비밀번호를 다시 확인해주세요.",
+                                "사용자 ID와 비밀번호를 확인해주세요.",
                                 "INVALID_CREDENTIALS"
                         );
                     }
+                    username = rs.getString("username");
                     passwordHash = rs.getString("password_hash");
                     isSystemAdmin = Boolean.TRUE.equals(rs.getObject("is_system_admin", Boolean.class));
                 }
             }
         } catch (SQLException e) {
-            log.error("로그인 조회 실패: username={}", username, e);
+            log.error("로그인 조회 실패: userId={}", userId, e);
             throw CustomException.unauthorized(
-                    "인증 정보가 올바르지 않습니다. 사용자명과 비밀번호를 다시 확인해주세요.",
+                    "사용자 ID와 비밀번호를 확인해주세요.",
                     "INVALID_CREDENTIALS"
             );
         }
-        if (passwordHash == null) {
+        if (passwordHash == null || username == null) {
             throw CustomException.unauthorized(
-                    "인증 정보가 올바르지 않습니다. 사용자명과 비밀번호를 다시 확인해주세요.",
+                    "사용자 ID와 비밀번호를 확인해주세요.",
                     "INVALID_CREDENTIALS"
             );
         }
 
         // 개발: password_hash에 평문 저장 시 비교. 추후 BCrypt 등으로 교체 가능.
         if (!password.equals(passwordHash)) {
-            log.warn("로그인 실패: 비밀번호 불일치 ({})", username);
+            log.warn("로그인 실패: 비밀번호 불일치 (id={})", userId);
             throw CustomException.unauthorized(
-                    "인증 정보가 올바르지 않습니다. 사용자명과 비밀번호를 다시 확인해주세요.",
+                    "사용자 ID와 비밀번호를 확인해주세요.",
                     "INVALID_CREDENTIALS"
             );
         }
 
-        log.info("로그인 성공: {} isSystemAdmin={} (IP: {})", username, isSystemAdmin, clientIP);
+        log.info("로그인 성공: 사용자 ID: {} isSystemAdmin={} (IP: {})", userId, isSystemAdmin, clientIP);
 
         LoginResponse response = new LoginResponse();
         response.setUsername(username);
+        response.setUserId(userId);
         response.setLoginTime(LocalDateTime.now());
         response.setClientIP(clientIP);
         response.setIsSystemAdmin(isSystemAdmin);
         response.setAllowedScreenIds(resolveAllowedScreenIds(username, isSystemAdmin));
         response.setScreenScopes(resolveScreenScopes(username, isSystemAdmin));
         response.setScreenFunctions(resolveScreenFunctions(username, isSystemAdmin));
+        com.logmng.dto.response.LoginResponse.SelfContext selfContext = resolveSelfContext(username);
+        response.setSelfContext(selfContext);
+        if (response.getUserId() == null && selfContext != null && selfContext.getUserId() != null) {
+            response.setUserId(selfContext.getUserId());
+        }
         return response;
     }
     
@@ -135,7 +153,7 @@ public class AuthService {
     /**
      * Returns allowed screen IDs for the user. System admin gets all; others get union from permission groups.
      */
-    private List<String> resolveAllowedScreenIds(String username, boolean isSystemAdmin) {
+    protected List<String> resolveAllowedScreenIds(String username, boolean isSystemAdmin) {
         if (username == null || username.isBlank()) {
             return List.of();
         }
@@ -149,7 +167,7 @@ public class AuthService {
      * Returns screenScopes for activity-log, statistics, search-history.
      * is_system_admin=true → all screens get 'all'. Otherwise from permission groups.
      */
-    private Map<String, String> resolveScreenScopes(String username, boolean isSystemAdmin) {
+    protected Map<String, String> resolveScreenScopes(String username, boolean isSystemAdmin) {
         if (username == null || username.isBlank()) {
             return new HashMap<>();
         }
@@ -164,25 +182,112 @@ public class AuthService {
     }
 
     /**
-     * Returns current user info (username, isSystemAdmin, allowedScreenIds) from session. For GET /api/auth/me.
+     * Resolves the authoritative current-user self-context for self-scoped filter display.
+     * Department is the display name from department.name when available, else department_code.
+     * userId = numeric app_user.id (req 20260316-user-id-numeric-userid-naming).
+     */
+    protected LoginResponse.SelfContext resolveSelfContext(String username) {
+        if (username == null || username.isBlank()) {
+            return null;
+        }
+
+        String normalizedUsername = username.trim();
+        String department = null;
+        String displayName = normalizedUsername;
+        Long userId = null;
+        try (Connection conn = dataSource.getConnection()) {
+            String sql = "SELECT u.id, u.department_code, d.name AS department_name, u.name AS user_name " +
+                    "FROM app_user u LEFT JOIN department d ON u.department_code = d.code " +
+                    "WHERE u.username = ? LIMIT 1";
+            try (PreparedStatement ps = conn.prepareStatement(sql)) {
+                ps.setString(1, normalizedUsername);
+                try (ResultSet rs = ps.executeQuery()) {
+                    if (rs.next()) {
+                        userId = rs.getObject("id", Long.class);
+                        String code = rs.getString("department_code");
+                        String deptName = rs.getString("department_name");
+                        department = (deptName != null && !deptName.isBlank()) ? deptName : (code != null ? code : "");
+                        String appUserName = rs.getString("user_name");
+                        displayName = (appUserName != null && !appUserName.isBlank()) ? appUserName : normalizedUsername;
+                    }
+                }
+            }
+        } catch (SQLException e) {
+            log.warn("selfContext 조회 실패: username={}", normalizedUsername, e);
+        }
+
+        return new LoginResponse.SelfContext(department != null ? department : "", displayName, userId);
+    }
+
+    /**
+     * Returns current user info from session. For GET /api/auth/me.
+     * Session stores userId (Long); resolves to username via AppUserResolver for permission/selfContext.
+     * Never throws: any exception is logged and null is returned to avoid 500 from interceptors/controllers.
      */
     public LoginResponse getCurrentUserInfo(HttpServletRequest request) {
+        try {
+            return getCurrentUserInfoInternal(request);
+        } catch (Exception e) {
+            log.warn("getCurrentUserInfo failed, returning null: {}", e.getMessage(), e);
+            return null;
+        }
+    }
+
+    private LoginResponse getCurrentUserInfoInternal(HttpServletRequest request) {
         if (!checkAuth(request)) {
             return null;
         }
         jakarta.servlet.http.HttpSession session = request.getSession(false);
         if (session == null) return null;
-        Object username = session.getAttribute("username");
-        Object isSystemAdmin = session.getAttribute("isSystemAdmin");
-        if (username == null || username.toString().isBlank()) return null;
-        String uname = username.toString();
-        boolean sysAdmin = Boolean.TRUE.equals(isSystemAdmin);
+        Object sid = session.getAttribute("userId");
+        Long sessionUserId = null;
+        if (sid instanceof Long) {
+            sessionUserId = (Long) sid;
+        } else if (sid instanceof Number) {
+            sessionUserId = ((Number) sid).longValue();
+        } else if (sid != null && !sid.toString().trim().isEmpty()) {
+            try {
+                sessionUserId = Long.parseLong(sid.toString().trim());
+            } catch (NumberFormatException e) {
+                log.trace("Session userId not numeric: {}", sid);
+            }
+        }
+        if (sessionUserId == null) {
+            Object username = session.getAttribute("username");
+            if (username != null && !username.toString().isBlank()) {
+                String uname = username.toString();
+                boolean sysAdmin = Boolean.TRUE.equals(session.getAttribute("isSystemAdmin"));
+                LoginResponse resp = new LoginResponse();
+                resp.setUsername(uname);
+                resp.setIsSystemAdmin(sysAdmin);
+                resp.setAllowedScreenIds(resolveAllowedScreenIds(uname, sysAdmin));
+                resp.setScreenScopes(resolveScreenScopes(uname, sysAdmin));
+                resp.setScreenFunctions(resolveScreenFunctions(uname, sysAdmin));
+                LoginResponse.SelfContext selfContext = resolveSelfContext(uname);
+                resp.setSelfContext(selfContext);
+                Long uid = (selfContext != null && selfContext.getUserId() != null)
+                        ? selfContext.getUserId()
+                        : appUserResolver.getIdByUsername(uname);
+                if (uid != null) {
+                    resp.setUserId(uid);
+                } else {
+                    log.warn("getCurrentUserInfo: session has username but userId resolution returned null (username present); decrypt/ownership checks may require userId");
+                }
+                return resp;
+            }
+            return null;
+        }
+        String uname = appUserResolver.getUsernameById(sessionUserId);
+        if (uname == null || uname.isBlank()) return null;
+        boolean sysAdmin = Boolean.TRUE.equals(session.getAttribute("isSystemAdmin"));
         LoginResponse resp = new LoginResponse();
+        resp.setUserId(sessionUserId);
         resp.setUsername(uname);
         resp.setIsSystemAdmin(sysAdmin);
         resp.setAllowedScreenIds(resolveAllowedScreenIds(uname, sysAdmin));
         resp.setScreenScopes(resolveScreenScopes(uname, sysAdmin));
         resp.setScreenFunctions(resolveScreenFunctions(uname, sysAdmin));
+        resp.setSelfContext(resolveSelfContext(uname));
         return resp;
     }
 
@@ -191,7 +296,7 @@ public class AuthService {
      * Per spec §4.4: when pgs.read/write/approve non-null, use them; else use derivation.
      * approve = (pgs.approve OR null) AND (decrypt_approver canApproveForRequester OR is_system_admin).
      */
-    private Map<String, ScreenFunctionCapability> resolveScreenFunctions(String username, boolean isSystemAdmin) {
+    protected Map<String, ScreenFunctionCapability> resolveScreenFunctions(String username, boolean isSystemAdmin) {
         Map<String, ScreenFunctionCapability> result = new LinkedHashMap<>();
         if (username == null || username.isBlank()) {
             return result;
@@ -200,7 +305,8 @@ public class AuthService {
         if (allowed == null || allowed.isEmpty()) {
             return result;
         }
-        boolean isApprover = decryptApproverService.isApprover(username);
+        Long userId = appUserResolver.getIdByUsername(username);
+        boolean isApprover = userId != null && decryptApproverService.isApprover(userId);
         Map<String, PermissionGroupService.ScreenFunctionFromDb> pgsMap = permissionGroupService.getScreenFunctionsForUser(username);
         for (String screenId : allowed) {
             if (screenId == null || screenId.isBlank()) continue;
@@ -244,6 +350,27 @@ public class AuthService {
         List<String> allowed = user.getAllowedScreenIds();
         return allowed != null && (allowed.contains(ScreenConstants.DEPARTMENT_APPROVERS)
                 || allowed.contains(ScreenConstants.USER_PERMISSION_HIERARCHY));
+    }
+
+    /**
+     * Ensures the current user can access the requested screen.
+     * Shared filter-option APIs use query parameters, so they must validate screen access explicitly.
+     */
+    public LoginResponse requireScreenAccess(HttpServletRequest request, String screenId) {
+        LoginResponse user = getCurrentUserInfo(request);
+        if (user == null) {
+            throw CustomException.unauthorized("로그인이 필요합니다.", "UNAUTHORIZED");
+        }
+        if (Boolean.TRUE.equals(user.getIsSystemAdmin())) {
+            return user;
+        }
+        List<String> allowed = user.getAllowedScreenIds();
+        if (allowed != null && allowed.contains(screenId)) {
+            return user;
+        }
+        log.info("화면 접근 거부: screenId={} allowedScreenCount={}", screenId,
+                allowed != null ? allowed.size() : 0);
+        throw CustomException.forbidden("해당 화면에 대한 접근 권한이 없습니다.", "FORBIDDEN");
     }
 
     /**
@@ -293,26 +420,36 @@ public class AuthService {
     }
 
     /**
-     * Returns true if the current user may request decryption (decrypt API).
-     * Per spec §4.4, req 20260306: is_system_admin OR (main in allowedScreenIds AND screenFunctions.main.decrypt === true).
+     * Returns true if the current user may request decryption for the given screen.
+     * Per spec §4.4, req 20260318: is_system_admin OR (screenId in allowedScreenIds AND screenFunctions[screenId].decrypt === true).
+     * Use for pb-feplog, java-fw-imagelog (and main for backward compat).
      */
-    public boolean hasDecryptForMain(HttpServletRequest request) {
+    public boolean hasDecryptForScreen(HttpServletRequest request, String screenId) {
+        if (screenId == null || screenId.isBlank()) return false;
         LoginResponse user = getCurrentUserInfo(request);
         if (user == null) return false;
         if (Boolean.TRUE.equals(user.getIsSystemAdmin())) return true;
         List<String> allowed = user.getAllowedScreenIds();
-        if (allowed == null || !allowed.contains(ScreenConstants.MAIN)) return false;
+        if (allowed == null || !allowed.contains(screenId.trim())) return false;
         Map<String, ScreenFunctionCapability> sf = user.getScreenFunctions();
         if (sf == null) return false;
-        ScreenFunctionCapability mainCap = sf.get(ScreenConstants.MAIN);
-        return mainCap != null && Boolean.TRUE.equals(mainCap.getDecrypt());
+        ScreenFunctionCapability cap = sf.get(screenId.trim());
+        return cap != null && Boolean.TRUE.equals(cap.getDecrypt());
+    }
+
+    /**
+     * Returns true if the current user may request decryption (decrypt API) for the main screen.
+     * @deprecated Prefer hasDecryptForScreen(request, screenId) with pb-feplog/java-fw-imagelog. Kept for backward compat.
+     */
+    public boolean hasDecryptForMain(HttpServletRequest request) {
+        return hasDecryptForScreen(request, ScreenConstants.MAIN);
     }
 
     /**
      * 인증 상태 확인 (세션 기반)
      *
      * @param request HTTP 요청 (세션 확인용, null이면 false)
-     * @return 인증 여부 (세션에 userId 또는 username이 있으면 true)
+     * @return 인증 여부 (세션에 userId(Long) 또는 username이 있으면 true)
      */
     public boolean checkAuth(HttpServletRequest request) {
         if (request == null) {

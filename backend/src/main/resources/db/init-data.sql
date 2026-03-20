@@ -22,13 +22,17 @@ ON CONFLICT (code) DO NOTHING;
 -- is_system_admin: 요건 20250303-permission-group-delete-system-admin-protection (시스템 관리자 보호)
 -- Dev only: password_hash에 평문 저장. 운영 환경에서는 BCrypt 등 해시 사용.
 -- 테스트 비밀번호: admin=admin123, user1/user2/user3=user123
-INSERT INTO app_user (username, password_hash, role, department_code, position, rank, is_system_admin)
+-- id: admin=20269999, 나머지 사용자=20260001부터 1씩 증가 (user1=20260001, user2=20260002, user3=20260003)
+-- name: 사용자명(표시명). 요건 20260316-login-id-user-name-display. NULL이면 username으로 fallback.
+INSERT INTO app_user (id, username, password_hash, role, department_code, position, rank, name, is_system_admin)
 VALUES
-    ('admin', 'admin123', 'ADMIN', NULL, NULL, NULL, true),
-    ('user1', 'user123', 'USER', 'TEAM_SALES_A1', '팀장', '부장', false),
-    ('user2', 'user123', 'USER', 'TEAM_SALES_A1', '대리', '대리', false),
-    ('user3', 'user123', 'USER', 'TEAM_RESEARCH_1', NULL, '사원', false)
+    (20269999, 'admin', 'admin123', 'ADMIN', NULL, NULL, NULL, NULL, true),
+    (20260001, 'user1', 'user123', 'USER', 'TEAM_SALES_A1', '팀장', '부장', '홍길동', false),
+    (20260002, 'user2', 'user123', 'USER', 'TEAM_SALES_A1', '대리', '대리', NULL, false),
+    (20260003, 'user3', 'user123', 'USER', 'TEAM_RESEARCH_1', NULL, '사원', NULL, false)
 ON CONFLICT (username) DO NOTHING;
+-- Sync sequence so next INSERT gets 20260004+
+SELECT setval(pg_get_serial_sequence('app_user', 'id'), (SELECT COALESCE(MAX(id), 20260001) FROM app_user));
 
 -- Ensure admin is system admin (idempotent; for re-run or migration backfill)
 UPDATE app_user SET is_system_admin = true WHERE username = 'admin';
@@ -46,12 +50,19 @@ UPDATE app_user SET rank = '부장' WHERE username = 'user1';
 UPDATE app_user SET rank = '대리' WHERE username = 'user2';
 UPDATE app_user SET rank = '사원' WHERE username = 'user3';
 
+-- 기존 사용자 name 샘플 (요건 20260316-login-id-user-name-display; 검색 이력 그리드 부서/사용자명 표시용)
+UPDATE app_user SET name = '홍길동' WHERE username = 'user1';
+UPDATE app_user SET name = '김철수' WHERE username = 'user2';
+UPDATE app_user SET name = '이영희' WHERE username = 'user3';
+
 -- 결재자: user1 = 전역 결재자(department_code NULL). app_user 삽입 후 실행. 재실행 시 idempotent.
+-- app_user_id: Req 20260316-decrypt-approval-use-user-id-everywhere. 신규 설치 시 여기서 설정; 기존 DB는 migrate-decrypt-approval-use-user-id.sql backfill.
 -- Remove stale approvers not in init-data (req 20250227-user2-approver-display-bugfix)
-DELETE FROM decrypt_approver WHERE user_id != 'user1' OR (user_id = 'user1' AND department_code IS NOT NULL);
-INSERT INTO decrypt_approver (user_id, department_code)
-SELECT 'user1', NULL
-WHERE NOT EXISTS (SELECT 1 FROM decrypt_approver WHERE user_id = 'user1' AND department_code IS NULL);
+DELETE FROM decrypt_approver WHERE user_id != 'user1' OR (user_id = 'user1' AND department_code IS NULL);
+INSERT INTO decrypt_approver (user_id, department_code, app_user_id)
+SELECT 'user1', NULL, u.id
+FROM app_user u
+WHERE u.username = 'user1' AND NOT EXISTS (SELECT 1 FROM decrypt_approver WHERE user_id = 'user1' AND department_code IS NULL);
 
 -- 권한 그룹 (요건: 20250227-user-permission-hierarchy-group). permission_group 먼저, 그 다음 사용자–그룹 연결.
 INSERT INTO permission_group (code, name, description, sort_order)
@@ -63,8 +74,9 @@ VALUES
 ON CONFLICT (code) DO NOTHING;
 
 -- 권한 그룹별 접근 화면 (요건: 20250227-permission-group-screen-menu-access). GENERAL_USER 기본 화면.
+-- New-install policy (req 20260318): grant pb-feplog and java-fw-imagelog instead of main for 로그 검색.
 INSERT INTO permission_group_screen (permission_group_id, screen_id)
-SELECT id, unnest(ARRAY['main','search-history','activity-log','statistics','pending-approvals'])
+SELECT id, unnest(ARRAY['pb-feplog','java-fw-imagelog','search-history','activity-log','statistics','pending-approvals'])
 FROM permission_group WHERE code = 'GENERAL_USER'
 ON CONFLICT (permission_group_id, screen_id) DO NOTHING;
 
@@ -108,6 +120,18 @@ ON CONFLICT (user_id, permission_group_id) DO NOTHING;
 INSERT INTO app_user_permission_group (user_id, permission_group_id)
 SELECT 'user3', id FROM permission_group WHERE code = 'ADMIN_EXT'
 ON CONFLICT (user_id, permission_group_id) DO NOTHING;
+
+-- 검색 이력 샘플 (dev only). user_id = app_user.id (numeric); join app_user.id = search_history.user_id. Req: 20260316-search-history-user-id-query-and-naming.
+-- Omit this block if search_history should be runtime-only (no seed rows). Idempotent: inserts only when table is empty.
+INSERT INTO search_history (user_id, log_type, search_params, requested_at, expires_at, approval_status)
+SELECT u.id, v.log_type, v.search_params, v.requested_at, v.expires_at, v.approval_status
+FROM (VALUES
+    ('admin'::VARCHAR(100), 'pb_send'::VARCHAR(50), '{}'::TEXT, CURRENT_TIMESTAMP - interval '2 hours', CURRENT_TIMESTAMP + interval '30 days', 'PENDING'::VARCHAR(20)),
+    ('user1'::VARCHAR(100), 'pb_send'::VARCHAR(50), '{"media_code":"A"}'::TEXT, CURRENT_TIMESTAMP - interval '1 hour', CURRENT_TIMESTAMP + interval '30 days', 'APPROVED'::VARCHAR(20)),
+    ('user2'::VARCHAR(100), 'pb_recv'::VARCHAR(50), '{}'::TEXT, CURRENT_TIMESTAMP - interval '30 minutes', CURRENT_TIMESTAMP + interval '30 days', 'PENDING'::VARCHAR(20))
+) AS v(username, log_type, search_params, requested_at, expires_at, approval_status)
+JOIN app_user u ON u.username = v.username
+WHERE NOT EXISTS (SELECT 1 FROM search_history LIMIT 1);
 
 -- 송신 로그 샘플 데이터
 INSERT INTO pb_send (log_timestamp, media_code, tr_code, user_id, ip_address, user_agent, request_data, response_data, status_code, response_time, session_id, device_type)
