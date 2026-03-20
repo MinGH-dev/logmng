@@ -5,6 +5,22 @@ frontend/build/
 # Backend (backend/.gitignore also has target/, .idea/, etc.)
 backend/target/
 
+# Maven output under tools/ (e.g. airgap static server)
+tools/**/target/
+
+# macOS AppleDouble (do not commit)
+._*
+
+# Air-gap / deploy bundle (bin/ is deploy-only; dev uses backend/target + npm start)
+bin/backend/*.jar
+bin/frontend/*.jar
+# Static UI output under www/ (large); keep empty tree in Git via .gitkeep only
+bin/frontend/www/**
+!bin/frontend/www/.gitkeep
+
+# Offline bundle output (from scripts/build-offline-bundle.sh)
+dist/
+
 # Logs
 logs/
 *.log

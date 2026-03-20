@@ -125,8 +125,15 @@ const PermissionGroupPanel = ({ user, onRefreshHierarchy }) => {
   /** Screens where approval scope is fixed to team. req 20260306-approval-scope-fixed-department */
   const APPROVAL_SCOPE_FIXED_SCREENS = ['search-history', 'pending-approvals'];
 
-  /** Legacy screen ID: normalize to canonical (req 20260318-permission-group-menu-invalid-screen-id-imagelog). */
-  const normalizeScreenId = (id) => (id === 'java-fw_imagelog' ? 'java-fw-imagelog' : id);
+  /** Legacy + Unicode hyphen normalization (req 20260318-permission-group-menu-invalid-screen-id-imagelog). */
+  const normalizeScreenId = (id) => {
+    if (id == null || id === '') return id;
+    let s = String(id).trim();
+    s = s.replace(/[\u200B-\u200D\uFEFF]/g, '');
+    s = s.replace(/[\u2010-\u2015\u2212\uFE58\uFE63\uFF0D]/g, '-');
+    if (s === 'java-fw_imagelog') return 'java-fw-imagelog';
+    return s;
+  };
 
   /** Normalize allowedScreens to [{ screenId, scope?, read?, write?, approve?, decrypt? }]. API may return string[] or object array.
    * Preserves explicit false for write/approve/decrypt when API returns partial data. When approve=true for approval-fixed screens, scope is set to 'team'. req 20250303, 20260306, 20260306-search-screen-decrypt-permission */

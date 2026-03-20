@@ -69,6 +69,26 @@ tail -f dev/backend/logs/application.log
 - [개발 워크플로우 가이드](./DEVELOPMENT_WORKFLOW.md) - 전체 개발 프로세스
 - [요건 문서](./requirements/) - 각 요건별 상세 문서
 
+## 폐쇄망 배포 번들 (`bin/`)
+
+인터넷이 있는 빌드 머신에서 저장소 루트에서:
+
+```bash
+./scripts/package-airgap-bin.sh
+```
+
+생성물·실행 방법: [`bin/README.md`](../bin/README.md). 계약 환경 변수: `docs/contract.md`(예: `CORS_ALLOWED_ORIGINS`).
+
+**폐쇄망 서버에서 설치·기동을 한 스크립트로** 하려면 tarball까지 만든 뒤 서버에서 풀고 `./install-offline.sh all`:
+
+```bash
+./scripts/build-offline-bundle.sh
+# dist/logmng-offline-1.0.0.tar.gz 를 폐쇄망으로 복사 후
+# tar xzf logmng-offline-1.0.0.tar.gz && cd logmng-offline-1.0.0 && ./install-offline.sh all
+```
+
+설명: [`scripts/offline-bundle/README-OFFLINE.md`](../scripts/offline-bundle/README-OFFLINE.md).
+
 ## ⚠️ 중요 원칙
 
 1. **기존 코드를 직접 수정하지 마세요**

@@ -19,6 +19,10 @@
 #   DB_SUPERUSER     슈퍼유저 (기본: postgres)
 #   DB_USER / DB_PASSWORD / DB_HOST / DB_PORT  애플리케이션 DB 역할 (기본: logmng / logmng123 / localhost / 5432)
 #
+#   SETUP_MODE         full(기본) | sys_only — sys_only일 때 schema_pb_fep.sql·init-data.sql 생략
+#                      (PB는 이미 SCHEMA_PB에 있음, SCHEMA_SYS만 신규 적용). DB_SETUP_GUIDE.md 주의 참고.
+#   SYS_ONLY_LOAD_INIT_DATA  1이면 sys_only에서도 init-data.sql 실행(데이터 중복 주의)
+#
 # 예: A에 logmng_sys + logmng, B는 별도 DB imagelog_store, ImageLog는 public
 #   DB_A_NAME=logmng DB_B_NAME=imagelog_store SCHEMA_SYS=logmng_sys SCHEMA_PB=logmng SCHEMA_IMAGELOG=public ./setup.sh
 #
@@ -45,6 +49,8 @@ DB_USER="${DB_USER:-logmng}"
 DB_PASSWORD="${DB_PASSWORD:-logmng123}"
 DB_HOST="${DB_HOST:-localhost}"
 DB_PORT="${DB_PORT:-5432}"
+
+SETUP_MODE="${SETUP_MODE:-full}"
 
 # 슈퍼유저 비밀번호(로컬 trust면 불필요). 예: PGPASSWORD_SUPER=secret
 export PGPASSWORD="${PGPASSWORD_SUPER:-${PGPASSWORD:-}}"
@@ -82,7 +88,7 @@ run_sql_file_sp() {
     -f "$file"
 }
 
-echo "=== PostgreSQL 데이터베이스 설정 (A=${DB_A_NAME}, B=${DB_B_NAME}, SCHEMA_SYS=${SCHEMA_SYS}, SCHEMA_PB=${SCHEMA_PB}, SCHEMA_IMAGELOG=${SCHEMA_IMAGELOG}) ==="
+echo "=== PostgreSQL 데이터베이스 설정 (MODE=${SETUP_MODE}, A=${DB_A_NAME}, B=${DB_B_NAME}, SCHEMA_SYS=${SCHEMA_SYS}, SCHEMA_PB=${SCHEMA_PB}, SCHEMA_IMAGELOG=${SCHEMA_IMAGELOG}) ==="
 echo ""
 
 # PostgreSQL 서비스 시작 확인 (macOS Homebrew)
@@ -122,7 +128,11 @@ ensure_schema "$DB_B_NAME" "$SCHEMA_IMAGELOG"
 psql_admin -d "$DB_A_NAME" -c "GRANT ALL PRIVILEGES ON SCHEMA public TO $DB_USER;" 2>/dev/null || true
 
 echo "4. DDL 적용 (PB → SYS → user_activity → ImageLog on B)..."
-run_sql_file_sp "$DB_A_NAME" "${SCHEMA_PB}, public" "$SCRIPT_DIR/schema_pb_fep.sql"
+if [ "$SETUP_MODE" = "sys_only" ]; then
+  echo "   ⏭️  SETUP_MODE=sys_only: schema_pb_fep.sql 생략 (기존 PB는 SCHEMA_PB=${SCHEMA_PB}에 있다고 가정)"
+else
+  run_sql_file_sp "$DB_A_NAME" "${SCHEMA_PB}, public" "$SCRIPT_DIR/schema_pb_fep.sql"
+fi
 run_sql_file_sp "$DB_A_NAME" "${SCHEMA_SYS}, ${SCHEMA_PB}, public" "$SCRIPT_DIR/schema_sys.sql"
 run_sql_file_sp "$DB_A_NAME" "${SCHEMA_SYS}, ${SCHEMA_PB}, public" "$SCRIPT_DIR/schema_user_activity_log.sql"
 run_sql_file_sp "$DB_B_NAME" "${SCHEMA_IMAGELOG}, public" "$SCRIPT_DIR/schema_imagelog.sql"
@@ -154,9 +164,13 @@ echo "4f. search_history 결과/복호화 대상 건수 컬럼 마이그레이�
 run_sql_file_sp "$DB_A_NAME" "$SP_APP" "$SCRIPT_DIR/migrate-search-history-result-counts.sql"
 echo "   ✅ search_history 결과 건수 마이그레이션 완료"
 
-echo "5. 초기 샘플 데이터 삽입 중..."
-run_sql_file_sp "$DB_A_NAME" "$SP_APP" "$SCRIPT_DIR/init-data.sql"
-echo "   ✅ 초기 데이터 삽입 완료"
+if [ "$SETUP_MODE" = "sys_only" ] && [ "${SYS_ONLY_LOAD_INIT_DATA:-0}" != "1" ]; then
+  echo "5. 초기 샘플 데이터 ⏭️  생략 (sys_only; SYS_ONLY_LOAD_INIT_DATA=1 로 재실행 가능)"
+else
+  echo "5. 초기 샘플 데이터 삽입 중..."
+  run_sql_file_sp "$DB_A_NAME" "$SP_APP" "$SCRIPT_DIR/init-data.sql"
+  echo "   ✅ 초기 데이터 삽입 완료"
+fi
 
 echo "5a. permission_group_screen main → pb-feplog/java-fw-imagelog 마이그레이션 적용 중..."
 run_sql_file_sp "$DB_A_NAME" "$SP_APP" "$SCRIPT_DIR/migrate-main-to-pb-feplog-java-fw-imagelog.sql"

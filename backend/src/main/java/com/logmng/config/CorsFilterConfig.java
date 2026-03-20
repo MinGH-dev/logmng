@@ -6,6 +6,7 @@ import org.springframework.core.Ordered;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 import org.springframework.web.filter.CorsFilter;
+import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.boot.web.servlet.FilterRegistrationBean;
 
 import java.util.List;
@@ -15,24 +16,24 @@ import java.util.List;
  * 인터셉터에 막히기 전에 CORS 헤더와 함께 200으로 응답하도록 함.
  */
 @Configuration
+@EnableConfigurationProperties(AppCorsProperties.class)
 public class CorsFilterConfig {
 
     @Bean
-    public FilterRegistrationBean<CorsPreflightFilter> corsPreflightFilterRegistration() {
-        FilterRegistrationBean<CorsPreflightFilter> bean = new FilterRegistrationBean<>(new CorsPreflightFilter());
+    public FilterRegistrationBean<CorsPreflightFilter> corsPreflightFilterRegistration(AppCorsProperties cors) {
+        FilterRegistrationBean<CorsPreflightFilter> bean =
+                new FilterRegistrationBean<>(new CorsPreflightFilter(cors.allowedOriginList()));
         bean.setOrder(Ordered.HIGHEST_PRECEDENCE);
         bean.addUrlPatterns("/*");
         return bean;
     }
 
     @Bean
-    public FilterRegistrationBean<CorsFilter> corsFilterRegistration() {
+    public FilterRegistrationBean<CorsFilter> corsFilterRegistration(AppCorsProperties cors) {
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         CorsConfiguration config = new CorsConfiguration();
         config.setAllowCredentials(true);
-        config.setAllowedOrigins(List.of(
-                "http://localhost:3000", "http://localhost:3001",
-                "http://127.0.0.1:3000", "http://127.0.0.1:3001"));
+        config.setAllowedOrigins(cors.allowedOriginList());
         config.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
         config.setAllowedHeaders(List.of("*"));
         config.setMaxAge(3600L);

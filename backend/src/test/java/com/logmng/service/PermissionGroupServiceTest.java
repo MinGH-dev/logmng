@@ -216,6 +216,25 @@ class PermissionGroupServiceTest {
     }
 
     /**
+     * TC-01b: screenId with Unicode hyphen (U+2011) in java-fw-imagelog is accepted (same as ASCII hyphen-minus).
+     */
+    @Test
+    void create_withUnicodeHyphenInJavaFwImagelog_normalizesAndStoresCanonical() {
+        PermissionGroupCreateRequest req = new PermissionGroupCreateRequest();
+        req.setCode("unicode_hyphen_im");
+        req.setName("Unicode Hyphen");
+        AllowedScreenItem item = new AllowedScreenItem();
+        item.setScreenId("java\u2011fw\u2011imagelog");
+        item.setRead(true);
+        item.setDecrypt(true);
+        req.setAllowedScreens(List.of(item));
+
+        var response = service.create(req);
+        assertThat(response.getAllowedScreens()).hasSize(1);
+        assertThat(response.getAllowedScreens().get(0).getScreenId()).isEqualTo("java-fw-imagelog");
+    }
+
+    /**
      * TC-01 (req 20260318-permission-group-menu-invalid-screen-id-imagelog): Create with legacy screenId java-fw_imagelog
      * is accepted and stored/returned as java-fw-imagelog.
      */

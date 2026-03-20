@@ -75,6 +75,9 @@ app:
   name: Log Management System
   version: 1.0.0
   description: 로그 관리 시스템 백엔드 API
+  cors:
+    # 폐쇄망/별도 호스트: CORS_ALLOWED_ORIGINS=http://10.0.0.5:3001,http://192.168.1.10:3001 (쉼표 구분, UI 출처만)
+    allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:3000,http://localhost:3001,http://127.0.0.1:3000,http://127.0.0.1:3001}
   # PostgreSQL schema placement on primary JDBC (A). Unqualified app/PB SQL resolves via Hikari connection-init-sql (search_path).
   # Single-DB dev: keep defaults public,public.
   db:

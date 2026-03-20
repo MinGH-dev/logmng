@@ -73,11 +73,20 @@ public class LogDbController {
         requireLogTypeAccess(httpRequest, reqLogType);
 
         log.info("🔍 DB 로그 검색 요청 수신");
-        log.info("🔍 요청 파라미터 상세: logType={}, startDate={}, endDate={}, application={}, servicegroup={}, service={}, datastring={}, headerstring={}, keywords={}",
+        // Per req 20260318: do not log full datastring/headerstring/keywords (sensitive). DEBUG/length-only only.
+        log.debug("searchLogs request: logType={}, startDate={}, endDate={}, application={}, servicegroup={}, service={}, page={}, pageSize={}",
                 reqLogType, request.getStartDate(), request.getEndDate(),
                 request.getApplication(), request.getServicegroup(), request.getService(),
-                request.getDatastring(), request.getHeaderstring(), request.getKeywords());
+                request.getPage(), request.getPageSize());
         if ("java_fw_imglog".equals(reqLogType)) {
+            int dsLen = request.getDatastring() != null ? request.getDatastring().length() : -1;
+            int hsLen = request.getHeaderstring() != null ? request.getHeaderstring().length() : -1;
+            int kwSize = request.getKeywords() != null ? request.getKeywords().size() : -1;
+            log.debug("image log search params (length/null only): datastring null={}, length={}, headerstring null={}, length={}, keywords null={}, size={}",
+                    request.getDatastring() == null, dsLen, request.getHeaderstring() == null, hsLen, request.getKeywords() == null, kwSize);
+            // Temporary INFO for diagnosis only: remove or downgrade to DEBUG after root cause found (req 20260318 follow-up).
+            log.info("[DIAG] image log request binding: datastring null? {}, length={}; headerstring null? {}, length={}; keywords null? {}, size={}",
+                    request.getDatastring() == null, dsLen, request.getHeaderstring() == null, hsLen, request.getKeywords() == null, kwSize);
             log.info("🔍 이미지 로그 검색 분기: searchJavaFwImglog 호출 예정");
         }
         log.debug("DB 로그 검색 요청: {}", request);

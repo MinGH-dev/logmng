@@ -1,7 +1,9 @@
 package com.logmng.constants;
 
+import java.text.Normalizer;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.Locale;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -57,6 +59,36 @@ public final class ScreenConstants {
     );
 
     private ScreenConstants() {
+    }
+
+    /**
+     * Normalizes a screen ID for permission-group validation and persistence.
+     * Trims, NFC, strips zero-width/BOM, maps Unicode hyphen/dash characters to ASCII '-',
+     * lowercases, then maps legacy {@link #JAVA_FW_IMAGELOG_LEGACY} to {@link #JAVA_FW_IMAGELOG}.
+     * Req 20260318-permission-group-menu-invalid-screen-id-imagelog (follow-up: Unicode hyphen vs ASCII).
+     */
+    public static String normalizeScreenIdForPermissionGroup(String screenId) {
+        if (screenId == null || screenId.isBlank()) {
+            return screenId;
+        }
+        String s = screenId.trim();
+        s = Normalizer.normalize(s, Normalizer.Form.NFC);
+        s = s.replace("\u200B", "").replace("\u200C", "").replace("\u200D", "").replace("\uFEFF", "");
+        StringBuilder sb = new StringBuilder(s.length());
+        for (int i = 0; i < s.length(); i++) {
+            char c = s.charAt(i);
+            if (c == '\u2010' || c == '\u2011' || c == '\u2012' || c == '\u2013' || c == '\u2014' || c == '\u2015'
+                    || c == '\u2212' || c == '\uFE58' || c == '\uFE63' || c == '\uFF0D') {
+                sb.append('-');
+            } else {
+                sb.append(c);
+            }
+        }
+        s = sb.toString().toLowerCase(Locale.ROOT);
+        if (JAVA_FW_IMAGELOG_LEGACY.equals(s)) {
+            return JAVA_FW_IMAGELOG;
+        }
+        return s;
     }
 
     /**

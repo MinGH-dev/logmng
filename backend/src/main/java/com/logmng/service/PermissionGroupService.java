@@ -520,14 +520,8 @@ public class PermissionGroupService {
         return s != null ? s.trim() : "";
     }
 
-    /** Legacy screen ID alias: normalize to canonical form (req 20260318-permission-group-menu-invalid-screen-id-imagelog). */
     private static String normalizeScreenId(String screenId) {
-        if (screenId == null || screenId.isBlank()) return screenId;
-        String trimmed = screenId.trim();
-        if (ScreenConstants.JAVA_FW_IMAGELOG_LEGACY.equals(trimmed)) {
-            return ScreenConstants.JAVA_FW_IMAGELOG;
-        }
-        return trimmed;
+        return ScreenConstants.normalizeScreenIdForPermissionGroup(screenId);
     }
 
     private void validateAllowedScreens(List<AllowedScreenItem> items) {
@@ -583,8 +577,9 @@ public class PermissionGroupService {
                     String scope = rs.getString("scope");
                     if (screenId != null && !screenId.isBlank()) {
                         AllowedScreenItem item = new AllowedScreenItem();
-                        item.setScreenId(normalizeScreenId(screenId));
-                        if (ScreenConstants.supportsScope(screenId)) {
+                        String normalized = normalizeScreenId(screenId);
+                        item.setScreenId(normalized);
+                        if (ScreenConstants.supportsScope(normalized)) {
                             String scopeVal = (scope == null || scope.isBlank()) ? "team"
                                     : "all".equalsIgnoreCase(scope) ? "all" : "team".equalsIgnoreCase(scope) ? "team" : "self";
                             item.setScope(scopeVal);

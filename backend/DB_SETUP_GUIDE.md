@@ -35,6 +35,17 @@
 **애플리케이션 `search_path`**  
 백엔드는 JDBC URL 옵션 또는 커넥션 풀 초기 SQL로 DB A에 `logmng_sys, logmng, public` 등 운영 스키마 순서를 맞춥니다. 상세 키는 `application.yml` 및 `docs/contract.md`(멀티 데이터소스 반영 시)를 따릅니다.
 
+### 기존 `logmng` 스키마에 데이터만 있고 `logmng_sys`만 새로 쓰고 싶을 때
+
+| 상황 | 가능 여부 / 권장 |
+|------|------------------|
+| **PB(`pb_send` 등)만 `logmng`에 있고**, 시스템 테이블(`app_user`, `search_history` 등)은 아직 없거나 `public` 등 다른 스키마에만 있음 | `SCHEMA_PB=logmng`, `SCHEMA_SYS=logmng_sys`로 `SETUP_MODE=sys_only` 실행 가능. `schema_sys.sql`이 `logmng_sys`에 객체를 만들고, `update_updated_at_column()`은 `search_path`에 `logmng`가 포함되어 PB 쪽 함수를 참조합니다. **기존 시스템 데이터가 다른 스키마에 있으면** 별도 `INSERT … SELECT`/DDL로 **이전**해야 앱이 같은 데이터를 봅니다. |
+| **시스템 테이블까지 이미 `logmng` 스키마 안에 있음** | `logmng_sys`에만 DDL을 추가하면 `app_user` 등 **이름이 같은 빈 테이블**이 새 스키마에 생길 수 있습니다. `APP_DB_SCHEMA_SYS=logmng_sys`로 앱을 켜면 **빈 DB처럼 보일 수 있음**. 이 경우 **권장**: `APP_DB_SCHEMA_SYS`와 `APP_DB_SCHEMA_PB`를 **둘 다 `logmng`**로 두어 기존 데이터를 그대로 사용하거나, DBA가 테이블/데이터를 `logmng_sys`로 **이전**한 뒤 스키마 이름을 맞춥니다. |
+
+**`SETUP_MODE=sys_only`** (`setup.sh`): `schema_pb_fep.sql`과 `init-data.sql`을 건너뜁니다. 초기 데이터까지 넣으려면(중복 주의) `SYS_ONLY_LOAD_INIT_DATA=1`을 함께 설정합니다.
+
+**Linux 대화형 도구**: 저장소 루트에서 `./scripts/install_linux.sh` — 메뉴에서 전체 설치(1), sys_only(2), export 파일만 생성(3)을 선택합니다. 생성 파일 기본 경로는 `backend/.env.logmng.generated`(`.gitignore` 대상, 커밋 금지).
+
 ## 🔧 사전 요구사항
 
 - PostgreSQL 16 설치 완료

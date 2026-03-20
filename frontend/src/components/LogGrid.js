@@ -157,6 +157,7 @@ const LogGrid = ({ logType, initialSearchParams, initialSearchApprovalId, onInit
     setSearchParams(params);
     
     try {
+      // requestData spreads params first; added keys (logType, page, pageSize, sortField, sortDirection, displayTemplate) do not overwrite params.datastring, params.headerstring, or params.keywords (req 20260318).
       const requestData = {
         ...params,
         logType: logType.id, // 로그 타입 추가
@@ -173,7 +174,30 @@ const LogGrid = ({ logType, initialSearchParams, initialSearchApprovalId, onInit
         sortField: requestData.sortField,
         sortDirection: requestData.sortDirection
       });
-      
+      // Diagnostic (DEBUG only; req 20260318): confirm image log params in request body — length/presence only, no values
+      if (logType?.id === 'java_fw_imglog') {
+        logger.debug('[LogGrid] image log requestData diagnostic (length/presence only)', {
+          imageLogRequestDiagnostic: {
+            hasDatastring: 'datastring' in requestData,
+            datastringLength: requestData.datastring?.length ?? 0,
+            hasHeaderstring: 'headerstring' in requestData,
+            headerstringLength: requestData.headerstring?.length ?? 0,
+            hasKeywords: 'keywords' in requestData,
+            keywordsIsArray: Array.isArray(requestData.keywords),
+            keywordsLength: requestData.keywords?.length ?? 0
+          }
+        });
+        // Temporary diagnostic (req 20260318): payload keys and types for image log — remove or guard by env after root cause found. Do not log full values (sensitive).
+        if (process.env.NODE_ENV === 'development') {
+          console.log('[LogGrid] image log request body diagnostic (keys + types only)', {
+            requestBodyKeys: Object.keys(requestData),
+            datastring: { present: 'datastring' in requestData, type: typeof requestData.datastring, length: requestData.datastring?.length ?? 0 },
+            headerstring: { present: 'headerstring' in requestData, type: typeof requestData.headerstring, length: requestData.headerstring?.length ?? 0 },
+            keywords: { present: 'keywords' in requestData, type: typeof requestData.keywords, isArray: Array.isArray(requestData.keywords), length: requestData.keywords?.length ?? 0 }
+          });
+        }
+      }
+
       // 실제 API 호출
       const apiBaseUrl = process.env.REACT_APP_API_BASE_URL || 'http://localhost:9200/api';
       const response = await fetch(`${apiBaseUrl}/logs/db-refactored/search`, {
