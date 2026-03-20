@@ -140,6 +140,41 @@ else
 fi
 echo ""
 
+# 6a. row_status on approval / decryption-allowed (req 20260320; avoids PG 42703 at runtime)
+echo "6a. 승인 스냅샷·복호화 허용 row_status 컬럼 (SCHEMA_SYS=${SCHEMA_SYS})"
+AR_TABLE=$(psql_app -d "$DB_A_NAME" -tAc "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema='${SCHEMA_SYS}' AND table_name='search_history_approved_row';" 2>/dev/null || echo "0")
+AR_ROW_STATUS=$(psql_app -d "$DB_A_NAME" -tAc "SELECT COUNT(*) FROM information_schema.columns WHERE table_schema='${SCHEMA_SYS}' AND table_name='search_history_approved_row' AND column_name='row_status';" 2>/dev/null || echo "0")
+UDA_ROW_STATUS=$(psql_app -d "$DB_A_NAME" -tAc "SELECT COUNT(*) FROM information_schema.columns WHERE table_schema='${SCHEMA_SYS}' AND table_name='user_decryption_allowed' AND column_name='row_status';" 2>/dev/null || echo "0")
+if [ "$AR_TABLE" = "1" ] && [ "$AR_ROW_STATUS" = "1" ] && [ "$UDA_ROW_STATUS" = "1" ]; then
+  echo "   ✅ search_history_approved_row.row_status 및 user_decryption_allowed.row_status 존재"
+elif [ "$AR_TABLE" = "1" ]; then
+  echo "   ❌ row_status 누락 가능 — DB A에 migrate-sys-decryption-composite-pk-20260320.sql 적용 필요 (setup.sh 4g 또는 DB_SETUP_GUIDE.md § PostgreSQL 42703)"
+else
+  echo "   ℹ️  search_history_approved_row 없음 — 시스템 스키마 미적용 또는 다른 스키마 대상일 수 있음"
+fi
+echo ""
+
+# 6b. permission_group_screen columns required by backend (req 20260320-permission-group-screen-entry-error-migration-check)
+echo "6b. permission_group_screen 필수 컬럼 (SCHEMA_SYS=${SCHEMA_SYS})"
+PGS_TABLE=$(psql_app -d "$DB_A_NAME" -tAc "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema='${SCHEMA_SYS}' AND table_name='permission_group_screen';" 2>/dev/null || echo "0")
+if [ "$PGS_TABLE" = "1" ]; then
+  C_SCOPE=$(psql_app -d "$DB_A_NAME" -tAc "SELECT COUNT(*) FROM information_schema.columns WHERE table_schema='${SCHEMA_SYS}' AND table_name='permission_group_screen' AND column_name='scope';" 2>/dev/null || echo "0")
+  C_READ=$(psql_app -d "$DB_A_NAME" -tAc "SELECT COUNT(*) FROM information_schema.columns WHERE table_schema='${SCHEMA_SYS}' AND table_name='permission_group_screen' AND column_name='read';" 2>/dev/null || echo "0")
+  C_WRITE=$(psql_app -d "$DB_A_NAME" -tAc "SELECT COUNT(*) FROM information_schema.columns WHERE table_schema='${SCHEMA_SYS}' AND table_name='permission_group_screen' AND column_name='write';" 2>/dev/null || echo "0")
+  C_APPROVE=$(psql_app -d "$DB_A_NAME" -tAc "SELECT COUNT(*) FROM information_schema.columns WHERE table_schema='${SCHEMA_SYS}' AND table_name='permission_group_screen' AND column_name='approve';" 2>/dev/null || echo "0")
+  C_DECRYPT=$(psql_app -d "$DB_A_NAME" -tAc "SELECT COUNT(*) FROM information_schema.columns WHERE table_schema='${SCHEMA_SYS}' AND table_name='permission_group_screen' AND column_name='decrypt';" 2>/dev/null || echo "0")
+  if [ "$C_SCOPE" = "1" ] && [ "$C_READ" = "1" ] && [ "$C_WRITE" = "1" ] && [ "$C_APPROVE" = "1" ] && [ "$C_DECRYPT" = "1" ]; then
+    echo "   ✅ permission_group_screen: scope, read, write, approve, decrypt 존재"
+  else
+    echo "   ❌ permission_group_screen 필수 컬럼 누락 — setup.sh 4h 재실행 또는 DB A에서 아래 순서로 수동 적용(search_path: SCHEMA_SYS, SCHEMA_PB, public 또는 환경에 맞게):"
+    echo "      migrate-permission-group-screen-scope.sql → migrate-permission-group-screen-functions.sql → migrate-permission-group-screen-decrypt.sql → migrate-permission-group-screen-scope-team.sql"
+    echo "      (요구사항: docs/requirements/20260320-permission-group-screen-entry-error-migration-check.md)"
+  fi
+else
+  echo "   ℹ️  ${SCHEMA_SYS}.permission_group_screen 없음 — 시스템 스키마 미적용 또는 다른 스키마 대상일 수 있음"
+fi
+echo ""
+
 # 7. 테이블 구조 확인
 echo "7. 테이블 구조 확인"
 if [ "$SEND_TABLE" = "1" ]; then

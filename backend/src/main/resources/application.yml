@@ -52,6 +52,10 @@ logging:
   level:
     root: INFO
     com.logmng: DEBUG
+    # Approval diagnostics: avoid inheriting com.logmng DEBUG unless explicitly needed (gate is app.diagnostic.approval-flow).
+    com.logmng.diagnostic.approval: INFO
+    # Permission-group screen entry: gate is app.diagnostic.permission-group-screen; set to DEBUG only when reproducing.
+    com.logmng.diagnostic.permissionGroupScreen: INFO
   pattern:
     console: "%d{yyyy-MM-dd HH:mm:ss} - %msg%n"
     file: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
@@ -98,10 +102,19 @@ app:
   security:
     admin-id: admin
     admin-pw: admin123
-    encryption-key: ${ENCRYPTION_KEY:12345678901234567890123456789012}
+    # AES-256 (CryptoUtil): UTF-8 기준 32바이트 권장. 우선순위: ENCRYPTION_KEY → APP_SECURITY_ENCRYPTION_KEY(Spring) → 기본값(개발 전용)
+    encryption-key: ${ENCRYPTION_KEY:${APP_SECURITY_ENCRYPTION_KEY:12345678901234567890123456789012}}
     authorized-ips: "127.0.0.1,localhost,0:0:0:0:0:0:0:1,::1"
+  # 승인 흐름 진단 로그 (운영 기본 off). 켜면 [diag-approval] INFO가 출력됨.
+  diagnostic:
+    approval-flow: ${APP_DIAGNOSTIC_APPROVAL_FLOW:false}
+    # Permission group management screen / GET /api/permission-groups diagnostics (DEBUG via com.logmng.diagnostic.permissionGroupScreen).
+    permission-group-screen: ${APP_DIAGNOSTIC_PERMISSION_GROUP_SCREEN:false}
   decryption:
-    enabled: ${DECRYPTION_ENABLED:true}
-    auto-decrypt-on-keyword-search: ${AUTO_DECRYPT_ON_KEYWORD_SEARCH:true}
-    failure-handling: ${FAILURE_HANDLING:fallback} # skip, fallback, error
+    # 복호화 켜기/끄기: DECRYPTION_ENABLED 또는 APP_DECRYPTION_ENABLED
+    enabled: ${DECRYPTION_ENABLED:${APP_DECRYPTION_ENABLED:true}}
+    # 키워드 검색 시 자동 복호화 시도: AUTO_DECRYPT_ON_KEYWORD_SEARCH 또는 APP_DECRYPTION_AUTO_DECRYPT_ON_KEYWORD_SEARCH
+    auto-decrypt-on-keyword-search: ${AUTO_DECRYPT_ON_KEYWORD_SEARCH:${APP_DECRYPTION_AUTO_DECRYPT_ON_KEYWORD_SEARCH:true}}
+    # skip | fallback | error — FAILURE_HANDLING 또는 APP_DECRYPTION_FAILURE_HANDLING
+    failure-handling: ${FAILURE_HANDLING:${APP_DECRYPTION_FAILURE_HANDLING:fallback}}
 

@@ -26,6 +26,10 @@
 # 예: A에 logmng_sys + logmng, B는 별도 DB imagelog_store, ImageLog는 public
 #   DB_A_NAME=logmng DB_B_NAME=imagelog_store SCHEMA_SYS=logmng_sys SCHEMA_PB=logmng SCHEMA_IMAGELOG=public ./setup.sh
 #
+# setup.sh 4h (permission_group_screen 컬럼 마이그레이션):
+#   신규 설치는 schema_sys.sql에 이미 scope·read·write·approve·decrypt가 있어 해당 SQL은 no-op.
+#   예전 DDL로 만든 레거시 테이블은 컬럼이 없을 수 있음 — 4h를 건너뛰면 5a/5a-1 및 앱 쿼리가 실패할 수 있음(req 20260320-permission-group-screen-entry-error-migration-check).
+#
 # 수동 적용 예 (sys → logmng_sys, PB → logmng, imagelog → B):
 #   psql -U postgres -d logmng -c "CREATE SCHEMA IF NOT EXISTS logmng_sys; CREATE SCHEMA IF NOT EXISTS logmng;"
 #   psql -U postgres -d logmng -v ON_ERROR_STOP=1 -c "SET search_path TO logmng, public;" -f schema_pb_fep.sql
@@ -137,6 +141,10 @@ run_sql_file_sp "$DB_A_NAME" "${SCHEMA_SYS}, ${SCHEMA_PB}, public" "$SCRIPT_DIR/
 run_sql_file_sp "$DB_A_NAME" "${SCHEMA_SYS}, ${SCHEMA_PB}, public" "$SCRIPT_DIR/schema_user_activity_log.sql"
 run_sql_file_sp "$DB_B_NAME" "${SCHEMA_IMAGELOG}, public" "$SCRIPT_DIR/schema_imagelog.sql"
 
+echo "4a-imagelog. (guid, status) 유니크 인덱스 — 레거시 DB 정렬 (req 20260320)..."
+run_sql_file_sp "$DB_B_NAME" "${SCHEMA_IMAGELOG}, public" "$SCRIPT_DIR/migrate-imagelog-guid-status-unique-20260320.sql"
+echo "   ✅ imagelog uq_imagelog_guid_row_status 적용(또는 이미 존재)"
+
 echo "   ✅ 스키마 파일 적용 완료"
 
 echo "4b. 스키마별 GRANT (앱 사용자)..."
@@ -163,6 +171,19 @@ echo "   ✅ search_history request_reason 마이그레이션 완료"
 echo "4f. search_history 결과/복호화 대상 건수 컬럼 마이그레이션 적용 중..."
 run_sql_file_sp "$DB_A_NAME" "$SP_APP" "$SCRIPT_DIR/migrate-search-history-result-counts.sql"
 echo "   ✅ search_history 결과 건수 마이그레이션 완료"
+
+# 4g: 레거시 DB는 예전 DDL로 테이블만 있고 row_status가 없을 수 있음(schema 재적용만으로는 ADD COLUMN 안 됨). 매 실행 idempotent.
+echo "4g. 승인 스냅샷·decryption-allowed 복합 PK (row_status, req 20260320)..."
+run_sql_file_sp "$DB_A_NAME" "$SP_APP" "$SCRIPT_DIR/migrate-sys-decryption-composite-pk-20260320.sql"
+echo "   ✅ search_history_approved_row / user_decryption_allowed 복합 PK 적용(또는 이미 신규 스키마)"
+
+# 4h: 레거시 permission_group_screen에 scope/read/write/approve/decrypt 누락 시 보정 (idempotent). 신규 스키마는 no-op.
+echo "4h. permission_group_screen 컬럼 마이그레이션 (scope → functions → decrypt → scope-team, req 20260320)..."
+run_sql_file_sp "$DB_A_NAME" "$SP_APP" "$SCRIPT_DIR/migrate-permission-group-screen-scope.sql"
+run_sql_file_sp "$DB_A_NAME" "$SP_APP" "$SCRIPT_DIR/migrate-permission-group-screen-functions.sql"
+run_sql_file_sp "$DB_A_NAME" "$SP_APP" "$SCRIPT_DIR/migrate-permission-group-screen-decrypt.sql"
+run_sql_file_sp "$DB_A_NAME" "$SP_APP" "$SCRIPT_DIR/migrate-permission-group-screen-scope-team.sql"
+echo "   ✅ permission_group_screen 컬럼·제약 정렬 완료(또는 이미 신규 스키마)"
 
 if [ "$SETUP_MODE" = "sys_only" ] && [ "${SYS_ONLY_LOAD_INIT_DATA:-0}" != "1" ]; then
   echo "5. 초기 샘플 데이터 ⏭️  생략 (sys_only; SYS_ONLY_LOAD_INIT_DATA=1 로 재실행 가능)"

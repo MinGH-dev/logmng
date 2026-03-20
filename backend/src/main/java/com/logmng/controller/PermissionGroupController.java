@@ -12,8 +12,10 @@ import com.logmng.service.AuthService;
 import com.logmng.service.PermissionGroupService;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
+import com.logmng.diagnostic.PermissionGroupScreenDiagnosticLog;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -33,6 +35,9 @@ public class PermissionGroupController {
     private final PermissionGroupService permissionGroupService;
     private final AuthService authService;
     private final AppUserResolver appUserResolver;
+
+    @Value("${app.diagnostic.permission-group-screen:false}")
+    private boolean diagnosticPermissionGroupScreen;
 
     public PermissionGroupController(PermissionGroupService permissionGroupService,
                                      AuthService authService,
@@ -79,6 +84,7 @@ public class PermissionGroupController {
     @GetMapping
     public ResponseEntity<ApiResponse<List<PermissionGroupResponse>>> list(HttpServletRequest request) {
         requireUserManagementAccess(request);
+        PermissionGroupScreenDiagnosticLog.debug(diagnosticPermissionGroupScreen, "GET_list_enter", "after_auth_checks");
         List<PermissionGroupResponse> data = permissionGroupService.listAll();
         return ResponseEntity.ok(ApiResponse.success(data));
     }

@@ -4,9 +4,11 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.logmng.constants.ScreenConstants;
 import com.logmng.dto.response.ApiResponse;
 import com.logmng.dto.response.LoginResponse;
+import com.logmng.diagnostic.PermissionGroupScreenDiagnosticLog;
 import com.logmng.service.AuthService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import org.springframework.web.servlet.HandlerInterceptor;
 
@@ -54,6 +56,11 @@ public class ScreenAccessInterceptor implements HandlerInterceptor {
     private final AuthService authService;
     private final ObjectMapper objectMapper;
 
+    @Value("${app.diagnostic.permission-group-screen:false}")
+    private boolean diagnosticPermissionGroupScreen;
+
+    private static final Pattern PERMISSION_GROUPS_API = Pattern.compile("^/api/permission-groups.*");
+
     public ScreenAccessInterceptor(AuthService authService, ObjectMapper objectMapper) {
         this.authService = authService;
         this.objectMapper = objectMapper;
@@ -85,6 +92,14 @@ public class ScreenAccessInterceptor implements HandlerInterceptor {
         boolean hasAccess = allowed != null && requiredScreens.stream().anyMatch(allowed::contains);
         if (hasAccess) {
             return true;
+        }
+        if (PERMISSION_GROUPS_API.matcher(path).matches()) {
+            PermissionGroupScreenDiagnosticLog.screenAccessDenyPermissionGroups(
+                    diagnosticPermissionGroupScreen,
+                    path,
+                    requiredScreens,
+                    userInfo.getUserId(),
+                    "missing_required_screen_in_session");
         }
         log.warn("Screen access denied: path={} requiredScreens={} user={}", path, requiredScreens, userInfo.getUsername());
         sendForbidden(response);

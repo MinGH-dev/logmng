@@ -30,6 +30,8 @@
 4. **활동 로그**: 동일 `search_path`로 `schema_user_activity_log.sql`.  
 5. **ImageLog**: DB `DB_B`에서 `SET search_path TO SCHEMA_IMAGELOG, public` 후 `schema_imagelog.sql`.  
 6. 이후 마이그레이션·`init-data.sql`은 앱 테이블이 있는 스키마를 앞에 두는 `search_path`(예: `SCHEMA_SYS, SCHEMA_PB, public`)로 DB A에 적용; `init-data-imagelog.sql`은 DB B에 적용.  
+7. **`setup.sh` 단계 4a–4g(레거시 정렬)**: ImageLog 쪽 `migrate-imagelog-guid-status-unique-20260320.sql`(DB B) 후, 시스템 DB A에 `migrate-sys-decryption-composite-pk-20260320.sql`(승인 스냅샷·`user_decryption_allowed`에 `row_status` 및 복합 PK). idempotent.  
+8. **`setup.sh` 단계 4h (`permission_group_screen` 컬럼)**: init-data(5단계) 이전에 DB A에서 다음 네 파일을 **순서대로** 적용 — `migrate-permission-group-screen-scope.sql` → `migrate-permission-group-screen-functions.sql` → `migrate-permission-group-screen-decrypt.sql` → `migrate-permission-group-screen-scope-team.sql`. 신규 설치는 `schema_sys.sql`에 컬럼이 이미 있어 no-op; 레거시 테이블만 실제 DDL이 수행됨. **전체 `setup.sh`를 다시 돌릴 수 없는** 환경에서는 동일 순서로 수동 실행하되 `SET search_path TO SCHEMA_SYS, SCHEMA_PB, public`(또는 운영 환경 변수에 맞는 스키마)을 사용합니다. 점검: `check-db.sh` 6b. 요구사항: `docs/requirements/20260320-permission-group-screen-entry-error-migration-check.md`.  
 실제 일괄 실행은 `backend/src/main/resources/db/setup.sh`가 위 순서와 변수를 사용합니다. 점검은 `check-db.sh`로 동일 변수를 넘겨 실행합니다.
 
 **애플리케이션 `search_path`**  
@@ -188,6 +190,23 @@ brew services restart postgresql@16
 tail -f /opt/homebrew/var/log/postgresql@16.log
 ```
 
+### PostgreSQL 42703: `column "row_status" does not exist` (`search_history_approved_row` 등)
+
+- **원인**: 테이블이 예전 DDL로만 생성된 **레거시 DB**이고, `migrate-sys-decryption-composite-pk-20260320.sql`이 아직 적용되지 않았습니다. `schema.sql`만 다시 실행해도 `CREATE TABLE IF NOT EXISTS` 때문에 **기존 테이블에 컬럼이 자동 추가되지 않습니다**.
+- **해결 (권장)**: `backend/src/main/resources/db`에서 `setup.sh`를 재실행하면 4g에서 동일 마이그레이션이 적용됩니다(다른 단계도 idempotent로 설계됨; `init-data` 중복은 환경에 따라 주의).
+- **수동 한 줄 (단일 DB·`public`, `application.yml` 기본과 동일: `localhost:5432`, DB `logmng`)** — 프로젝트 루트에서:
+
+```bash
+psql -U postgres -h localhost -p 5432 -d logmng -v ON_ERROR_STOP=1 \
+  -c "SET search_path TO public, public;" \
+  -f backend/src/main/resources/db/migrate-sys-decryption-composite-pk-20260320.sql
+```
+
+- **폐쇄망 전용(동일 DDL, 단일 파일)**: `airgap-only-20260320-sys-decryption-composite-pk.sql` — 오프라인 번들 `db/`에 포함되며, 위 `psql` 예에서 `-f` 경로만 이 파일로 바꿔 실행하면 됩니다.
+
+- **멀티 스키마**: `setup.sh`와 동일하게 `SET search_path TO SCHEMA_SYS, SCHEMA_PB, public` 후 같은 파일을 DB A에 실행하세요(변수 값은 해당 환경의 `DB_SETUP_GUIDE` § 멀티 DB 표 참고).
+- **비밀번호**: 로컬 `trust`면 생략 가능; 그 외에는 `psql -W` 또는 `PGPASSWORD`/`PGPASSWORD_SUPER`를 사용합니다(저장소에 비밀번호를 넣지 마세요).
+
 ### 연결 실패 시
 
 1. PostgreSQL 서비스가 실행 중인지 확인:
@@ -242,6 +261,17 @@ ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON SEQUENCES TO logmng;
   - idempotent: 테이블/인덱스는 IF NOT EXISTS; 백필은 재실행 시 ON CONFLICT로 덮어쓰므로 안전.
   - `search_history_approved_row`는 변경·삭제하지 않음.
 
+### ImageLog·승인 스냅샷 복합 키 (guid + status, req 20260320)
+
+- **의미**: `java_fw_imglog` 행 식별은 `(guid, status)` 이다. ImageLog 테이블에는 유니크 인덱스, 시스템 DB에는 `search_history_approved_row.row_status`·`user_decryption_allowed.row_status`와 확장 PK가 필요하다.
+- **스크립트 (분리 적용 — 다중 DB 필수)**:
+  1. **DB B** (`SCHEMA_IMAGELOG`): `migrate-imagelog-guid-status-unique-20260320.sql` — `SET search_path` 후 실행 (`setup.sh`의 `run_sql_file_sp`와 동일).
+  2. **DB A** (시스템 `SCHEMA_SYS` 등): `migrate-sys-decryption-composite-pk-20260320.sql`
+- **단일 DB·한 스키마(public)**: `backend/src/main/resources/db/`에서 `psql -v ON_ERROR_STOP=1 -f migrate-imagelog-composite-decrypt-20260320.sql` — 내부에서 `\ir`로 위 두 파일을 순서대로 포함한다(동일 `search_path`이면 public에만 있을 때).
+- **신규 설치**: `schema_sys.sql` / `schema_imagelog.sql`에 이미 반영되어 있으나, `setup.sh`는 레거시 DB 정렬을 위해 위 마이그레이션을 **idempotent**로 추가 실행한다.
+- **사전 점검**: ImageLog에 동일 `(guid, 정규화 status)` 중복이 있으면 유니크 인덱스 생성이 실패한다. 주석 및 `migrate-imagelog-guid-status-unique-20260320.sql` 상단의 `SELECT … HAVING COUNT(*) > 1` 참고.
+- **런타임 오류 42703** (`column "row_status" does not exist`): 위 시스템 마이그레이션 미적용 — 아래 **문제 해결 § PostgreSQL 42703** 또는 `check-db.sh` 6a 참고.
+
 ### 복호화 403 시 점검 (req 20260317-image-log-decrypt-error-root-cause-and-data-validation)
 
 "복호화 거부(승인 미충족)"(403 DECRYPTION_NOT_APPROVED)이 **마이그레이션 적용 후에도** 발생하면, 다음 진단 SQL로 해당 검색 이력 행의 `user_id`와 요청자(requester)의 `app_user.id`가 일치하는지 확인하세요.
@@ -269,7 +299,7 @@ WHERE sh.id = <search_history_id>;
 - `user_id_matches`가 false이면, 해당 검색 이력은 다른 사용자(요청자) 소유이므로 **현재 로그인한 사용자가 요청자가 아닐 때** 의도된 403입니다(실행자는 요청자만 가능).
 - `row_user_id`가 요청자의 `app_user.id`와 다른데 요청자가 실행했다면, **데이터 불일치**이거나 **세션/currentUserId** 문제일 수 있으므로 백엔드 로그의 `복호화 승인 검사 실패(진단): searchHistoryId=..., currentUserId=..., reason=..., rowUserId=...` 로그로 `currentUserId`와 `rowUserId`를 비교하세요.
 
+## 검색 이력 승인 흐름 진단 로그 (선택)
 
-
-
+운영에서 `APPROVAL_ERROR` 원인을 단계별로 구분할 때, 백엔드 환경 변수 **`APP_DIAGNOSTIC_APPROVAL_FLOW=true`** 를 설정한 뒤 재시작합니다. 로컬 dev에서는 **`BACKEND_DIAGNOSTIC_APPROVAL=1 ./scripts/dev-services.sh backend restart`** 로 동일하게 켤 수 있습니다. 로그에 **`[diag-approval]`** 접두와 `searchHistoryId=`, `phase=`(예: `LOAD_PENDING`, `SNAPSHOT`, `TXN_BEFORE_COMMIT`, `TXN_AFTER_COMMIT`, `DECRYPTION_ALLOWED_BEFORE`/`AFTER`, `CONTROLLER_THROWABLE`)가 출력됩니다. 상세 `DEBUG`는 로거 `com.logmng.diagnostic.approval`을 `DEBUG`로 올릴 때만(플래그가 켜진 상태에서) 추가로 나옵니다.
 

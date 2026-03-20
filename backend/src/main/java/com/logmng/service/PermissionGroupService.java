@@ -7,9 +7,11 @@ import com.logmng.dto.response.AllowedScreenItem;
 import com.logmng.dto.response.AssignUserToGroupResponse;
 import com.logmng.dto.response.PermissionGroupResponse;
 import com.logmng.dto.response.UserListItemResponse;
+import com.logmng.diagnostic.PermissionGroupScreenDiagnosticLog;
 import com.logmng.exception.CustomException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import javax.sql.DataSource;
@@ -39,24 +41,32 @@ public class PermissionGroupService {
     private final DataSource dataSource;
     private final AppUserResolver appUserResolver;
 
+    @Value("${app.diagnostic.permission-group-screen:false}")
+    private boolean diagnosticPermissionGroupScreen;
+
     public PermissionGroupService(DataSource dataSource, AppUserResolver appUserResolver) {
         this.dataSource = dataSource;
         this.appUserResolver = appUserResolver;
     }
 
     public List<PermissionGroupResponse> listAll() {
+        PermissionGroupScreenDiagnosticLog.debug(diagnosticPermissionGroupScreen, "listAll_enter", "");
         List<PermissionGroupResponse> list = new ArrayList<>();
+        Long sqlContextGroupId = null;
         try (Connection conn = dataSource.getConnection()) {
             String sql = "SELECT id, code, name, description, sort_order FROM permission_group ORDER BY sort_order, code";
             try (PreparedStatement ps = conn.prepareStatement(sql);
                  ResultSet rs = ps.executeQuery()) {
                 while (rs.next()) {
+                    sqlContextGroupId = null;
                     PermissionGroupResponse r = mapRowToResponse(rs);
-                    r.setAllowedScreens(loadAllowedScreens(conn, r.getId()));
+                    sqlContextGroupId = r.getId();
+                    r.setAllowedScreens(loadAllowedScreens(conn, sqlContextGroupId));
                     list.add(r);
                 }
             }
         } catch (SQLException e) {
+            PermissionGroupScreenDiagnosticLog.sqlException(diagnosticPermissionGroupScreen, "listAll", sqlContextGroupId, e);
             log.error("Permission group list failed", e);
             throw new RuntimeException("권한 그룹 목록 조회 중 오류가 발생했습니다: " + e.getMessage(), e);
         }
@@ -567,6 +577,8 @@ public class PermissionGroupService {
     }
 
     private List<AllowedScreenItem> loadAllowedScreens(Connection conn, long groupId) throws SQLException {
+        PermissionGroupScreenDiagnosticLog.debug(diagnosticPermissionGroupScreen, "loadAllowedScreens_enter",
+                "permissionGroupId=" + groupId);
         List<AllowedScreenItem> screens = new ArrayList<>();
         String sql = "SELECT screen_id, scope, read, write, approve, decrypt FROM permission_group_screen WHERE permission_group_id = ? ORDER BY screen_id";
         try (PreparedStatement ps = conn.prepareStatement(sql)) {
