@@ -9,7 +9,7 @@
     </style>
   </defs>
   <rect class="paper" x="0" y="0" width="880" height="48" rx="4" id="primitive-filter-strip"/>
-  <text x="12" y="30" class="muted" id="primitive-filter-hint">Search filters &</text>
+  <text x="12" y="30" class="muted" id="primitive-filter-hint">Search filters...</text>
   <rect class="hdr-bg" x="0" y="56" width="880" height="28" id="primitive-grid-header-row"/>
   <text x="8" y="74" class="hdr-txt">Col A</text>
   <text x="120" y="74" class="hdr-txt">Col B</text>
