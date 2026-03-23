@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 880 320" aria-label="Filter row and data grid primitive">
+  <defs>
+    <style>
+      .paper { fill: #ffffff; stroke: #e0e0e0; stroke-width: 1; }
+      .hdr-bg { fill: #fafafa; stroke: #e0e0e0; stroke-width: 1; }
+    .hdr-txt { fill: #424242; font-family: system-ui, sans-serif; font-size: 11px; }
+      .cell { fill: #ffffff; stroke: #eeeeee; stroke-width: 1; }
+      .muted { fill: #9e9e9e; font-family: system-ui, sans-serif; font-size: 11px; }
+    </style>
+  </defs>
+  <rect class="paper" x="0" y="0" width="880" height="48" rx="4" id="primitive-filter-strip"/>
+  <text x="12" y="30" class="muted" id="primitive-filter-hint">Search filters &</text>
+  <rect class="hdr-bg" x="0" y="56" width="880" height="28" id="primitive-grid-header-row"/>
+  <text x="8" y="74" class="hdr-txt">Col A</text>
+  <text x="120" y="74" class="hdr-txt">Col B</text>
+  <text x="240" y="74" class="hdr-txt">Col C</text>
+  <g id="primitive-grid-rows">
+    <rect class="cell" x="0" y="84" width="880" height="24"/>
+    <rect class="cell" x="0" y="108" width="880" height="24" fill="#fafafa"/>
+    <rect class="cell" x="0" y="132" width="880" height="24"/>
+    <rect class="cell" x="0" y="156" width="880" height="24" fill="#fafafa"/>
+    <rect class="cell" x="0" y="180" width="880" height="24"/>
+  </g>
+</svg>

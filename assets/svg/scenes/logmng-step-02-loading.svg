@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 800" role="img" aria-label="Auth loading screen wireframe" data-step="loading">
+  <defs>
+    <style>
+      .bg { fill: #f5f5f5; }
+      .ring { fill: none; stroke: #1976d2; stroke-width: 6; stroke-dasharray: 80 120; }
+      .txt { fill: #616161; font-family: system-ui, sans-serif; font-size: 15px; }
+    </style>
+  </defs>
+  <rect class="bg" width="1200" height="800" id="screen-loading-bg"/>
+  <circle class="ring" cx="600" cy="360" r="56" id="screen-loading-spinner"/>
+  <text x="600" y="460" text-anchor="middle" class="txt" id="screen-loading-message">Ü¤\D 0TX” &</text>
+</svg>
