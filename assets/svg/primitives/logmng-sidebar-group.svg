@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 200" aria-label="Sidebar menu group primitive">
+  <defs>
+    <style>
+      .group-title { fill: #616161; font-family: system-ui, sans-serif; font-size: 11px; font-weight: 600; }
+      .item { fill: #424242; font-family: system-ui, sans-serif; font-size: 13px; }
+      .line { stroke: #e0e0e0; stroke-width: 1; fill: none; }
+    </style>
+  </defs>
+  <text x="16" y="24" class="group-title" id="primitive-group-label">MENU_GROUP</text>
+  <line class="line" x1="12" y1="32" x2="228" y2="32"/>
+  <text x="20" y="56" class="item" id="primitive-leaf-1">• Leaf screen A</text>
+  <text x="20" y="82" class="item" id="primitive-leaf-2">• Leaf screen B</text>
+  <text x="20" y="108" class="item" id="primitive-leaf-3">• Leaf screen C</text>
+</svg>

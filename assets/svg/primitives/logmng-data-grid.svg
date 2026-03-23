@@ -1,0 +1,45 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 880 320" aria-label="Data grid primitive: column sort icons and row hover sample">
+  <desc>정렬 UI는 프론트 DataTable과 동일한 약속을 가정합니다: columns[].sortable, sortConfig { key, direction }, onSort(key), 단일 컬럼 정렬. 헤더 아이콘: 미적용 ↕, 오름차순 ↑, 내림차순 ↓. 상세는 docs/design/grid-and-table.md.</desc>
+  <defs>
+    <style>
+      .paper { fill: #ffffff; stroke: #e0e0e0; stroke-width: 1; }
+      .hdr-bg { fill: #fafafa; stroke: #e0e0e0; stroke-width: 1; }
+      .hdr-txt { fill: #424242; font-family: system-ui, sans-serif; font-size: 11px; }
+      .sort-icon { fill: #6c757d; font-size: 10px; }
+      .sort-icon-active { fill: #1976d2; font-size: 11px; font-weight: 600; }
+      .col-band { fill: #f6f8fb; }
+      .col-band-alt { fill: #f1f4f8; }
+      .col-divider { stroke: #d8dee6; stroke-width: 1; }
+      /* 행 호버: 투명 fill로 hit-area 확보 (fill:none은 일부 뷰어에서 포인터 미수신) */
+      .cell { fill: rgba(255, 255, 255, 0); stroke: #e3e8ef; stroke-width: 1; }
+      .cell:hover { fill: #e8eef6; }
+      .cell-hover-demo { fill: #e8eef6; }
+      .muted { fill: #9e9e9e; font-family: system-ui, sans-serif; font-size: 11px; }
+      .note { fill: #9e9e9e; font-family: system-ui, sans-serif; font-size: 10px; }
+    </style>
+  </defs>
+  <rect class="paper" x="0" y="0" width="880" height="48" rx="4" id="primitive-filter-strip"/>
+  <text x="12" y="30" class="muted" id="primitive-filter-hint">Search filters...</text>
+  <rect class="hdr-bg" x="0" y="56" width="880" height="28" id="primitive-grid-header-row"/>
+  <rect class="col-band" x="0" y="56" width="112" height="148" id="primitive-grid-col-a"/>
+  <rect class="col-band-alt" x="112" y="56" width="120" height="148" id="primitive-grid-col-b"/>
+  <rect class="col-band" x="232" y="56" width="168" height="148" id="primitive-grid-col-c"/>
+  <rect class="col-band-alt" x="400" y="56" width="480" height="148" id="primitive-grid-col-d"/>
+  <line class="col-divider" x1="112" y1="56" x2="112" y2="204" id="primitive-grid-col-divider-1"/>
+  <line class="col-divider" x1="232" y1="56" x2="232" y2="204" id="primitive-grid-col-divider-2"/>
+  <line class="col-divider" x1="400" y1="56" x2="400" y2="204" id="primitive-grid-col-divider-3"/>
+  <rect class="hdr-bg" x="0" y="56" width="880" height="28" id="primitive-grid-header-overlay"/>
+  <text x="8" y="74" class="hdr-txt" id="primitive-hdr-col-a"><tspan>Col A</tspan><tspan class="sort-icon" aria-hidden="true"> ↕</tspan></text>
+  <text x="120" y="74" class="hdr-txt" id="primitive-hdr-col-b"><tspan>Col B</tspan><tspan class="sort-icon-active" aria-hidden="true"> ↑</tspan></text>
+  <text x="240" y="74" class="hdr-txt" id="primitive-hdr-col-c"><tspan>Col C</tspan><tspan class="sort-icon" aria-hidden="true"> ↕</tspan></text>
+  <text x="408" y="74" class="hdr-txt" id="primitive-hdr-col-d"><tspan>Col D</tspan><tspan class="sort-icon" aria-hidden="true"> ↕</tspan></text>
+  <g id="primitive-grid-rows">
+    <rect class="cell" x="0" y="84" width="880" height="24" id="primitive-grid-row-1"/>
+    <rect class="cell cell-hover-demo" x="0" y="108" width="880" height="24" id="primitive-grid-row-2-hover-demo"/>
+    <rect class="cell" x="0" y="132" width="880" height="24" id="primitive-grid-row-3"/>
+    <rect class="cell" x="0" y="156" width="880" height="24" id="primitive-grid-row-4"/>
+    <rect class="cell" x="0" y="180" width="880" height="24" id="primitive-grid-row-5"/>
+  </g>
+  <text x="8" y="218" class="note" id="primitive-grid-hover-note">2번째 행: 행 hover 예시(고정). Col B: 정렬 활성(오름차순 ↑) 예시.</text>
+  <text x="8" y="234" class="note" id="primitive-grid-sort-contract-note">구현 참고: DataTable sortConfig + onSort(key), aria-sort — 과도한 SVG 장식은 앱에 그대로 옮기지 말 것.</text>
+</svg>

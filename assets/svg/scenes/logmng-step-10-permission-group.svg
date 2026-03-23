@@ -1,0 +1,41 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 800" role="img" aria-label="Permission group management screen wireframe" data-step="permission-group-management">
+  <defs>
+    <style>
+      .view-title { fill: #212121; font-family: "Noto Sans KR", "Roboto", system-ui, sans-serif; font-size: 24px; font-weight: 600; }
+      .bg { fill: #f5f5f5; }
+      .side { fill: #ffffff; stroke: #e0e0e0; stroke-width: 1; }
+      .bar { fill: #1976d2; }
+      .bart { fill: #ffffff; font-family: system-ui, sans-serif; font-size: 14px; }
+      .navg { fill: #616161; font-family: system-ui, sans-serif; font-size: 11px; font-weight: 600; }
+      .nav { fill: #424242; font-family: system-ui, sans-serif; font-size: 12px; }
+      .navhi { fill: #1976d2; font-weight: 600; }
+      .paper { fill: #ffffff; stroke: #e0e0e0; stroke-width: 1; }
+      .tree { fill: #fafafa; stroke: #e0e0e0; stroke-width: 1; }
+      .lbl { fill: #616161; font-family: system-ui, sans-serif; font-size: 11px; }
+      .item { fill: #424242; font-family: system-ui, sans-serif; font-size: 12px; }
+      .save { fill: #ffffff; font-family: system-ui, sans-serif; font-size: 13px; }
+    </style>
+  </defs>
+  <rect class="bg" width="1200" height="800" id="shell-bg"/>
+  <rect class="side" x="0" y="0" width="240" height="800" id="shell-sidebar"/>
+  <text x="16" y="340" class="navg" id="nav-group-admin">관리</text>
+  <text x="24" y="366" class="nav" id="nav-users">사용자 관리</text>
+  <text x="24" y="392" class="nav navhi" id="nav-groups">권한 그룹 관리</text>
+  <rect class="bar" x="240" y="0" width="960" height="56" id="shell-appbar"/>
+  <text x="260" y="36" class="bart" id="appbar-title">menu logmng</text>
+  <rect class="paper" x="264" y="80" width="912" height="688" rx="4" id="content-panel"/>
+  <text x="288" y="122" class="view-title" id="view-title">권한 그룹 관리</text>
+  <rect class="tree" x="288" y="140" width="280" height="600" rx="4" id="group-list-panel"/>
+  <text x="304" y="168" class="lbl" id="panel-list-title">그룹 목록</text>
+  <text x="304" y="200" class="item" id="group-item-1">운영 그룹</text>
+  <text x="304" y="228" class="item navhi" id="group-item-2">개발 그룹</text>
+  <text x="304" y="256" class="item" id="group-item-3">감사 그룹</text>
+  <rect class="paper" x="588" y="140" width="564" height="600" rx="4" id="group-detail-panel"/>
+  <text x="608" y="168" class="lbl" id="panel-detail-title">그룹 상세, 화면/기능 매핑</text>
+  <rect x="608" y="188" width="520" height="200" rx="4" fill="#fafafa" stroke="#e0e0e0" id="matrix-area"/>
+  <text x="624" y="220" class="lbl">화면별 체크박스 매트릭스</text>
+  <rect x="608" y="404" width="520" height="120" rx="4" fill="#ffffff" stroke="#e0e0e0" id="member-area"/>
+  <text x="624" y="432" class="lbl">소속 사용자</text>
+  <rect x="1000" y="660" width="120" height="36" rx="4" fill="#1976d2" id="btn-save"/>
+  <text x="1060" y="682" text-anchor="middle" class="save" id="btn-save-label">저장</text>
+</svg>

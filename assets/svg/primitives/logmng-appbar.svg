@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1040 56" aria-label="App bar primitive">
+  <defs>
+    <style>
+      .bar { fill: #1976d2; }
+      .ink { fill: #ffffff; font-family: system-ui, sans-serif; font-size: 14px; }
+    </style>
+  </defs>
+  <rect class="bar" width="1040" height="56" rx="0" id="primitive-appbar-bg"/>
+  <text x="56" y="36" class="ink" id="primitive-appbar-title">logmng</text>
+  <rect x="880" y="14" width="72" height="28" rx="4" fill="rgba(255,255,255,0.2)" id="primitive-appbar-action"/>
+</svg>
