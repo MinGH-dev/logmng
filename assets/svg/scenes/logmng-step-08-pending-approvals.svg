@@ -1,6 +1,7 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 800" role="img" aria-label="Decrypt pending approvals screen wireframe" data-step="pending-approvals">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 800" role="img" aria-label="Pending approvals with common pagination bar" data-step="pending-approvals">
   <defs>
     <style>
+
       .bg { fill: #f5f5f5; }
       .side { fill: #ffffff; stroke: #e0e0e0; stroke-width: 1; }
       .bar { fill: #1976d2; }
@@ -10,33 +11,71 @@
       .navhi { fill: #1976d2; font-weight: 600; }
       .paper { fill: #ffffff; stroke: #e0e0e0; stroke-width: 1; }
       .h1 { fill: #212121; font-family: system-ui, sans-serif; font-size: 18px; font-weight: 600; }
+      .hint { fill: #9e9e9e; font-family: system-ui, sans-serif; font-size: 11px; }
       .hdr-bg { fill: #fafafa; stroke: #e0e0e0; stroke-width: 1; }
       .hdr-txt { fill: #424242; font-family: system-ui, sans-serif; font-size: 11px; }
       .row { fill: #ffffff; stroke: #eeeeee; stroke-width: 1; }
+      .row-alt { fill: #fafafa; stroke: #eeeeee; stroke-width: 1; }
       .pill { fill: #fff3e0; stroke: #ffb74d; stroke-width: 1; }
       .pill-txt { fill: #e65100; font-family: system-ui, sans-serif; font-size: 10px; }
+      .pg-paper { fill: #ffffff; stroke: #e0e0e0; stroke-width: 1; }
+      .pg-txt { fill: #616161; font-family: system-ui, sans-serif; font-size: 12px; }
+      .pg-btn { fill: #ffffff; stroke: #bdbdbd; stroke-width: 1; }
+      .pg-btn-txt { fill: #424242; font-family: system-ui, sans-serif; font-size: 11px; }
+      .pg-active { fill: #1976d2; stroke: #1976d2; stroke-width: 1; }
+      .pg-active-txt { fill: #ffffff; font-family: system-ui, sans-serif; font-size: 11px; }
+      .pg-disabled { fill: #f5f5f5; stroke: #e0e0e0; stroke-width: 1; }
+      .pg-disabled-txt { fill: #bdbdbd; font-family: system-ui, sans-serif; font-size: 11px; }
+      .pg-divider { stroke: #e0e0e0; stroke-width: 1; }
+
     </style>
   </defs>
   <rect class="bg" width="1200" height="800" id="shell-bg"/>
   <rect class="side" x="0" y="0" width="240" height="800" id="shell-sidebar"/>
   <text x="16" y="140" class="navg" id="nav-group-history">이력·승인</text>
-  <text x="24" y="166" class="nav" id="nav-activity">활동 이력</text>
-  <text x="24" y="192" class="nav" id="nav-search-hist">검색 이력</text>
+  <text x="24" y="166" class="nav nav" id="nav-activity">활동 이력</text>
+  <text x="24" y="192" class="nav nav" id="nav-search-hist">검색 이력</text>
   <text x="24" y="218" class="nav navhi" id="nav-pending">복호화 승인 관리</text>
   <rect class="bar" x="240" y="0" width="960" height="56" id="shell-appbar"/>
-  <text x="260" y="36" class="bart" id="appbar-title">menu logmng</text>
+  <text x="260" y="36" class="bart" id="appbar-title">로그 관리 시스템</text>
   <rect class="paper" x="264" y="80" width="912" height="688" rx="4" id="content-panel"/>
   <text x="288" y="120" class="h1" id="view-title">복호화 승인 관리</text>
-  <rect class="hdr-bg" x="288" y="140" width="864" height="28" id="table-header"/>
-  <text x="296" y="158" class="hdr-txt">요청자</text>
-  <text x="400" y="158" class="hdr-txt">로그</text>
-  <text x="560" y="158" class="hdr-txt">요청 시각</text>
-  <text x="720" y="158" class="hdr-txt">상태</text>
-  <text x="900" y="158" class="hdr-txt">승인/반려</text>
-  <rect class="row" x="288" y="168" width="864" height="36"/>
-  <rect class="pill" x="296" y="178" width="72" height="18" rx="9" id="status-pending-1"/>
-  <text x="310" y="191" class="pill-txt">대기</text>
-  <rect class="row" x="288" y="204" width="864" height="36" fill="#fafafa" stroke="#eeeeee"/>
-  <rect class="pill" x="296" y="214" width="72" height="18" rx="9" id="status-pending-2"/>
-  <text x="310" y="227" class="pill-txt">대기</text>
+  <rect class="paper" x="288" y="140" width="864" height="52" rx="4" id="filter-area"/>
+  <text x="300" y="172" class="hint" id="filter-hint">필터 (기간, 상태, 요청자)</text>
+  <rect class="hdr-bg" x="288" y="208" width="864" height="28" id="table-header"/>
+  <text x="296" y="226" class="hdr-txt">요청자</text>
+  <text x="400" y="226" class="hdr-txt">로그</text>
+  <text x="520" y="226" class="hdr-txt">요청 시각</text>
+  <text x="680" y="226" class="hdr-txt">상태</text>
+  <text x="820" y="226" class="hdr-txt">승인/반려</text>
+  <rect class="row" x="288" y="236" width="864" height="32" id="row-1"/>
+  <rect class="pill" x="296" y="244" width="72" height="18" rx="9" id="status-pending-1"/>
+  <text x="310" y="257" class="pill-txt">대기</text>
+  <rect class="row-alt" x="288" y="268" width="864" height="32" id="row-2"/>
+  <rect class="pill" x="296" y="276" width="72" height="18" rx="9" id="status-pending-2"/>
+  <text x="310" y="289" class="pill-txt">대기</text>
+  <rect class="row" x="288" y="300" width="864" height="32" id="row-3"/>
+  <rect class="row-alt" x="288" y="332" width="864" height="32" id="row-4"/>
+  <rect class="row" x="288" y="364" width="864" height="32" id="row-5"/>
+  <rect class="pg-paper" x="288" y="688" width="864" height="56" rx="4" id="pagination-bar-bg"/>
+  <text x="304" y="722" class="pg-txt" id="pagination-summary">총 1,248건 / 1-25 표시</text>
+  <line class="pg-divider" x1="558" y1="700" x2="558" y2="732" id="pagination-divider"/>
+  <text x="574" y="722" class="pg-txt" id="pagination-size-label">페이지 크기</text>
+  <rect class="pg-btn" x="640" y="706" width="56" height="24" rx="4" id="pagination-size-select"/>
+  <text x="660" y="722" class="pg-btn-txt" id="pagination-size-value">25</text>
+  <rect class="pg-disabled" x="726" y="706" width="28" height="24" rx="4" id="pagination-first-disabled"/>
+  <text x="736" y="722" class="pg-disabled-txt">|&lt;</text>
+  <rect class="pg-disabled" x="760" y="706" width="28" height="24" rx="4" id="pagination-prev-disabled"/>
+  <text x="770" y="722" class="pg-disabled-txt">&lt;</text>
+  <rect class="pg-active" x="794" y="706" width="28" height="24" rx="4" id="pagination-page-1-active"/>
+  <text x="805" y="722" class="pg-active-txt">1</text>
+  <rect class="pg-btn" x="828" y="706" width="28" height="24" rx="4" id="pagination-page-2"/>
+  <text x="839" y="722" class="pg-btn-txt">2</text>
+  <rect class="pg-btn" x="862" y="706" width="28" height="24" rx="4" id="pagination-page-3"/>
+  <text x="873" y="722" class="pg-btn-txt">3</text>
+  <rect class="pg-btn" x="896" y="706" width="28" height="24" rx="4" id="pagination-next"/>
+  <text x="906" y="722" class="pg-btn-txt">&gt;</text>
+  <rect class="pg-btn" x="930" y="706" width="28" height="24" rx="4" id="pagination-last"/>
+  <text x="940" y="722" class="pg-btn-txt">&gt;|</text>
+  <text x="978" y="722" class="pg-txt" id="pagination-page-info">1 / 50</text>
 </svg>
