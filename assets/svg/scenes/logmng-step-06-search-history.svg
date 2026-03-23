@@ -14,8 +14,13 @@
       .hint { fill: #9e9e9e; font-family: system-ui, sans-serif; font-size: 11px; }
       .hdr-bg { fill: #fafafa; stroke: #e0e0e0; stroke-width: 1; }
       .hdr-txt { fill: #424242; font-family: system-ui, sans-serif; font-size: 11px; }
-      .row { fill: #ffffff; stroke: #eeeeee; stroke-width: 1; }
-      .row-alt { fill: #fafafa; stroke: #eeeeee; stroke-width: 1; }
+      .sort-icon { fill: #6c757d; font-size: 10px; }
+      .sort-icon-active { fill: #1976d2; font-size: 11px; font-weight: 600; }
+      .col-band { fill: #f6f8fb; }
+      .col-band-alt { fill: #f1f4f8; }
+      .row { fill: rgba(255, 255, 255, 0); stroke: #e3e8ef; stroke-width: 1; }
+      .row-alt { fill: rgba(255, 255, 255, 0); stroke: #e3e8ef; stroke-width: 1; }
+      .row-hover-demo { fill: #e8eef6; stroke: #e3e8ef; stroke-width: 1; }
       .pill { fill: #fff3e0; stroke: #ffb74d; stroke-width: 1; }
       .pill-txt { fill: #e65100; font-family: system-ui, sans-serif; font-size: 10px; }
       .pg-paper { fill: #ffffff; stroke: #e0e0e0; stroke-width: 1; }
@@ -42,14 +47,18 @@
   <text x="288" y="122" class="view-title" id="view-title">검색 이력</text>
   <rect class="paper" x="288" y="140" width="864" height="52" rx="4" id="filter-area"/>
   <text x="300" y="172" class="hint" id="filter-hint">필터 (기간, 로그 유형, 상태)</text>
+  <rect class="col-band" x="288" y="208" width="112" height="188" id="list-col-type"/>
+  <rect class="col-band-alt" x="400" y="208" width="220" height="188" id="list-col-summary"/>
+  <rect class="col-band" x="620" y="208" width="180" height="188" id="list-col-status"/>
+  <rect class="col-band-alt" x="800" y="208" width="352" height="188" id="list-col-research"/>
   <rect class="hdr-bg" x="288" y="208" width="864" height="28" id="list-header"/>
-  <text x="296" y="226" class="hdr-txt">로그 유형</text>
-  <text x="400" y="226" class="hdr-txt">조건 요약</text>
-  <text x="620" y="226" class="hdr-txt">상태</text>
-  <text x="800" y="226" class="hdr-txt">재검색</text>
+  <text x="296" y="226" class="hdr-txt"><tspan>로그 유형</tspan><tspan class="sort-icon"> ↕</tspan></text>
+  <text x="400" y="226" class="hdr-txt"><tspan>조건 요약</tspan><tspan class="sort-icon-active"> ↑</tspan></text>
+  <text x="620" y="226" class="hdr-txt"><tspan>상태</tspan><tspan class="sort-icon"> ↕</tspan></text>
+  <text x="800" y="226" class="hdr-txt"><tspan>재검색</tspan><tspan class="sort-icon"> ↕</tspan></text>
   <rect class="row" x="288" y="236" width="864" height="32" id="row-1"/>
   <rect x="1060" y="244" width="56" height="18" rx="3" fill="#1976d2" id="btn-research-1"/>
-  <rect class="row-alt" x="288" y="268" width="864" height="32" id="row-2"/>
+  <rect class="row-hover-demo" x="288" y="268" width="864" height="32" id="row-2-hover-demo"/>
   <rect x="1060" y="276" width="56" height="18" rx="3" fill="#1976d2" id="btn-research-2"/>
   <rect class="row" x="288" y="300" width="864" height="32" id="row-3"/>
   <rect x="1060" y="308" width="56" height="18" rx="3" fill="#1976d2" id="btn-research-3"/>

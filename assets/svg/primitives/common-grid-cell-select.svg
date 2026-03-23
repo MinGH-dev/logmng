@@ -1,4 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 168 26" role="img" aria-label="Grid cell single-select primitive">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 22" role="img" aria-label="Grid cell single-select primitive">
   <defs>
     <style>
       .field { fill: #ffffff; stroke: #bdbdbd; stroke-width: 1; }
@@ -6,8 +6,7 @@
       .chev { fill: #757575; }
     </style>
   </defs>
-  <rect class="field" x="0" y="0" width="168" height="26" rx="3" id="grid-cell-select-field"/>
-  <text x="8" y="17" class="txt" id="grid-cell-select-value">single</text>
-  <path class="chev" d="M 144 10 L 152 17 L 136 17 Z" id="grid-cell-select-chevron" aria-hidden="true"/>
+  <rect class="field" x="0" y="0" width="120" height="22" rx="2" id="grid-cell-select-field"/>
+  <text x="5" y="15" class="txt" id="grid-cell-select-value">single</text>
+  <path class="chev" d="M 102 7 L 110 14 L 94 14 Z" id="grid-cell-select-chevron" aria-hidden="true"/>
 </svg>
-

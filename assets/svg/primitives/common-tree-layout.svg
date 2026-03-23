@@ -10,8 +10,10 @@
       .toggle { fill: #555555; font-family: system-ui, sans-serif; font-size: 11px; }
       .hdr-bg { fill: #f5f5f5; stroke: #dddddd; stroke-width: 1; }
       .hdr { fill: #424242; font-family: system-ui, sans-serif; font-size: 11px; font-weight: 600; }
-      .row { fill: #ffffff; stroke: #eeeeee; stroke-width: 1; }
-      .row-alt { fill: #fafafa; stroke: #eeeeee; stroke-width: 1; }
+      .col-band { fill: #f6f8fb; }
+      .col-band-alt { fill: #f1f4f8; }
+      .row { fill: rgba(255, 255, 255, 0); stroke: #e3e8ef; stroke-width: 1; }
+      .row-alt { fill: rgba(255, 255, 255, 0); stroke: #e3e8ef; stroke-width: 1; }
       .grid-select-field { fill: #ffffff; stroke: #bdbdbd; stroke-width: 1; }
       .grid-select-txt { fill: #424242; font-family: system-ui, sans-serif; font-size: 11px; }
       .grid-select-chev { fill: #757575; }
@@ -30,6 +32,12 @@
   <text x="56" y="174" class="toggle">▼</text>
   <text x="74" y="174" class="node" id="tree-node-3">[OPS] 운영팀</text>
 
+  <rect class="col-band" x="74" y="188" width="100" height="118" id="tree-col-name"/>
+  <rect class="col-band-alt" x="174" y="188" width="150" height="118" id="tree-col-id"/>
+  <rect class="col-band" x="324" y="188" width="80" height="118" id="tree-col-grade"/>
+  <rect class="col-band-alt" x="404" y="188" width="140" height="118" id="tree-col-position"/>
+  <rect class="col-band" x="544" y="188" width="320" height="118" id="tree-col-group"/>
+
   <rect class="hdr-bg" x="74" y="188" width="790" height="28" id="tree-users-header"/>
   <text x="86" y="206" class="hdr">사용자명</text>
   <text x="190" y="206" class="hdr">사용자 ID</text>
@@ -39,9 +47,9 @@
 
   <rect class="row" x="74" y="216" width="790" height="30" id="tree-users-row-1"/>
   <g id="tree-layout-sample-grid-select" aria-label="그리드 셀 단건 셀렉트 샘플">
-    <rect class="grid-select-field" x="700" y="218" width="148" height="26" rx="3" id="tree-layout-select-field"/>
-    <text x="708" y="235" class="grid-select-txt">그룹 A</text>
-    <path class="grid-select-chev" d="M 828 228 L 836 235 L 820 235 Z" aria-hidden="true"/>
+    <rect class="grid-select-field" x="700" y="220" width="120" height="22" rx="2" id="tree-layout-select-field"/>
+    <text x="705" y="235" class="grid-select-txt">그룹 A</text>
+    <path class="grid-select-chev" d="M 802 227 L 810 234 L 794 234 Z" aria-hidden="true"/>
   </g>
   <rect class="row-alt" x="74" y="246" width="790" height="30" id="tree-users-row-2"/>
   <rect class="row" x="74" y="276" width="790" height="30" id="tree-users-row-3"/>

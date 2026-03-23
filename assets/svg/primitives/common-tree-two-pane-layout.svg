@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 912 628" role="img" aria-label="Common tree plus side panel primitive">
+  <defs>
+    <style>
+      .panel { fill: #ffffff; stroke: #e0e0e0; stroke-width: 1; }
+      .tree-box { fill: #fafafa; stroke: #dddddd; stroke-width: 1; }
+      .side-box { fill: #ffffff; stroke: #dddddd; stroke-width: 1; }
+      .title { fill: #212121; font-family: "Noto Sans KR", "Roboto", system-ui, sans-serif; font-size: 24px; font-weight: 600; }
+      .label { fill: #616161; font-family: system-ui, sans-serif; font-size: 12px; }
+      .node { fill: #424242; font-family: system-ui, sans-serif; font-size: 12px; }
+    </style>
+  </defs>
+  <rect class="panel" x="0" y="0" width="912" height="628" rx="4" id="tree-two-pane-panel"/>
+  <text x="24" y="42" class="title" id="tree-two-pane-title">Tree + 사이드 패널</text>
+  <rect class="tree-box" x="24" y="76" width="560" height="528" rx="4" id="tree-two-pane-tree"/>
+  <text x="40" y="106" class="node">▼ [HQ] 본사</text>
+  <text x="56" y="132" class="node">▶ [SEC] 보안팀</text>
+  <rect class="side-box" x="604" y="76" width="284" height="528" rx="4" id="tree-two-pane-side"/>
+  <text x="620" y="106" class="label" id="tree-two-pane-side-title">우측 관리 패널</text>
+</svg>

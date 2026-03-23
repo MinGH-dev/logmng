@@ -1,11 +1,11 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 80 26" role="img" aria-label="Grid cell compact button primitive">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 72 22" role="img" aria-label="Grid cell compact button primitive">
   <defs>
     <style>
       .btn { fill: #ffffff; stroke: #757575; stroke-width: 1; }
       .btn-txt { fill: #424242; font-family: system-ui, sans-serif; font-size: 11px; }
     </style>
   </defs>
-  <rect class="btn" x="0" y="0" width="80" height="26" rx="3" id="grid-cell-button-bg"/>
-  <text x="40" y="17" text-anchor="middle" class="btn-txt" id="grid-cell-button-label">action</text>
+  <rect class="btn" x="0" y="0" width="72" height="22" rx="2" id="grid-cell-button-bg"/>
+  <text x="36" y="15" text-anchor="middle" class="btn-txt" id="grid-cell-button-label">action</text>
 </svg>
 

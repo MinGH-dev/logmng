@@ -14,8 +14,13 @@
       .hint { fill: #9e9e9e; font-family: system-ui, sans-serif; font-size: 11px; }
       .hdr-bg { fill: #fafafa; stroke: #e0e0e0; stroke-width: 1; }
       .hdr-txt { fill: #424242; font-family: system-ui, sans-serif; font-size: 11px; }
-      .row { fill: #ffffff; stroke: #eeeeee; stroke-width: 1; }
-      .row-alt { fill: #fafafa; stroke: #eeeeee; stroke-width: 1; }
+      .sort-icon { fill: #6c757d; font-size: 10px; }
+      .sort-icon-active { fill: #1976d2; font-size: 11px; font-weight: 600; }
+      .col-band { fill: #f6f8fb; }
+      .col-band-alt { fill: #f1f4f8; }
+      .row { fill: rgba(255, 255, 255, 0); stroke: #e3e8ef; stroke-width: 1; }
+      .row-alt { fill: rgba(255, 255, 255, 0); stroke: #e3e8ef; stroke-width: 1; }
+      .row-hover-demo { fill: #e8eef6; stroke: #e3e8ef; stroke-width: 1; }
       .pill { fill: #fff3e0; stroke: #ffb74d; stroke-width: 1; }
       .pill-txt { fill: #e65100; font-family: system-ui, sans-serif; font-size: 10px; }
       .pg-paper { fill: #ffffff; stroke: #e0e0e0; stroke-width: 1; }
@@ -42,13 +47,17 @@
   <text x="288" y="122" class="view-title" id="view-title">활동 이력</text>
   <rect class="paper" x="288" y="140" width="864" height="52" rx="4" id="filter-area"/>
   <text x="300" y="172" class="hint" id="filter-hint">필터 (기간, 사용자, 액션 유형)</text>
+  <rect class="col-band" x="288" y="208" width="132" height="188" id="list-col-time"/>
+  <rect class="col-band-alt" x="420" y="208" width="140" height="188" id="list-col-user"/>
+  <rect class="col-band" x="560" y="208" width="160" height="188" id="list-col-action"/>
+  <rect class="col-band-alt" x="720" y="208" width="432" height="188" id="list-col-detail"/>
   <rect class="hdr-bg" x="288" y="208" width="864" height="28" id="list-header"/>
-  <text x="296" y="226" class="hdr-txt">시각</text>
-  <text x="420" y="226" class="hdr-txt">사용자</text>
-  <text x="560" y="226" class="hdr-txt">액션</text>
-  <text x="720" y="226" class="hdr-txt">상세</text>
+  <text x="296" y="226" class="hdr-txt"><tspan>시각</tspan><tspan class="sort-icon"> ↕</tspan></text>
+  <text x="420" y="226" class="hdr-txt"><tspan>사용자</tspan><tspan class="sort-icon-active"> ↑</tspan></text>
+  <text x="560" y="226" class="hdr-txt"><tspan>액션</tspan><tspan class="sort-icon"> ↕</tspan></text>
+  <text x="720" y="226" class="hdr-txt"><tspan>상세</tspan><tspan class="sort-icon"> ↕</tspan></text>
   <rect class="row" x="288" y="236" width="864" height="32" id="row-1"/>
-  <rect class="row-alt" x="288" y="268" width="864" height="32" id="row-2"/>
+  <rect class="row-hover-demo" x="288" y="268" width="864" height="32" id="row-2-hover-demo"/>
   <rect class="row" x="288" y="300" width="864" height="32" id="row-3"/>
   <rect class="row-alt" x="288" y="332" width="864" height="32" id="row-4"/>
   <rect class="row" x="288" y="364" width="864" height="32" id="row-5"/>

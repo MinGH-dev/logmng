@@ -12,8 +12,13 @@
       .paper { fill: #ffffff; stroke: #e0e0e0; stroke-width: 1; }
       .hdr-bg { fill: #fafafa; stroke: #e0e0e0; stroke-width: 1; }
       .hdr-txt { fill: #424242; font-family: system-ui, sans-serif; font-size: 11px; }
-      .row { fill: #ffffff; stroke: #eeeeee; stroke-width: 1; }
-      .row-alt { fill: #fafafa; stroke: #eeeeee; stroke-width: 1; }
+      .sort-icon { fill: #6c757d; font-size: 10px; }
+      .sort-icon-active { fill: #1976d2; font-size: 11px; font-weight: 600; }
+      .col-band { fill: #f6f8fb; }
+      .col-band-alt { fill: #f1f4f8; }
+      .row { fill: rgba(255, 255, 255, 0); stroke: #e3e8ef; stroke-width: 1; }
+      .row-alt { fill: rgba(255, 255, 255, 0); stroke: #e3e8ef; stroke-width: 1; }
+      .row-hover-demo { fill: #e8eef6; stroke: #e3e8ef; stroke-width: 1; }
       .hint { fill: #9e9e9e; font-family: system-ui, sans-serif; font-size: 11px; }
     </style>
   </defs>
@@ -32,12 +37,15 @@
   <text x="288" y="122" class="view-title" id="view-title">PB FEP Log</text>
   <rect class="paper" x="288" y="140" width="864" height="52" rx="4" id="filter-area"/>
   <text x="300" y="172" class="hint" id="filter-hint">검색 조건 (날짜, 키워드 등)</text>
+  <rect class="col-band" x="288" y="208" width="112" height="158" id="grid-col-time"/>
+  <rect class="col-band-alt" x="400" y="208" width="320" height="158" id="grid-col-message"/>
+  <rect class="col-band" x="720" y="208" width="432" height="158" id="grid-col-detail"/>
   <rect class="hdr-bg" x="288" y="208" width="864" height="28" id="grid-header"/>
-  <text x="296" y="226" class="hdr-txt">시간</text>
-  <text x="400" y="226" class="hdr-txt">메시지</text>
-  <text x="720" y="226" class="hdr-txt">상세</text>
+  <text x="296" y="226" class="hdr-txt"><tspan>시간</tspan><tspan class="sort-icon"> ↕</tspan></text>
+  <text x="400" y="226" class="hdr-txt"><tspan>메시지</tspan><tspan class="sort-icon-active"> ↑</tspan></text>
+  <text x="720" y="226" class="hdr-txt"><tspan>상세</tspan><tspan class="sort-icon"> ↕</tspan></text>
   <rect class="row" x="288" y="236" width="864" height="26"/>
-  <rect class="row-alt" x="288" y="262" width="864" height="26"/>
+  <rect class="row-hover-demo" x="288" y="262" width="864" height="26"/>
   <rect class="row" x="288" y="288" width="864" height="26"/>
   <rect class="row-alt" x="288" y="314" width="864" height="26"/>
   <rect class="row" x="288" y="340" width="864" height="26"/>
