@@ -17,6 +17,6 @@ Chrome 브라우저는 SVG를 **글자(XML)로 먼저 읽습니다.**
 
 ## 폴더
 
-- `primitives/` — 자주 쓰는 조각 (`common-pagination-bar`, `common-list-shell` 등)
+- `primitives/` — 자주 쓰는 조각 (`common-pagination-bar`, `common-list-shell`, `common-linear-loading-bar` 등)
 - `scenes/` — 화면별 와이어프레임
 - 목록형 화면 **활동 이력 / 검색 이력 / 복호화 승인 관리** (`logmng-step-05`, `06`, `08`)은 하단 **공통 페이징 바** 레이아웃과 맞춰 두었습니다.
