@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 168 26" role="img" aria-label="Grid cell single-select primitive">
+  <defs>
+    <style>
+      .field { fill: #ffffff; stroke: #bdbdbd; stroke-width: 1; }
+      .txt { fill: #424242; font-family: system-ui, sans-serif; font-size: 11px; }
+      .chev { fill: #757575; }
+    </style>
+  </defs>
+  <rect class="field" x="0" y="0" width="168" height="26" rx="3" id="grid-cell-select-field"/>
+  <text x="8" y="17" class="txt" id="grid-cell-select-value">single</text>
+  <path class="chev" d="M 144 10 L 152 17 L 136 17 Z" id="grid-cell-select-chevron" aria-hidden="true"/>
+</svg>
+

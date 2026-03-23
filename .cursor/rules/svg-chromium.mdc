@@ -28,3 +28,4 @@ Chrome 계열 브라우저는 SVG를 **XML 파일**처럼 읽은 뒤 그림으�
 - `&` `<` `>` 는 XML 규칙에 맞게 이스케이프하거나, 문장을 `...` 처럼 단순히 씁니다.
 - 저장 인코딩은 **UTF-8** 로 통일합니다.
 - 본문 **화면 제목**은 `assets/svg/primitives/common-view-title.svg`와 같이 클래스 **`.view-title`** 만 사용합니다 (로그인 브랜드는 `.login-brand`).
+- 그리드 **셀 내부** 셀렉트/콤보/버튼은 `common-grid-cell-*.svg` primitive와 동일한 형태를 따릅니다.

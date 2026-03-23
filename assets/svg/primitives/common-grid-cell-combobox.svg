@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 26" role="img" aria-label="Grid cell combobox with dropdown toggle primitive">
+  <defs>
+    <style>
+      .input { fill: #ffffff; stroke: #bdbdbd; stroke-width: 1; }
+      .toggle { fill: #f5f5f5; stroke: #bdbdbd; stroke-width: 1; }
+      .txt { fill: #424242; font-family: system-ui, sans-serif; font-size: 11px; }
+      .chev { fill: #555555; }
+    </style>
+  </defs>
+  <rect class="input" x="0" y="0" width="164" height="26" rx="3" id="grid-cell-combo-input"/>
+  <text x="8" y="17" class="txt" id="grid-cell-combo-text">type or pick</text>
+  <rect class="toggle" x="168" y="0" width="32" height="26" rx="3" id="grid-cell-combo-toggle"/>
+  <path class="chev" d="M 180 10 L 188 17 L 172 17 Z" id="grid-cell-combo-chevron" aria-hidden="true"/>
+</svg>
+
