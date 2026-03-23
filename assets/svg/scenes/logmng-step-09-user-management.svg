@@ -1,6 +1,7 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 800" role="img" aria-label="User management screen wireframe" data-step="user-management">
   <defs>
     <style>
+      .view-title { fill: #212121; font-family: "Noto Sans KR", "Roboto", system-ui, sans-serif; font-size: 24px; font-weight: 600; }
       .bg { fill: #f5f5f5; }
       .side { fill: #ffffff; stroke: #e0e0e0; stroke-width: 1; }
       .bar { fill: #1976d2; }
@@ -9,7 +10,6 @@
       .nav { fill: #424242; font-family: system-ui, sans-serif; font-size: 12px; }
       .navhi { fill: #1976d2; font-weight: 600; }
       .paper { fill: #ffffff; stroke: #e0e0e0; stroke-width: 1; }
-      .h1 { fill: #212121; font-family: system-ui, sans-serif; font-size: 18px; font-weight: 600; }
       .hdr-bg { fill: #fafafa; stroke: #e0e0e0; stroke-width: 1; }
       .hdr-txt { fill: #424242; font-family: system-ui, sans-serif; font-size: 11px; }
       .row { fill: #ffffff; stroke: #eeeeee; stroke-width: 1; }
@@ -26,7 +26,7 @@
   <rect class="bar" x="240" y="0" width="960" height="56" id="shell-appbar"/>
   <text x="260" y="36" class="bart" id="appbar-title">menu logmng</text>
   <rect class="paper" x="264" y="80" width="912" height="688" rx="4" id="content-panel"/>
-  <text x="288" y="120" class="h1" id="view-title">사용자 관리</text>
+  <text x="288" y="122" class="view-title" id="view-title">사용자 관리</text>
   <rect class="toolbtn" x="288" y="132" width="100" height="28" rx="4" id="btn-add-user"/>
   <text x="308" y="150" class="btnlabel" id="btn-add-user-label">+ 사용자</text>
   <rect class="hdr-bg" x="288" y="176" width="864" height="28" id="table-header"/>

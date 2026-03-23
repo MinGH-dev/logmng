@@ -1,4 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 800" role="img" aria-label="Common pagination scene" data-step="pagination-loading">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 800" role="img" aria-label="Common pagination scene" data-step="pagination-default">
   <defs>
     <style>
       .view-title { fill: #212121; font-family: "Noto Sans KR", "Roboto", system-ui, sans-serif; font-size: 24px; font-weight: 600; }
@@ -15,8 +15,6 @@
       .chip-ok { fill: #e8f5e9; stroke: #a5d6a7; stroke-width: 1; }
       .chip-err { fill: #ffebee; stroke: #ef9a9a; stroke-width: 1; }
       .chip-txt { fill: #424242; font-family: system-ui, sans-serif; font-size: 11px; }
-      .load-track { fill: #e0e0e0; }
-      .load-fill { fill: #1976d2; opacity: 0.9; }
     </style>
   </defs>
   <rect class="bg" width="1200" height="800" id="common-bg"/>
@@ -24,7 +22,7 @@
   <rect class="bar" x="240" y="0" width="960" height="56" id="common-appbar"/>
   <text x="260" y="36" class="bart" id="common-appbar-title">로그 관리 시스템</text>
   <rect class="paper" x="264" y="80" width="912" height="688" rx="4" id="common-content-panel"/>
-  <text x="288" y="122" class="view-title" id="common-view-title">공통 페이징 화면 - 로딩</text>
+  <text x="288" y="122" class="view-title" id="common-view-title">공통 페이징 화면 - 기본</text>
   <rect class="paper" x="288" y="140" width="864" height="52" rx="4" id="common-filter-area"/>
   <text x="300" y="172" class="hint" id="common-filter-hint">필터 영역 (공통 컴포넌트)</text>
   <rect class="hdr-bg" x="288" y="208" width="864" height="28" id="common-table-header"/>
@@ -32,10 +30,11 @@
   <text x="430" y="226" class="hdr-txt">컬럼 B</text>
   <text x="640" y="226" class="hdr-txt">상태</text>
   <text x="840" y="226" class="hdr-txt">액션</text>
-  <rect class="row" x="288" y="236" width="864" height="32" id="common-row-loading-1"/>
-  <rect class="row-alt" x="288" y="268" width="864" height="32" id="common-row-loading-2"/>
-  <rect class="load-track" x="400" y="400" width="400" height="8" rx="4" id="common-loading-bar-track"/>
-  <rect class="load-fill" x="400" y="400" width="160" height="8" rx="4" id="common-loading-bar-fill"/>
+  <rect class="row" x="288" y="236" width="864" height="32" id="common-row-1"/>
+  <rect class="row-alt" x="288" y="268" width="864" height="32" id="common-row-2"/>
+  <rect class="row" x="288" y="300" width="864" height="32" id="common-row-3"/>
+  <rect class="row-alt" x="288" y="332" width="864" height="32" id="common-row-4"/>
+  <rect class="row" x="288" y="364" width="864" height="32" id="common-row-5"/>
   <rect class="paper" x="288" y="688" width="864" height="56" rx="4" id="common-pagination-container"/>
   <text x="304" y="722" class="hint" id="common-pagination-summary">총 1,248건 / 1-25 표시</text>
   <rect class="paper" x="760" y="700" width="28" height="24" rx="4" id="common-page-prev"/>

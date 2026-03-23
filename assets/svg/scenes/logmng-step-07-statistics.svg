@@ -1,6 +1,7 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 800" role="img" aria-label="Activity statistics screen wireframe" data-step="statistics">
   <defs>
     <style>
+      .view-title { fill: #212121; font-family: "Noto Sans KR", "Roboto", system-ui, sans-serif; font-size: 24px; font-weight: 600; }
       .bg { fill: #f5f5f5; }
       .side { fill: #ffffff; stroke: #e0e0e0; stroke-width: 1; }
       .bar { fill: #1976d2; }
@@ -9,7 +10,6 @@
       .nav { fill: #424242; font-family: system-ui, sans-serif; font-size: 12px; }
       .navhi { fill: #1976d2; font-weight: 600; }
       .paper { fill: #ffffff; stroke: #e0e0e0; stroke-width: 1; }
-      .h1 { fill: #212121; font-family: system-ui, sans-serif; font-size: 18px; font-weight: 600; }
       .axis { stroke: #bdbdbd; stroke-width: 1; }
       .bar-v { fill: #5c6bc0; opacity: 0.85; }
       .lbl { fill: #616161; font-family: system-ui, sans-serif; font-size: 11px; }
@@ -22,7 +22,7 @@
   <rect class="bar" x="240" y="0" width="960" height="56" id="shell-appbar"/>
   <text x="260" y="36" class="bart" id="appbar-title">menu logmng</text>
   <rect class="paper" x="264" y="80" width="912" height="688" rx="4" id="content-panel"/>
-  <text x="288" y="120" class="h1" id="view-title">활동로그 통계</text>
+  <text x="288" y="122" class="view-title" id="view-title">활동로그 통계</text>
   <rect class="paper" x="288" y="140" width="864" height="56" rx="4" id="stat-filters"/>
   <text x="300" y="174" class="lbl" id="stat-filter-hint">기간, 스코프 (self / team / all)</text>
   <rect class="paper" x="288" y="212" width="420" height="320" rx="4" id="chart-card-a"/>

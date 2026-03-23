@@ -1,4 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 800" role="img" aria-label="전체 화면 로딩, 선형 진행 막대" data-step="loading">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 800" role="img" aria-label="Full-screen loading linear bar" data-step="loading">
   <defs>
     <style>
       .bg { fill: #f5f5f5; }
@@ -10,3 +10,4 @@
   <rect class="track" x="360" y="392" width="480" height="8" rx="4" id="screen-loading-bar-track"/>
   <rect class="fill" x="360" y="392" width="192" height="8" rx="4" id="screen-loading-bar-fill"/>
 </svg>
+

@@ -1,0 +1,37 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 864 56" role="img" aria-label="Common pagination bar primitive">
+  <defs>
+    <style>
+      .view-title { fill: #212121; font-family: "Noto Sans KR", "Roboto", system-ui, sans-serif; font-size: 24px; font-weight: 600; }
+      .paper { fill: #ffffff; stroke: #e0e0e0; stroke-width: 1; }
+      .txt { fill: #616161; font-family: system-ui, sans-serif; font-size: 12px; }
+      .btn { fill: #ffffff; stroke: #bdbdbd; stroke-width: 1; }
+      .btn-txt { fill: #424242; font-family: system-ui, sans-serif; font-size: 11px; }
+      .btn-active { fill: #1976d2; stroke: #1976d2; stroke-width: 1; }
+      .btn-active-txt { fill: #ffffff; font-family: system-ui, sans-serif; font-size: 11px; }
+      .disabled { fill: #f5f5f5; stroke: #e0e0e0; stroke-width: 1; }
+      .disabled-txt { fill: #bdbdbd; font-family: system-ui, sans-serif; font-size: 11px; }
+      .divider { stroke: #e0e0e0; stroke-width: 1; }
+    </style>
+  </defs>
+  <rect class="paper" x="0" y="0" width="864" height="56" rx="4" id="pagination-container"/>
+  <text x="16" y="34" class="txt" id="pagination-summary">총 1,248건 / 1-25 표시</text>
+  <line class="divider" x1="270" y1="12" x2="270" y2="44" id="pagination-divider"/>
+  <text x="286" y="34" class="txt" id="pagination-size-label">페이지 크기</text>
+  <rect class="btn" x="352" y="18" width="56" height="24" rx="4" id="pagination-size-select"/>
+  <text x="372" y="34" class="btn-txt" id="pagination-size-value">25</text>
+  <rect class="disabled" x="438" y="18" width="28" height="24" rx="4" id="pagination-first-disabled"/>
+  <text x="448" y="34" class="disabled-txt">|&lt;</text>
+  <rect class="disabled" x="472" y="18" width="28" height="24" rx="4" id="pagination-prev-disabled"/>
+  <text x="482" y="34" class="disabled-txt">&lt;</text>
+  <rect class="btn-active" x="506" y="18" width="28" height="24" rx="4" id="pagination-page-1-active"/>
+  <text x="517" y="34" class="btn-active-txt">1</text>
+  <rect class="btn" x="540" y="18" width="28" height="24" rx="4" id="pagination-page-2"/>
+  <text x="551" y="34" class="btn-txt">2</text>
+  <rect class="btn" x="574" y="18" width="28" height="24" rx="4" id="pagination-page-3"/>
+  <text x="585" y="34" class="btn-txt">3</text>
+  <rect class="btn" x="608" y="18" width="28" height="24" rx="4" id="pagination-next"/>
+  <text x="618" y="34" class="btn-txt">&gt;</text>
+  <rect class="btn" x="642" y="18" width="28" height="24" rx="4" id="pagination-last"/>
+  <text x="652" y="34" class="btn-txt">&gt;|</text>
+  <text x="690" y="34" class="txt" id="pagination-page-info">1 / 50</text>
+</svg>

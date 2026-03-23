@@ -3,7 +3,7 @@
     <style>
       .bg { fill: #f5f5f5; }
       .card { fill: #ffffff; stroke: #e0e0e0; stroke-width: 1; }
-      .title { fill: #1976d2; font-family: system-ui, sans-serif; font-size: 22px; font-weight: 600; }
+      .login-brand { fill: #1976d2; font-family: "Noto Sans KR", "Roboto", system-ui, sans-serif; font-size: 22px; font-weight: 600; }
       .lbl { fill: #424242; font-family: system-ui, sans-serif; font-size: 12px; }
       .field { fill: #ffffff; stroke: #bdbdbd; stroke-width: 1; }
       .btn { fill: #1976d2; }
@@ -12,7 +12,7 @@
   </defs>
   <rect class="bg" width="1200" height="800" id="screen-login-bg"/>
   <rect class="card" x="400" y="220" width="400" height="360" rx="8" id="screen-login-card"/>
-  <text x="600" y="280" text-anchor="middle" class="title" id="screen-login-brand">logmng</text>
+  <text x="600" y="280" text-anchor="middle" class="login-brand" id="screen-login-brand">logmng</text>
   <text x="430" y="330" class="lbl" id="label-userid">사용자 ID</text>
   <rect class="field" x="430" y="340" width="340" height="36" rx="4" id="input-userid"/>
   <text x="430" y="410" class="lbl" id="label-password">비밀번호</text>

@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 912 628" role="img" aria-label="Common list shell primitive">
+  <defs>
+    <style>
+      .view-title { fill: #212121; font-family: "Noto Sans KR", "Roboto", system-ui, sans-serif; font-size: 24px; font-weight: 600; }
+      .paper { fill: #ffffff; stroke: #e0e0e0; stroke-width: 1; }
+      .hint { fill: #9e9e9e; font-family: system-ui, sans-serif; font-size: 11px; }
+      .hdr-bg { fill: #fafafa; stroke: #e0e0e0; stroke-width: 1; }
+      .hdr-txt { fill: #424242; font-family: system-ui, sans-serif; font-size: 11px; }
+      .row { fill: #ffffff; stroke: #eeeeee; stroke-width: 1; }
+      .row-alt { fill: #fafafa; stroke: #eeeeee; stroke-width: 1; }
+    </style>
+  </defs>
+  <rect class="paper" x="0" y="0" width="912" height="628" rx="4" id="list-shell-panel"/>
+  <text x="24" y="42" class="view-title" id="list-shell-title">공통 목록 화면</text>
+  <rect class="paper" x="24" y="58" width="864" height="52" rx="4" id="list-shell-filter"/>
+  <text x="36" y="90" class="hint" id="list-shell-filter-hint">필터 영역 (날짜, 키워드, 상태, 부서 등)</text>
+  <rect class="hdr-bg" x="24" y="126" width="864" height="28" id="list-shell-header"/>
+  <text x="32" y="144" class="hdr-txt">컬럼 A</text>
+  <text x="180" y="144" class="hdr-txt">컬럼 B</text>
+  <text x="360" y="144" class="hdr-txt">컬럼 C</text>
+  <text x="640" y="144" class="hdr-txt">액션</text>
+  <rect class="row" x="24" y="154" width="864" height="32" id="list-shell-row-1"/>
+  <rect class="row-alt" x="24" y="186" width="864" height="32" id="list-shell-row-2"/>
+  <rect class="row" x="24" y="218" width="864" height="32" id="list-shell-row-3"/>
+  <rect class="row-alt" x="24" y="250" width="864" height="32" id="list-shell-row-4"/>
+  <rect class="row" x="24" y="282" width="864" height="32" id="list-shell-row-5"/>
+  <rect class="paper" x="24" y="548" width="864" height="56" rx="4" id="list-shell-pagination-slot"/>
+  <text x="36" y="580" class="hint" id="list-shell-pagination-hint">페이징 슬롯 (common-pagination-bar 사용)</text>
+</svg>

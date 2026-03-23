@@ -8,7 +8,7 @@
   </defs>
   <text x="16" y="24" class="group-title" id="primitive-group-label">MENU_GROUP</text>
   <line class="line" x1="12" y1="32" x2="228" y2="32"/>
-  <text x="20" y="56" class="item" id="primitive-leaf-1">" Leaf screen A</text>
-  <text x="20" y="82" class="item" id="primitive-leaf-2">" Leaf screen B</text>
-  <text x="20" y="108" class="item" id="primitive-leaf-3">" Leaf screen C</text>
+  <text x="20" y="56" class="item" id="primitive-leaf-1">• Leaf screen A</text>
+  <text x="20" y="82" class="item" id="primitive-leaf-2">• Leaf screen B</text>
+  <text x="20" y="108" class="item" id="primitive-leaf-3">• Leaf screen C</text>
 </svg>
