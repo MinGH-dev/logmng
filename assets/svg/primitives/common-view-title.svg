@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 480 32" role="img" aria-label="Common screen title typography primitive">
+  <defs>
+    <style>
+      .view-title { fill: #212121; font-family: "Noto Sans KR", "Roboto", system-ui, sans-serif; font-size: 24px; font-weight: 600; }
+    </style>
+  </defs>
+  <text x="0" y="26" class="view-title" id="primitive-view-title-sample">화면 제목</text>
+</svg>

@@ -1,0 +1,56 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 912 628" role="img" aria-label="Common tree UI layout primitive">
+  <defs>
+    <style>
+      .view-title { fill: #212121; font-family: "Noto Sans KR", "Roboto", system-ui, sans-serif; font-size: 24px; font-weight: 600; }
+      .hint { fill: #666666; font-family: system-ui, sans-serif; font-size: 13px; }
+      .panel { fill: #ffffff; stroke: #e0e0e0; stroke-width: 1; }
+      .tree-box { fill: #fafafa; stroke: #dddddd; stroke-width: 1; }
+      .node { fill: #424242; font-family: system-ui, sans-serif; font-size: 12px; }
+      .node-strong { fill: #1976d2; font-family: system-ui, sans-serif; font-size: 12px; font-weight: 600; }
+      .toggle { fill: #555555; font-family: system-ui, sans-serif; font-size: 11px; }
+      .hdr-bg { fill: #f5f5f5; stroke: #dddddd; stroke-width: 1; }
+      .hdr { fill: #424242; font-family: system-ui, sans-serif; font-size: 11px; font-weight: 600; }
+      .col-band { fill: #f6f8fb; }
+      .col-band-alt { fill: #f1f4f8; }
+      .row { fill: rgba(255, 255, 255, 0); stroke: #e3e8ef; stroke-width: 1; }
+      .row-alt { fill: rgba(255, 255, 255, 0); stroke: #e3e8ef; stroke-width: 1; }
+      .grid-select-field { fill: #ffffff; stroke: #bdbdbd; stroke-width: 1; }
+      .grid-select-txt { fill: #424242; font-family: system-ui, sans-serif; font-size: 11px; }
+      .grid-select-chev { fill: #757575; }
+    </style>
+  </defs>
+  <rect class="panel" x="0" y="0" width="912" height="628" rx="4" id="tree-layout-panel"/>
+  <text x="24" y="42" class="view-title" id="tree-layout-title">Tree 기반 화면</text>
+  <text x="24" y="68" class="hint" id="tree-layout-hint">부서 트리를 펼치고 하위 사용자/권한을 한 화면에서 본다.</text>
+
+  <rect class="tree-box" x="24" y="92" width="864" height="512" rx="4" id="tree-layout-tree-section"/>
+
+  <text x="40" y="122" class="toggle">▼</text>
+  <text x="58" y="122" class="node-strong" id="tree-node-1">[HQ] 본사</text>
+  <text x="56" y="148" class="toggle">▶</text>
+  <text x="74" y="148" class="node" id="tree-node-2">[FIN] 재무팀</text>
+  <text x="56" y="174" class="toggle">▼</text>
+  <text x="74" y="174" class="node" id="tree-node-3">[OPS] 운영팀</text>
+
+  <rect class="col-band" x="74" y="188" width="100" height="118" id="tree-col-name"/>
+  <rect class="col-band-alt" x="174" y="188" width="150" height="118" id="tree-col-id"/>
+  <rect class="col-band" x="324" y="188" width="80" height="118" id="tree-col-grade"/>
+  <rect class="col-band-alt" x="404" y="188" width="140" height="118" id="tree-col-position"/>
+  <rect class="col-band" x="544" y="188" width="320" height="118" id="tree-col-group"/>
+
+  <rect class="hdr-bg" x="74" y="188" width="790" height="28" id="tree-users-header"/>
+  <text x="86" y="206" class="hdr">사용자명</text>
+  <text x="190" y="206" class="hdr">사용자 ID</text>
+  <text x="300" y="206" class="hdr">직급</text>
+  <text x="380" y="206" class="hdr">직책</text>
+  <text x="700" y="206" class="hdr">권한 그룹</text>
+
+  <rect class="row" x="74" y="216" width="790" height="30" id="tree-users-row-1"/>
+  <g id="tree-layout-sample-grid-select" aria-label="그리드 셀 단건 셀렉트 샘플">
+    <rect class="grid-select-field" x="700" y="220" width="120" height="22" rx="2" id="tree-layout-select-field"/>
+    <text x="705" y="235" class="grid-select-txt">그룹 A</text>
+    <path class="grid-select-chev" d="M 802 227 L 810 234 L 794 234 Z" aria-hidden="true"/>
+  </g>
+  <rect class="row-alt" x="74" y="246" width="790" height="30" id="tree-users-row-2"/>
+  <rect class="row" x="74" y="276" width="790" height="30" id="tree-users-row-3"/>
+</svg>

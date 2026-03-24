@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 12" role="img" aria-label="Linear loading bar primitive">
+  <defs>
+    <style>
+      .view-title { fill: #212121; font-family: "Noto Sans KR", "Roboto", system-ui, sans-serif; font-size: 24px; font-weight: 600; }
+      .track { fill: #e0e0e0; }
+      .fill { fill: #1976d2; opacity: 0.9; }
+    </style>
+  </defs>
+  <rect class="track" x="0" y="2" width="400" height="8" rx="4" id="linear-loading-track"/>
+  <rect class="fill" x="0" y="2" width="160" height="8" rx="4" id="linear-loading-fill"/>
+</svg>

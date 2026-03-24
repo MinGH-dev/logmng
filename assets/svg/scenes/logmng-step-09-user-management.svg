@@ -1,0 +1,85 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 800" role="img" aria-label="User management tree and users table screen" data-step="user-management">
+  <defs>
+    <style>
+      .view-title { fill: #212121; font-family: "Noto Sans KR", "Roboto", system-ui, sans-serif; font-size: 24px; font-weight: 600; }
+      .bg { fill: #f5f5f5; }
+      .side { fill: #ffffff; stroke: #e0e0e0; stroke-width: 1; }
+      .bar { fill: #1976d2; }
+      .bart { fill: #ffffff; font-family: system-ui, sans-serif; font-size: 14px; }
+      .navg { fill: #616161; font-family: system-ui, sans-serif; font-size: 11px; font-weight: 600; }
+      .nav { fill: #424242; font-family: system-ui, sans-serif; font-size: 12px; }
+      .navhi { fill: #1976d2; font-weight: 600; }
+      .paper { fill: #ffffff; stroke: #e0e0e0; stroke-width: 1; }
+      .hint { fill: #666666; font-family: system-ui, sans-serif; font-size: 13px; }
+      .tree-box { fill: #fafafa; stroke: #dddddd; stroke-width: 1; }
+      .tree-toggle { fill: #555555; font-family: system-ui, sans-serif; font-size: 11px; }
+      .node { fill: #424242; font-family: system-ui, sans-serif; font-size: 12px; }
+      .node-strong { fill: #1976d2; font-family: system-ui, sans-serif; font-size: 12px; font-weight: 600; }
+      .hdr-bg { fill: #f5f5f5; stroke: #dddddd; stroke-width: 1; }
+      .hdr { fill: #424242; font-family: system-ui, sans-serif; font-size: 11px; font-weight: 600; }
+      .col-band { fill: #f6f8fb; }
+      .col-band-alt { fill: #f1f4f8; }
+      .row { fill: rgba(255, 255, 255, 0); stroke: #e3e8ef; stroke-width: 1; }
+      .row-alt { fill: rgba(255, 255, 255, 0); stroke: #e3e8ef; stroke-width: 1; }
+      .grid-select-field { fill: #ffffff; stroke: #bdbdbd; stroke-width: 1; }
+      .grid-select-txt { fill: #424242; font-family: system-ui, sans-serif; font-size: 11px; }
+      .grid-select-chev { fill: #757575; }
+    </style>
+  </defs>
+  <rect class="bg" width="1200" height="800" id="shell-bg"/>
+  <rect class="side" x="0" y="0" width="240" height="800" id="shell-sidebar"/>
+  <text x="16" y="340" class="navg" id="nav-group-admin">관리</text>
+  <text x="24" y="366" class="nav navhi" id="nav-users">사용자 관리</text>
+  <text x="24" y="392" class="nav" id="nav-groups">권한 그룹 관리</text>
+
+  <rect class="bar" x="240" y="0" width="960" height="56" id="shell-appbar"/>
+  <text x="260" y="36" class="bart" id="appbar-title">로그 관리 시스템</text>
+
+  <rect class="paper" x="264" y="80" width="912" height="688" rx="4" id="content-panel"/>
+  <text x="288" y="122" class="view-title" id="view-title">사용자 관리</text>
+  <text x="288" y="146" class="hint" id="view-hint">부서를 펼치면 해당 부서 사용자를 볼 수 있으며, 권한 그룹은 단건 선택 셀렉트로 지정할 수 있습니다.</text>
+
+  <rect class="tree-box" x="288" y="164" width="864" height="560" rx="4" id="tree-section"/>
+
+  <text x="304" y="194" class="tree-toggle">▼</text>
+  <text x="322" y="194" class="node-strong" id="dept-node-hq">[HQ] 본사</text>
+  <text x="320" y="220" class="tree-toggle">▶</text>
+  <text x="338" y="220" class="node" id="dept-node-fin">[FIN] 재무팀</text>
+  <text x="320" y="246" class="tree-toggle">▼</text>
+  <text x="338" y="246" class="node" id="dept-node-ops">[OPS] 운영팀</text>
+
+  <rect class="col-band" x="338" y="258" width="100" height="98" id="users-col-name"/>
+  <rect class="col-band-alt" x="438" y="258" width="150" height="98" id="users-col-id"/>
+  <rect class="col-band" x="588" y="258" width="80" height="98" id="users-col-grade"/>
+  <rect class="col-band-alt" x="668" y="258" width="140" height="98" id="users-col-position"/>
+  <rect class="col-band" x="808" y="258" width="320" height="98" id="users-col-group"/>
+
+  <rect class="hdr-bg" x="338" y="258" width="790" height="30" id="users-table-header"/>
+  <text x="350" y="277" class="hdr">사용자명</text>
+  <text x="450" y="277" class="hdr">사용자 ID</text>
+  <text x="600" y="277" class="hdr">직급</text>
+  <text x="680" y="277" class="hdr">직책</text>
+  <text x="820" y="277" class="hdr">권한 그룹</text>
+
+  <rect class="row" x="338" y="288" width="790" height="34" id="users-row-1"/>
+  <text x="350" y="309" class="node">홍길동</text>
+  <text x="450" y="309" class="node">20260001</text>
+  <text x="600" y="309" class="node">팀장</text>
+  <text x="680" y="309" class="node">리드</text>
+  <g id="grid-cell-select-row1" aria-label="권한 그룹 단건 선택">
+    <rect class="grid-select-field" x="848" y="294" width="120" height="22" rx="2" id="group-select-field-1"/>
+    <text x="853" y="309" class="grid-select-txt" id="group-select-value-1">운영 그룹</text>
+    <path class="grid-select-chev" d="M 950 301 L 958 308 L 942 308 Z" id="group-select-chevron-1" aria-hidden="true"/>
+  </g>
+
+  <rect class="row-alt" x="338" y="322" width="790" height="34" id="users-row-2"/>
+  <text x="350" y="343" class="node">김철수</text>
+  <text x="450" y="343" class="node">20260002</text>
+  <text x="600" y="343" class="node">대리</text>
+  <text x="680" y="343" class="node">엔지니어</text>
+  <g id="grid-cell-select-row2" aria-label="권한 그룹 단건 선택">
+    <rect class="grid-select-field" x="848" y="328" width="120" height="22" rx="2" id="group-select-field-2"/>
+    <text x="853" y="343" class="grid-select-txt" id="group-select-value-2">개발 그룹</text>
+    <path class="grid-select-chev" d="M 950 335 L 958 342 L 942 342 Z" id="group-select-chevron-2" aria-hidden="true"/>
+  </g>
+</svg>
