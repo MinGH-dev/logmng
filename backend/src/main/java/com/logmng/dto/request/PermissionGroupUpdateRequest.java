@@ -21,6 +21,12 @@ public class PermissionGroupUpdateRequest {
     @JsonDeserialize(using = AllowedScreenListDeserializer.class)
     private List<AllowedScreenItem> allowedScreens;
 
+    /**
+     * Optional audit note when updating from the admin UI. Not persisted on permission_group row; logged server-side when non-blank.
+     */
+    @JsonProperty("changeReason")
+    private String changeReason;
+
     public String getCode() {
         return code;
     }
@@ -59,5 +65,13 @@ public class PermissionGroupUpdateRequest {
 
     public void setAllowedScreens(List<AllowedScreenItem> allowedScreens) {
         this.allowedScreens = allowedScreens;
+    }
+
+    public String getChangeReason() {
+        return changeReason;
+    }
+
+    public void setChangeReason(String changeReason) {
+        this.changeReason = changeReason;
     }
 }

@@ -20,7 +20,8 @@
 | `PGPASSWORD_SUPER` | 슈퍼유저 비밀번호(선택) | (미설정 시 로컬 인증에 따름) |
 
 **DDL 파일 구성**  
-`schema.sql`은 `schema_pb_fep.sql`(PB)과 `schema_sys.sql`(시스템)을 `\i`로 불러옵니다. 단일 DB·`public`만 쓰는 경우에도 `psql -f schema.sql` 한 번으로 이전과 동일한 객체 집합이 생성됩니다.
+`schema.sql`은 `schema_pb_fep.sql`(PB)과 `schema_sys.sql`(시스템)을 `\i`로 불러옵니다. 단일 DB·`public`만 쓰는 경우에도 `psql -f schema.sql` 한 번으로 이전과 동일한 객체 집합이 생성됩니다.  
+PB FEP 로그 검색 API는 `pb_send`와 `pb_recv`를 UNION ALL로 조회하며, `init-data.sql` 시드도 동일 두 테이블에 적재합니다.
 
 **마이그레이션 적용 순서 (TC-06)**  
 

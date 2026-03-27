@@ -64,7 +64,7 @@
 
 ### 2.4 현재 사용자 정보 (GET /api/auth/me, 선택)
 
-- **GET** `/api/auth/me` — 로그인 사용자 정보 반환. `isSystemAdmin: boolean`, `allowedScreenIds: string[]`, `screenScopes: Record<string, 'self'|'team'|'all'>`, `screenFunctions: Record<string, { read, write?, approve?, decrypt? }>`, `selfContext: { department: string | null, username: string, userId: number }` 포함 (req 20250303, 20260305, 20260313). screenScopes는 조회(목록) 범위(본인/부서/전체) 결정용. 승인 범위는 부서 고정·변경 불가. screenFunctions는 화면별 read/write/approve/decrypt 가능 여부로 버튼·액션 enable·disable용. **`selfContext`**는 applicable shared-pattern 화면에서 `scope=self`일 때 보이는 잠금 self-context 표시값의 권위 소스다. **`selfContext.userId`**는 **numeric** **`app_user.id`**(JSON number). **`username`**은 **표시 이름(사용자명)**: `app_user.name`이 존재하고 비어 있지 않으면 그 값, 그렇지 않으면 `app_user.username`을 사용한다.
+- **GET** `/api/auth/me` — 로그인 사용자 정보 반환. `isSystemAdmin: boolean`, `allowedScreenIds: string[]`, `screenScopes: Record<string, 'self'|'team'|'all'>`, `screenFunctions: Record<string, { read, write?, approve?, decrypt? }>`, `selfContext: { department: string | null, username: string, userId: number }` 포함 (req 20250303, 20260305, 20260313). screenScopes는 조회(목록) 범위(본인/부서/전체) 결정용. 승인 범위는 부서 고정·변경 불가. screenFunctions는 화면별 read/write/approve/decrypt 가능 여부로 버튼·액션 enable·disable용. **`search-history`·`pending-approvals`의 `approve`**: `docs/contract.md` **「복호화 승인 자격」** — 권한 그룹 `permission_group_screen.approve`를 먼저 반영한 뒤 **`is_system_admin=true`이면 해당 화면 `approve`는 유효하지 않음(false)**; `ADMIN_EXT` 등 **`is_system_admin=false`인 사용자는 그룹 설정만** 따름. **`selfContext`**는 applicable shared-pattern 화면에서 `scope=self`일 때 보이는 잠금 self-context 표시값의 권위 소스다. **`selfContext.userId`**는 **numeric** **`app_user.id`**(JSON number). **`username`**은 **표시 이름(사용자명)**: `app_user.name`이 존재하고 비어 있지 않으면 그 값, 그렇지 않으면 `app_user.username`을 사용한다.
 
 ---
 
@@ -138,11 +138,49 @@
 | pageSize | integer | | 기본 10 |
 | sortField | string | | 기본 "log_timestamp" |
 | sortDirection | string | | 기본 "desc" |
+| sortSpecs | { field: string, direction: string }[] | | **pb_feplog only**: ordered multi-column sort; when non-empty, overrides sortField/sortDirection. `field` must be an allowlisted column (e.g. log_timestamp, tr_code, user_id). |
 | displayTemplate | string | | 기본 "detailed" |
 
 - **Response (data)**: `LogDbSearchResponse`
   - `data`: object[] (로그 행 목록)
   - `pagination`: `{ currentPage, totalPages, totalCount }`
+
+### 5.1.1 PB FEP wireframe log search (`pb-fep-log-search`)
+
+- **POST** `/api/logs/db-refactored/pb-fep-log-search`
+- **Purpose**: Dedicated search for screen ID **`pb-fep-log-search`** only (wireframe IA / column names). Returns the same PB FEP UNION (`pb_feplog`) as legacy search but **each row uses wireframe field names** per requirement `docs/requirements/20260326-pb-fep-log-search-screen-wireframe.md` §2.D.
+- **Legacy unchanged**: **`POST /api/logs/db-refactored/search`** (including `logType=pb_feplog` for **`pb-feplog`**) keeps its existing contract and response shape. New clients for **`pb-fep-log-search`** must call this path; legacy **`pb-feplog`** must **not** be repointed here without a separate requirement.
+- **Auth / access**: Same family as PB FEP log search and screen **`pb-fep-log-search`**: user must satisfy existing log-type and screen checks for **`pb_feplog`** / PB FEP (see `docs/contract.md` API function-level enforcement: **`pb-feplog` or `pb-fep-log-search`** for `pb_feplog` access). Unauthenticated **401**; insufficient screen / log-type access **403** `LOG_TYPE_NOT_ALLOWED` (or equivalent `FUNCTION_NOT_ALLOWED` where applicable).
+
+- **Request body** (JSON): **`LogDbSearchRequest`** subset / same shape as §5.1 for shared fields.
+
+| 필드 | 타입 | 필수 | 설명 |
+|------|------|------|------|
+| startDate | string | O (product) | Combined range start (wireframe: 조회일자 + 시작시간); format as in §5.1. |
+| endDate | string | O (product) | Combined range end (조회일자 + 종료시간); server validates start ≤ end. |
+| loginId | string | O | Non-blank; filters DB `user_id`. |
+| trCode / tr_code | string | X | Optional TR filter. |
+| keywords | string[] | X | Optional tokens (e.g. from comma-separated UI input). |
+| logType | string | X | May default to **`pb_feplog`** or be implied by this route; server validates PB FEP only. |
+| page | integer | X | Default **1**. |
+| pageSize | integer | X | Wireframe default **25**; allowed **25 / 50 / 100** (validate if outside). |
+| displayTemplate | string | X | Optional; same meaning as §5.1 if used. |
+| sortField / sortDirection | string | X | Legacy single-column fallback when **`sortSpecs`** is empty (implementation-defined; initial UI sort is `log_timestamp` **desc**). |
+| sortSpecs | { field: string, direction: string }[] | X | **Cumulative** multi-column sort (ordered). **`field`** must be **allowlisted** (wireframe semantics / DB column map per `docs/contract.md` PB FEP wireframe section). Unknown **`field`** → **400**. When non-empty, overrides **`sortField` / `sortDirection`** for ordering. |
+| decryptData | boolean | X | As §5.1 if applicable to PB FEP behavior. |
+| (기타 LogDbSearchRequest 필드) | — | X | 이미지로그 전용 등 PB FEP와 무관한 필드는 무시 가능. |
+
+- **Response (data)**: Same envelope as §5.1 — object with:
+  - **`data`**: `object[]` — each row is a **wireframe-keyed** map (not legacy `/search` column names for this screen):
+    - **Stable keys**: `id` (number, row id), `log_type` (string; branch discriminator with `id` for unique row keys — e.g. send vs recv).
+    - **Columns**: `log_timestamp`, `tr_code`, `login_id`, `msg_code`, `bmsg`, `log_ch_cd`, `send_recv` (`SEND` \| `RECV`), `src_ip`, `dest_ip`, `app_id`, `data`.
+    - **Stream / expand (optional)**: `request_data`, `response_data` (or equivalent) when needed for expanded STREAM DATA; masking/decrypt follows PB FEP rules in `LogDbService` / contract.
+  - **`pagination`**: `{ currentPage, totalPages, totalCount }`
+
+- **에러** (요약):
+  - **400** — range/login validation, invalid **`sortSpecs.field`** (allowlist), bad **`pageSize`**; `code` e.g. **`INVALID_INPUT`** or **`BAD_REQUEST`** (implementation aligns).
+  - **401** — 비인증.
+  - **403** — **`LOG_TYPE_NOT_ALLOWED`**, **`FUNCTION_NOT_ALLOWED`** — PB FEP / **`pb-fep-log-search`** 접근 또는 기능 없음.
 
 ### 5.2 로그 상세 조회
 
@@ -276,33 +314,33 @@
 - **Response (data)**: `id`, `logType`, `searchParams` (object, 전체 검색 조건), `requestedAt`, `expiresAt`, `approvalStatus`, `requestReason` (string | null, 요청 사유; req 20260317), **`searchResultTotalCount` (number \| null), `decryptionTargetCount` (number \| null)** — DB 저장 스냅샷(레거시 null), 결재 이력(선택·nullable): `approvedBy` (표시용; req 20260316: `approved_by_user_id`→username, 없으면 `approved_by`), `approvedAt`, `rejectedBy`, `rejectedAt`, `rejectionReason`. **복호화 요청 대상 (항상 포함, req 20260320)**: `decryptionRequestedRows`: `{ application: string | null, serviceGroup: string | null, guid: string, status: string }[]` (java_fw_imglog의 `status`는 행의 비즈니스 status; 스냅샷·복합 키와 정렬), `decryptionRequestedCount`: number. **출처**: `APPROVED`이고 `search_history_approved_row`에 행이 있으면 DB 스냅샷을 사용(없으면 승인과 동일하게 저장 검색 재실행: `search_params`+`logType`, 최대 1만 건, 암호화 데이터가 있는 행만). `PENDING` / `REJECTED` / `EXPIRED`는 항상 저장 검색 재실행으로 수집(동일 규칙). java_fw_imglog는 `(guid, status)`로 로그 DB 보강; 로그 DB 장애·미존재 시 해당 항목은 null. `search_params` 파싱 실패·검색 실패 시 빈 배열·0.
 - **에러**: 403(타 사용자 소유), 404(없음)
 
-### 6.1.5 승인 대기 목록 조회 (결재자·관리자 전용)
+### 6.1.5 승인 대기 목록 조회 (복호화 승인 권한 보유자 전용)
 
 - **GET** `/api/search-history/pending`
-- **권한**: 결재자(decrypt_approver에 등록된 사용자) 또는 관리자(is_system_admin=true)만 호출 가능. 그 외 403.
-- **Scope (검색 이력과 동일 규칙, req 20260305)**: is_system_admin=false일 때 권한 그룹의 pending-approvals scope 적용. scope='self' → 요청자(requester)=현재 사용자인 건만; scope='team' → 동일 부서 요청자만(그 중 canApproveForRequester 충족); scope='all' → 결재 가능한 전체(기존 동작). auth 응답 screenScopes['pending-approvals']에 따라 백엔드가 목록 필터.
+- **권한**: `GET /api/auth/me`의 **`screenFunctions.pending-approvals.approve === true`** 인 사용자만 호출 가능(`docs/contract.md` 「복호화 승인 자격」: 권한 그룹 화면별 승인 반영 후 **`is_system_admin`이면 상쇄되어 false**). **`is_system_admin=true`만으로는 호출 불가**. 그 외 403 `FORBIDDEN_NOT_APPROVER` / `NOT_APPROVER`.
+- **Scope (검색 이력과 동일 규칙, req 20260305)**: is_system_admin=false일 때 권한 그룹의 pending-approvals scope 적용. scope='self' → 요청자(requester)=현재 사용자인 건만; scope='team' → 동일 부서 요청자만(그 중 `canApproveForRequester` 충족); scope='all' → `canApproveForRequester` 충족 건. **`canApproveForRequester`**: 승인자·요청자 **`department_code` 동일**할 때만 true(상위 부서 체인·전역 결재자 없음). auth 응답 `screenScopes['pending-approvals']`에 따라 백엔드가 목록 필터.
 - **Query**: `page` (기본 1), `pageSize` (기본 20)
 - **Response (data)**: `SearchHistoryPendingListResponse`
   - `data`: 배열. 각 항목: `id`, `requester` (요청자 username), `searchParamsSummary` (요약 문자열), `requestedAt` (yyyy-MM-dd'T'HH:mm:ss), `searchResultTotalCount` (number \| null), `decryptionTargetCount` (number \| null), 기타 목록용 필드
   - `pagination`: `{ currentPage, totalPages, totalCount }`
-- **에러**: 401 비인증, 403 결재자/관리자 아님 → `code: "FORBIDDEN_NOT_APPROVER"` 또는 `"NOT_APPROVER"`
+- **에러**: 401 비인증, 403 유효 승인 권한 없음 → `code: "FORBIDDEN_NOT_APPROVER"` 또는 `"NOT_APPROVER"`
 
-### 6.1.6 검색 이력 승인 (결재자·관리자 전용)
+### 6.1.6 검색 이력 승인 (복호화 승인 권한 보유자 전용)
 
 - **POST** `/api/search-history/{id}/approve`
 - **Path**: `id` — 검색 이력 ID (Long)
-- **권한**: 결재자 또는 관리자(is_system_admin=true)만 호출 가능. 그 외 403.
-- **부서별 승인 제한 (검색 이력과 동일)**: 서비스 레이어에서 `canApproveForRequester(승인자, 요청자)` 검사. 부서별 결재자는 **해당 요청자(requester)의 부서에 대한 결재자**일 때만 승인 가능; 전역 결재자(department_code NULL)·관리자는 전체 건 승인 가능. 미충족 시 403 `FUNCTION_NOT_ALLOWED`.
+- **권한**: **`screenFunctions.search-history.approve`** 또는 **`pending-approvals.approve`** 중 **하나라도 effective true** (`docs/contract.md` 「복호화 승인 자격」: 그룹 `approve` 반영 후 **`is_system_admin`이면 상쇄**). **`is_system_admin=true`만으로는 승인 불가**. 그 외 403 `FORBIDDEN_NOT_APPROVER` / `NOT_APPROVER`.
+- **요청 단위 부서 제한**: 서비스 레이어에서 `canApproveForRequester(승인자, 요청자)` — **승인자 `department_code` = 요청자 `department_code`** 일 때만 true. 미충족 시 403 `FUNCTION_NOT_ALLOWED`.
 - **Request body**: 없음
 - **Response (data)**: `{ "id": number, "approvalStatus": "APPROVED", "approvedBy": string (표시용; req 20260316: approved_by_user_id→username), "approvedAt": string (yyyy-MM-dd'T'HH:mm:ss) }`. 내부 저장: `approved_by_user_id` (numeric), `approved_by` (표시 보조).
-- **에러**: 401 비인증, 403 결재자/관리자 아님 → `code: "FORBIDDEN_NOT_APPROVER"` 또는 `"NOT_APPROVER"`, 403 해당 건에 대한 승인 권한 없음 → `code: "FUNCTION_NOT_ALLOWED"`, 404 해당 이력 없음. 400: search_params 파싱 실패 → `code: "INVALID_SEARCH_PARAMS"`; 기타 승인 처리 중 예외 → `code: "APPROVAL_ERROR"` (req 20260316-decrypt-approve-cross-user-server-error, cross-user 승인 시 500 미발생).
+- **에러**: 401 비인증, 403 유효 승인 권한 없음 → `code: "FORBIDDEN_NOT_APPROVER"` 또는 `"NOT_APPROVER"`, 403 동일 부서 규칙 불충족 등 → `code: "FUNCTION_NOT_ALLOWED"`, 404 해당 이력 없음. 400: search_params 파싱 실패 → `code: "INVALID_SEARCH_PARAMS"`; 기타 승인 처리 중 예외 → `code: "APPROVAL_ERROR"` (req 20260316-decrypt-approve-cross-user-server-error, cross-user 승인 시 500 미발생).
 
-### 6.1.7 검색 이력 반려 (결재자·관리자 전용)
+### 6.1.7 검색 이력 반려 (복호화 승인 권한 보유자 전용)
 
 - **POST** `/api/search-history/{id}/reject`
 - **Path**: `id` — 검색 이력 ID (Long)
-- **권한**: 결재자 또는 관리자(is_system_admin=true)만 호출 가능. 그 외 403.
-- **부서별 승인 제한 (검색 이력과 동일)**: 승인 API와 동일하게 `canApproveForRequester(승인자, 요청자)` 적용. 해당 부서의 승인자만 반려 가능. 미충족 시 403 `FUNCTION_NOT_ALLOWED`.
+- **권한**: §6.1.6과 동일(effective `screenFunctions` 승인·`is_system_admin` 상쇄).
+- **요청 단위 부서 제한**: 승인 API와 동일하게 `canApproveForRequester` — **동일 `department_code`** 만 허용. 미충족 시 403 `FUNCTION_NOT_ALLOWED`.
 - **Request body** (JSON, 선택):
 
 | 필드 | 타입 | 필수 | 설명 |
@@ -310,7 +348,7 @@
 | rejectionReason | string | X | 반려 사유 |
 
 - **Response (data)**: `{ "id": number, "approvalStatus": "REJECTED", "rejectedBy": string, "rejectedAt": string, "rejectionReason": string \| null }`
-- **에러**: 401 비인증, 403 결재자/관리자 아님 → `code: "FORBIDDEN_NOT_APPROVER"` 또는 `"NOT_APPROVER"`, 403 해당 건에 대한 반려 권한 없음 → `code: "FUNCTION_NOT_ALLOWED"`, 404 해당 이력 없음
+- **에러**: 401 비인증, 403 유효 승인 권한 없음 → `code: "FORBIDDEN_NOT_APPROVER"` 또는 `"NOT_APPROVER"`, 403 동일 부서 규칙 불충족 등 → `code: "FUNCTION_NOT_ALLOWED"`, 404 해당 이력 없음
 
 ---
 
@@ -329,7 +367,7 @@
   - `departmentCode`: string | null — 부서코드
   - `position`: string | null — 직책
   - `rank`: string | null — 직급
-  - `isApprover`: boolean — decrypt_approver 테이블에 존재 여부(복호화 결재자 여부)
+  - ~~`isApprover`~~ **제거** (req 20260323): 복호화 승인 여부는 권한 그룹·화면별 승인으로만 판단; 사용자 목록에 결재자 플래그를 두지 않음. 하위 호환으로 잠시 `false` 고정 등을 둘 경우 계약·릴리즈 노트에 명시.
 - **에러**: 401 비인증, 403 관리자 아님 → `code: "FORBIDDEN"` 등
 
 ### 7.2 사용자 역할 변경 — 410 Gone (req 20250303)
@@ -499,7 +537,7 @@
 | MISSING_GUID | 복호화 시 guid 필수 |
 | MISSING_STATUS | java_fw_imglog 복호화 시 status 필수(공백 불가) (400). req 20260320. |
 | DECRYPTION_FAILED | 복호화 처리 실패 |
-| FORBIDDEN_NOT_APPROVER | 승인/반려·대기목록 API 호출 권한 없음(결재자 또는 관리자만 가능) (403) |
+| FORBIDDEN_NOT_APPROVER | 승인/반려·대기목록 API: **effective** `screenFunctions` 승인 없음 또는 `is_system_admin`만인 경우 등 (403). `docs/contract.md` 「복호화 승인 자격」 |
 | NOT_APPROVER | 위와 동일 의미. 구현 시 하나로 통일 가능 |
 | DEPARTMENT_NOT_FOUND | 부서 없음 (404) |
 | ALREADY_APPROVER | 해당 부서에 이미 결재자로 등록됨 (400) |
@@ -517,7 +555,7 @@
 | SYSTEM_ADMIN_IMMUTABLE | 대상이 시스템 관리자(수정·삭제 불가) (400) |
 | LAST_SYSTEM_ADMIN_BLOCKED | 강등 시 시스템 관리자가 0명이 됨 (400) |
 | FUNCTION_NOT_ALLOWED | 해당 기능(approve/write 등) 권한 없음. 403 반환 시 사용. 내부 구조·리소스 존재 여부 노출 금지 (403) |
-| LOG_TYPE_NOT_ALLOWED | 요청한 logType에 해당하는 화면(pb-feplog/java-fw-imagelog) 접근 권한 없음. 로그 검색·상세·복호화 API에서 403 (req 20260318). |
+| LOG_TYPE_NOT_ALLOWED | 요청한 logType에 해당하는 화면(pb-feplog/java-fw-imagelog) 접근 권한 없음. 로그 검색·상세·복호화 API에서 403 (req 20260318). **`POST /api/logs/db-refactored/pb-fep-log-search`** 에서 **`pb-fep-log-search` / PB FEP 접근 없음 시 동일 계열 (req 20260326). |
 
 ---
 
@@ -544,6 +582,7 @@
 
 - **환경·포트**: `docs/contract.md`
 - **사용자 관리·전산요청서·인사배치 등 (미구현 API)**: `specs/user-management.spec.yaml`
+- **PB FEP 와이어프레임 검색 (`pb-fep-log-search`)**: `specs/log-db-pb-fep-log-search.spec.yaml`, 본 문서 §5.1.1.
 - **정의 위치**: 이 문서는 현재 구현 기준. API 추가/변경 시 이 문서와 `specs/*.spec.yaml`을 먼저 갱신할 것.
 
 ---
@@ -583,7 +622,7 @@
 
 - **PUT** `/api/permission-groups/{id}`
 - **Path**: `id` — 권한 그룹 ID (Long)
-- **Request body** (JSON): `code`, `name`, `description`, `sortOrder`, `allowedScreens` (배열: `{ screenId, scope?, read?, write?, approve? }[]`, 모두 선택). screenId 검증 → `INVALID_SCREEN_ID`; read/write/approve 검증 → `INVALID_SCREEN_FUNCTION`. scope 생략 시 'self'.
+- **Request body** (JSON): `code`, `name`, `description`, `sortOrder`, `allowedScreens` (배열: `{ screenId, scope?, read?, write?, approve? }[]`, 모두 선택), `changeReason` (string, 선택, 최대 2000자 — 관리 UI에서 저장 시 입력 권장; DB 컬럼에 저장하지 않으며 비어 있지 않으면 서버 로그에 감사용으로 기록). screenId 검증 → `INVALID_SCREEN_ID`; read/write/approve 검증 → `INVALID_SCREEN_FUNCTION`. scope 생략 시 'self'. `changeReason` 초과 → 400 `INVALID_INPUT`.
 - **Response (data)**: 수정된 권한 그룹 객체
 - **에러**: 400 (INVALID_SCREEN_ID, INVALID_SCREEN_FUNCTION), 401, 403, 404 → "PERMISSION_GROUP_NOT_FOUND"
 

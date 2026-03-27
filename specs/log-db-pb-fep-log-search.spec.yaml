@@ -1,0 +1,103 @@
+# PB FEP wireframe log search — dedicated route for screen pb-fep-log-search
+# Requirement: docs/requirements/20260326-pb-fep-log-search-screen-wireframe.md
+# Contract: docs/contract.md (PB FEP wireframe search API), docs/api-definition.md §5.1.1
+# Step 3 — API contract only; implementation: Backend/Frontend per handoff.
+
+---
+metadata:
+  title: "POST /api/logs/db-refactored/pb-fep-log-search"
+  version: "1.0"
+  requirement: "20260326-pb-fep-log-search-screen-wireframe"
+  status: "draft"
+
+---
+# 1. Endpoint
+
+| Method | Path | Description |
+|--------|------|-------------|
+| POST | /api/logs/db-refactored/pb-fep-log-search | PB FEP UNION search with wireframe-keyed rows for screen **pb-fep-log-search** only. |
+
+**Does not replace** `POST /api/logs/db-refactored/search` for legacy **pb-feplog** or other callers.
+
+Base URL: `http://localhost:9200/api` (per `docs/contract.md`).
+
+# 2. Auth and access
+
+- Same enforcement family as PB FEP / `logType` **pb_feplog** and screen **pb-fep-log-search** (see `docs/contract.md` — API function-level enforcement).
+- **403** `LOG_TYPE_NOT_ALLOWED` or **403** `FUNCTION_NOT_ALLOWED` when the user lacks required screen / function access.
+- **401** when unauthenticated.
+
+# 3. Request body
+
+Shape: **`LogDbSearchRequest`** (shared with `POST .../search`). Relevant fields:
+
+```ts
+type LogDbSortSpec = { field: string; direction: 'asc' | 'desc' };
+
+type PbFepLogSearchRequest = {
+  startDate: string;       // required (product): combined start bound
+  endDate: string;       // required (product): combined end bound; start <= end
+  loginId: string;       // required, non-blank
+  trCode?: string;
+  tr_code?: string;
+  keywords?: string[];
+  logType?: string;      // may default to pb_feplog or be implied
+  page?: number;         // default 1
+  pageSize?: number;     // default 25; allowed 25 | 50 | 100 (validate)
+  displayTemplate?: string;
+  sortField?: string;
+  sortDirection?: string;
+  sortSpecs?: LogDbSortSpec[];  // cumulative; allowlisted field names; overrides sortField/sortDirection when non-empty
+  decryptData?: boolean;
+};
+```
+
+- **sortSpecs**: ordered list; **field** must be on server allowlist (wireframe / DB mapping). Unknown field → **400**.
+
+# 4. Response
+
+Common wrapper: **`ApiResponse`**. **`data`** payload:
+
+```ts
+type Pagination = {
+  currentPage: number;
+  totalPages: number;
+  totalCount: number;
+};
+
+type PbFepWireframeRow = {
+  id: number;
+  log_type: string;       // branch discriminator with id for stable React keys / expandedRowKeys
+  log_timestamp: string;
+  tr_code: string | null;
+  login_id: string | null;
+  msg_code: string | null;
+  bmsg: string | null;
+  log_ch_cd: string | null;
+  send_recv: 'SEND' | 'RECV';
+  src_ip: string | null;
+  dest_ip: string;       // placeholder empty or "—" until DB column exists
+  app_id: string | null;
+  data: string | null;   // cell summary / stream source per product & decrypt rules
+  request_data?: string | null;
+  response_data?: string | null;
+};
+
+type PbFepLogSearchResponseData = {
+  data: PbFepWireframeRow[];
+  pagination: Pagination;
+};
+```
+
+# 5. Errors
+
+| HTTP | code (examples) | When |
+|------|-----------------|------|
+| 400 | INVALID_INPUT, BAD_REQUEST | Validation, unknown sort field, invalid pageSize |
+| 401 | UNAUTHORIZED | Not logged in |
+| 403 | LOG_TYPE_NOT_ALLOWED, FUNCTION_NOT_ALLOWED | No PB FEP / pb-fep-log-search access |
+
+# 6. References
+
+- Field mapping (DB → wireframe keys): requirement §2.D
+- Sort behavior: requirement §2.G, notes §9 (cumulative sortSpecs)

@@ -1,5 +1,6 @@
 -- PB FEP 로그 스키마 (송신/수신 테이블 및 공통 트리거 함수)
 -- PostgreSQL 16
+-- App PB FEP log search reads pb_send and pb_recv (UNION ALL); unqualified names require search_path to include SCHEMA_PB.
 -- 적용 시 세션 search_path에 SCHEMA_PB(예: logmng)가 앞에 오도록 setup.sh 또는 psql에서 설정.
 -- 단일 DB 개발: 기본 public과 동일 동작.
 

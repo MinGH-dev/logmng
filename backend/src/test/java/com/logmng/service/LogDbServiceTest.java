@@ -1,7 +1,9 @@
 package com.logmng.service;
 
 import com.logmng.dto.request.LogDbSearchRequest;
+import com.logmng.dto.request.LogDbSortSpec;
 import com.logmng.dto.response.LogDbSearchResponse;
+import com.logmng.exception.CustomException;
 import com.logmng.util.CryptoUtil;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -18,6 +20,7 @@ import java.util.List;
 import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /**
  * Unit tests for LogDbService (image log search data/header/keyword filters and pb_feplog smoke).
@@ -198,5 +201,124 @@ class LogDbServiceTest {
         assertThat(res.getPagination()).isNotNull();
         List<Map<String, Object>> data = res.getData();
         assertThat(data.get(0)).containsKey("log_type");
+    }
+
+    @Test
+    void buildPbFeplogOrderBy_multiColumn_usesSortSpecs() {
+        LogDbSearchRequest req = new LogDbSearchRequest();
+        LogDbSortSpec a = new LogDbSortSpec();
+        a.setField("log_timestamp");
+        a.setDirection("desc");
+        LogDbSortSpec b = new LogDbSortSpec();
+        b.setField("tr_code");
+        b.setDirection("asc");
+        req.setSortSpecs(List.of(a, b));
+        assertThat(logDbService.buildPbFeplogOrderBy(req)).isEqualTo("log_timestamp DESC, tr_code ASC");
+    }
+
+    @Test
+    void buildPbFeplogOrderBy_skipsUnknownColumns() {
+        LogDbSearchRequest req = new LogDbSearchRequest();
+        LogDbSortSpec a = new LogDbSortSpec();
+        a.setField("drop table");
+        a.setDirection("desc");
+        LogDbSortSpec b = new LogDbSortSpec();
+        b.setField("tr_code");
+        b.setDirection("asc");
+        req.setSortSpecs(List.of(a, b));
+        assertThat(logDbService.buildPbFeplogOrderBy(req)).isEqualTo("tr_code ASC");
+    }
+
+    @Test
+    void searchPbFepLogWireframe_mapsWireframeKeys_sendBranch() throws Exception {
+        long now = System.currentTimeMillis();
+        java.sql.Timestamp logTs = new java.sql.Timestamp(now);
+        try (Connection conn = dataSource.getConnection();
+             Statement stmt = conn.createStatement()) {
+            stmt.executeUpdate("INSERT INTO pb_send (id, log_timestamp, tr_code, user_id, ip_address, request_data, response_data, "
+                    + "status_code, error_message, session_id, device_type) VALUES (101,'" + logTs + "','TRX','userA','10.0.0.1',"
+                    + "'reqBody','resBody',42,'err-hint','sess-1','WEB')");
+        }
+
+        LogDbSearchRequest req = new LogDbSearchRequest();
+        req.setStartDate(LocalDateTime.ofInstant(Instant.ofEpochMilli(now - 3600000), ZoneId.systemDefault()).format(FMT));
+        req.setEndDate(LocalDateTime.ofInstant(Instant.ofEpochMilli(now + 3600000), ZoneId.systemDefault()).format(FMT));
+        req.setLoginId("userA");
+        req.setPage(1);
+        req.setPageSize(25);
+
+        LogDbSearchResponse res = logDbService.searchPbFepLogWireframe(req);
+
+        assertThat(res.getData()).hasSize(1);
+        Map<String, Object> row = res.getData().get(0);
+        assertThat(row).containsKeys("id", "log_type", "log_timestamp", "tr_code", "login_id", "msg_code", "bmsg", "log_ch_cd",
+                "send_recv", "src_ip", "dest_ip", "app_id", "data", "request_data", "response_data");
+        assertThat(row.get("login_id")).isEqualTo("userA");
+        assertThat(row.get("send_recv")).isEqualTo("SEND");
+        assertThat(row.get("dest_ip")).isEqualTo("");
+        assertThat(row.get("app_id")).isEqualTo("sess-1");
+        assertThat(row.get("msg_code")).isEqualTo("42");
+        assertThat(row.get("bmsg")).isEqualTo("err-hint");
+        assertThat(row.get("log_ch_cd")).isEqualTo("WEB");
+        assertThat(row.get("src_ip")).isEqualTo("10.0.0.1");
+        assertThat(row.get("request_data")).isEqualTo("reqBody");
+        assertThat(row.get("response_data")).isEqualTo("resBody");
+        assertThat(row.get("log_type")).isEqualTo("send");
+        assertThat(res.getPagination().getTotalCount()).isEqualTo(1L);
+    }
+
+    @Test
+    void searchPbFepLogWireframe_mapsRecvBranch() throws Exception {
+        long now = System.currentTimeMillis();
+        java.sql.Timestamp logTs = new java.sql.Timestamp(now);
+        try (Connection conn = dataSource.getConnection();
+             Statement stmt = conn.createStatement()) {
+            stmt.executeUpdate("INSERT INTO pb_recv (id, log_timestamp, tr_code, user_id) VALUES (202,'" + logTs + "','TRY','userB')");
+        }
+
+        LogDbSearchRequest req = new LogDbSearchRequest();
+        req.setStartDate(LocalDateTime.ofInstant(Instant.ofEpochMilli(now - 3600000), ZoneId.systemDefault()).format(FMT));
+        req.setEndDate(LocalDateTime.ofInstant(Instant.ofEpochMilli(now + 3600000), ZoneId.systemDefault()).format(FMT));
+        req.setLoginId("userB");
+        req.setPageSize(25);
+
+        Map<String, Object> row = logDbService.searchPbFepLogWireframe(req).getData().get(0);
+        assertThat(row.get("send_recv")).isEqualTo("RECV");
+        assertThat(row.get("log_type")).isEqualTo("recv");
+    }
+
+    @Test
+    void searchPbFepLogWireframe_invalidPageSize_throws() {
+        LogDbSearchRequest req = new LogDbSearchRequest();
+        req.setStartDate("2025-01-01 00:00:00");
+        req.setEndDate("2025-01-02 00:00:00");
+        req.setLoginId("u");
+        req.setPageSize(99);
+        assertThatThrownBy(() -> logDbService.searchPbFepLogWireframe(req))
+                .isInstanceOf(CustomException.class);
+    }
+
+    @Test
+    void searchPbFepLogWireframe_unknownSortField_throws() {
+        LogDbSearchRequest req = new LogDbSearchRequest();
+        req.setStartDate("2025-01-01 00:00:00");
+        req.setEndDate("2025-01-02 00:00:00");
+        req.setLoginId("u");
+        LogDbSortSpec s = new LogDbSortSpec();
+        s.setField("illegal_column");
+        s.setDirection("desc");
+        req.setSortSpecs(List.of(s));
+        assertThatThrownBy(() -> logDbService.searchPbFepLogWireframe(req))
+                .isInstanceOf(CustomException.class);
+    }
+
+    @Test
+    void searchPbFepLogWireframe_sortByLoginIdAlias_buildsOrder() throws Exception {
+        LogDbSortSpec s = new LogDbSortSpec();
+        s.setField("login_id");
+        s.setDirection("asc");
+        LogDbSearchRequest req = new LogDbSearchRequest();
+        req.setSortSpecs(List.of(s));
+        assertThat(logDbService.buildPbFeplogOrderBy(req)).isEqualTo("user_id ASC");
     }
 }

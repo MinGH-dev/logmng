@@ -1,13 +1,25 @@
 import React, { useState, useEffect } from 'react';
 import SearchForm from './SearchForm';
+import SearchFormLegacy from './SearchFormLegacy';
 import ImageLogSearchForm from './ImageLogSearchForm';
 import AdvancedSearchForm from './AdvancedSearchForm';
-import LogTable from './LogTable';
+import LogTable, { getPbFeplogRowKey } from './LogTable';
 import ImageLogTable from './ImageLogTable';
 import { createSearchHistory } from '../services/searchHistoryService';
 import './LogGrid.css';
 import logger from '../utils/logger';
 import { getApiBaseUrl } from '../config/runtimeApi';
+import { removeSecureStorage } from '../utils/security';
+
+/** Same as axios api.js response interceptor: raw fetch has no global 401 handler. */
+function redirectIfUnauthorized(response) {
+  if (response.status !== 401) {
+    return false;
+  }
+  removeSecureStorage('accessToken');
+  window.location.href = '/login';
+  return true;
+}
 
 /** Map logType.id to screen ID for decrypt/allowed API. req 20260318. */
 const logTypeIdToScreenId = (logTypeId) => {
@@ -16,15 +28,50 @@ const logTypeIdToScreenId = (logTypeId) => {
   return null;
 };
 
-const LogGrid = ({ logType, initialSearchParams, initialSearchApprovalId, onInitialSearchDone, hasDecryptPermission = false }) => {
-  const screenId = logType ? logTypeIdToScreenId(logType.id) : null;
+const cyclePbSort = (prev, key) => {
+  const idx = prev.findIndex((c) => c.key === key);
+  if (idx < 0) return [...prev, { key, direction: 'desc' }];
+  const cur = prev[idx];
+  if (cur.direction === 'desc') {
+    const copy = [...prev];
+    copy[idx] = { key, direction: 'asc' };
+    return copy;
+  }
+  return prev.filter((c) => c.key !== key);
+};
+
+const specsFromCriteria = (criteria) => {
+  const c = criteria && criteria.length > 0 ? criteria : [{ key: 'log_timestamp', direction: 'desc' }];
+  return c.map((s) => ({ field: s.key, direction: s.direction }));
+};
+
+const LogGrid = ({
+  logType,
+  viewId: viewIdProp = null,
+  initialSearchParams,
+  initialSearchApprovalId,
+  onInitialSearchDone,
+  hasDecryptPermission = false,
+}) => {
+  const screenId =
+    viewIdProp != null && String(viewIdProp).trim() !== ''
+      ? String(viewIdProp).trim()
+      : (logType ? logTypeIdToScreenId(logType.id) : null);
+  /** 신규 와이어프레임 전용 화면; pb-feplog 레거시는 false */
+  const isWireframePbFep = screenId === 'pb-fep-log-search';
+  const pbFeplogSearchPath = isWireframePbFep
+    ? '/logs/db-refactored/pb-fep-log-search'
+    : '/logs/db-refactored/search';
   const [logs, setLogs] = useState([]);
   const [loading, setLoading] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
-  const [pageSize, setPageSize] = useState(20);
+  const [pageSize, setPageSize] = useState(25);
   const [sortConfig, setSortConfig] = useState({ key: 'log_timestamp', direction: 'desc' });
+  const [sortCriteria, setSortCriteria] = useState([{ key: 'log_timestamp', direction: 'desc' }]);
+  const [expandedRowKeys, setExpandedRowKeys] = useState(() => new Set());
+  const [expandAllActive, setExpandAllActive] = useState(false);
 
   // 검색 조건 상태
   const [searchParams, setSearchParams] = useState({
@@ -62,6 +109,14 @@ const LogGrid = ({ logType, initialSearchParams, initialSearchApprovalId, onInit
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [logType?.id]);
 
+  useEffect(() => {
+    if (logType?.id === 'pb_feplog') {
+      setSortCriteria([{ key: 'log_timestamp', direction: 'desc' }]);
+      setExpandedRowKeys(new Set());
+      setExpandAllActive(false);
+    }
+  }, [logType?.id, screenId]);
+
   // 검색 이력에서 재조회 시 저장된 조건으로 한 번 검색 실행 + 해당 이력의 승인 ID 유지
   useEffect(() => {
     if (!logType || !initialSearchParams || typeof initialSearchParams !== 'object') return;
@@ -83,8 +138,16 @@ const LogGrid = ({ logType, initialSearchParams, initialSearchApprovalId, onInit
     if (!hasDecryptPermission || !screenId || logType?.id !== 'java_fw_imglog') return;
     const apiBaseUrl = getApiBaseUrl();
     fetch(`${apiBaseUrl}/decrypt/allowed?screen=${screenId}`, { credentials: 'include' })
-      .then((res) => (res.ok ? res.json() : Promise.reject(new Error(`HTTP ${res.status}`))))
+      .then((res) => {
+        if (redirectIfUnauthorized(res)) {
+          return null;
+        }
+        return res.ok ? res.json() : Promise.reject(new Error(`HTTP ${res.status}`));
+      })
       .then((json) => {
+        if (json == null) {
+          return;
+        }
         const data = json?.data ?? json;
         const validUntil = data?.validUntil ?? data?.valid_until ?? null;
         const guids = Array.isArray(data?.guids) ? data.guids : [];
@@ -165,18 +228,27 @@ const LogGrid = ({ logType, initialSearchParams, initialSearchApprovalId, onInit
     if (!preserveApprovalId) setCurrentApprovalId(null);
     setLoading(true);
     setSearchParams(params);
-    
+    setCurrentPage(1);
+    if (logType?.id === 'pb_feplog') {
+      setExpandedRowKeys(new Set());
+      setExpandAllActive(false);
+    }
+
     try {
-      // requestData spreads params first; added keys (logType, page, pageSize, sortField, sortDirection, displayTemplate) do not overwrite params.datastring, params.headerstring, or params.keywords (req 20260318).
+      const isPb = logType?.id === 'pb_feplog';
       const requestData = {
         ...params,
-        logType: logType.id, // 로그 타입 추가
-        page: currentPage,
+        logType: logType.id,
+        page: 1,
         pageSize,
-        sortField: sortConfig.key,
-        sortDirection: sortConfig.direction,
-        displayTemplate: 'detailed'
+        displayTemplate: 'detailed',
       };
+      if (isPb) {
+        requestData.sortSpecs = specsFromCriteria(sortCriteria);
+      } else {
+        requestData.sortField = sortConfig.key;
+        requestData.sortDirection = sortConfig.direction;
+      }
       logger.debug('📤 API로 전송할 데이터:', { 
         logType: requestData.logType,
         page: requestData.page,
@@ -208,9 +280,10 @@ const LogGrid = ({ logType, initialSearchParams, initialSearchApprovalId, onInit
         }
       }
 
-      // 실제 API 호출
+      // 실제 API 호출 (pb-fep-log-search 전용 엔드포인트)
       const apiBaseUrl = getApiBaseUrl();
-      const response = await fetch(`${apiBaseUrl}/logs/db-refactored/search`, {
+      const searchUrl = isPb ? `${apiBaseUrl}${pbFeplogSearchPath}` : `${apiBaseUrl}/logs/db-refactored/search`;
+      const response = await fetch(searchUrl, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -219,6 +292,9 @@ const LogGrid = ({ logType, initialSearchParams, initialSearchApprovalId, onInit
         body: JSON.stringify(requestData)
       });
 
+      if (redirectIfUnauthorized(response)) {
+        return;
+      }
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
@@ -256,7 +332,46 @@ const LogGrid = ({ logType, initialSearchParams, initialSearchApprovalId, onInit
     }
   };
 
-  // 정렬 처리 (단일 sortConfig + onSort 계약)
+  /** PB FEP multi-column sort (req 20260326). */
+  const handlePbSort = async (key) => {
+    const next = cyclePbSort(sortCriteria, key);
+    setSortCriteria(next);
+    if (Object.keys(searchParams).length === 0) return;
+    try {
+      const apiBaseUrl = getApiBaseUrl();
+      const sortUrl = `${apiBaseUrl}${pbFeplogSearchPath}`;
+      const response = await fetch(sortUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          ...searchParams,
+          logType: logType.id,
+          page: currentPage,
+          pageSize,
+          sortSpecs: specsFromCriteria(next),
+          displayTemplate: 'detailed',
+        }),
+      });
+      if (redirectIfUnauthorized(response)) {
+        return;
+      }
+      if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+      const result = await response.json();
+      if (result.success) {
+        const logData = result.data?.data || result.data || [];
+        setLogs(logData);
+        setTotalPages(result.data?.pagination?.totalPages || result.pagination?.totalPages || 1);
+        setTotalCount(result.data?.pagination?.totalCount || result.pagination?.totalCount || 0);
+      } else {
+        logger.error('API 오류:', { error: result.error });
+      }
+    } catch (error) {
+      logger.error('정렬 중 오류 발생:', { error: error.message });
+    }
+  };
+
+  // 이미지 로그: 단일 sortConfig + onSort
   const handleSort = async (key) => {
     const newDirection = sortConfig.key === key && sortConfig.direction === 'asc' ? 'desc' : 'asc';
     const nextConfig = { key, direction: newDirection };
@@ -279,6 +394,9 @@ const LogGrid = ({ logType, initialSearchParams, initialSearchApprovalId, onInit
             displayTemplate: 'detailed',
           }),
         });
+        if (redirectIfUnauthorized(response)) {
+          return;
+        }
         if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
         const result = await response.json();
         if (result.success) {
@@ -295,14 +413,24 @@ const LogGrid = ({ logType, initialSearchParams, initialSearchApprovalId, onInit
     }
   };
 
+  const handleRowExpandChange = (next, meta) => {
+    setExpandedRowKeys(next);
+    if (meta?.manualCollapse) {
+      setExpandAllActive(false);
+    }
+  };
+
   // 페이지당 행 수 변경 (즉시 반영, 1페이지로 이동 후 재조회)
   const handlePageSizeChange = (newSize) => {
     setPageSize(newSize);
     setCurrentPage(1);
     if (Object.keys(searchParams).length > 0) {
       const apiBaseUrl = getApiBaseUrl();
+      const pageSizeUrl = logType?.id === 'pb_feplog'
+        ? `${apiBaseUrl}${pbFeplogSearchPath}`
+        : `${apiBaseUrl}/logs/db-refactored/search`;
       setLoading(true);
-      fetch(`${apiBaseUrl}/logs/db-refactored/search`, {
+      fetch(pageSizeUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
@@ -311,13 +439,22 @@ const LogGrid = ({ logType, initialSearchParams, initialSearchApprovalId, onInit
           logType: logType.id,
           page: 1,
           pageSize: newSize,
-          sortField: sortConfig.key,
-          sortDirection: sortConfig.direction,
+          ...(logType?.id === 'pb_feplog'
+            ? { sortSpecs: specsFromCriteria(sortCriteria) }
+            : { sortField: sortConfig.key, sortDirection: sortConfig.direction }),
           displayTemplate: 'detailed',
         }),
       })
-        .then((res) => res.ok ? res.json() : Promise.reject(new Error(`HTTP ${res.status}`)))
+        .then((res) => {
+          if (redirectIfUnauthorized(res)) {
+            return null;
+          }
+          return res.ok ? res.json() : Promise.reject(new Error(`HTTP ${res.status}`));
+        })
         .then((result) => {
+          if (result == null) {
+            return;
+          }
           if (result.success) {
             const logData = result.data?.data || result.data || [];
             setLogs(logData);
@@ -339,7 +476,10 @@ const LogGrid = ({ logType, initialSearchParams, initialSearchApprovalId, onInit
     if (Object.keys(searchParams).length > 0) {
       try {
         const apiBaseUrl = getApiBaseUrl();
-        const response = await fetch(`${apiBaseUrl}/logs/db-refactored/search`, {
+        const pageUrl = logType?.id === 'pb_feplog'
+          ? `${apiBaseUrl}${pbFeplogSearchPath}`
+          : `${apiBaseUrl}/logs/db-refactored/search`;
+        const response = await fetch(pageUrl, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -347,15 +487,19 @@ const LogGrid = ({ logType, initialSearchParams, initialSearchApprovalId, onInit
           credentials: 'include', // 세션 쿠키 전달
         body: JSON.stringify({
           ...searchParams,
-          logType: logType.id, // 로그 타입 추가
-          page: page,
+          logType: logType.id,
+          page,
           pageSize,
-          sortField: sortConfig.key,
-          sortDirection: sortConfig.direction,
-          displayTemplate: 'detailed'
+          ...(logType?.id === 'pb_feplog'
+            ? { sortSpecs: specsFromCriteria(sortCriteria) }
+            : { sortField: sortConfig.key, sortDirection: sortConfig.direction }),
+          displayTemplate: 'detailed',
         })
         });
 
+        if (redirectIfUnauthorized(response)) {
+          return;
+        }
         if (!response.ok) {
           throw new Error(`HTTP error! status: ${response.status}`);
         }
@@ -439,6 +583,9 @@ const LogGrid = ({ logType, initialSearchParams, initialSearchApprovalId, onInit
         body: JSON.stringify(searchRequest)
       });
 
+      if (redirectIfUnauthorized(response)) {
+        return;
+      }
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
@@ -468,8 +615,10 @@ const LogGrid = ({ logType, initialSearchParams, initialSearchApprovalId, onInit
     }
   };
   
+  const isPbFepLogType = logType?.id === 'pb_feplog';
+
   return (
-    <div className="log-grid">
+    <div className={`log-grid ${isWireframePbFep ? 'log-grid--pb-fep' : ''}`.trim()}>
       <div className="log-grid-header">
         <h2>{logType?.name || '로그 검색'}</h2>
         <p className="log-type-description">{logType?.description || ''}</p>
@@ -496,8 +645,16 @@ const LogGrid = ({ logType, initialSearchParams, initialSearchApprovalId, onInit
         ) : (
           <ImageLogSearchForm onSearch={handleSearch} initialFormValues={initialFormValues} />
         )
+      ) : isWireframePbFep ? (
+        <SearchForm
+          onSearch={handleSearch}
+          initialFromSearchParams={isBasicFromInitial ? initialSearchParams : null}
+        />
       ) : (
-        <SearchForm onSearch={handleSearch} />
+        <SearchFormLegacy
+          onSearch={handleSearch}
+          initialFromSearchParams={isBasicFromInitial ? initialSearchParams : null}
+        />
       )}
       <div className="log-grid-actions">
         {!hasDecryptPermission && (
@@ -517,6 +674,20 @@ const LogGrid = ({ logType, initialSearchParams, initialSearchApprovalId, onInit
             {saveHistorySuccess && <span className="decrypt-approval-success">{saveHistorySuccess}</span>}
             {saveHistoryError && <span className="decrypt-approval-error">{saveHistoryError}</span>}
           </>
+        )}
+        {isPbFepLogType && logs.length > 0 && (
+          <button
+            type="button"
+            className="expand-all-btn"
+            onClick={() => {
+              setExpandedRowKeys(new Set(logs.map(getPbFeplogRowKey)));
+              setExpandAllActive(true);
+            }}
+            aria-pressed={expandAllActive}
+            aria-label="전체 펼치기"
+          >
+            전체 펼치기 ▾
+          </button>
         )}
       </div>
       {requestReasonModalOpen && (
@@ -577,19 +748,27 @@ const LogGrid = ({ logType, initialSearchParams, initialSearchApprovalId, onInit
           screenId={screenId}
         />
       ) : (
-        <LogTable
-          logs={logs}
-          loading={loading}
-          sortConfig={sortConfig}
-          onSort={handleSort}
-          currentPage={currentPage}
-          totalPages={totalPages}
-          totalCount={totalCount}
-          onPageChange={handlePageChange}
-          pageSize={pageSize}
-          onPageSizeChange={handlePageSizeChange}
-          keywords={searchParams.keywords || []}
-        />
+        <div className="log-grid-table-region">
+          <LogTable
+            logs={logs}
+            loading={loading}
+            sortConfig={sortConfig}
+            sortCriteria={sortCriteria}
+            onSort={handlePbSort}
+            currentPage={currentPage}
+            totalPages={totalPages}
+            totalCount={totalCount}
+            onPageChange={handlePageChange}
+            pageSize={pageSize}
+            onPageSizeChange={handlePageSizeChange}
+            keywords={Array.isArray(searchParams.keywords) ? searchParams.keywords : []}
+            expandedRowKeys={expandedRowKeys}
+            onRowExpandChange={handleRowExpandChange}
+            layoutVariant={isWireframePbFep ? 'pb-fep-svg' : 'default'}
+            dataTableContainerClassName={isWireframePbFep ? 'log-table-container--fill' : ''}
+            dataTablePaginationFooterOrder={isWireframePbFep ? 'info-buttons-size' : 'default'}
+          />
+        </div>
       )}
     </div>
   );

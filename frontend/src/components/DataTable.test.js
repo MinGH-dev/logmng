@@ -82,9 +82,8 @@ describe('DataTable', () => {
     expect(screen.getByRole('navigation', { name: '테이블 푸터' })).toBeInTheDocument();
     expect(within(pagination).getByText('총 42건')).toBeInTheDocument();
     expect(within(pagination).getByRole('button', { name: '다음 페이지' })).toBeInTheDocument();
-    expect(within(pagination).getByRole('spinbutton', { name: '페이지당 행 수' })).toHaveValue(20);
-
-    await userEvent.click(within(pagination).getByRole('button', { name: '행 수 증가' }));
-    expect(onPageSizeChange).toHaveBeenCalledWith(21);
+    expect(within(pagination).getByRole('combobox', { name: '페이지당 행 수' })).toHaveValue('20');
+    await userEvent.selectOptions(within(pagination).getByRole('combobox', { name: '페이지당 행 수' }), '25');
+    expect(onPageSizeChange).toHaveBeenCalledWith(25);
   });
 });

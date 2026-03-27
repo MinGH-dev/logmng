@@ -1,0 +1,302 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 1408" role="img" aria-label="Permission group screen functions matrix ScreenSelectionTree spec 1.1.1" data-req="20260323-approver-eligibility" data-ref="frontend/src/components/PermissionGroupManagement/ScreenSelectionTree.js" data-wireframe-semantics="v1" data-wireframe-rules-ref=".cursor/rules/svg-wireframe-semantics.mdc" data-wireframe-visible-meta="wireframe-visible-meta-req02" data-wireframe-chrome="full" data-layout="two-pane-group-list-matrix" data-matrix-pagination="none" data-group-list-actions="add-delete" data-scope-cell="compact-2char" data-scope-wire-legend="scope-wire-legend-req02" data-screen-row-wire-legend="screen-row-wire-legend-req02" data-grid-checkbox-primitive="assets/svg/primitives/common-grid-checkbox-14.svg" data-grid-checkbox-size="14" data-grid-select-primitive="assets/svg/primitives/common-grid-cell-select.svg" data-col-screen-name-policy="user-facing-label-screenId-in-visible-wire-layer">
+  <defs>
+    <style>
+      .view-title { fill: #212121; font-family: "Noto Sans KR", "Roboto", system-ui, sans-serif; font-size: 22px; font-weight: 600; }
+      .bg { fill: #f5f5f5; }
+      .side { fill: #ffffff; stroke: #e0e0e0; stroke-width: 1; }
+      .bar { fill: #1976d2; }
+      .bart { fill: #ffffff; font-family: system-ui, sans-serif; font-size: 14px; }
+      .navg { fill: #616161; font-family: system-ui, sans-serif; font-size: 11px; font-weight: 600; }
+      .nav { fill: #424242; font-family: system-ui, sans-serif; font-size: 12px; }
+      .navhi { fill: #1976d2; font-weight: 600; }
+      .paper { fill: #ffffff; stroke: #e0e0e0; stroke-width: 1; }
+      .lbl { fill: #616161; font-family: system-ui, sans-serif; font-size: 11px; }
+      .item { fill: #37474f; font-family: system-ui, sans-serif; font-size: 11px; }
+      .hdr { fill: #37474f; font-family: system-ui, sans-serif; font-size: 9px; font-weight: 700; }
+      .hdr-mid { fill: #37474f; font-family: system-ui, sans-serif; font-size: 9px; font-weight: 700; text-anchor: middle; }
+      .row-bg { fill: #fafbfc; stroke: #e8eaed; stroke-width: 1; }
+      .row-bg-alt { fill: #ffffff; stroke: #e8eaed; stroke-width: 1; }
+      .screen-id { fill: #78909c; font-family: ui-monospace, monospace; font-size: 8px; }
+      .tiny { fill: #455a64; font-family: system-ui, sans-serif; font-size: 8px; }
+      .tiny-mid { fill: #455a64; font-family: system-ui, sans-serif; font-size: 8px; text-anchor: middle; }
+      .note-box { fill: #fff8e1; stroke: #ff8f00; stroke-width: 1; }
+      .note-t { fill: #e65100; font-family: system-ui, sans-serif; font-size: 11px; font-weight: 600; }
+      .note-b { fill: #5d4037; font-family: system-ui, sans-serif; font-size: 9px; }
+      .foot { fill: #455a64; font-family: system-ui, sans-serif; font-size: 9px; }
+      .hdr-row { fill: #eceff1; stroke: #b0bec5; stroke-width: 1; }
+      .grid-frame { fill: none; stroke: #90a4ae; stroke-width: 1.25; }
+      .vline { stroke: #eceff1; stroke-width: 1; }
+      .group-strip { stroke-width: 0; opacity: 0.9; }
+      .list-sel { fill: #e3f2fd; stroke: #1976d2; stroke-width: 1; }
+      .ux-banner { fill: #ede7f6; stroke: #7e57c2; stroke-width: 1; }
+      .ux-banner-t { fill: #4527a0; font-family: system-ui, sans-serif; font-size: 11px; font-weight: 700; }
+      .ux-banner-b { fill: #4a148c; font-family: system-ui, sans-serif; font-size: 8px; }
+      .ux-ctx { fill: #1565c0; font-family: system-ui, sans-serif; font-size: 10px; font-weight: 600; }
+      .ux-sum { fill: #7e57c2; font-family: system-ui, sans-serif; font-size: 7px; }
+      .ux-snack { fill: #323232; }
+      .ux-snack-t { fill: #ffffff; font-family: system-ui, sans-serif; font-size: 11px; }
+      .ux-snack-s { fill: #b0bec5; font-family: system-ui, sans-serif; font-size: 8px; }
+      .row-excl { fill: #fce4ec; stroke: #f48fb1; stroke-width: 1; }
+      .cb-box { fill: #ffffff; stroke: #546e7a; stroke-width: 1.25; }
+      .cb-box-on { fill: #e3f2fd; stroke: #1976d2; stroke-width: 1.25; }
+      .cb-mark { fill: #0d47a1; font-family: system-ui, sans-serif; font-size: 11px; font-weight: 700; text-anchor: middle; }
+      .grid-select-field { fill: #ffffff; stroke: #bdbdbd; stroke-width: 1; }
+      .grid-select-field.is-locked { fill: #f5f5f5; }
+      .grid-select-txt { fill: #424242; font-family: system-ui, sans-serif; font-size: 11px; }
+      .grid-select-chev { fill: #757575; }
+      .pg-list-btn { fill: #ffffff; stroke: #90a4ae; stroke-width: 1; }
+      .pg-list-btn-t { fill: #37474f; font-family: system-ui, sans-serif; font-size: 9px; text-anchor: middle; }
+      .wf-layout-main { /* shell + product mock only */ }
+      .wf-layout-wire-annotations { /* blocks below main viewport + root legend */ }
+      .wf-layout-wire-annotations text { text-anchor: start; }
+      .wf-annotations-zone-panel { fill: #dfe4ea; stroke: none; }
+      .wf-annotations-zone-title { fill: #37474f; font-family: system-ui, "Noto Sans KR", sans-serif; font-size: 11px; font-weight: 700; }
+      .wf-meta-box { fill: #fafafa; stroke: #78909c; stroke-width: 1; stroke-dasharray: 5 3; }
+      .wf-meta-title { fill: #37474f; font-family: system-ui, sans-serif; font-size: 10px; font-weight: 700; }
+      .wf-meta-line { fill: #546e7a; font-family: system-ui, sans-serif; font-size: 8px; }
+      .wf-anno-tag { fill: #455a64; font-family: system-ui, sans-serif; font-size: 7px; font-weight: 700; }
+      .wf-mock-tag { fill: #616161; font-family: system-ui, sans-serif; font-size: 6px; font-weight: 600; }
+      .wf-anno-text { fill: #546e7a; font-family: system-ui, sans-serif; font-style: italic; }
+      .wf-anno-legend { fill: #607d8b; font-family: system-ui, sans-serif; font-size: 8px; font-weight: 600; }
+      .wf-anno-surf { stroke-dasharray: 5 4; stroke-width: 1.25; stroke: #78909c; }
+      .wf-anno-fill-light { fill: #f8fafc; }
+      .wf-anno-fill-amber { fill: #fffdf7; }
+      .wf-anno-fill-purple { fill: #faf7fc; }
+      .wf-anno-fill-red { fill: #fff5f5; }
+      .ux-banner.wf-anno-surf { fill: #f3edf8; stroke: #78909c; stroke-width: 1.25; }
+      .note-box.wf-anno-surf { fill: #fffdf5; stroke: #78909c; stroke-width: 1.25; }
+      .callout.wf-anno-surf { fill: #f2f6fa; stroke: #78909c; stroke-width: 1.25; }
+      .banner.wf-anno-surf { fill: #fffaf3; stroke: #78909c; stroke-width: 1.25; }
+      .warn.wf-anno-surf { fill: #fff5f5; stroke: #78909c; stroke-width: 1.25; }
+      .card.wf-anno-surf { fill: #f7f9fa; stroke: #78909c; stroke-width: 1.25; }
+      .wf-scope-legend-title { fill: #37474f; font-family: system-ui, "Noto Sans KR", sans-serif; font-size: 8px; font-weight: 700; }
+      .wf-scope-legend-line { fill: #546e7a; font-family: system-ui, "Noto Sans KR", sans-serif; font-size: 6.5px; font-style: italic; }
+      .wf-section-divider { stroke: #90a4ae; stroke-width: 1; stroke-dasharray: 6 4; }
+
+      svg[data-wireframe-chrome="no-meta"] .wf-chrome-meta { display: none !important; }
+      svg[data-wireframe-chrome="clean"] .wf-layout-wire-annotations,
+      svg[data-wireframe-chrome="clean"] .wf-chrome-meta,
+      svg[data-wireframe-chrome="clean"] .wf-chrome-annotations { display: none !important; }
+      svg[data-wireframe-chrome="clean"] .ux-banner.wf-anno-surf,
+      svg[data-wireframe-chrome="clean"] .note-box.wf-anno-surf,
+      svg[data-wireframe-chrome="clean"] .banner.wf-anno-surf,
+      svg[data-wireframe-chrome="clean"] .warn.wf-anno-surf,
+      svg[data-wireframe-chrome="clean"] .callout.wf-anno-surf { display: none !important; }
+      svg[data-wireframe-chrome="clean"] .card.wf-anno-surf { stroke-dasharray: none !important; stroke: #cfd8dc !important; fill: #ffffff !important; }
+      svg[data-wireframe-chrome="clean"] .wf-annotations-zone-panel,
+      svg[data-wireframe-chrome="clean"] .wf-annotations-zone-divider { display: none !important; }
+
+    </style>
+  </defs>
+  <g id="wf-main-layout-req02" class="wf-layout-main" data-wf-layer="main">
+  <rect class="bg" width="1200" height="590" id="shell-bg"/>
+  <rect class="side" x="0" y="0" width="240" height="590" id="shell-sidebar"/>
+  <text x="16" y="340" class="navg" id="nav-group-admin">관리</text>
+  <text x="24" y="366" class="nav" id="nav-users">사용자 관리</text>
+  <text x="24" y="392" class="nav navhi" id="nav-groups">권한 그룹 관리</text>
+  <rect class="bar" x="240" y="0" width="960" height="56" id="shell-appbar"/>
+  <text x="260" y="36" class="bart" id="appbar-title">로그 관리 시스템</text>
+  <rect class="paper" x="264" y="72" width="912" height="510" rx="4" id="content-panel"/>
+  <text x="288" y="108" class="view-title" id="view-title">권한 그룹 관리 — 화면별 기능 (접근·범위·수정·승인·복호화)</text>
+  <rect class="paper" x="288" y="124" width="188" height="458" rx="4" id="group-list-panel"/>
+  <text x="298" y="144" class="lbl" id="panel-list-title">권한 그룹 목록</text>
+  <rect class="pg-list-btn" x="386" y="150" width="36" height="20" rx="3" id="btn-group-add"/>
+  <text x="404" y="163" class="pg-list-btn-t" id="btn-group-add-label">추가</text>
+  <rect class="pg-list-btn" x="428" y="150" width="36" height="20" rx="3" id="btn-group-delete"/>
+  <text x="446" y="163" class="pg-list-btn-t" id="btn-group-delete-label">삭제</text>
+  <rect class="list-sel" x="294" y="176" width="176" height="28" rx="4" id="group-item-sel-bg"/>
+  <rect x="292" y="180" width="3" height="20" rx="1" fill="#1976d2" id="group-item-accent"/>
+  <text x="302" y="194" class="item" style="font-weight:600" id="group-item-1">운영 그룹</text>
+  <text x="302" y="222" class="item" id="group-item-2">개발 그룹</text>
+  <text x="302" y="250" class="item" id="group-item-3">ADMIN_EXT</text>
+  <rect class="paper" x="488" y="124" width="664" height="458" rx="4" id="group-detail-panel"/>
+  <rect class="group-strip" x="498" y="164" width="4" height="68" fill="#1976d2"/>
+  <rect class="group-strip" x="498" y="232" width="4" height="136" fill="#7b1fa2"/>
+  <rect class="group-strip" x="498" y="334" width="4" height="34" fill="#388e3c"/>
+  <rect class="group-strip" x="498" y="368" width="4" height="102" fill="#f57c00"/>
+  <line class="vline" x1="554" y1="136" x2="554" y2="470"/>
+  <line class="vline" x1="770" y1="136" x2="770" y2="470"/>
+  <line class="vline" x1="822" y1="136" x2="822" y2="470"/>
+  <line class="vline" x1="884" y1="136" x2="884" y2="470"/>
+  <line class="vline" x1="948" y1="136" x2="948" y2="470"/>
+  <line class="vline" x1="1056" y1="136" x2="1056" y2="470"/>
+  <rect class="hdr-row" x="498" y="136" width="644" height="28" id="matrix-hdr"/>
+  <text x="504" y="154" class="hdr">메뉴 구분</text>
+  <text x="560" y="154" class="hdr">화면명</text>
+  <text x="796" y="148" class="hdr-mid" font-size="8px">메뉴·API</text>
+  <text x="796" y="158" class="hdr-mid" font-size="7px">사용</text>
+  <text x="853" y="154" class="hdr-mid" font-size="8px">조회 범위</text>
+  <text x="916" y="154" class="hdr-mid">수정</text>
+  <text x="1002" y="154" class="hdr-mid">승인 권한</text>
+  <text x="1099" y="154" class="hdr-mid">복호화 허용</text>
+  <rect class="grid-frame" x="498" y="136" width="644" height="334" rx="2" id="grid-outline"/>
+  <rect class="row-bg" x="498" y="164" width="644" height="34" id="row-pb"/>
+  <text x="508" y="183" class="item">로그 검색</text>
+  <text x="562" y="184" class="item" id="matrix-screen-pb">PB FEP Log</text>
+  <rect class="cb-box cb-box-on" x="789" y="174" width="14" height="14" rx="2" id="cb-use-pb"/>
+  <text x="796" y="185" class="cb-mark">✓</text>
+  <text x="828" y="183" class="tiny">—</text>
+  <text x="916" y="183" class="tiny-mid">—</text>
+  <text x="1002" y="183" class="tiny-mid">—</text>
+  <rect class="cb-box cb-box-on" x="1092" y="174" width="14" height="14" rx="2" id="cb-dec-pb"/>
+  <text x="1099" y="185" class="cb-mark">✓</text>
+  <rect class="row-bg-alt" x="498" y="198" width="644" height="34" id="row-java"/>
+  <text x="508" y="217" class="item">로그 검색</text>
+  <text x="562" y="218" class="item" id="matrix-screen-java">Java FW Image Log</text>
+  <rect class="cb-box cb-box-on" x="789" y="208" width="14" height="14" rx="2" id="cb-use-java"/>
+  <text x="796" y="219" class="cb-mark">✓</text>
+  <text x="828" y="217" class="tiny">—</text>
+  <text x="916" y="217" class="tiny-mid">—</text>
+  <text x="1002" y="217" class="tiny-mid">—</text>
+  <rect class="cb-box cb-box-on" x="1092" y="208" width="14" height="14" rx="2" id="cb-dec-java"/>
+  <text x="1099" y="219" class="cb-mark">✓</text>
+  <rect class="row-bg" x="498" y="232" width="644" height="34" id="row-act"/>
+  <text x="508" y="251" class="item">이력·승인</text>
+  <text x="562" y="252" class="item" id="matrix-screen-act">활동 이력</text>
+  <rect class="cb-box cb-box-on" x="789" y="242" width="14" height="14" rx="2" id="cb-use-act"/>
+  <text x="796" y="253" class="cb-mark">✓</text>
+  <rect class="grid-select-field" x="827" y="238" width="52" height="22" rx="2" id="scope-dd-act"/>
+  <text x="831" y="253" class="grid-select-txt" id="scope-dd-act-val">부서</text>
+  <path class="grid-select-chev" d="M 867 244 L 875 244 L 871 251 Z" aria-hidden="true"/>
+  <text x="916" y="251" class="tiny-mid">—</text>
+  <text x="1002" y="251" class="tiny-mid">—</text>
+  <text x="1099" y="251" class="tiny-mid">—</text>
+  <rect class="row-bg-alt" x="498" y="266" width="644" height="34" id="row-sh"/>
+  <text x="508" y="285" class="item">이력·승인</text>
+  <text x="562" y="286" class="item" id="matrix-screen-sh">검색 이력</text>
+  <rect class="cb-box cb-box-on" x="789" y="276" width="14" height="14" rx="2" id="cb-use-sh"/>
+  <text x="796" y="287" class="cb-mark">✓</text>
+  <rect class="grid-select-field" x="827" y="272" width="52" height="22" rx="2" id="scope-dd-sh"/>
+  <text x="831" y="287" class="grid-select-txt" id="scope-dd-sh-val">부서</text>
+  <path class="grid-select-chev" d="M 867 278 L 875 278 L 871 285 Z" aria-hidden="true"/>
+  <text x="916" y="285" class="tiny-mid">—</text>
+  <rect class="cb-box cb-box-on" x="995" y="276" width="14" height="14" rx="2" id="appr-cb-sh"/>
+  <text x="1002" y="287" class="cb-mark">✓</text>
+  <text x="1099" y="285" class="tiny-mid">—</text>
+  <rect class="row-bg" x="498" y="300" width="644" height="34" id="row-pend"/>
+  <text x="508" y="319" class="item">이력·승인</text>
+  <text x="562" y="320" class="item" id="matrix-screen-pend">복호화 승인 관리</text>
+  <rect class="cb-box cb-box-on" x="789" y="310" width="14" height="14" rx="2" id="cb-use-pend"/>
+  <text x="796" y="321" class="cb-mark">✓</text>
+  <rect class="grid-select-field is-locked" x="827" y="306" width="52" height="22" rx="2" id="scope-dd-pend-locked"/>
+  <text x="831" y="321" class="grid-select-txt" id="scope-dd-pend-val">부서</text>
+  <path class="grid-select-chev" d="M 867 312 L 875 312 L 871 319 Z" aria-hidden="true"/>
+  <text x="916" y="319" class="tiny-mid">—</text>
+  <rect class="cb-box cb-box-on" x="995" y="310" width="14" height="14" rx="2" id="appr-cb-pend"/>
+  <text x="1002" y="321" class="cb-mark">✓</text>
+  <text x="1099" y="319" class="tiny-mid">—</text>
+  <rect class="row-bg-alt" x="498" y="334" width="644" height="34" id="row-stat"/>
+  <text x="508" y="353" class="item">통계</text>
+  <text x="562" y="354" class="item" id="matrix-screen-stat">활동로그 통계</text>
+  <rect class="cb-box cb-box-on" x="789" y="344" width="14" height="14" rx="2" id="cb-use-stat"/>
+  <text x="796" y="355" class="cb-mark">✓</text>
+  <rect class="grid-select-field" x="827" y="340" width="52" height="22" rx="2" id="scope-dd-stat"/>
+  <text x="831" y="355" class="grid-select-txt" id="scope-dd-stat-val">부서</text>
+  <path class="grid-select-chev" d="M 867 346 L 875 346 L 871 353 Z" aria-hidden="true"/>
+  <text x="916" y="353" class="tiny-mid">—</text>
+  <text x="1002" y="353" class="tiny-mid">—</text>
+  <text x="1099" y="353" class="tiny-mid">—</text>
+  <rect class="row-bg" x="498" y="368" width="644" height="34" id="row-um"/>
+  <text x="508" y="387" class="item">관리</text>
+  <text x="562" y="388" class="item" id="matrix-screen-um">사용자 관리</text>
+  <rect class="cb-box cb-box-on" x="789" y="378" width="14" height="14" rx="2" id="cb-use-um"/>
+  <text x="796" y="389" class="cb-mark">✓</text>
+  <text x="828" y="387" class="tiny">—</text>
+  <rect class="cb-box cb-box-on" x="909" y="378" width="14" height="14" rx="2" id="cb-write-um"/>
+  <text x="916" y="389" class="cb-mark">✓</text>
+  <text x="1002" y="387" class="tiny-mid">—</text>
+  <text x="1099" y="387" class="tiny-mid">—</text>
+  <rect class="row-bg-alt" x="498" y="402" width="644" height="34" id="row-pgm"/>
+  <text x="508" y="421" class="item">관리</text>
+  <text x="562" y="422" class="item" id="matrix-screen-pgm">권한 그룹 관리</text>
+  <rect class="cb-box cb-box-on" x="789" y="412" width="14" height="14" rx="2" id="cb-use-pgm"/>
+  <text x="796" y="423" class="cb-mark">✓</text>
+  <text x="828" y="421" class="tiny">—</text>
+  <rect class="cb-box cb-box-on" x="909" y="412" width="14" height="14" rx="2" id="cb-write-pgm"/>
+  <text x="916" y="423" class="cb-mark">✓</text>
+  <text x="1002" y="421" class="tiny-mid">—</text>
+  <text x="1099" y="421" class="tiny-mid">—</text>
+  <rect class="row-excl" x="498" y="436" width="644" height="34" id="row-dept-excluded"/>
+  <text x="508" y="455" class="item">관리</text>
+  <text x="562" y="456" class="item" id="matrix-screen-dept">부서 승인자 관리</text>
+  <rect class="cb-box" x="789" y="446" width="14" height="14" rx="2" id="cb-use-off-demo"/>
+  <text x="828" y="455" class="tiny">—</text>
+  <text x="916" y="455" class="tiny-mid">—</text>
+  <text x="1002" y="455" class="tiny-mid">—</text>
+  <text x="1099" y="455" class="tiny-mid">—</text>
+  <rect class="ux-snack" x="688" y="484" width="268" height="40" rx="6" id="ux-snackbar-mock"/>
+  <text x="696" y="486" class="wf-mock-tag wf-chrome-annotations" id="wf-mock-ui-tag-req02-snack">UI 목업 (실제 화면 예시)</text>
+  <text x="704" y="504" class="ux-snack-t" id="ux-snack-msg">저장되었습니다</text>
+  <text x="704" y="516" class="ux-snack-s" id="ux-snack-hint">(변경 요약 또는 디퍼 미리보기)</text>
+  <rect x="1056" y="530" width="120" height="36" rx="4" fill="#1976d2" id="btn-save"/>
+  <text x="1116" y="552" text-anchor="middle" fill="#ffffff" font-family="system-ui, sans-serif" font-size="13px" id="btn-save-label">저장</text>
+  </g>
+  <g id="wf-wire-annotations-req02" class="wf-layout-wire-annotations" data-wf-layer="wire-annotations">
+  <rect class="wf-annotations-zone-panel wf-chrome-annotations" x="0" y="590" width="1200" height="818" id="wf-annotations-zone-bg-req02"/>
+  <line class="wf-annotations-zone-divider wf-chrome-annotations" x1="0" y1="590" x2="1200" y2="590" stroke="#455a64" stroke-width="2"/>
+  <text x="288" y="605" class="wf-annotations-zone-title wf-chrome-annotations" id="wf-annotations-zone-hint-req02">와이어 주석 구역 (제품 화면 목업 아님)</text>
+  <text x="288" y="629" class="lbl wf-anno-text wf-chrome-annotations" font-size="8px" id="subtitle">SoT: 권한 그룹 데이터(decrypt_approver 없음). 아래 표는 ScreenSelectionTree + specs § 1.1.1 기준</text>
+  <text x="288" y="640" class="lbl wf-anno-text wf-chrome-annotations" font-size="8px" id="subtitle-l2">화면·기능(교육용 매트릭스). 첫 열 「메뉴 구분」 = 사이드바 메뉴; 왼 목록 = 편집 중 그룹. 트리에서 화면 체크 → 그 그룹 사용자가 해당 메뉴·API</text>
+  <text x="288" y="651" class="lbl wf-anno-text wf-chrome-annotations" font-size="8px" id="subtitle-l3">사용. 체크 해제 → 행·메뉴에서 제외. 열 「메뉴·API 사용」 = 사용 여부(API read는 별도 열 없음).</text>
+  <text x="288" y="668" class="wf-anno-legend wf-chrome-annotations" font-size="8px" id="wf-legend-matrix">■ 실선·일반 테두리 = 화면 목업 / 점선·회색 태그·이탤릭 = 와이어 주석·스펙</text>
+  <text x="288" y="684" class="lbl wf-anno-text wf-chrome-annotations" font-size="8px" id="pg-matrix-layout-note">레이아웃: 왼 패널 = 권한 그룹 목록(카드 내 사이드바), 목록 상단 추가·삭제. 오른쪽 = 화면·기능 매트릭스. 매트릭스는 페이지네이션 없이 전체 행을 패널에 표시(행 많으면 패널 내 스크롤). 조회 범위 열은 한글 2자 드롭다운 컴팩트 셀. 일반 목록 그리드(grid-and-table.md)와 구분.</text>
+  <line class="wf-section-divider wf-chrome-annotations" x1="288" y1="695" x2="1152" y2="695" aria-hidden="true" id="wf-section-divider-req02-s1"/>
+  <text x="288" y="716" class="ux-banner-t wf-chrome-annotations" id="ux-banner-title">UX 권장 (와이어프레임 반영 — 프론트 코드 비대상)</text>
+  <text x="288" y="734" class="ux-banner-b wf-chrome-annotations" id="ux-b1">• 맥락: 오른쪽 제목에 선택한 권한 그룹명을 상시 표시 (편집 중인 대상을 잃지 않기).</text>
+  <text x="288" y="746" class="ux-banner-b wf-chrome-annotations" id="ux-b2">• 점진적 공개: 메뉴 그룹 단위 접기 + 한 줄 요약 → 상세 콘트롤 (표는 요약 예시).</text>
+  <text x="288" y="758" class="ux-banner-b wf-chrome-annotations" id="ux-b3">• 피드백: 저장 성공 스낵바/토스트, 실패 시 화면·필드 단위 메시지.</text>
+  <text x="288" y="770" class="ux-banner-b wf-chrome-annotations" id="ux-b4">• 접근성: 이진 기능은 모두 14px 체크박스로 통일(체크 여부 + 색·스트로 구분).</text>
+  <text x="288" y="786" class="screen-id wf-anno-text wf-chrome-annotations" id="list-mui-note">MUI DataGrid: 표에서 컬럼 검색·리사이즈 가능</text>
+  <line class="wf-section-divider wf-chrome-annotations" x1="288" y1="795" x2="1152" y2="795" aria-hidden="true" id="wf-section-divider-req02-s2"/>
+  <g id="screen-row-wire-legend-req02" class="wf-chrome-annotations" data-screen-row-wire-legend="1" role="group" aria-label="Per-row screenId wire annotation">
+  <text x="288" y="821" class="wf-scope-legend-title wf-chrome-annotations" font-size="8px" text-anchor="start">■ 행별 screenId · 기능 요약 (와이어 주석, 표 열에 넣지 말)</text>
+  <text x="288" y="831" class="wf-scope-legend-line wf-chrome-annotations" font-size="6.5px" text-anchor="start">※ 「조회 범위」 열 화면별 의미는 아래 구분선 이후 블록 #scope-wire-legend-req02를 참고.</text>
+  <text x="288" y="842" class="wf-scope-legend-line wf-chrome-annotations" font-size="6.5px" text-anchor="start">pb-feplog — 요약: 접근 + 복호화(옵션)</text>
+  <text x="288" y="853" class="wf-scope-legend-line wf-chrome-annotations" font-size="6.5px" text-anchor="start">java-fw-imagelog — 요약: 접근 + 복호화(옵션)</text>
+  <text x="288" y="863" class="wf-scope-legend-line wf-chrome-annotations" font-size="6.5px" text-anchor="start">activity-log — 요약: 접근 + 목록범위</text>
+  <text x="288" y="873" class="wf-scope-legend-line wf-chrome-annotations" font-size="6.5px" text-anchor="start">search-history — 요약: 목록범위 + 승인</text>
+  <text x="288" y="884" class="wf-scope-legend-line wf-chrome-annotations" font-size="6.5px" text-anchor="start">pending-approvals — 요약: 목록범위 + 승인</text>
+  <text x="288" y="895" class="wf-scope-legend-line wf-chrome-annotations" font-size="6.5px" text-anchor="start">statistics — 요약: 접근 + 목록범위</text>
+  <text x="288" y="905" class="wf-scope-legend-line wf-chrome-annotations" font-size="6.5px" text-anchor="start">user-management — 요약: 접근 + 수정(옵션)</text>
+  <text x="288" y="915" class="wf-scope-legend-line wf-chrome-annotations" font-size="6.5px" text-anchor="start">permission-group-management — 요약: 접근 + 수정(옵션)</text>
+  <text x="288" y="926" class="wf-scope-legend-line wf-chrome-annotations" font-size="6.5px" text-anchor="start">department-approvers — 예시: 이 그룹에 없는 화면 → 메뉴·API 미사용, 행 없음</text>
+  </g>
+  <line class="wf-section-divider wf-chrome-annotations" x1="288" y1="933" x2="1152" y2="933" aria-hidden="true" id="wf-section-divider-req02-s3"/>
+  <g id="scope-wire-legend-req02" class="wf-chrome-annotations" data-scope-wire-legend="1" role="group" aria-label="Scope column wire annotation">
+  <text x="288" y="959" class="wf-scope-legend-title wf-chrome-annotations" font-size="8px" text-anchor="start">■ 조회 범위 · 와이어 주석 (제품 UI 아님)</text>
+  <text x="288" y="969" class="wf-scope-legend-line wf-chrome-annotations" font-size="6.5px" text-anchor="start">※ 행별 screenId·기능 요약은 위쪽 구분선 이전 블록 #screen-row-wire-legend-req02를 참고.</text>
+  <text x="288" y="980" class="wf-scope-legend-line wf-chrome-annotations" font-size="6.5px" text-anchor="start">열 요약: self|team|all 저장 대상은 activity-log, statistics, search-history, pending-approvals 네 화면뿐. 그 외 행은 —.</text>
+  <text x="288" y="991" class="wf-scope-legend-line wf-chrome-annotations" font-size="6.5px" text-anchor="start">pb-feplog: 비대상. 로그 검색(main)은 사용자/요청자 맥락 스코프 아님; 권한그룹에 self|team|all 없음.</text>
+  <text x="288" y="1001" class="wf-scope-legend-line wf-chrome-annotations" font-size="6.5px" text-anchor="start">java-fw-imagelog: 동일 비대상. 조회 범위 열 —.</text>
+  <text x="288" y="1011" class="wf-scope-legend-line wf-chrome-annotations" font-size="6.5px" text-anchor="start">activity-log: 사용자 맥락. self|team|all. self일 때 부서·이름·ID 현재 사용자 고정(읽기전용). team: 동일 부서 범위; 부서 옵션 activity-log/statistics/search-history 공유 API. SoT search-fields-by-screen §2.1.</text>
+  <text x="288" y="1022" class="wf-scope-legend-line wf-chrome-annotations" font-size="6.5px" text-anchor="start">search-history: 요청자 맥락. self|team|all. self일 때 요청자 블록 숨김 및 API 요청자 파라미터 비움. SoT §4.1.</text>
+  <text x="288" y="1033" class="wf-scope-legend-line wf-chrome-annotations" font-size="6.5px" text-anchor="start">pending-approvals: search-history와 동일 스코프로 대기 목록 필터. 와이어: 승인 체크 행은 조회 범위 드롭다운 부서 고정(잠김) 스타일.</text>
+  <text x="288" y="1043" class="wf-scope-legend-line wf-chrome-annotations" font-size="6.5px" text-anchor="start">statistics: activity-log과 동일 계열(UserContextFilterBlock). self|team|all. SoT §3.1.</text>
+  <text x="288" y="1053" class="wf-scope-legend-line wf-chrome-annotations" font-size="6.5px" text-anchor="start">user-management / permission-group-management: 조회 범위 비대상. 관리 CRUD. 열 —.</text>
+  <text x="288" y="1064" class="wf-scope-legend-line wf-chrome-annotations" font-size="6.5px" text-anchor="start">department-approvers: 조회 범위 비대상(현재 매트릭스). 열 —.</text>
+  <text x="288" y="1075" class="wf-scope-legend-line wf-chrome-annotations" font-size="6.5px" text-anchor="start">조회 범위 열: 컴팩트 셀(한글 2자 + ▼). root data-grid-select-primitive는 스타일 참조용; 열 폭은 테이블 셀보다 좁음. 승인 행: 잠김 필드(와이어 규칙).</text>
+  </g>
+  <line class="wf-section-divider wf-chrome-annotations" x1="288" y1="1094" x2="1152" y2="1094" aria-hidden="true" id="wf-section-divider-req02-s4"/>
+  <text x="288" y="1120" class="foot wf-anno-text wf-chrome-annotations" id="pg-foot-ui">UI 구현: PermissionGroupPanel · ScreenSelectionTree.js (트리 체크 + 표는 14px 체크박스 일관; 이 표는 개념 정리용)</text>
+  <text x="288" y="1136" class="foot wf-anno-text wf-chrome-annotations" id="pg-foot-spec">스펙 기능: screenFunctionDescriptions.js (SCREENS_WITH_WRITE, APPROVE, DECRYPT) · permission-group-hierarchy.spec.yaml § 1.1.1</text>
+  <text x="288" y="1152" class="foot wf-anno-text wf-chrome-annotations" id="pg-foot-extra">department-approvers, user-permission-hierarchy: 스펙상 조회+수정 지원. 현재 MENU_TREE 선택기에는 미포함 (백엔드 allowedScreens에만).</text>
+  <text x="288" y="1168" class="foot wf-anno-text wf-chrome-annotations" id="pg-foot-frontend-agent">Frontend 에이전트: 화면명 열은 사용자 노출 라벨만. screenId·행별 기능 요약은 #screen-row-wire-legend-req02에만 두고 표 열에 넣지 말 것. 조회 범위 화면별 의미는 #scope-wire-legend-req02.</text>
+  <line class="wf-section-divider wf-chrome-annotations" x1="288" y1="1182" x2="1152" y2="1182" aria-hidden="true" id="wf-section-divider-req02-s5"/>
+  <text x="288" y="1203" class="note-t wf-chrome-annotations" id="policy-notes-title">백엔드 판별 순서 (테스트 시 기대값)</text>
+  <text x="288" y="1225" class="note-b wf-chrome-annotations" id="policy-n1">1) app_user_permission_group → permission_group_screen 에서 위 화면들의 approve=true 여부</text>
+  <text x="288" y="1239" class="note-b wf-chrome-annotations" id="policy-n2">2) app_user.is_system_admin=true 이면 effective 승인 false 로 상쇄 (그룹에 승인이 있어도 복호화 승인 불가)</text>
+  <text x="288" y="1253" class="note-b wf-chrome-annotations" id="policy-n3">3) is_system_admin=false 인 ADMIN_EXT 등은 그룹 결과만 적용</text>
+  <text x="288" y="1267" class="note-b wf-chrome-annotations" id="policy-n4">4) canApproveForRequester: effective 승인 AND 요청자와 동일 department_code (P2-2)</text>
+  <text x="288" y="1281" class="note-b wf-chrome-annotations" id="policy-n5">5) 커트오버 (A): decrypt_approver 는 자격 판단에 사용하지 않음</text>
+  <text x="288" y="1295" class="note-b wf-chrome-annotations" id="policy-n6">TC 참조: TC-01~TC-07c, TC-10, TC-11</text>
+  <line class="wf-chrome-meta wf-chrome-annotations wf-meta-separator" x1="288" y1="1302" x2="1152" y2="1302" stroke="#90a4ae" stroke-width="1" stroke-dasharray="6 4" aria-hidden="true"/>
+  <g class="wf-chrome-meta wf-chrome-annotations wf-root-legend wireframe-root-legend" id="wireframe-visible-meta-req02" data-wf-layer="wire-annotations-root" role="region" aria-label="Wireframe annotations: root data-* summary; not product UI. Toggle data-wireframe-chrome">
+    <title>Wireframe annotations — root summary</title>
+    <text x="288" y="1324" class="wf-meta-title" id="wireframe-visible-meta-title-req02" text-anchor="start">■ 와이어 주석 — 루트 data-* 요약 (이미지 뷰어 표시 · 제품 UI 문구 아님)</text>
+    <text x="288" y="1336" class="wf-meta-line" id="wireframe-visible-meta-l1-req02" text-anchor="start">루트 &lt;svg&gt; data-wireframe-* · data-col-screen-name-policy · data-ref = 해석 규칙 (에이전트·사람 공통).</text>
+    <text x="288" y="1348" class="wf-meta-line" id="wireframe-visible-meta-l2-req02" text-anchor="start">권한그룹 매트릭스: 행별 screenId·기능 = #screen-row-wire-legend-req02; 조회 범위 = #scope-wire-legend-req02.</text>
+    <text x="288" y="1360" class="wf-meta-line" id="wireframe-visible-meta-l3-req02" text-anchor="start">전문 규칙: .cursor/rules/svg-wireframe-semantics.mdc</text>
+    <text x="288" y="1372" class="wf-meta-line" id="wireframe-visible-meta-l4-req02" text-anchor="start">그 외 와이어(사용자 관리 등): 열별 주석은 동일하게 하단 슬랩 텍스트. 이 루트 data-* 요약도 data-wireframe-chrome으로 숨김.</text>
+  </g>
+  </g>
+</svg>

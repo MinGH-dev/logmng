@@ -9,6 +9,7 @@ import ActivityStatistics from './components/ActivityStatistics';
 import SearchHistoryList from './components/SearchHistory/SearchHistoryList';
 import UserManagement from './components/UserManagement/UserManagement';
 import PermissionGroupManagement from './components/PermissionGroupManagement/PermissionGroupManagement';
+import PermissionGroupScreenMatrix from './components/PermissionGroupScreenMatrix/PermissionGroupScreenMatrix';
 import PendingApprovals from './components/PendingApprovals/PendingApprovals';
 import AppSidebar from './components/AppSidebar';
 import AppBar from './components/AppBar';
@@ -28,7 +29,16 @@ import { getApiBaseUrl } from './config/runtimeApi';
 /** logType objects for log-search screens (req 20260318). */
 const LOG_TYPE_BY_VIEW = {
   'pb-feplog': { id: 'pb_feplog', name: 'PB FEP Log', description: '' },
+  'pb-fep-log-search': { id: 'pb_feplog', name: 'PB FEP 로그 검색', description: '' },
   'java-fw-imagelog': { id: 'java_fw_imglog', name: 'Java FW Image Log', description: '' },
+};
+
+/** Prefer legacy PB FEP menu when both screens are allowed (검색 이력 재조회 등). */
+const resolvePbFeplogViewForUser = (u) => {
+  const ids = getAllowedScreenIds(u) ?? [];
+  if (ids.includes('pb-feplog')) return 'pb-feplog';
+  if (ids.includes('pb-fep-log-search')) return 'pb-fep-log-search';
+  return 'pb-feplog';
 };
 
 function App() {
@@ -47,7 +57,7 @@ function App() {
     if (view === 'user-management') {
       return ids.includes('user-management') || ids.includes('user-permission-hierarchy');
     }
-    if (view === 'permission-group-management') {
+    if (view === 'permission-group-management' || view === 'permission-group-screen-matrix') {
       return ids.includes('permission-group-management') || ids.includes('user-permission-hierarchy');
     }
     return ids.includes(view);
@@ -74,7 +84,7 @@ function App() {
       user?.isSystemAdmin === true ||
       (currentView === 'user-management' || currentView === 'user-permission-hierarchy'
         ? ids.includes('user-management') || ids.includes('user-permission-hierarchy')
-        : currentView === 'permission-group-management'
+        : currentView === 'permission-group-management' || currentView === 'permission-group-screen-matrix'
           ? ids.includes('permission-group-management') || ids.includes('user-permission-hierarchy')
           : ids.includes(currentView));
     if (!canAccess) setCurrentView(getFirstAllowedScreen(user));
@@ -193,7 +203,7 @@ function App() {
         ids.length > 0 &&
         (currentView === 'user-management' || currentView === 'user-permission-hierarchy'
           ? ids.includes('user-management') || ids.includes('user-permission-hierarchy')
-          : currentView === 'permission-group-management'
+          : currentView === 'permission-group-management' || currentView === 'permission-group-screen-matrix'
             ? ids.includes('permission-group-management') || ids.includes('user-permission-hierarchy')
             : ids.includes(currentView)));
     if (!hasAccess) setCurrentView(getFirstAllowedScreen(user));
@@ -209,7 +219,7 @@ function App() {
 
   const handleReSearchFromHistory = (data) => {
     if (!data || !data.logType) return;
-    const view = data.logType === 'pb_feplog' ? 'pb-feplog' : 'java-fw-imagelog';
+    const view = data.logType === 'pb_feplog' ? resolvePbFeplogViewForUser(user) : 'java-fw-imagelog';
     setInitialSearchParams(data.searchParams || null);
     setInitialSearchApprovalId(data.id != null ? data.id : null);
     setCurrentView(view);
@@ -274,7 +284,18 @@ function App() {
             userName={user?.selfContext?.username ?? user?.username ?? ''}
             onLogout={handleLogout}
           />
-          <Box sx={{ flex: 1, p: 2, mt: 7, overflowY: 'auto', minHeight: 0 }}>
+          <Box
+            sx={{
+              flex: 1,
+              p: 2,
+              mt: 7,
+              overflowY: currentView === 'pb-fep-log-search' ? 'hidden' : 'auto',
+              overflowX: 'hidden',
+              minHeight: 0,
+              display: 'flex',
+              flexDirection: 'column',
+            }}
+          >
             {currentView === 'activity-log' && <UserActivityLogList user={user} />}
             {currentView === 'statistics' && <ActivityStatistics user={user} />}
             {currentView === 'search-history' && (
@@ -284,15 +305,33 @@ function App() {
               <UserManagement user={user} />
             )}
             {currentView === 'permission-group-management' && <PermissionGroupManagement user={user} />}
+            {currentView === 'permission-group-screen-matrix' && <PermissionGroupScreenMatrix user={user} />}
             {currentView === 'pending-approvals' && <PendingApprovals user={user} />}
             {currentView === 'pb-feplog' && canAccessView('pb-feplog') && (
-              <LogGrid
-                logType={LOG_TYPE_BY_VIEW['pb-feplog']}
-                initialSearchParams={initialSearchParams}
-                initialSearchApprovalId={initialSearchApprovalId}
-                onInitialSearchDone={handleInitialSearchDone}
-                hasDecryptPermission={user?.isSystemAdmin === true || getScreenFunctions(user)?.['pb-feplog']?.decrypt === true}
-              />
+              <Box sx={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+                <LogGrid
+                  viewId="pb-feplog"
+                  logType={LOG_TYPE_BY_VIEW['pb-feplog']}
+                  initialSearchParams={initialSearchParams}
+                  initialSearchApprovalId={initialSearchApprovalId}
+                  onInitialSearchDone={handleInitialSearchDone}
+                  hasDecryptPermission={user?.isSystemAdmin === true || getScreenFunctions(user)?.['pb-feplog']?.decrypt === true}
+                />
+              </Box>
+            )}
+            {currentView === 'pb-fep-log-search' && canAccessView('pb-fep-log-search') && (
+              <Box sx={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+                <LogGrid
+                  viewId="pb-fep-log-search"
+                  logType={LOG_TYPE_BY_VIEW['pb-fep-log-search']}
+                  initialSearchParams={initialSearchParams}
+                  initialSearchApprovalId={initialSearchApprovalId}
+                  onInitialSearchDone={handleInitialSearchDone}
+                  hasDecryptPermission={
+                    user?.isSystemAdmin === true || getScreenFunctions(user)?.['pb-fep-log-search']?.decrypt === true
+                  }
+                />
+              </Box>
             )}
             {currentView === 'java-fw-imagelog' && canAccessView('java-fw-imagelog') && (
               <LogGrid

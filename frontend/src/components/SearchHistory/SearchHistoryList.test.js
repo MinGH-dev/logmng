@@ -157,13 +157,13 @@ describe('SearchHistoryList', () => {
       userId: 12345678,
     }));
 
-    await userEvent.click(screen.getByRole('button', { name: '행 수 증가' }));
+    await userEvent.selectOptions(screen.getByRole('combobox', { name: '페이지당 행 수' }), '25');
 
     await waitFor(() => expect(getSearchHistoryList).toHaveBeenCalledTimes(3));
     await waitFor(() => expect(screen.queryByText('데이터를 불러오는 중...')).not.toBeInTheDocument());
     expect(getSearchHistoryList).toHaveBeenNthCalledWith(3, expect.objectContaining({
       page: 1,
-      pageSize: 21,
+      pageSize: 25,
       sortField: 'requested_at',
       sortDirection: 'desc',
       department: '개발부',

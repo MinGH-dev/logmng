@@ -43,6 +43,9 @@ public class LogDbController {
     private void requireLogTypeAccess(HttpServletRequest request, String logType) {
         LoginResponse user = authService.getCurrentUserInfo(request);
         if (user == null) {
+            log.warn(
+                    "requireLogTypeAccess: no resolved user (session may be empty or user resolution failed), path={}",
+                    request.getRequestURI());
             throw CustomException.unauthorized("로그인이 필요합니다.", "UNAUTHORIZED");
         }
         if (Boolean.TRUE.equals(user.getIsSystemAdmin())) {
@@ -53,8 +56,8 @@ public class LogDbController {
             throw CustomException.badRequest("지원하지 않는 로그 타입입니다: " + logType, "UNSUPPORTED_LOG_TYPE");
         }
         List<String> allowed = user.getAllowedScreenIds();
-        if (allowed == null || !allowed.contains(screenId)) {
-            log.warn("Log type access denied: logType={} requiredScreen={} user={}", logType, screenId, user.getUsername());
+        if (!LogTypeScreenHelper.userHasAccessToLogType(allowed, logType)) {
+            log.warn("Log type access denied: logType={} canonicalScreen={} user={}", logType, screenId, user.getUsername());
             throw CustomException.forbidden("해당 로그 타입에 대한 접근 권한이 없습니다.", "LOG_TYPE_NOT_ALLOWED");
         }
     }
@@ -62,6 +65,8 @@ public class LogDbController {
     /**
      * DB 로그 검색
      * POST /api/logs/db-refactored/search
+     * <p>When {@code logType} is {@code pb_feplog} (default), result rows come from SQL
+     * {@code pb_send} {@code UNION ALL} {@code pb_recv} — see {@link LogDbService#executePbFeplogUnionSearch}.
      */
     @ActivityLog(actionType = "SEARCH", description = "로그 검색", includeParams = true, includeResponse = true)
     @PostMapping("/search")
@@ -103,6 +108,27 @@ public class LogDbController {
         
         ApiResponse<LogDbSearchResponse> apiResponse = ApiResponse.success(response);
         return ResponseEntity.ok(apiResponse);
+    }
+
+    /**
+     * PB FEP wireframe 전용 검색 (화면 {@code pb-fep-log-search}). 동일 UNION/정렬 규칙, 응답 행은 와이어프레임 키 매핑.
+     * 데이터 소스: SQL {@code pb_send} {@code UNION ALL} {@code pb_recv} — {@link LogDbService#executePbFeplogUnionSearch}.
+     * POST /api/logs/db-refactored/pb-fep-log-search
+     */
+    @ActivityLog(actionType = "SEARCH", description = "PB FEP 와이어프레임 로그 검색", includeParams = true, includeResponse = true)
+    @PostMapping("/pb-fep-log-search")
+    public ResponseEntity<ApiResponse<LogDbSearchResponse>> searchPbFepLogWireframe(
+            @RequestBody LogDbSearchRequest request,
+            HttpServletRequest httpRequest) {
+
+        requireLogTypeAccess(httpRequest, "pb_feplog");
+
+        log.debug("pb-fep-log-search wireframe: startDate={}, endDate={}, loginId={}, page={}, pageSize={}",
+                request.getStartDate(), request.getEndDate(), request.getLoginId(),
+                request.getPage(), request.getPageSize());
+
+        LogDbSearchResponse response = logDbService.searchPbFepLogWireframe(request);
+        return ResponseEntity.ok(ApiResponse.success(response));
     }
     
     /**

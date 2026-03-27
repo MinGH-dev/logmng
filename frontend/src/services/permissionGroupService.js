@@ -71,7 +71,7 @@ export const getPermissionGroup = async (id) => {
 /**
  * 권한 그룹 수정
  * @param {number} id
- * @param {{ code?: string, name?: string, description?: string, sortOrder?: number }} body
+ * @param {{ code?: string, name?: string, description?: string, sortOrder?: number, allowedScreens?: object[], changeReason?: string }} body
  */
 export const updatePermissionGroup = async (id, body) => {
   const response = await fetchWithCreds(`${getApiBaseUrl()}/permission-groups/${id}`, {

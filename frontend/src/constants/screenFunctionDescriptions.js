@@ -48,7 +48,7 @@ export const SCREENS_WITH_WRITE = ['user-management', 'department-approvers', 'u
 export const SCREENS_WITH_APPROVE = ['search-history', 'pending-approvals'];
 
 /** Screens that support decrypt (request decryption on search screen). req 20260318: pb-feplog, java-fw-imagelog. */
-export const SCREENS_WITH_DECRYPT = ['pb-feplog', 'java-fw-imagelog'];
+export const SCREENS_WITH_DECRYPT = ['pb-feplog', 'pb-fep-log-search', 'java-fw-imagelog'];
 
 /**
  * Get functions available for a screen (for config UI display).

@@ -1,0 +1,142 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 906" role="img" aria-label="Final target user management without decrypt approver column req 20260323" data-req="20260323-approver-eligibility" data-tc="TC-13" data-wireframe-semantics="v1" data-wireframe-rules-ref=".cursor/rules/svg-wireframe-semantics.mdc" data-wireframe-visible-meta="wireframe-visible-meta-req01" data-wireframe-chrome="full" data-ref="frontend/src/components/UserManagement/UserManagement.js" data-grid-select-primitive="assets/svg/primitives/common-grid-cell-select.svg" data-col-screen-name-policy="na-user-table">
+  <defs>
+    <style>
+      .view-title { fill: #212121; font-family: "Noto Sans KR", "Roboto", system-ui, sans-serif; font-size: 24px; font-weight: 600; }
+      .bg { fill: #f5f5f5; }
+      .side { fill: #ffffff; stroke: #e0e0e0; stroke-width: 1; }
+      .bar { fill: #1976d2; }
+      .bart { fill: #ffffff; font-family: system-ui, sans-serif; font-size: 14px; }
+      .navg { fill: #616161; font-family: system-ui, sans-serif; font-size: 11px; font-weight: 600; }
+      .nav { fill: #424242; font-family: system-ui, sans-serif; font-size: 12px; }
+      .navhi { fill: #1976d2; font-weight: 600; }
+      .paper { fill: #ffffff; stroke: #e0e0e0; stroke-width: 1; }
+      .hint { fill: #666666; font-family: system-ui, sans-serif; font-size: 13px; }
+      .tree-box { fill: #fafafa; stroke: #dddddd; stroke-width: 1; }
+      .tree-toggle { fill: #555555; font-family: system-ui, sans-serif; font-size: 11px; }
+      .node { fill: #424242; font-family: system-ui, sans-serif; font-size: 12px; }
+      .node-strong { fill: #1976d2; font-family: system-ui, sans-serif; font-size: 12px; font-weight: 600; }
+      .hdr-bg { fill: #f5f5f5; stroke: #dddddd; stroke-width: 1; }
+      .hdr { fill: #424242; font-family: system-ui, sans-serif; font-size: 11px; font-weight: 600; }
+      .col-band { fill: #f6f8fb; }
+      .col-band-alt { fill: #f1f4f8; }
+      .row { fill: rgba(255, 255, 255, 0); stroke: #e3e8ef; stroke-width: 1; }
+      .row-alt { fill: rgba(255, 255, 255, 0); stroke: #e3e8ef; stroke-width: 1; }
+      .grid-select-field { fill: #ffffff; stroke: #bdbdbd; stroke-width: 1; }
+      .grid-select-txt { fill: #424242; font-family: system-ui, sans-serif; font-size: 11px; }
+      .grid-select-chev { fill: #757575; }
+      .callout { fill: #e3f2fd; stroke: #1976d2; stroke-width: 2; }
+      .callout-title { fill: #0d47a1; font-family: system-ui, sans-serif; font-size: 12px; font-weight: 600; }
+      .callout-body { fill: #1565c0; font-family: system-ui, sans-serif; font-size: 11px; }
+      .strike-label { fill: #c62828; font-family: system-ui, sans-serif; font-size: 11px; font-weight: 600; }
+      .wf-layout-main { /* shell + product mock only */ }
+      .wf-layout-wire-annotations { /* blocks below main viewport + root legend */ }
+      .wf-layout-wire-annotations text { text-anchor: start; }
+      .wf-annotations-zone-panel { fill: #dfe4ea; stroke: none; }
+      .wf-annotations-zone-title { fill: #37474f; font-family: system-ui, "Noto Sans KR", sans-serif; font-size: 11px; font-weight: 700; }
+      .wf-meta-box { fill: #fafafa; stroke: #78909c; stroke-width: 1; stroke-dasharray: 5 3; }
+      .wf-meta-title { fill: #37474f; font-family: system-ui, sans-serif; font-size: 10px; font-weight: 700; }
+      .wf-meta-line { fill: #546e7a; font-family: system-ui, sans-serif; font-size: 8px; }
+      .wf-anno-tag { fill: #455a64; font-family: system-ui, sans-serif; font-size: 7px; font-weight: 700; }
+      .wf-mock-tag { fill: #616161; font-family: system-ui, sans-serif; font-size: 6px; font-weight: 600; }
+      .wf-anno-text { fill: #546e7a; font-family: system-ui, sans-serif; font-style: italic; }
+      .wf-anno-legend { fill: #607d8b; font-family: system-ui, sans-serif; font-size: 8px; font-weight: 600; }
+      .wf-anno-surf { stroke-dasharray: 5 4; stroke-width: 1.25; stroke: #78909c; }
+      .wf-anno-fill-light { fill: #f8fafc; }
+      .wf-anno-fill-amber { fill: #fffdf7; }
+      .wf-anno-fill-purple { fill: #faf7fc; }
+      .wf-anno-fill-red { fill: #fff5f5; }
+      .ux-banner.wf-anno-surf { fill: #f3edf8; stroke: #78909c; stroke-width: 1.25; }
+      .note-box.wf-anno-surf { fill: #fffdf5; stroke: #78909c; stroke-width: 1.25; }
+      .callout.wf-anno-surf { fill: #f2f6fa; stroke: #78909c; stroke-width: 1.25; }
+      .banner.wf-anno-surf { fill: #fffaf3; stroke: #78909c; stroke-width: 1.25; }
+      .warn.wf-anno-surf { fill: #fff5f5; stroke: #78909c; stroke-width: 1.25; }
+      .card.wf-anno-surf { fill: #f7f9fa; stroke: #78909c; stroke-width: 1.25; }
+      .wf-scope-legend-title { fill: #37474f; font-family: system-ui, "Noto Sans KR", sans-serif; font-size: 8px; font-weight: 700; }
+      .wf-scope-legend-line { fill: #546e7a; font-family: system-ui, "Noto Sans KR", sans-serif; font-size: 6.5px; font-style: italic; }
+      .wf-section-divider { stroke: #90a4ae; stroke-width: 1; stroke-dasharray: 6 4; }
+
+      svg[data-wireframe-chrome="no-meta"] .wf-chrome-meta { display: none !important; }
+      svg[data-wireframe-chrome="clean"] .wf-layout-wire-annotations,
+      svg[data-wireframe-chrome="clean"] .wf-chrome-meta,
+      svg[data-wireframe-chrome="clean"] .wf-chrome-annotations { display: none !important; }
+      svg[data-wireframe-chrome="clean"] .ux-banner.wf-anno-surf,
+      svg[data-wireframe-chrome="clean"] .note-box.wf-anno-surf,
+      svg[data-wireframe-chrome="clean"] .banner.wf-anno-surf,
+      svg[data-wireframe-chrome="clean"] .warn.wf-anno-surf,
+      svg[data-wireframe-chrome="clean"] .callout.wf-anno-surf { display: none !important; }
+      svg[data-wireframe-chrome="clean"] .card.wf-anno-surf { stroke-dasharray: none !important; stroke: #cfd8dc !important; fill: #ffffff !important; }
+      svg[data-wireframe-chrome="clean"] .wf-annotations-zone-panel,
+      svg[data-wireframe-chrome="clean"] .wf-annotations-zone-divider { display: none !important; }
+
+    </style>
+  </defs>
+  <g id="wf-main-layout-req01" class="wf-layout-main" data-wf-layer="main">
+  <rect class="bg" width="1200" height="596" id="shell-bg"/>
+  <rect class="side" x="0" y="0" width="240" height="596" id="shell-sidebar"/>
+  <text x="16" y="340" class="navg" id="nav-group-admin">관리</text>
+  <text x="24" y="366" class="nav navhi" id="nav-users">사용자 관리</text>
+  <text x="24" y="392" class="nav" id="nav-groups">권한 그룹 관리</text>
+  <rect class="bar" x="240" y="0" width="960" height="56" id="shell-appbar"/>
+  <text x="260" y="36" class="bart" id="appbar-title">로그 관리 시스템</text>
+  <rect class="paper" x="264" y="80" width="912" height="508" rx="4" id="content-panel"/>
+  <text x="288" y="122" class="view-title" id="view-title">사용자 관리 (최종 목표)</text>
+  <rect class="tree-box" x="288" y="164" width="864" height="400" rx="4" id="tree-section"/>
+  <text x="304" y="194" class="tree-toggle">▼</text>
+  <text x="322" y="194" class="node-strong" id="dept-node-ops">[OPS] 운영팀</text>
+  <rect class="col-band" x="338" y="210" width="100" height="98" id="users-col-name"/>
+  <rect class="col-band-alt" x="438" y="210" width="150" height="98" id="users-col-id"/>
+  <rect class="col-band" x="588" y="210" width="80" height="98" id="users-col-grade"/>
+  <rect class="col-band" x="668" y="210" width="140" height="98" id="users-col-position"/>
+  <rect class="col-band-alt" x="808" y="210" width="320" height="98" id="users-col-group"/>
+  <rect class="hdr-bg" x="338" y="210" width="790" height="30" id="users-table-header"/>
+  <text x="350" y="229" class="hdr">사용자명</text>
+  <text x="450" y="229" class="hdr">사용자 ID</text>
+  <text x="600" y="229" class="hdr">직급</text>
+  <text x="680" y="229" class="hdr">직책</text>
+  <text x="820" y="229" class="hdr">권한 그룹</text>
+  <rect class="row" x="338" y="240" width="790" height="34" id="users-row-1"/>
+  <text x="350" y="261" class="node">홍길동</text>
+  <text x="450" y="261" class="node">20260001</text>
+  <text x="600" y="261" class="node">팀장</text>
+  <text x="680" y="261" class="node">리드</text>
+  <g id="grid-cell-select-row1" aria-label="perm group select">
+    <rect class="grid-select-field" x="848" y="246" width="120" height="22" rx="2" id="group-select-field-1"/>
+    <text x="853" y="261" class="grid-select-txt" id="group-select-value-1">운영 그룹</text>
+    <path class="grid-select-chev" d="M 950 253 L 958 260 L 942 260 Z" id="group-select-chevron-1" aria-hidden="true"/>
+  </g>
+  <rect class="row-alt" x="338" y="274" width="790" height="34" id="users-row-2"/>
+  <text x="350" y="295" class="node">김철수</text>
+  <text x="450" y="295" class="node">20260002</text>
+  <text x="600" y="295" class="node">대리</text>
+  <text x="680" y="295" class="node">엔지니어</text>
+  <g id="grid-cell-select-row2" aria-label="perm group select">
+    <rect class="grid-select-field" x="848" y="280" width="120" height="22" rx="2" id="group-select-field-2"/>
+    <text x="853" y="295" class="grid-select-txt" id="group-select-value-2">개발 그룹</text>
+    <path class="grid-select-chev" d="M 950 287 L 958 294 L 942 294 Z" id="group-select-chevron-2" aria-hidden="true"/>
+  </g>
+  </g>
+  <g id="wf-wire-annotations-req01" class="wf-layout-wire-annotations" data-wf-layer="wire-annotations">
+  <rect class="wf-annotations-zone-panel wf-chrome-annotations" x="0" y="596" width="1200" height="310" id="wf-annotations-zone-bg-req01"/>
+  <line class="wf-annotations-zone-divider wf-chrome-annotations" x1="0" y1="596" x2="1200" y2="596" stroke="#455a64" stroke-width="2"/>
+  <text x="288" y="611" class="wf-annotations-zone-title wf-chrome-annotations" id="wf-annotations-zone-hint-req01">와이어 주석 구역 (제품 화면 목업 아님)</text>
+  <text x="288" y="635" class="hint wf-anno-text wf-chrome-annotations" id="view-hint">복호화 승인 자격은 사용자 목록에 별도 컬럼으로 두지 않음. 판단은 권한 그룹 화면 승인·API effective 승인만 사용.</text>
+  <text x="288" y="655" class="wf-scope-legend-line wf-chrome-annotations" font-size="6.5px" id="um-col-group-wire">와이어: 권한 그룹 열 = 단일 선택(single-select); data-grid-select-primitive / common-grid-cell-select.svg</text>
+  <line class="wf-section-divider wf-chrome-annotations" x1="288" y1="666" x2="1152" y2="666" aria-hidden="true" id="wf-section-divider-req01-strike"/>
+  <text x="288" y="687" class="strike-label wf-chrome-annotations" id="rm-col-note">제거: 승인자 열</text>
+  <text x="288" y="705" class="strike-label wf-chrome-annotations" id="rm-flag-note">제거: isApprover 표시</text>
+  <line class="wf-section-divider wf-chrome-annotations" x1="288" y1="716" x2="1152" y2="716" aria-hidden="true" id="wf-section-divider-req01-dev"/>
+  <text x="288" y="738" class="callout-title wf-chrome-annotations" id="dev-note-heading">개발·테스트 메모 (GET /api/users 등)</text>
+  <text x="288" y="755" class="callout-body wf-chrome-annotations" id="dev-b1">응답에서 isApprover 필드 없음. TC-13 회귀: 그리드 헤더에 승인자 컬럼이 없어야 함.</text>
+  <text x="288" y="773" class="callout-body wf-chrome-annotations" id="dev-b2">승인 가능 여부: 권한 그룹 관리(검색 이력·승인 대기 체크) 및 GET /api/auth/me의 screenFunctions로 확인.</text>
+  <text x="288" y="791" class="callout-body wf-chrome-annotations" id="dev-b3">P2-2: 승인 액션은 요청자와 동일 department_code일 때만 허용 (별도 화면 규칙).</text>
+  <line class="wf-chrome-meta wf-chrome-annotations wf-meta-separator" x1="288" y1="800" x2="1152" y2="800" stroke="#90a4ae" stroke-width="1" stroke-dasharray="6 4" aria-hidden="true"/>
+  <g class="wf-chrome-meta wf-chrome-annotations wf-root-legend wireframe-root-legend" id="wireframe-visible-meta-req01" data-wf-layer="wire-annotations-root" role="region" aria-label="Wireframe annotations: root data-* summary; not product UI. Toggle data-wireframe-chrome">
+    <title>Wireframe annotations — root summary</title>
+    <text x="288" y="822" class="wf-meta-title" id="wireframe-visible-meta-title-req01" text-anchor="start">■ 와이어 주석 — 루트 data-* 요약 (이미지 뷰어 표시 · 제품 UI 문구 아님)</text>
+    <text x="288" y="834" class="wf-meta-line" id="wireframe-visible-meta-l1-req01" text-anchor="start">루트 &lt;svg&gt; data-wireframe-* · data-col-screen-name-policy · data-ref = 해석 규칙 (에이전트·사람 공통).</text>
+    <text x="288" y="846" class="wf-meta-line" id="wireframe-visible-meta-l2-req01" text-anchor="start">권한그룹 매트릭스: 행별 screenId·기능 = #screen-row-wire-legend-req02; 조회 범위 = #scope-wire-legend-req02.</text>
+    <text x="288" y="858" class="wf-meta-line" id="wireframe-visible-meta-l3-req01" text-anchor="start">전문 규칙: .cursor/rules/svg-wireframe-semantics.mdc</text>
+    <text x="288" y="870" class="wf-meta-line" id="wireframe-visible-meta-l4-req01" text-anchor="start">그 외 와이어(사용자 관리 등): 열별 주석은 동일하게 하단 슬랩 텍스트. 이 루트 data-* 요약도 data-wireframe-chrome으로 숨김.</text>
+  </g>
+  </g>
+</svg>

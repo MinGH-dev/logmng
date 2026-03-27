@@ -854,6 +854,8 @@ const TREEMAP_DATA = {
     "search-filter-form-design.mdc": ".cursor/rules/search-filter-form-design.mdc",
     "security-permissions.mdc": ".cursor/rules/security-permissions.mdc",
     "subagent-invoke.mdc": ".cursor/rules/subagent-invoke.mdc",
+    "svg-chromium.mdc": ".cursor/rules/svg-chromium.mdc",
+    "svg-wireframe-semantics.mdc": ".cursor/rules/svg-wireframe-semantics.mdc",
     "treemap-consistency.mdc": ".cursor/rules/treemap-consistency.mdc",
     "ux-frontend-standard-first.mdc": ".cursor/rules/ux-frontend-standard-first.mdc",
     "workflow-todos.mdc": ".cursor/rules/workflow-todos.mdc",
@@ -2432,6 +2434,27 @@ const TREEMAP_DATA = {
               "name": "README.md",
               "type": "other",
               "path": ".cursor/subagents/README.md"
+            }
+          ]
+        },
+        {
+          "name": "svg-chromium.mdc",
+          "desc": "SVG 자산은 Chromium(Chrome) 기준으로 저장·검증한다.",
+          "refs": []
+        },
+        {
+          "name": "svg-wireframe-semantics.mdc",
+          "desc": "How to read wireframe SVGs — root data-* policy + XML comments vs visible text (separation of concerns).",
+          "refs": [
+            {
+              "name": "docs/contract.md",
+              "type": "other",
+              "path": "docs/contract.md"
+            },
+            {
+              "name": "*.spec.yaml",
+              "type": "other",
+              "path": "specs/*.spec.yaml"
             }
           ]
         },
@@ -5385,7 +5408,7 @@ const TREEMAP_DATA = {
       "name": "docs/contract.md",
       "color": "other",
       "role": "API·DB·포트 계약 — 10개 이상 에이전트가 참조",
-      "refsTo": 37,
+      "refsTo": 38,
       "barWidth": 100
     },
     {
@@ -5393,35 +5416,35 @@ const TREEMAP_DATA = {
       "color": "template",
       "role": "§1·§2·§3·§5·§6 요건 문서의 구조 정의",
       "refsTo": 31,
-      "barWidth": 84
+      "barWidth": 82
     },
     {
       "name": "search-fields-by-screen",
       "color": "workflow",
       "role": "search-fields-by-screen",
       "refsTo": 25,
-      "barWidth": 68
+      "barWidth": 66
     },
     {
       "name": "forms-and-filters",
       "color": "workflow",
       "role": "forms-and-filters",
       "refsTo": 24,
-      "barWidth": 65
+      "barWidth": 63
     },
     {
       "name": "search-field-definition-items",
       "color": "workflow",
       "role": "search-field-definition-items",
       "refsTo": 23,
-      "barWidth": 62
+      "barWidth": 61
     },
     {
       "name": "AGENT-COLLABORATION-ON-REQUIREMENT.md",
       "color": "workflow",
       "role": "에이전트 협업 인덱스 — 순서·핸드오프 규칙. 상세: REQUIREMENTS-AUTHORING-WORKFLOW, DEVELOPMENT-QUERY-EXPERTS.",
       "refsTo": 18,
-      "barWidth": 49
+      "barWidth": 47
     }
   ]
 };

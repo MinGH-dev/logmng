@@ -1,46 +1,250 @@
-/* LogTable overrides only. Base styles in DataTable.css. */
+/* LogTable — PB FEP dense grid (req 20260326). Base table in DataTable.css. */
 
-.log-table th:nth-child(1), .log-table td:nth-child(1) { width: 8%; min-width: 100px; }
-.log-table th:nth-child(2), .log-table td:nth-child(2) { width: 6%; min-width: 80px; }
-.log-table th:nth-child(3), .log-table td:nth-child(3) { width: 8%; min-width: 100px; }
-.log-table th:nth-child(4), .log-table td:nth-child(4) { width: 6%; min-width: 80px; }
-.log-table th:nth-child(5), .log-table td:nth-child(5) { width: 6%; min-width: 80px; }
-.log-table th:nth-child(6), .log-table td:nth-child(6) { width: 8%; min-width: 100px; white-space: normal; word-break: break-all; }
-.log-table th:nth-child(7), .log-table td:nth-child(7) { width: 6%; min-width: 80px; }
-.log-table th:nth-child(8), .log-table td:nth-child(8) { width: 6%; min-width: 80px; }
-.log-table th:nth-child(9), .log-table td:nth-child(9) { width: 8%; min-width: 100px; }
-.log-table th:nth-child(10), .log-table td:nth-child(10) { width: 8%; min-width: 100px; }
-.log-table th:nth-child(11), .log-table td:nth-child(11) { width: 6%; min-width: 80px; }
-.log-table th:nth-child(12), .log-table td:nth-child(12) { width: 30%; min-width: 200px; white-space: normal; word-break: break-all; }
-
-.tr-data-cell {
-  max-width: 500px;
-  min-width: 300px;
-  width: 400px;
-  word-break: break-all;
-}
-
-.tr-data-text {
-  font-family: 'Courier New', monospace;
+/* Wireframe pb-fep-log-search — SVG v10 density, 12 columns */
+.log-table.log-table--pb-fep-svg {
   font-size: 12px;
-  color: #495057;
-  background-color: #f8f9fa;
-  padding: 4px 8px;
-  border-radius: 3px;
-  display: block;
-  width: 100%;
-  max-height: 200px;
-  overflow-y: auto;
-  overflow-x: auto;
+}
+
+.log-table.log-table--pb-fep-svg th,
+.log-table.log-table--pb-fep-svg td {
+  text-align: center;
+  vertical-align: middle;
+  border-left: none;
+  border-right: none;
+  border-bottom: 1px solid #dde2e8;
+  color: #111;
+  padding: 3px 6px;
+  line-height: 1.2;
+  min-height: 28px;
+  box-sizing: border-box;
+}
+
+.log-table.log-table--pb-fep-svg th {
+  background-color: #f8f9fb;
+  font-weight: 700;
+  color: #000;
+}
+
+.log-table.log-table--pb-fep-svg tbody tr.log-row-pb-fep-svg:hover {
+  background-color: #eef6ff;
+}
+
+.log-table.log-table--pb-fep-svg .pb-fep-expand-hint {
+  width: 28px;
+  max-width: 36px;
+  padding: 2px 4px;
+  color: #555;
+}
+
+.pb-fep-expand-hint-inner {
+  font-size: 11px;
+  display: inline-block;
+  min-width: 1em;
+}
+
+.log-table.log-table--pb-fep-svg th:nth-child(1),
+.log-table.log-table--pb-fep-svg td:nth-child(1) {
+  width: 28px;
+}
+
+.log-table.log-table--pb-fep-svg th:nth-child(2),
+.log-table.log-table--pb-fep-svg td:nth-child(2) {
+  width: 10%;
+  min-width: 130px;
+}
+
+.log-table.log-table--pb-fep-svg th:nth-child(3),
+.log-table.log-table--pb-fep-svg td:nth-child(3) {
+  width: 6%;
+  min-width: 64px;
+}
+
+.log-table.log-table--pb-fep-svg th:nth-child(4),
+.log-table.log-table--pb-fep-svg td:nth-child(4) {
+  width: 7%;
+  min-width: 72px;
+}
+
+.log-table.log-table--pb-fep-svg th:nth-child(5),
+.log-table.log-table--pb-fep-svg td:nth-child(5) {
+  width: 5%;
+  min-width: 56px;
+}
+
+.log-table.log-table--pb-fep-svg th:nth-child(6),
+.log-table.log-table--pb-fep-svg td:nth-child(6) {
+  width: 9%;
+  min-width: 80px;
+  white-space: normal;
+  word-break: break-word;
+}
+
+.log-table.log-table--pb-fep-svg th:nth-child(7),
+.log-table.log-table--pb-fep-svg td:nth-child(7) {
+  width: 5%;
+  min-width: 56px;
+}
+
+.log-table.log-table--pb-fep-svg th:nth-child(8),
+.log-table.log-table--pb-fep-svg td:nth-child(8) {
+  width: 5%;
+  min-width: 52px;
+}
+
+.log-table.log-table--pb-fep-svg th:nth-child(9),
+.log-table.log-table--pb-fep-svg td:nth-child(9) {
+  width: 8%;
+  min-width: 88px;
+}
+
+.log-table.log-table--pb-fep-svg th:nth-child(10),
+.log-table.log-table--pb-fep-svg td:nth-child(10) {
+  width: 8%;
+  min-width: 88px;
+}
+
+.log-table.log-table--pb-fep-svg th:nth-child(11),
+.log-table.log-table--pb-fep-svg td:nth-child(11) {
+  width: 6%;
+  min-width: 64px;
+}
+
+.log-table.log-table--pb-fep-svg th:nth-child(12),
+.log-table.log-table--pb-fep-svg td:nth-child(12) {
+  width: 14%;
+  min-width: 120px;
+}
+
+.tr-data-cell--pb-fep-svg {
+  text-align: center;
+  vertical-align: middle;
+}
+
+.log-expand-stream-cell--svg {
+  background: #f8fbff;
+  text-align: left;
+}
+
+.pb-fep-stream-panel {
+  padding: 8px 10px;
+}
+
+.stream-data-chip {
+  display: inline-block;
+  margin-bottom: 8px;
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: #fff;
+  background: linear-gradient(135deg, #1976d2, #0d47a1);
+}
+
+.stream-lines {
+  margin: 0;
+  max-height: 220px;
+  overflow: auto;
+}
+
+.stream-line {
+  font-family: 'Consolas', 'Menlo', 'Courier New', monospace;
+  font-size: 10.5px;
+  line-height: 1.45;
+  color: #0f172a;
   white-space: pre-wrap;
-  word-wrap: break-word;
   word-break: break-all;
 }
 
-.tr-data-text::-webkit-scrollbar { width: 8px; height: 8px; }
-.tr-data-text::-webkit-scrollbar-track { background: #f1f1f1; border-radius: 4px; }
-.tr-data-text::-webkit-scrollbar-thumb { background: #c1c1c1; border-radius: 4px; }
-.tr-data-text::-webkit-scrollbar-thumb:hover { background: #a8a8a8; }
+.log-table.log-table--pb-fep {
+  font-size: 12px;
+}
+
+.log-table.log-table--pb-fep th,
+.log-table.log-table--pb-fep td {
+  text-align: center;
+  vertical-align: middle;
+  border-left: none;
+  border-right: none;
+  border-bottom: 1px solid #dde2e8;
+  color: #111;
+  padding: 4px 6px;
+}
+
+.log-table.log-table--pb-fep th {
+  background-color: #f8f9fb;
+  font-weight: 700;
+  color: #000;
+}
+
+.log-table.log-table--pb-fep tbody tr.log-row-pb-fep:hover {
+  background-color: #eef6ff;
+}
+
+.log-table.log-table--pb-fep th:nth-child(1),
+.log-table.log-table--pb-fep td:nth-child(1) { width: 9%; min-width: 130px; }
+.log-table.log-table--pb-fep th:nth-child(2),
+.log-table.log-table--pb-fep td:nth-child(2) { width: 7%; min-width: 72px; }
+.log-table.log-table--pb-fep th:nth-child(3),
+.log-table.log-table--pb-fep td:nth-child(3) { width: 7%; min-width: 72px; }
+.log-table.log-table--pb-fep th:nth-child(4),
+.log-table.log-table--pb-fep td:nth-child(4) { width: 6%; min-width: 64px; }
+.log-table.log-table--pb-fep th:nth-child(5),
+.log-table.log-table--pb-fep td:nth-child(5) { width: 10%; min-width:88px; white-space: normal; word-break: break-word; }
+.log-table.log-table--pb-fep th:nth-child(6),
+.log-table.log-table--pb-fep td:nth-child(6) { width: 6%; min-width: 64px; }
+.log-table.log-table--pb-fep th:nth-child(7),
+.log-table.log-table--pb-fep td:nth-child(7) { width: 6%; min-width: 56px; }
+.log-table.log-table--pb-fep th:nth-child(8),
+.log-table.log-table--pb-fep td:nth-child(8) { width: 8%; min-width: 88px; }
+.log-table.log-table--pb-fep th:nth-child(9),
+.log-table.log-table--pb-fep td:nth-child(9) { width: 8%; min-width: 88px; }
+.log-table.log-table--pb-fep th:nth-child(10),
+.log-table.log-table--pb-fep td:nth-child(10) { width: 6%; min-width: 56px; }
+.log-table.log-table--pb-fep th:nth-child(11),
+.log-table.log-table--pb-fep td:nth-child(11) { width: 20%; min-width: 160px; }
+
+.tr-data-cell--pb-fep {
+  text-align: center;
+  vertical-align: middle;
+}
+
+.tr-data-expand-action {
+  background: none;
+  border: none;
+  padding: 4px 6px;
+  margin: 0;
+  font-size: 12px;
+  font-weight: 600;
+  color: #1976d2;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.tr-data-expand-action:hover {
+  color: #0d47a1;
+}
+
+.log-expand-stream-cell {
+  background: #f8fbff;
+  border-bottom: 1px solid #dde2e8;
+  padding: 8px 12px;
+  text-align: left;
+  vertical-align: top;
+}
+
+.tr-data-stream {
+  margin: 0;
+  font-family: 'Consolas', 'Courier New', monospace;
+  font-size: 11px;
+  line-height: 1.45;
+  color: #0f172a;
+  white-space: pre-wrap;
+  word-break: break-all;
+  max-height: 220px;
+  overflow: auto;
+}
 
 .highlight-keyword {
   background-color: #fff3cd;
@@ -48,31 +252,14 @@
   padding: 1px 2px;
   border-radius: 2px;
   font-weight: bold;
-  box-shadow: 0 0 2px rgba(255, 193, 7, 0.3);
-}
-
-.highlight-account {
-  background-color: #d4edda;
-  color: #155724;
-  padding: 1px 2px;
-  border-radius: 2px;
-  font-weight: bold;
-  box-shadow: 0 0 2px rgba(40, 167, 69, 0.3);
 }
 
 @media (max-width: 768px) {
-  .log-table th:nth-child(1), .log-table td:nth-child(1) { width: 100px; min-width: 100px; }
-  .log-table th:nth-child(2), .log-table td:nth-child(2) { width: 80px; min-width: 80px; }
-  .log-table th:nth-child(3), .log-table td:nth-child(3) { width: 100px; min-width: 100px; }
-  .log-table th:nth-child(4), .log-table td:nth-child(4) { width: 80px; min-width: 80px; }
-  .log-table th:nth-child(5), .log-table td:nth-child(5) { width: 80px; min-width: 80px; }
-  .log-table th:nth-child(6), .log-table td:nth-child(6) { width: 80px; min-width: 80px; }
-  .log-table th:nth-child(7), .log-table td:nth-child(7) { width: 80px; min-width: 80px; }
-  .log-table th:nth-child(8), .log-table td:nth-child(8) { width: 80px; min-width: 80px; }
-  .log-table th:nth-child(9), .log-table td:nth-child(9) { width: 100px; min-width: 100px; }
-  .log-table th:nth-child(10), .log-table td:nth-child(10) { width: 100px; min-width: 100px; }
-  .log-table th:nth-child(11), .log-table td:nth-child(11) { width: 200px; min-width: 200px; max-width: 200px; }
-  .log-table th:nth-child(12), .log-table td:nth-child(12) { width: 200px; min-width: 200px; max-width: 200px; }
-  .tr-data-cell { max-width: 200px; min-width: 150px; width: 180px; }
-  .tr-data-text { max-height: 150px; font-size: 10px; }
+  .log-table.log-table--pb-fep {
+    font-size: 11px;
+  }
+  .tr-data-stream {
+    max-height: 160px;
+    font-size: 10px;
+  }
 }

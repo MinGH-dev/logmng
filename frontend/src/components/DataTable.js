@@ -1,8 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import './DataTable.css';
 
 const PAGE_SIZE_MIN = 1;
 const PAGE_SIZE_MAX = 100;
+const DEFAULT_PAGE_SIZE_OPTIONS = [25, 50, 100];
 
 /**
  * Shared data table component. Single structure and sort contract per docs/design/grid-and-table.md
@@ -11,7 +12,10 @@ const PAGE_SIZE_MAX = 100;
  * Props:
  * - columns: Array<{ key: string, label: React.ReactNode, sortable?: boolean }>
  * - sortConfig?: { key: string, direction: 'asc'|'desc' } | null
+ * - sortCriteria?: Array<{ key: string, direction: 'asc'|'desc' }> — multi-column header state (takes precedence over sortConfig for icons)
  * - onSort?: (key: string) => void
+ * - containerClassName?: extra class on outer .log-table-container
+ * - paginationFooterOrder?: 'default' | 'info-buttons-size' — PB FEP: center page buttons between info and rows-per-page
  * - loading?: boolean
  * - emptyMessage?: string
  * - emptyColSpan?: number
@@ -27,6 +31,7 @@ const PAGE_SIZE_MAX = 100;
 const DataTable = ({
   columns = [],
   sortConfig = null,
+  sortCriteria = null,
   onSort,
   loading = false,
   emptyMessage = '데이터가 없습니다.',
@@ -35,61 +40,44 @@ const DataTable = ({
   pagination = null,
   pageSize: pageSizeProp = 20,
   onPageSizeChange,
+  pageSizeOptions = DEFAULT_PAGE_SIZE_OPTIONS,
   pageSizeMin = PAGE_SIZE_MIN,
   pageSizeMax = PAGE_SIZE_MAX,
   tableClassName = '',
+  containerClassName = '',
+  paginationFooterOrder = 'default',
   ariaLabel,
 }) => {
-  const [pageSizeInput, setPageSizeInput] = useState(String(pageSizeProp));
-
   const effectivePageSize = Math.max(pageSizeMin, Math.min(pageSizeMax, pageSizeProp));
   const showRowsPerPage = pagination != null && typeof onPageSizeChange === 'function';
   const showFooter = pagination != null;
-
-  useEffect(() => {
-    setPageSizeInput(String(effectivePageSize));
-  }, [effectivePageSize]);
-
-  const applyPageSize = (value) => {
-    const n = parseInt(value, 10);
-    if (Number.isNaN(n) || n < pageSizeMin || n > pageSizeMax) {
-      setPageSizeInput(String(effectivePageSize));
-      return;
+  const normalizedPageSizeOptions = Array.from(new Set(pageSizeOptions
+    .filter((v) => Number.isInteger(v) && v >= pageSizeMin && v <= pageSizeMax)
+    .concat(effectivePageSize)))
+    .sort((a, b) => a - b);
+  const directionForKey = (key) => {
+    if (sortCriteria != null && sortCriteria.length > 0) {
+      const hit = sortCriteria.find((c) => c.key === key);
+      return hit ? hit.direction : null;
     }
-    setPageSizeInput(String(n));
-    onPageSizeChange(n);
+    if (sortConfig && sortConfig.key === key) return sortConfig.direction;
+    return null;
   };
 
-  const handlePageSizeIncrement = () => {
-    const next = Math.min(pageSizeMax, effectivePageSize + 1);
-    setPageSizeInput(String(next));
-    onPageSizeChange(next);
-  };
-
-  const handlePageSizeDecrement = () => {
-    const next = Math.max(pageSizeMin, effectivePageSize - 1);
-    setPageSizeInput(String(next));
-    onPageSizeChange(next);
-  };
-
-  const handlePageSizeKeyDown = (e) => {
-    if (e.key === 'Enter') {
-      e.preventDefault();
-      applyPageSize(pageSizeInput);
-    }
-  };
   const renderSortIcon = (key) => {
-    if (!sortConfig || sortConfig.key !== key) {
+    const dir = directionForKey(key);
+    if (!dir) {
       return <span className="sort-icon" aria-hidden>↕</span>;
     }
-    return sortConfig.direction === 'asc'
+    return dir === 'asc'
       ? <span className="sort-icon" aria-hidden>↑</span>
       : <span className="sort-icon" aria-hidden>↓</span>;
   };
 
   const getAriaSort = (key) => {
-    if (!sortConfig || sortConfig.key !== key) return 'none';
-    return sortConfig.direction === 'asc' ? 'ascending' : 'descending';
+    const dir = directionForKey(key);
+    if (!dir) return 'none';
+    return dir === 'asc' ? 'ascending' : 'descending';
   };
 
   const handleHeaderKeyDown = (e, key) => {
@@ -136,9 +124,11 @@ const DataTable = ({
     return buttons;
   };
 
+  const outerClass = `log-table-container ${containerClassName}`.trim();
+
   if (loading) {
     return (
-      <div className="log-table-container">
+      <div className={outerClass}>
         <div className="loading-container" aria-live="polite">
           <div className="loading-spinner" aria-hidden />
           <p>데이터를 불러오는 중...</p>
@@ -149,8 +139,43 @@ const DataTable = ({
 
   const paginationButtons = renderPaginationButtons();
 
+  const paginationInner = (
+    <>
+      {pagination.infoText != null ? (
+        <div className="pagination-info">{pagination.infoText}</div>
+      ) : null}
+      {!pagination.simple && (
+        <span className="pagination-aria" aria-live="polite" aria-atomic="true">
+          페이지 {pagination.currentPage} / {pagination.totalPages || 1}
+        </span>
+      )}
+    </>
+  );
+
+  const paginationSize = showRowsPerPage && (
+    <div className="rows-per-page" aria-label="페이지당 행 수">
+      <span className="rows-per-page-label">표시 건수</span>
+      <select
+        value={effectivePageSize}
+        onChange={(e) => onPageSizeChange(parseInt(e.target.value, 10))}
+        className="page-size-select"
+        aria-label="페이지당 행 수"
+      >
+        {normalizedPageSizeOptions.map((size) => (
+          <option key={size} value={size}>{size}건</option>
+        ))}
+      </select>
+    </div>
+  );
+
+  const paginationNav = paginationButtons ? (
+    <div className={pagination.simple ? 'pagination-buttons pagination-simple' : 'pagination-buttons'}>
+      {paginationButtons}
+    </div>
+  ) : null;
+
   return (
-    <div className="log-table-container">
+    <div className={outerClass}>
       <div className="table-wrapper">
         <table className={`log-table ${tableClassName}`.trim()} aria-label={ariaLabel}>
           <thead>
@@ -187,43 +212,25 @@ const DataTable = ({
       </div>
       {showFooter && (
         <div
-          className="pagination"
+          className={`pagination ${paginationFooterOrder === 'info-buttons-size' ? 'pagination--info-buttons-size' : ''}`.trim()}
           role="navigation"
           aria-label="테이블 푸터"
           aria-live="polite"
           aria-atomic="true"
         >
-          {pagination.infoText != null ? (
-            <div className="pagination-info">{pagination.infoText}</div>
-          ) : null}
-          {!pagination.simple && (
-            <span className="pagination-aria" aria-live="polite" aria-atomic="true">
-              페이지 {pagination.currentPage} / {pagination.totalPages || 1}
-            </span>
+          {paginationFooterOrder === 'info-buttons-size' ? (
+            <>
+              {paginationInner}
+              {paginationNav}
+              {paginationSize}
+            </>
+          ) : (
+            <>
+              {paginationInner}
+              {paginationSize}
+              {paginationNav}
+            </>
           )}
-          {showRowsPerPage && (
-            <div className="rows-per-page" aria-label="페이지당 행 수">
-              <span className="rows-per-page-label">표시 건수</span>
-              <button type="button" className="page-size-btn" onClick={handlePageSizeDecrement} disabled={effectivePageSize <= pageSizeMin} aria-label="행 수 감소">−</button>
-              <input
-                type="number"
-                min={pageSizeMin}
-                max={pageSizeMax}
-                value={pageSizeInput}
-                onChange={(e) => setPageSizeInput(e.target.value)}
-                onBlur={() => applyPageSize(pageSizeInput)}
-                onKeyDown={handlePageSizeKeyDown}
-                className="page-size-input"
-                aria-label="페이지당 행 수"
-              />
-              <button type="button" className="page-size-btn" onClick={handlePageSizeIncrement} disabled={effectivePageSize >= pageSizeMax} aria-label="행 수 증가">+</button>
-            </div>
-          )}
-          {paginationButtons ? (
-            <div className={pagination.simple ? 'pagination-buttons pagination-simple' : 'pagination-buttons'}>
-              {paginationButtons}
-            </div>
-          ) : null}
         </div>
       )}
     </div>

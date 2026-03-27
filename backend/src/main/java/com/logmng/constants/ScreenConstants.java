@@ -17,6 +17,10 @@ public final class ScreenConstants {
     public static final String MAIN = "main";
     /** Log search screen for PB FEP Log. Replaces main for pb_feplog. */
     public static final String PB_FEPLOG = "pb-feplog";
+    /**
+     * Additional PB FEP log search screen (new UI wireframe, separate permission). Same logType {@code pb_feplog} for APIs.
+     */
+    public static final String PB_FEP_LOG_SEARCH = "pb-fep-log-search";
     /** Log search screen for Java FW Image Log. Replaces main for java_fw_imglog. */
     public static final String JAVA_FW_IMAGELOG = "java-fw-imagelog";
     /** Legacy typo: normalize to JAVA_FW_IMAGELOG (req 20260318-permission-group-menu-invalid-screen-id-imagelog). */
@@ -37,7 +41,7 @@ public final class ScreenConstants {
 
     private static final Set<String> ALL_ALLOWED_SCREENS = Collections.unmodifiableSet(
             Arrays.asList(
-                    MAIN, PB_FEPLOG, JAVA_FW_IMAGELOG, SEARCH_HISTORY, ACTIVITY_LOG, STATISTICS,
+                    MAIN, PB_FEPLOG, PB_FEP_LOG_SEARCH, JAVA_FW_IMAGELOG, SEARCH_HISTORY, ACTIVITY_LOG, STATISTICS,
                     PENDING_APPROVALS, USER_MANAGEMENT, DEPARTMENT_APPROVERS,
                     USER_PERMISSION_HIERARCHY, PERMISSION_GROUP_MANAGEMENT
             ).stream().collect(Collectors.toSet())
@@ -55,7 +59,7 @@ public final class ScreenConstants {
 
     /** Screens that support decrypt (request decryption). Per spec §4.4, req 20260318: pb-feplog, java-fw-imagelog; main kept for migration. */
     private static final Set<String> SCREENS_WITH_DECRYPT = Collections.unmodifiableSet(
-            Arrays.asList(MAIN, PB_FEPLOG, JAVA_FW_IMAGELOG).stream().collect(Collectors.toSet())
+            Arrays.asList(MAIN, PB_FEPLOG, PB_FEP_LOG_SEARCH, JAVA_FW_IMAGELOG).stream().collect(Collectors.toSet())
     );
 
     private ScreenConstants() {
@@ -146,6 +150,6 @@ public final class ScreenConstants {
     /** Log-type search screens (no main). Used by path rules and logType↔screen enforcement. */
     public static Set<String> getLogSearchScreenIds() {
         return Collections.unmodifiableSet(
-                Arrays.asList(PB_FEPLOG, JAVA_FW_IMAGELOG).stream().collect(Collectors.toSet()));
+                Arrays.asList(PB_FEPLOG, PB_FEP_LOG_SEARCH, JAVA_FW_IMAGELOG).stream().collect(Collectors.toSet()));
     }
 }

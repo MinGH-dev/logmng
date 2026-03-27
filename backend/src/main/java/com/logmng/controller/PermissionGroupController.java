@@ -3,6 +3,7 @@ package com.logmng.controller;
 import com.logmng.dto.request.PermissionGroupCreateRequest;
 import com.logmng.dto.request.PermissionGroupUpdateRequest;
 import com.logmng.dto.response.ApiResponse;
+import com.logmng.dto.response.LoginResponse;
 import com.logmng.dto.response.AssignUserToGroupResponse;
 import com.logmng.dto.response.PermissionGroupResponse;
 import com.logmng.dto.response.UserListItemResponse;
@@ -125,6 +126,17 @@ public class PermissionGroupController {
         requireUserManagementAccess(request);
         requireWriteForManagement(request);
         PermissionGroupResponse data = permissionGroupService.update(id, body);
+        String changeReason = body.getChangeReason();
+        if (changeReason != null && !changeReason.isBlank()) {
+            LoginResponse actor = authService.getCurrentUserInfo(request);
+            Long actorUserId = actor != null ? actor.getUserId() : null;
+            String actorUsername = actor != null ? actor.getUsername() : null;
+            String trimmed = changeReason.trim();
+            int logLen = Math.min(trimmed.length(), 500);
+            log.info(
+                    "Permission group updated: id={}, actorUserId={}, actorUsername={}, changeReasonPrefix={}",
+                    id, actorUserId, actorUsername, trimmed.substring(0, logLen));
+        }
         return ResponseEntity.ok(ApiResponse.success(data));
     }
 

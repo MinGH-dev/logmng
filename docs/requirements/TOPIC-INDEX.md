@@ -9,6 +9,7 @@ For **RequirementsPastSearch** token optimization. Read this file first to find 
 
 ## permission | access-control | 화면 접근 | 권한 그룹 | is_system_admin
 
+- 20260323-approver-eligibility-from-permission-group-only | 계약 `contract.md` 「복호화 승인 자격」: 그룹 `approve` 우선·**`is_system_admin`만 상쇄**; **ADMIN_EXT는 그룹만**+P2-2; `decrypt_approver` DROP; `isApprover` UI 제거. Q&A: `...-PRODUCT-QA.md`
 - 20260317-search-decrypt-permission-ui | 검색하기 화면 복호화 권한 UI: 권한 없을 때 버튼 비활성화 및 "복호화 권한이 없습니다." 표시; 요청 사유는 승인 요청 시 모달에서 입력
 - 20260306-search-screen-decrypt-permission | 검색하기(main) 화면 복호화 권한 부여/해제; 권한관리에서 복호화 체크; 복호화 API는 권한 있는 사용자만 요청 가능
 - 20260306-approval-scope-fixed-department | Approval scope fixed to department (부서); scope selection read-only when approve selected in permission config
@@ -153,6 +154,7 @@ For **RequirementsPastSearch** token optimization. Read this file first to find 
 
 - 20260208-dynamic-log-type-management | 동적 로그 타입 관리 기능
 - 20260320-pb-feplog-empty-results-media-code-verification | PB FEP Log: verify empty search for media code SAAAA100 from 2023 — true data absence vs API/filter bug; read-only DB count vs POST search evidence
+- 20260326-pb-fep-log-search-screen-wireframe | Screen `pb-fep-log-search` only: SVG v10 authoritative for visual/IA (vs notes v11: e.g. 조회일자+시작/종료시간); dedicated `POST .../pb-fep-log-search`; grid/toolbar/table/stream per SVG; §2.D DB mapping from `schema_pb_fep.sql`; legacy `pb-feplog` keeps `db-refactored/search` only
 
 ## auth | logout | 로그인 | 로그아웃
 

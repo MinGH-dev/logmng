@@ -426,15 +426,40 @@ public class AuthService {
      */
     public boolean hasDecryptForScreen(HttpServletRequest request, String screenId) {
         if (screenId == null || screenId.isBlank()) return false;
+        String sid = screenId.trim();
         LoginResponse user = getCurrentUserInfo(request);
         if (user == null) return false;
         if (Boolean.TRUE.equals(user.getIsSystemAdmin())) return true;
-        List<String> allowed = user.getAllowedScreenIds();
-        if (allowed == null || !allowed.contains(screenId.trim())) return false;
         Map<String, ScreenFunctionCapability> sf = user.getScreenFunctions();
         if (sf == null) return false;
-        ScreenFunctionCapability cap = sf.get(screenId.trim());
+        if (isPbFeplogFamilyScreen(sid)) {
+            return hasDecryptOnAnyPbFeplogScreen(user, sf);
+        }
+        List<String> allowed = user.getAllowedScreenIds();
+        if (allowed == null || !allowed.contains(sid)) return false;
+        ScreenFunctionCapability cap = sf.get(sid);
         return cap != null && Boolean.TRUE.equals(cap.getDecrypt());
+    }
+
+    private static boolean isPbFeplogFamilyScreen(String screenId) {
+        return ScreenConstants.PB_FEPLOG.equals(screenId)
+                || ScreenConstants.PB_FEP_LOG_SEARCH.equals(screenId)
+                || ScreenConstants.MAIN.equals(screenId);
+    }
+
+    /** Decrypt for pb_feplog APIs if user has decrypt on pb-feplog, pb-fep-log-search, or legacy main. */
+    private static boolean hasDecryptOnAnyPbFeplogScreen(LoginResponse user, Map<String, ScreenFunctionCapability> sf) {
+        List<String> allowed = user.getAllowedScreenIds();
+        if (allowed == null) return false;
+        for (String key : List.of(ScreenConstants.PB_FEPLOG, ScreenConstants.PB_FEP_LOG_SEARCH, ScreenConstants.MAIN)) {
+            if (allowed.contains(key)) {
+                ScreenFunctionCapability cap = sf.get(key);
+                if (cap != null && Boolean.TRUE.equals(cap.getDecrypt())) {
+                    return true;
+                }
+            }
+        }
+        return false;
     }
 
     /**

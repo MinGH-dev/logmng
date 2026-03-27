@@ -8,6 +8,49 @@
   min-height: calc(100vh - 80px);
 }
 
+/* PB FEP: viewport fills main column; only grid body scrolls (req 20260326) */
+.log-grid.log-grid--pb-fep {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  max-height: 100%;
+}
+
+.log-grid.log-grid--pb-fep .log-grid-header {
+  flex-shrink: 0;
+}
+
+.log-grid.log-grid--pb-fep .search-form-container,
+.log-grid.log-grid--pb-fep .search-form-container--pb-fep {
+  flex-shrink: 0;
+}
+
+.log-grid.log-grid--pb-fep .log-grid-actions {
+  flex-shrink: 0;
+}
+
+.log-grid.log-grid--pb-fep .log-grid-table-region {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.expand-all-btn {
+  padding: 6px 12px;
+  font-size: 13px;
+  border: 1px solid #ced4da;
+  border-radius: 4px;
+  background: #fff;
+  color: #1976d2;
+  cursor: pointer;
+}
+
+.expand-all-btn:hover {
+  background: #f8f9fa;
+}
+
 .log-grid-header {
   padding: 20px;
   background: #f8f9fa;

@@ -1,0 +1,308 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="1600" height="1120" viewBox="0 0 1600 1120" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <style>
+      .font { font-family: "Noto Sans KR", "Roboto", "Helvetica", "Arial", sans-serif; }
+      .title { font-family: "Noto Sans KR", "Roboto", "Helvetica", "Arial", sans-serif; font-size: 24px; font-weight: 700; fill: #000000; }
+      .body { font-family: "Noto Sans KR", "Roboto", "Helvetica", "Arial", sans-serif; font-size: 14px; fill: #000000; }
+      .muted { font-family: "Noto Sans KR", "Roboto", "Helvetica", "Arial", sans-serif; font-size: 13px; fill: #495057; }
+      .small { font-family: "Noto Sans KR", "Roboto", "Helvetica", "Arial", sans-serif; font-size: 12px; fill: #495057; }
+      .th { font-family: "Noto Sans KR", "Roboto", "Helvetica", "Arial", sans-serif; font-size: 12px; font-weight: 700; fill: #000000; }
+      .td { font-family: "Noto Sans KR", "Roboto", "Helvetica", "Arial", sans-serif; font-size: 12px; fill: #000000; }
+      .mono { font-family: "Courier New", monospace; font-size: 11px; fill: #111111; }
+      .btn { font-family: "Noto Sans KR", "Roboto", "Helvetica", "Arial", sans-serif; font-size: 14px; font-weight: 600; }
+      .menu { font-family: "Noto Sans KR", "Roboto", "Helvetica", "Arial", sans-serif; font-size: 14px; fill: #000000; }
+      .menu-group { font-family: "Noto Sans KR", "Roboto", "Helvetica", "Arial", sans-serif; font-size: 14px; fill: #000000; font-weight: 600; }
+      .menu-active { font-family: "Noto Sans KR", "Roboto", "Helvetica", "Arial", sans-serif; font-size: 14px; fill: #000000; font-weight: 700; }
+      .row-hover { fill: #ffffff; transition: fill 0.18s ease; }
+      .row-hover:hover { fill: #eef6ff; }
+      .expand-hover { fill: #f8fbff; transition: fill 0.18s ease; }
+      .expand-hover:hover { fill: #edf5ff; }
+      .cell-center { text-anchor: middle; dominant-baseline: middle; }
+      .toggle-label { font-family: "Noto Sans KR", "Roboto", "Helvetica", "Arial", sans-serif; font-size: 11px; font-weight: 700; }
+      .stream-chip { font-family: "Noto Sans KR", "Roboto", "Helvetica", "Arial", sans-serif; font-size: 11px; font-weight: 700; }
+      .stream-line { font-family: "Courier New", monospace; font-size: 10.5px; fill: #0f172a; }
+    </style>
+  </defs>
+
+  <rect x="0" y="0" width="1600" height="1120" fill="#f5f6f8"/>
+
+  <!-- Left navigation -->
+  <rect x="0" y="0" width="240" height="1120" fill="#ffffff"/>
+  <line x1="239.5" y1="0" x2="239.5" y2="1120" stroke="#dde2e8"/>
+
+  <!-- Top bar -->
+  <rect x="240" y="0" width="1360" height="64" fill="#1976d2"/>
+  <rect x="264" y="20" width="24" height="24" rx="4" fill="none" stroke="#ffffff" stroke-width="1.6"/>
+  <line x1="270" y1="27" x2="282" y2="27" stroke="#ffffff" stroke-width="1.8" stroke-linecap="round"/>
+  <line x1="270" y1="32" x2="282" y2="32" stroke="#ffffff" stroke-width="1.8" stroke-linecap="round"/>
+  <line x1="270" y1="37" x2="282" y2="37" stroke="#ffffff" stroke-width="1.8" stroke-linecap="round"/>
+  <text x="304" y="40" class="font" font-size="20" font-weight="500" fill="#ffffff">로그 관리 시스템</text>
+  <text x="1330" y="39" class="font" font-size="14" fill="#ffffff">[IT센터] 공통파트</text>
+  <rect x="1456" y="16" width="112" height="32" rx="4" fill="rgba(255,255,255,0.08)" stroke="rgba(255,255,255,0.35)"/>
+  <circle cx="1482" cy="32" r="8" fill="none" stroke="#ffffff" stroke-width="1.6"/>
+  <path d="M1478 32h8" stroke="#ffffff" stroke-width="1.5" stroke-linecap="round"/>
+  <text x="1496" y="37" class="font" font-size="14" fill="#ffffff">로그아웃</text>
+
+  <g transform="translate(0,64)">
+    <rect x="0" y="0" width="240" height="1056" fill="#ffffff"/>
+    <rect x="0" y="18" width="240" height="44" fill="#ffffff"/>
+    <rect x="0" y="62" width="240" height="44" fill="#ffffff"/>
+    <rect x="0" y="106" width="240" height="44" fill="rgba(25,118,210,0.08)"/>
+    <rect x="0" y="106" width="3" height="44" fill="#1976d2"/>
+    <circle cx="32" cy="40" r="10" fill="none" stroke="#000000" stroke-width="1.6"/>
+    <line x1="39.5" y1="47.5" x2="45.5" y2="53.5" stroke="#000000" stroke-width="1.6" stroke-linecap="round"/>
+    <text x="56" y="45" class="menu-group">로그 검색</text>
+    <path d="M212 36l6 6 6-6" fill="none" stroke="#000000" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+    <circle cx="60" cy="84" r="7" fill="none" stroke="#000000" stroke-width="1.4"/>
+    <line x1="65.5" y1="89.5" x2="70.5" y2="94.5" stroke="#000000" stroke-width="1.4" stroke-linecap="round"/>
+    <text x="80" y="89" class="menu">PB FEP Log</text>
+    <circle cx="60" cy="128" r="7" fill="none" stroke="#000000" stroke-width="1.4"/>
+    <line x1="65.5" y1="133.5" x2="70.5" y2="138.5" stroke="#000000" stroke-width="1.4" stroke-linecap="round"/>
+    <text x="80" y="133" class="menu-active">Java FW Image Log</text>
+  </g>
+
+  <!-- Main content -->
+  <g transform="translate(256,80)">
+    <rect x="0" y="0" width="1328" height="1000" rx="0" fill="#ffffff"/>
+
+    <!-- Header -->
+    <rect x="0" y="0" width="1328" height="76" fill="#f8f9fb"/>
+    <line x1="0" y1="76.5" x2="1328" y2="76.5" stroke="#dde2e8"/>
+    <text x="20" y="34" class="title">PB FEP Log</text>
+
+    <!-- Search bar -->
+    <rect x="0" y="76" width="1328" height="70" fill="#ffffff"/>
+    <line x1="0" y1="146.5" x2="1328" y2="146.5" stroke="#dde2e8"/>
+
+    <text x="20" y="94" class="body">조회일자 *</text>
+    <rect x="20" y="100" width="138" height="28" rx="6" fill="#ffffff" stroke="#cfd6de"/>
+    <text x="89" y="114" class="body cell-center">2026-03-25</text>
+
+    <text x="170" y="94" class="body">시작시간 *</text>
+    <rect x="170" y="100" width="92" height="28" rx="6" fill="#ffffff" stroke="#cfd6de"/>
+    <text x="206" y="114" class="body cell-center">09:00</text>
+    <path d="M240 112l6 6 6-6" fill="none" stroke="#495057" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/>
+
+    <text x="274" y="94" class="body">종료시간 *</text>
+    <rect x="274" y="100" width="92" height="28" rx="6" fill="#ffffff" stroke="#cfd6de"/>
+    <text x="310" y="114" class="body cell-center">23:59</text>
+    <path d="M344 112l6 6 6-6" fill="none" stroke="#495057" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/>
+
+    <text x="378" y="94" class="body">Login ID *</text>
+    <rect x="378" y="100" width="140" height="28" rx="6" fill="#ffffff" stroke="#cfd6de"/>
+    <text x="448" y="114" class="body cell-center">hong01</text>
+
+    <text x="530" y="94" class="body">TR Code</text>
+    <rect x="530" y="100" width="116" height="28" rx="6" fill="#ffffff" stroke="#cfd6de"/>
+    <text x="588" y="114" class="body cell-center">TR001</text>
+
+    <text x="658" y="94" class="body">키워드 검색</text>
+    <rect x="658" y="100" width="214" height="28" rx="6" fill="#ffffff" stroke="#cfd6de"/>
+    <text x="765" y="114" class="body cell-center">ACC1234, transfer</text>
+
+    
+    <rect x="1170" y="98" width="84" height="32" rx="6" fill="#1976d2"/>
+    <text x="1212" y="114" class="btn cell-center" fill="#ffffff">검색</text>
+    <rect x="1264" y="98" width="52" height="32" rx="6" fill="#6c757d"/>
+    <text x="1290" y="114" class="btn cell-center" fill="#ffffff">초기화</text>
+
+    <g transform="translate(0,-14)">
+    <!-- Grid controls -->
+    <rect x="0" y="160" width="1328" height="36" fill="#ffffff"/>
+    <rect x="20" y="166" width="138" height="24" rx="6" fill="#ffffff" stroke="#cfd6de"/>
+    <text x="89" y="178" class="small cell-center" fill="#1565c0">복호화 승인 요청</text>
+    <rect x="170" y="166" width="118" height="24" rx="6" fill="#ffffff" stroke="#cfd6de"/>
+    <text x="229" y="178" class="small cell-center" fill="#1976d2">전체 펼치기 ▾</text>
+
+    <!-- Table header -->
+    <rect x="0" y="196" width="1328" height="42" fill="#f8f9fb"/>
+    <line x1="0" y1="238.5" x2="1328" y2="238.5" stroke="#dde2e8"/>
+
+    <!-- column centers -->
+    <text x="26" y="217" class="th cell-center"></text>
+    <text x="116" y="217" class="th cell-center">log_timestamp</text>
+    <path d="M172 247 L177 254 L182 247 Z" fill="#000000"/>
+
+    <text x="262" y="217" class="th cell-center">tr_code</text>
+    <path d="M308 247 L312 242 L316 247 Z" fill="#adb5bd"/>
+    <path d="M308 253 L312 258 L316 253 Z" fill="#adb5bd"/>
+
+    <text x="377" y="217" class="th cell-center">login_id</text>
+    <path d="M423 247 L427 242 L431 247 Z" fill="#adb5bd"/>
+    <path d="M423 253 L427 258 L431 253 Z" fill="#adb5bd"/>
+
+    <text x="477" y="217" class="th cell-center">msg_code</text>
+    <path d="M523 247 L527 242 L531 247 Z" fill="#adb5bd"/>
+    <path d="M523 253 L527 258 L531 253 Z" fill="#adb5bd"/>
+
+    <text x="587" y="217" class="th cell-center">bmsg</text>
+    <path d="M633 247 L637 242 L641 247 Z" fill="#adb5bd"/>
+    <path d="M633 253 L637 258 L641 253 Z" fill="#adb5bd"/>
+
+    <text x="687" y="217" class="th cell-center">log_ch_cd</text>
+    <path d="M733 247 L737 242 L741 247 Z" fill="#adb5bd"/>
+    <path d="M733 253 L737 258 L741 253 Z" fill="#adb5bd"/>
+
+    <text x="782" y="217" class="th cell-center">send_recv</text>
+    <path d="M828 247 L832 242 L836 247 Z" fill="#adb5bd"/>
+    <path d="M828 253 L832 258 L836 253 Z" fill="#adb5bd"/>
+
+    <text x="927" y="217" class="th cell-center">src_ip</text>
+    <path d="M973 247 L977 242 L981 247 Z" fill="#adb5bd"/>
+    <path d="M973 253 L977 258 L981 253 Z" fill="#adb5bd"/>
+
+    <text x="1067" y="217" class="th cell-center">dest_ip</text>
+    <path d="M1113 211 L1117 206 L1121 211 Z" fill="#adb5bd"/>
+    <path d="M1113 217 L1117 222 L1121 217 Z" fill="#adb5bd"/>
+
+    <text x="1183" y="217" class="th cell-center">app_id</text>
+    <path d="M1229 211 L1233 206 L1237 211 Z" fill="#adb5bd"/>
+    <path d="M1229 217 L1233 222 L1237 217 Z" fill="#adb5bd"/>
+
+    <text x="1260" y="217" class="th cell-center">data</text>
+
+    <!-- Row 1 expanded -->
+    <g>
+      <rect class="row-hover" x="0" y="238" width="1328" height="28"/>
+      <line x1="0" y1="266.5" x2="1328" y2="266.5" stroke="#edf0f3"/>
+      <text x="26" y="252" class="td cell-center">▾</text>
+      <text x="116" y="252" class="td cell-center">2026-03-25 09:18:00</text>
+      <text x="262" y="252" class="td cell-center">TR002</text>
+      <text x="377" y="252" class="td cell-center">hong01</text>
+      <text x="477" y="252" class="td cell-center">0000</text>
+      <text x="587" y="252" class="td cell-center">SUCCESS</text>
+      <text x="687" y="252" class="td cell-center">MOB</text>
+      <text x="782" y="252" class="td cell-center">SEND</text>
+      <text x="927" y="252" class="td cell-center">10.20.1.12</text>
+      <text x="1067" y="252" class="td cell-center">172.16.8.2</text>
+      <text x="1183" y="252" class="td cell-center">A002</text>
+      <g transform="translate(1228,240)">
+        <rect x="0" y="0" width="88" height="24" rx="6" fill="#eef6ff" stroke="#c7dcfb"/>
+        <text x="44" y="12" class="small cell-center" fill="#1565c0">접기 ▴</text>
+      </g>
+    </g>
+    <g>
+      <rect class="expand-hover" x="0" y="266" width="1328" height="108"/>
+      <line x1="0" y1="374.5" x2="1328" y2="374.5" stroke="#dde2e8"/>
+      <rect x="18" y="280" width="1292" height="80" rx="8" fill="#fbfdff" stroke="#d7dee6"/>
+      <rect x="34" y="294" width="82" height="20" rx="10" fill="#e8f1ff"/>
+      <text x="75" y="304" class="stream-chip cell-center" fill="#1565c0">STREAM DATA</text>
+      <text x="132" y="304" class="small">전문 데이터 stream 표현 예시</text>
+      <text x="36" y="328" class="stream-line">[09:18:00.112] INBOUND  session=PB-FEP-01  trCode=TR001  loginId=hong01  msgCode=0000</text>
+      <text x="36" y="344" class="stream-line">[09:18:00.118] STREAM  payload=ACC1234|transfer|1000000|REQ-20260325-091800-01|SUCCESS</text>
+      <text x="36" y="360" class="stream-line">[09:18:00.124] ROUTING upstream=172.16.8.2  appId=A002  decrypt=true  keyword=transfer</text>
+    </g>
+
+    <!-- Row 2 -->
+    <g>
+      <rect class="row-hover" x="0" y="374" width="1328" height="28"/>
+      <line x1="0" y1="402.5" x2="1328" y2="402.5" stroke="#edf0f3"/>
+      <text x="26" y="388" class="td cell-center">▸</text>
+      <text x="116" y="388" class="td cell-center">2026-03-25 09:19:00</text>
+      <text x="262" y="388" class="td cell-center">TR003</text>
+      <text x="377" y="388" class="td cell-center">hong01</text>
+      <text x="477" y="388" class="td cell-center">0000</text>
+      <text x="587" y="388" class="td cell-center">SUCCESS</text>
+      <text x="687" y="388" class="td cell-center">MOB</text>
+      <text x="782" y="388" class="td cell-center">RECV</text>
+      <text x="927" y="388" class="td cell-center">10.20.1.13</text>
+      <text x="1067" y="388" class="td cell-center">172.16.8.3</text>
+      <text x="1183" y="388" class="td cell-center">A003</text>
+      <g transform="translate(1208,376)">
+        <rect x="0" y="0" width="108" height="24" rx="6" fill="#ffffff" stroke="#cfd6de"/>
+        <text x="54" y="12" class="small cell-center" fill="#495057">전문보기 ▾</text>
+      </g>
+    </g>
+
+    <!-- Row 3 expanded -->
+    <g>
+      <rect class="row-hover" x="0" y="402" width="1328" height="28"/>
+      <line x1="0" y1="466.5" x2="1328" y2="466.5" stroke="#edf0f3"/>
+      <text x="26" y="452" class="td cell-center">▾</text>
+      <text x="116" y="452" class="td cell-center">2026-03-25 09:20:00</text>
+      <text x="262" y="452" class="td cell-center">TR004</text>
+      <text x="377" y="452" class="td cell-center">hong01</text>
+      <text x="477" y="452" class="td cell-center">W001</text>
+      <text x="587" y="452" class="td cell-center">WARN</text>
+      <text x="687" y="452" class="td cell-center">WEB</text>
+      <text x="782" y="452" class="td cell-center">SEND</text>
+      <text x="927" y="452" class="td cell-center">10.20.1.14</text>
+      <text x="1067" y="452" class="td cell-center">172.16.8.4</text>
+      <text x="1183" y="452" class="td cell-center">A004</text>
+      <g transform="translate(1228,440)">
+        <rect x="0" y="0" width="88" height="24" rx="6" fill="#eef6ff" stroke="#c7dcfb"/>
+        <text x="44" y="12" class="small cell-center" fill="#1565c0">접기 ▴</text>
+      </g>
+    </g>
+    <g>
+      <rect class="expand-hover" x="0" y="466" width="1328" height="116"/>
+      <line x1="0" y1="582.5" x2="1328" y2="582.5" stroke="#dde2e8"/>
+      <rect x="18" y="480" width="1292" height="88" rx="8" fill="#fbfdff" stroke="#d7dee6"/>
+      <rect x="34" y="494" width="82" height="20" rx="10" fill="#e8f1ff"/>
+      <text x="75" y="504" class="stream-chip cell-center" fill="#1565c0">STREAM DATA</text>
+      <text x="132" y="504" class="small">경고 응답 포함 스트림 전문 예시</text>
+      <text x="36" y="528" class="stream-line">[09:20:00.331] OUTBOUND session=PB-FEP-01  trCode=TR004  loginId=hong01  msgCode=W001</text>
+      <text x="36" y="544" class="stream-line">[09:20:00.337] STREAM  payload=ACC5678|transfer|decryptRequested=true|traceId=TRACE-20260325-092000-77</text>
+      <text x="36" y="560" class="stream-line">[09:20:00.341] WARNING partial-response-from-upstream  dest=172.16.8.4  appId=A004</text>
+    </g>
+
+    <!-- Remaining dense rows -->
+    <g>
+      <rect class="row-hover" x="0" y="582" width="1328" height="28"/>
+      <line x1="0" y1="610.5" x2="1328" y2="610.5" stroke="#edf0f3"/>
+      <text x="26" y="596" class="td cell-center">▸</text><text x="116" y="596" class="td cell-center">2026-03-25 09:21:00</text><text x="262" y="596" class="td cell-center">TR005</text><text x="377" y="596" class="td cell-center">hong01</text><text x="477" y="596" class="td cell-center">0000</text><text x="587" y="596" class="td cell-center">SUCCESS</text><text x="687" y="596" class="td cell-center">MOB</text><text x="782" y="596" class="td cell-center">RECV</text><text x="927" y="596" class="td cell-center">10.20.1.15</text><text x="1067" y="596" class="td cell-center">172.16.8.5</text><text x="1183" y="596" class="td cell-center">A005</text><g transform="translate(1208,584)"><rect x="0" y="0" width="108" height="24" rx="6" fill="#ffffff" stroke="#cfd6de"/><text x="54" y="12" class="small cell-center" fill="#495057">전문보기 ▾</text></g>
+      <rect class="row-hover" x="0" y="610" width="1328" height="28"/>
+      <line x1="0" y1="638.5" x2="1328" y2="638.5" stroke="#edf0f3"/>
+      <text x="26" y="624" class="td cell-center">▸</text><text x="116" y="624" class="td cell-center">2026-03-25 09:22:00</text><text x="262" y="624" class="td cell-center">TR006</text><text x="377" y="624" class="td cell-center">hong01</text><text x="477" y="624" class="td cell-center">0000</text><text x="587" y="624" class="td cell-center">SUCCESS</text><text x="687" y="624" class="td cell-center">MOB</text><text x="782" y="624" class="td cell-center">RECV</text><text x="927" y="624" class="td cell-center">10.20.1.16</text><text x="1067" y="624" class="td cell-center">172.16.8.6</text><text x="1183" y="624" class="td cell-center">A006</text><g transform="translate(1208,612)"><rect x="0" y="0" width="108" height="24" rx="6" fill="#ffffff" stroke="#cfd6de"/><text x="54" y="12" class="small cell-center" fill="#495057">전문보기 ▾</text></g>
+      <rect class="row-hover" x="0" y="638" width="1328" height="28"/>
+      <line x1="0" y1="666.5" x2="1328" y2="666.5" stroke="#edf0f3"/>
+      <text x="26" y="652" class="td cell-center">▸</text><text x="116" y="652" class="td cell-center">2026-03-25 09:23:00</text><text x="262" y="652" class="td cell-center">TR007</text><text x="377" y="652" class="td cell-center">hong01</text><text x="477" y="652" class="td cell-center">0000</text><text x="587" y="652" class="td cell-center">SUCCESS</text><text x="687" y="652" class="td cell-center">WEB</text><text x="782" y="652" class="td cell-center">SEND</text><text x="927" y="652" class="td cell-center">10.20.1.17</text><text x="1067" y="652" class="td cell-center">172.16.8.7</text><text x="1183" y="652" class="td cell-center">A007</text><g transform="translate(1208,640)"><rect x="0" y="0" width="108" height="24" rx="6" fill="#ffffff" stroke="#cfd6de"/><text x="54" y="12" class="small cell-center" fill="#495057">전문보기 ▾</text></g>
+      <rect class="row-hover" x="0" y="642" width="1328" height="28"/>
+      <line x1="0" y1="670.5" x2="1328" y2="670.5" stroke="#edf0f3"/>
+      <text x="26" y="656" class="td cell-center">▸</text><text x="116" y="656" class="td cell-center">2026-03-25 09:24:00</text><text x="262" y="656" class="td cell-center">TR008</text><text x="377" y="656" class="td cell-center">hong01</text><text x="477" y="656" class="td cell-center">0000</text><text x="587" y="656" class="td cell-center">SUCCESS</text><text x="687" y="656" class="td cell-center">WEB</text><text x="782" y="656" class="td cell-center">SEND</text><text x="927" y="656" class="td cell-center">10.20.1.18</text><text x="1067" y="656" class="td cell-center">172.16.8.8</text><text x="1183" y="656" class="td cell-center">A008</text><g transform="translate(1208,644)"><rect x="0" y="0" width="108" height="24" rx="6" fill="#ffffff" stroke="#cfd6de"/><text x="54" y="12" class="small cell-center" fill="#495057">전문보기 ▾</text></g>
+      <rect class="row-hover" x="0" y="670" width="1328" height="28"/>
+      <line x1="0" y1="698.5" x2="1328" y2="698.5" stroke="#edf0f3"/>
+      <text x="26" y="684" class="td cell-center">▸</text><text x="116" y="684" class="td cell-center">2026-03-25 09:25:00</text><text x="262" y="684" class="td cell-center">TR009</text><text x="377" y="684" class="td cell-center">hong01</text><text x="477" y="684" class="td cell-center">0000</text><text x="587" y="684" class="td cell-center">SUCCESS</text><text x="687" y="684" class="td cell-center">MOB</text><text x="782" y="684" class="td cell-center">RECV</text><text x="927" y="684" class="td cell-center">10.20.1.19</text><text x="1067" y="684" class="td cell-center">172.16.8.9</text><text x="1183" y="684" class="td cell-center">A009</text><g transform="translate(1208,672)"><rect x="0" y="0" width="108" height="24" rx="6" fill="#ffffff" stroke="#cfd6de"/><text x="54" y="12" class="small cell-center" fill="#495057">전문보기 ▾</text></g>
+      <rect class="row-hover" x="0" y="698" width="1328" height="28"/>
+      <line x1="0" y1="726.5" x2="1328" y2="726.5" stroke="#edf0f3"/>
+      <text x="26" y="712" class="td cell-center">▸</text><text x="116" y="712" class="td cell-center">2026-03-25 09:26:00</text><text x="262" y="712" class="td cell-center">TR010</text><text x="377" y="712" class="td cell-center">hong01</text><text x="477" y="712" class="td cell-center">0000</text><text x="587" y="712" class="td cell-center">SUCCESS</text><text x="687" y="712" class="td cell-center">MOB</text><text x="782" y="712" class="td cell-center">RECV</text><text x="927" y="712" class="td cell-center">10.20.1.20</text><text x="1067" y="712" class="td cell-center">172.16.8.10</text><text x="1183" y="712" class="td cell-center">A010</text><g transform="translate(1208,700)"><rect x="0" y="0" width="108" height="24" rx="6" fill="#ffffff" stroke="#cfd6de"/><text x="54" y="12" class="small cell-center" fill="#495057">전문보기 ▾</text></g>
+      <rect class="row-hover" x="0" y="726" width="1328" height="28"/>
+      <line x1="0" y1="754.5" x2="1328" y2="754.5" stroke="#edf0f3"/>
+      <text x="26" y="740" class="td cell-center">▸</text><text x="116" y="740" class="td cell-center">2026-03-25 09:27:00</text><text x="262" y="740" class="td cell-center">TR011</text><text x="377" y="740" class="td cell-center">hong01</text><text x="477" y="740" class="td cell-center">0000</text><text x="587" y="740" class="td cell-center">SUCCESS</text><text x="687" y="740" class="td cell-center">WEB</text><text x="782" y="740" class="td cell-center">SEND</text><text x="927" y="740" class="td cell-center">10.20.1.21</text><text x="1067" y="740" class="td cell-center">172.16.8.11</text><text x="1183" y="740" class="td cell-center">A011</text><g transform="translate(1208,728)"><rect x="0" y="0" width="108" height="24" rx="6" fill="#ffffff" stroke="#cfd6de"/><text x="54" y="12" class="small cell-center" fill="#495057">전문보기 ▾</text></g>
+      <rect class="row-hover" x="0" y="754" width="1328" height="28"/>
+      <line x1="0" y1="782.5" x2="1328" y2="782.5" stroke="#edf0f3"/>
+      <text x="26" y="768" class="td cell-center">▸</text><text x="116" y="768" class="td cell-center">2026-03-25 09:28:00</text><text x="262" y="768" class="td cell-center">TR012</text><text x="377" y="768" class="td cell-center">hong01</text><text x="477" y="768" class="td cell-center">0000</text><text x="587" y="768" class="td cell-center">SUCCESS</text><text x="687" y="768" class="td cell-center">WEB</text><text x="782" y="768" class="td cell-center">SEND</text><text x="927" y="768" class="td cell-center">10.20.1.22</text><text x="1067" y="768" class="td cell-center">172.16.8.12</text><text x="1183" y="768" class="td cell-center">A012</text><g transform="translate(1208,756)"><rect x="0" y="0" width="108" height="24" rx="6" fill="#ffffff" stroke="#cfd6de"/><text x="54" y="12" class="small cell-center" fill="#495057">전문보기 ▾</text></g>
+    </g>
+
+
+    <!-- Grid internal scrollbar only -->
+    <rect x="1308" y="238" width="8" height="686" rx="4" fill="#f1f3f5" stroke="#e2e8f0"/>
+    <rect x="1309" y="366" width="6" height="164" rx="3" fill="#c1c9d2"/>
+
+    <!-- Footer / pagination -->
+    <rect x="0" y="924" width="1328" height="76" fill="#ffffff"/>
+    <line x1="0" y1="924.5" x2="1328" y2="924.5" stroke="#dde2e8"/>
+
+    <g transform="translate(493,948)">
+      <rect x="0" y="0" width="32" height="32" rx="6" fill="#ffffff" stroke="#ced4da"/>
+      <text x="16" y="16" class="body cell-center">‹</text>
+      <rect x="40" y="0" width="32" height="32" rx="6" fill="#1976d2"/>
+      <text x="56" y="16" class="body cell-center" fill="#ffffff">1</text>
+      <rect x="80" y="0" width="32" height="32" rx="6" fill="#ffffff" stroke="#ced4da"/>
+      <text x="96" y="16" class="body cell-center">2</text>
+      <rect x="120" y="0" width="32" height="32" rx="6" fill="#ffffff" stroke="#ced4da"/>
+      <text x="136" y="16" class="body cell-center">3</text>
+      <rect x="160" y="0" width="32" height="32" rx="6" fill="#ffffff" stroke="#ced4da"/>
+      <text x="176" y="16" class="body cell-center">›</text>
+    </g>
+
+        <rect x="1192" y="948" width="116" height="32" rx="6" fill="#ffffff" stroke="#ced4da"/>
+    <text x="1242" y="964" class="body cell-center">25건</text>
+    <path d="M1282 960l6 6 6-6" fill="none" stroke="#495057" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/>
+
+    <!-- Notes -->
+        </g>
+
+  </g>
+</svg>

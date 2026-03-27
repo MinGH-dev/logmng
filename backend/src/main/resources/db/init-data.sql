@@ -133,6 +133,12 @@ FROM (VALUES
 JOIN app_user u ON u.username = v.username
 WHERE NOT EXISTS (SELECT 1 FROM search_history LIMIT 1);
 
+-- PB FEP: Rows below populate the same tables the backend queries for PB FEP log search —
+-- LogDbService uses unqualified SELECT ... FROM pb_send UNION ALL SELECT ... FROM pb_recv
+-- (shared by legacy POST .../search and wireframe POST .../pb-fep-log-search).
+-- Installers should apply init-data.sql through setup.sh so session search_path matches
+-- SCHEMA_PB, aligned with app.db.schema and JDBC pool init SQL (DataSourceConfig / PgSchemaSupport).
+
 -- 송신 로그 샘플 데이터
 INSERT INTO pb_send (log_timestamp, media_code, tr_code, user_id, ip_address, user_agent, request_data, response_data, status_code, response_time, session_id, device_type)
 VALUES

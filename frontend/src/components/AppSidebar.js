@@ -26,7 +26,9 @@ function AppSidebar({
     const canShowChild = (c) => {
       if (!c?.view || !ids?.length) return false;
       if (c.view === 'user-management') return ids.includes('user-management') || ids.includes('user-permission-hierarchy');
-      if (c.view === 'permission-group-management') return ids.includes('permission-group-management') || ids.includes('user-permission-hierarchy');
+      if (c.view === 'permission-group-management' || c.view === 'permission-group-screen-matrix') {
+        return ids.includes('permission-group-management') || ids.includes('user-permission-hierarchy');
+      }
       return ids.includes(c.view);
     };
     return MENU_TREE.filter((node) => {

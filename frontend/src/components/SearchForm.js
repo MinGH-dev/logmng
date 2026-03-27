@@ -1,68 +1,125 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import './SearchForm.css';
 
-const SearchForm = ({ onSearch }) => {
-  // 오늘 날짜의 00:00:00부터 23:59:59까지 기본값 설정
-  const getTodayDateTime = (hours, minutes, seconds) => {
-    const today = new Date();
-    const year = today.getFullYear();
-    const month = String(today.getMonth() + 1).padStart(2, '0');
-    const day = String(today.getDate()).padStart(2, '0');
-    return `${year}-${month}-${day}T${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
-  };
+const pad2 = (n) => String(n).padStart(2, '0');
 
+const defaultRangeForToday = () => {
+  const d = new Date();
+  const y = d.getFullYear();
+  const m = pad2(d.getMonth() + 1);
+  const day = pad2(d.getDate());
+  return {
+    inquiryDate: `${y}-${m}-${day}`,
+    startTime: '09:00',
+    endTime: '23:59',
+  };
+};
+
+/** Parse "yyyy-MM-dd HH:mm:ss" or ISO-ish into date + HH:mm for time inputs. */
+const parseApiDatetimeToParts = (s) => {
+  if (!s) return { date: '', time: '' };
+  const str = String(s).trim();
+  const normalized = str.includes(' ') ? str.replace(' ', 'T') : str;
+  const m = normalized.match(/^(\d{4}-\d{2}-\d{2})[T ](\d{2}):(\d{2})/);
+  if (m) return { date: m[1], time: `${m[2]}:${m[3]}` };
+  return { date: '', time: '' };
+};
+
+const storedParamsToFormFields = (stored) => {
+  if (!stored || typeof stored !== 'object') return null;
+  const kw = stored.keywords;
+  const keywordsStr = Array.isArray(kw) ? kw.join(', ') : kw != null ? String(kw) : '';
+  const tr = stored.tr_code != null ? String(stored.tr_code) : stored.trCode != null ? String(stored.trCode) : '';
+  const startParts = parseApiDatetimeToParts(stored.startDate);
+  const endParts = parseApiDatetimeToParts(stored.endDate);
+  const inquiryDate = startParts.date || endParts.date;
+  return {
+    inquiryDate: inquiryDate || defaultRangeForToday().inquiryDate,
+    startTime: startParts.time || defaultRangeForToday().startTime,
+    endTime: endParts.time || defaultRangeForToday().endTime,
+    loginId: stored.loginId != null ? String(stored.loginId) : '',
+    trCode: tr,
+    keywords: keywordsStr,
+  };
+};
+
+/**
+ * PB FEP 로그 검색 화면(pb-fep-log-search) 전용 — 컴팩트 단일 행 (req 20260326 wireframe / notes v11).
+ * PB FEP Log(pb-feplog)는 SearchFormLegacy 사용.
+ */
+const SearchForm = ({ onSearch, initialFromSearchParams = null }) => {
+  const initial = defaultRangeForToday();
   const [formData, setFormData] = useState({
-    startDate: getTodayDateTime(0, 0, 0), // 오늘 00:00:00
-    endDate: getTodayDateTime(23, 59, 59), // 오늘 23:59:59
-    media_gb: '',
-    tr_code: '',
+    inquiryDate: initial.inquiryDate,
+    startTime: initial.startTime,
+    endTime: initial.endTime,
     loginId: '',
+    trCode: '',
     keywords: '',
-    showDecryptOption: false
   });
+
+  useEffect(() => {
+    const patch = storedParamsToFormFields(initialFromSearchParams);
+    if (patch) {
+      setFormData((prev) => ({
+        ...prev,
+        ...patch,
+        inquiryDate: patch.inquiryDate || prev.inquiryDate,
+        startTime: patch.startTime || prev.startTime,
+        endTime: patch.endTime || prev.endTime,
+      }));
+    }
+  }, [initialFromSearchParams]);
 
   const [errors, setErrors] = useState({});
 
-  // 폼 데이터 변경 처리
   const handleInputChange = (e) => {
-    const { name, value, type, checked } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [name]: type === 'checkbox' ? checked : value
-    }));
-
-    // 에러 제거 (날짜 변경 시 날짜 범위 에러도 제거)
-    if (errors[name] || (name === 'startDate' || name === 'endDate' ? errors.dateRange : false)) {
-      setErrors(prev => {
-        const next = { ...prev, [name]: '' };
-        if (name === 'startDate' || name === 'endDate') next.dateRange = '';
-        return next;
-      });
+    const { name, value } = e.target;
+    setFormData((prev) => ({ ...prev, [name]: value }));
+    if (errors[name]) {
+      setErrors((prev) => ({ ...prev, [name]: '' }));
     }
   };
 
-  // 계좌번호 입력 시 복호화 옵션 활성화
-  const handleKeywordsChange = (e) => {
-    const value = e.target.value;
-    setFormData(prev => ({
-      ...prev,
-      keywords: value,
-      showDecryptOption: value.trim() !== ''
-    }));
+  const composeBounds = (inquiryDate, startTime, endTime) => {
+    if (!inquiryDate || !startTime || !endTime) return { startDt: null, endDt: null };
+    const st = String(startTime).trim();
+    const et = String(endTime).trim();
+    const startDt = new Date(`${inquiryDate}T${st.length === 5 ? `${st}:00` : st}`);
+    let endDt = new Date(`${inquiryDate}T${et.length === 5 ? `${et}:59` : et}`);
+    if (et.length === 5) {
+      endDt.setSeconds(59, 0);
+    }
+    return { startDt: Number.isNaN(startDt.getTime()) ? null : startDt, endDt: Number.isNaN(endDt.getTime()) ? null : endDt };
   };
 
-  // 검색 실행
   const handleSubmit = (e) => {
     e.preventDefault();
-    
-    // 필수 필드 검증
+
     const newErrors = {};
-    if (!formData.startDate) newErrors.startDate = '시작일시는 필수입니다.';
-    if (!formData.endDate) newErrors.endDate = '종료일시는 필수입니다.';
-    if (!formData.tr_code) newErrors.tr_code = 'TR Code는 필수입니다.';
-    // 날짜 범위: 시작 ≤ 종료 (date-search.md) — 시작일/종료일 둘 다 aria-invalid·aria-describedby 적용
-    if (formData.startDate && formData.endDate && new Date(formData.startDate) > new Date(formData.endDate)) {
-      newErrors.dateRange = '종료일시는 시작일시보다 이전일 수 없습니다.';
+    if (!formData.inquiryDate || !String(formData.inquiryDate).trim()) {
+      newErrors.inquiryDate = '조회일자는 필수입니다.';
+    }
+    if (!formData.startTime || !String(formData.startTime).trim()) {
+      newErrors.startTime = '시작시간은 필수입니다.';
+    }
+    if (!formData.endTime || !String(formData.endTime).trim()) {
+      newErrors.endTime = '종료시간은 필수입니다.';
+    }
+    if (!formData.loginId || !String(formData.loginId).trim()) {
+      newErrors.loginId = 'Login ID는 필수입니다.';
+    }
+
+    const { startDt, endDt } = composeBounds(
+      formData.inquiryDate,
+      formData.startTime,
+      formData.endTime
+    );
+    if (startDt && endDt && startDt > endDt) {
+      newErrors.range = '시작 시각은 종료 시각보다 늦을 수 없습니다.';
+    }
+    if ((formData.inquiryDate && formData.startTime && formData.endTime) && (!startDt || !endDt)) {
+      newErrors.range = newErrors.range || '날짜·시간 형식이 올바르지 않습니다.';
     }
 
     if (Object.keys(newErrors).length > 0) {
@@ -70,129 +127,107 @@ const SearchForm = ({ onSearch }) => {
       return;
     }
 
-    // 키워드 배열로 변환
+    const fmt = (d) => {
+      const y = d.getFullYear();
+      const m = pad2(d.getMonth() + 1);
+      const day = pad2(d.getDate());
+      const h = pad2(d.getHours());
+      const min = pad2(d.getMinutes());
+      const sec = pad2(d.getSeconds());
+      return `${y}-${m}-${day} ${h}:${min}:${sec}`;
+    };
+
     const keywordsArray = formData.keywords
-      ? formData.keywords.split(',').map(keyword => keyword.trim()).filter(keyword => keyword)
+      ? formData.keywords.split(',').map((k) => k.trim()).filter(Boolean)
       : [];
 
-    // 날짜 형식 변환 (datetime-local -> yyyy-MM-dd HH:mm:ss)
-    // Must include calendar date: backend treats digit-only strings as time-on-today (LogDbSearchRequest.parseDateTime).
-    const formatDateForAPI = (dateStr) => {
-      if (!dateStr) return '';
-      const date = new Date(dateStr);
-      const year = date.getFullYear();
-      const month = String(date.getMonth() + 1).padStart(2, '0');
-      const day = String(date.getDate()).padStart(2, '0');
-      const hours = String(date.getHours()).padStart(2, '0');
-      const minutes = String(date.getMinutes()).padStart(2, '0');
-      const seconds = String(date.getSeconds()).padStart(2, '0');
-      return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
-    };
-
     const searchParams = {
-      ...formData,
-      startDate: formatDateForAPI(formData.startDate),
-      endDate: formatDateForAPI(formData.endDate),
-      keywords: keywordsArray
+      tr_code: formData.trCode != null ? String(formData.trCode).trim() : '',
+      loginId: formData.loginId.trim(),
+      startDate: fmt(startDt),
+      endDate: fmt(endDt),
+      keywords: keywordsArray,
     };
 
-    console.log('🔍 SearchForm에서 전송할 데이터:', searchParams);
     onSearch(searchParams);
   };
 
-  // 폼 초기화
   const handleReset = () => {
+    const r = defaultRangeForToday();
     setFormData({
-      startDate: getTodayDateTime(0, 0, 0), // 오늘 00:00:00
-      endDate: getTodayDateTime(23, 59, 59), // 오늘 23:59:59
-      media_gb: '',
-      tr_code: '',
+      inquiryDate: r.inquiryDate,
+      startTime: r.startTime,
+      endTime: r.endTime,
       loginId: '',
+      trCode: '',
       keywords: '',
-      showDecryptOption: false
     });
     setErrors({});
   };
 
   return (
-    <div className="search-form-container">
-      <form onSubmit={handleSubmit} className="search-form">
-        <div className="form-row-single">
-          <div className="form-group">
-            <label htmlFor="startDate">
-              시작일시 <span className="required">*</span>
+    <div className="search-form-container search-form-container--pb-fep">
+      <form onSubmit={handleSubmit} className="search-form search-form--pb-fep-compact">
+        <div className="form-row-single form-row-single--pb-fep">
+          <div className="form-group form-group--compact">
+            <label htmlFor="inquiryDate">
+              조회일자 <span className="required">*</span>
             </label>
             <input
-              type="datetime-local"
-              id="startDate"
-              name="startDate"
-              value={formData.startDate}
+              type="date"
+              id="inquiryDate"
+              name="inquiryDate"
+              value={formData.inquiryDate}
               onChange={handleInputChange}
-              className={errors.startDate || errors.dateRange ? 'error' : ''}
-              step="1"
-              aria-invalid={!!(errors.startDate || errors.dateRange)}
-              aria-describedby={[errors.startDate && 'startDate-error', errors.dateRange && 'search-form-date-range-error'].filter(Boolean).join(' ') || undefined}
+              className={errors.inquiryDate || errors.range ? 'error' : ''}
+              aria-invalid={!!(errors.inquiryDate || errors.range)}
+              aria-describedby={errors.range ? 'search-range-error' : errors.inquiryDate ? 'inquiryDate-error' : undefined}
             />
-            {errors.startDate && <span id="startDate-error" className="error-message" role="alert">{errors.startDate}</span>}
+            {errors.inquiryDate && (
+              <span id="inquiryDate-error" className="error-message" role="alert">{errors.inquiryDate}</span>
+            )}
           </div>
 
-          <div className="form-group">
-            <label htmlFor="endDate">
-              종료일시 <span className="required">*</span>
+          <div className="form-group form-group--compact">
+            <label htmlFor="startTime">
+              시작시간 <span className="required">*</span>
             </label>
             <input
-              type="datetime-local"
-              id="endDate"
-              name="endDate"
-              value={formData.endDate}
+              type="time"
+              id="startTime"
+              name="startTime"
+              step={60}
+              value={formData.startTime}
               onChange={handleInputChange}
-              className={errors.endDate || errors.dateRange ? 'error' : ''}
-              step="1"
-              aria-invalid={!!(errors.endDate || errors.dateRange)}
-              aria-describedby={[errors.endDate && 'endDate-error', errors.dateRange && 'search-form-date-range-error'].filter(Boolean).join(' ') || undefined}
+              className={errors.startTime || errors.range ? 'error' : ''}
+              aria-invalid={!!(errors.startTime || errors.range)}
             />
-            {errors.endDate && <span id="endDate-error" className="error-message" role="alert">{errors.endDate}</span>}
-            {errors.dateRange && <span id="search-form-date-range-error" className="error-message" role="alert">{errors.dateRange}</span>}
+            {errors.startTime && (
+              <span id="startTime-error" className="error-message" role="alert">{errors.startTime}</span>
+            )}
           </div>
 
-          <div className="form-group">
-            <label htmlFor="media_gb">
-              매체코드
+          <div className="form-group form-group--compact">
+            <label htmlFor="endTime">
+              종료시간 <span className="required">*</span>
             </label>
             <input
-              type="text"
-              id="media_gb"
-              name="media_gb"
-              value={formData.media_gb}
+              type="time"
+              id="endTime"
+              name="endTime"
+              step={60}
+              value={formData.endTime}
               onChange={handleInputChange}
-              placeholder="매체코드"
-              className={errors.media_gb ? 'error' : ''}
-              aria-invalid={!!errors.media_gb}
-              aria-describedby={errors.media_gb ? 'media_gb-error' : undefined}
+              className={errors.endTime || errors.range ? 'error' : ''}
+              aria-invalid={!!(errors.endTime || errors.range)}
             />
-            {errors.media_gb && <span id="media_gb-error" className="error-message" role="alert">{errors.media_gb}</span>}
+            {errors.endTime && (
+              <span id="endTime-error" className="error-message" role="alert">{errors.endTime}</span>
+            )}
           </div>
 
-          <div className="form-group">
-            <label htmlFor="tr_code">
-              TR Code <span className="required">*</span>
-            </label>
-            <input
-              type="text"
-              id="tr_code"
-              name="tr_code"
-              value={formData.tr_code}
-              onChange={handleInputChange}
-              placeholder="TR Code"
-              className={errors.tr_code ? 'error' : ''}
-              aria-invalid={!!errors.tr_code}
-              aria-describedby={errors.tr_code ? 'tr_code-error' : undefined}
-            />
-            {errors.tr_code && <span id="tr_code-error" className="error-message" role="alert">{errors.tr_code}</span>}
-          </div>
-
-          <div className="form-group">
-            <label htmlFor="loginId">Login ID</label>
+          <div className="form-group form-group--compact">
+            <label htmlFor="loginId">Login ID <span className="required">*</span></label>
             <input
               type="text"
               id="loginId"
@@ -200,49 +235,52 @@ const SearchForm = ({ onSearch }) => {
               value={formData.loginId}
               onChange={handleInputChange}
               placeholder="Login ID"
+              className={errors.loginId ? 'error' : ''}
+              aria-invalid={!!errors.loginId}
+              aria-describedby={errors.loginId ? 'loginId-error' : undefined}
+            />
+            {errors.loginId && <span id="loginId-error" className="error-message" role="alert">{errors.loginId}</span>}
+          </div>
+
+          <div className="form-group form-group--compact">
+            <label htmlFor="trCode">TR Code</label>
+            <input
+              type="text"
+              id="trCode"
+              name="trCode"
+              value={formData.trCode}
+              onChange={handleInputChange}
+              placeholder="TR Code"
             />
           </div>
 
-          <div className="form-group">
+          <div className="form-group form-group--compact form-group--keywords">
             <label htmlFor="keywords">키워드 검색</label>
             <input
               type="text"
               id="keywords"
               name="keywords"
               value={formData.keywords}
-              onChange={handleKeywordsChange}
-              placeholder="키워드1, 키워드2, 키워드3 (OR 조건으로 검색)"
+              onChange={handleInputChange}
+              placeholder="쉼표로 구분 (예: a, b)"
             />
           </div>
-        </div>
 
-        {formData.showDecryptOption && (
-          <div className="form-row">
-            <div className="form-group checkbox-group">
-              <label>
-                <input
-                  type="checkbox"
-                  name="decryptData"
-                  checked={formData.decryptData || false}
-                  onChange={handleInputChange}
-                />
-                키워드 검색 시 복호화 여부 체크
-              </label>
-            </div>
+          <div className="form-actions form-actions-inline form-actions--pb-fep">
+            <button type="submit" className="btn btn-primary btn-compact">
+              검색
+            </button>
+            <button type="button" className="btn btn-secondary btn-compact" onClick={handleReset}>
+              초기화
+            </button>
           </div>
-        )}
-
-        <div className="form-actions">
-          <button type="submit" className="btn btn-primary">
-            검색
-          </button>
-          <button type="button" className="btn btn-secondary" onClick={handleReset}>
-            초기화
-          </button>
         </div>
+        {errors.range && (
+          <p id="search-range-error" className="error-message error-message--row" role="alert">{errors.range}</p>
+        )}
       </form>
     </div>
   );
 };
 
-export default SearchForm; 
+export default SearchForm;

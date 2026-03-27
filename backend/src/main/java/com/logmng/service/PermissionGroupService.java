@@ -37,6 +37,7 @@ public class PermissionGroupService {
     private static final int MAX_CODE_LENGTH = 50;
     private static final int MAX_NAME_LENGTH = 200;
     private static final int MAX_USER_ID_LENGTH = 100;
+    private static final int MAX_CHANGE_REASON_LENGTH = 2000;
 
     private final DataSource dataSource;
     private final AppUserResolver appUserResolver;
@@ -134,6 +135,10 @@ public class PermissionGroupService {
     }
 
     public PermissionGroupResponse update(Long id, PermissionGroupUpdateRequest req) {
+        if (req.getChangeReason() != null && req.getChangeReason().length() > MAX_CHANGE_REASON_LENGTH) {
+            throw CustomException.badRequest(
+                    "changeReason은 " + MAX_CHANGE_REASON_LENGTH + "자 이하여야 합니다.", "INVALID_INPUT");
+        }
         if (req.getAllowedScreens() != null) {
             validateAllowedScreens(req.getAllowedScreens());
         }
@@ -560,6 +565,7 @@ public class PermissionGroupService {
     private void validateScreenFunctions(String screenId, Boolean read, Boolean write, Boolean approve, Boolean decrypt) {
         if (ScreenConstants.MAIN.equals(screenId)
                 || ScreenConstants.PB_FEPLOG.equals(screenId)
+                || ScreenConstants.PB_FEP_LOG_SEARCH.equals(screenId)
                 || ScreenConstants.JAVA_FW_IMAGELOG.equals(screenId)) {
             if (Boolean.TRUE.equals(write) || Boolean.TRUE.equals(approve)) {
                 throw CustomException.badRequest("해당 화면은 조회 및 복호화만 지원합니다. write 또는 approve를 지정할 수 없습니다: " + screenId, "INVALID_SCREEN_FUNCTION");

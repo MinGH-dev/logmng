@@ -7,7 +7,9 @@ import com.logmng.dto.request.AdvancedSearchRequest;
 import com.logmng.dto.request.FilterCondition;
 import com.logmng.dto.DecryptionRowKey;
 import com.logmng.dto.request.LogDbSearchRequest;
+import com.logmng.dto.request.LogDbSortSpec;
 import com.logmng.dto.response.LogDbSearchResponse;
+import com.logmng.exception.CustomException;
 import com.logmng.util.CryptoUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -36,6 +38,13 @@ public class LogDbService {
     private final CryptoUtil cryptoUtil;
     private final ObjectMapper objectMapper;
     private static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
+
+    /** Allowlisted ORDER BY columns for pb_send ∪ pb_recv (req 20260326). */
+    private static final Set<String> PB_FEPLOG_SORTABLE_COLUMNS = Collections.unmodifiableSet(new HashSet<>(Arrays.asList(
+            "id", "log_timestamp", "media_code", "tr_code", "user_id", "ip_address",
+            "user_agent", "request_data", "response_data", "status_code", "response_time",
+            "error_message", "session_id", "device_type", "created_at", "updated_at", "log_type"
+    )));
     
     public LogDbService(@Qualifier("dataSource") DataSource primaryDataSource,
                         @Qualifier("imagelogDataSource") DataSource imagelogDataSource,
@@ -64,11 +73,92 @@ public class LogDbService {
             throw new RuntimeException("지원하지 않는 로그 타입입니다: " + logType);
         }
     }
+
+    private String normalizePbFeplogSortField(String raw) {
+        if (raw == null) {
+            return null;
+        }
+        String f = raw.trim();
+        if (f.isEmpty()) {
+            return null;
+        }
+        if ("prc_time".equalsIgnoreCase(f)) {
+            return "log_timestamp";
+        }
+        if ("brodid".equalsIgnoreCase(f)) {
+            return "user_id";
+        }
+        if ("msg_code".equalsIgnoreCase(f)) {
+            return "status_code";
+        }
+        if ("bmsg".equalsIgnoreCase(f)) {
+            return "error_message";
+        }
+        if ("log_ch_cd".equalsIgnoreCase(f)) {
+            return "device_type";
+        }
+        if ("log_io_cd".equalsIgnoreCase(f)) {
+            return "log_type";
+        }
+        if ("pub_ip".equalsIgnoreCase(f) || "src_ip".equalsIgnoreCase(f)) {
+            return "ip_address";
+        }
+        if ("prt_ip".equalsIgnoreCase(f) || "app_id".equalsIgnoreCase(f)) {
+            return "session_id";
+        }
+        if ("login_id".equalsIgnoreCase(f)) {
+            return "user_id";
+        }
+        if ("send_recv".equalsIgnoreCase(f)) {
+            return "log_type";
+        }
+        if ("term_no".equalsIgnoreCase(f)) {
+            return "response_time";
+        }
+        return f;
+    }
+
+    /**
+     * Safe ORDER BY for PB FEP union query. Uses sortSpecs when non-empty; else legacy sortField/sortDirection.
+     */
+    String buildPbFeplogOrderBy(LogDbSearchRequest request) {
+        List<LogDbSortSpec> specs = request.getSortSpecs();
+        if (specs != null && !specs.isEmpty()) {
+            StringBuilder ob = new StringBuilder();
+            Set<String> used = new HashSet<>();
+            for (LogDbSortSpec spec : specs) {
+                if (spec == null) {
+                    continue;
+                }
+                String col = normalizePbFeplogSortField(spec.getField());
+                if (col == null || !PB_FEPLOG_SORTABLE_COLUMNS.contains(col) || used.contains(col)) {
+                    continue;
+                }
+                used.add(col);
+                String dirRaw = spec.getDirection();
+                String dir = dirRaw != null && "asc".equalsIgnoreCase(dirRaw.trim()) ? "ASC" : "DESC";
+                if (ob.length() > 0) {
+                    ob.append(", ");
+                }
+                ob.append(col).append(" ").append(dir);
+            }
+            if (ob.length() > 0) {
+                return ob.toString();
+            }
+        }
+        String sortField = normalizePbFeplogSortField(request.getSortField() != null ? request.getSortField() : "log_timestamp");
+        if (sortField == null || !PB_FEPLOG_SORTABLE_COLUMNS.contains(sortField)) {
+            sortField = "log_timestamp";
+        }
+        String sortDirection = request.getSortDirection() != null ? request.getSortDirection() : "desc";
+        String dir = "asc".equalsIgnoreCase(sortDirection.trim()) ? "ASC" : "DESC";
+        return sortField + " " + dir;
+    }
     
     /**
-     * PB FEP 로그 검색 (pb_send, pb_recv)
+     * PB FEP search: SQL {@code pb_send} {@code UNION ALL} {@code pb_recv}. Shared by legacy {@link #searchLogs} (pb_feplog) and wireframe {@link #searchPbFepLogWireframe}.
      */
-    private LogDbSearchResponse searchPbFeplog(LogDbSearchRequest request) {
+    private LogDbSearchResponse executePbFeplogUnionSearch(LogDbSearchRequest request) {
         List<Map<String, Object>> results = new ArrayList<>();
         
         try (Connection connection = primaryDataSource.getConnection()) {
@@ -143,14 +233,7 @@ public class LogDbService {
                 params.add(request.getLoginId());
             }
             
-            // 정렬 (prc_time을 log_timestamp로 매핑)
-            String sortField = request.getSortField() != null ? request.getSortField() : "log_timestamp";
-            // 프론트엔드에서 보내는 prc_time을 log_timestamp로 변환
-            if ("prc_time".equalsIgnoreCase(sortField)) {
-                sortField = "log_timestamp";
-            }
-            String sortDirection = request.getSortDirection() != null ? request.getSortDirection() : "desc";
-            sql.append("ORDER BY ").append(sortField).append(" ").append(sortDirection);
+            sql.append("ORDER BY ").append(buildPbFeplogOrderBy(request));
             
             log.debug("실행 SQL: {}", sql.toString());
             log.debug("파라미터: {}", params);
@@ -202,7 +285,9 @@ public class LogDbService {
                         }
                         
                         // 복호화 옵션이 활성화된 경우 복호화된 데이터 포함
-                        if (request.getDecryptData() && !request.getKeywords().isEmpty()) {
+                        if (Boolean.TRUE.equals(request.getDecryptData())
+                                && request.getKeywords() != null
+                                && !request.getKeywords().isEmpty()) {
                             try {
                                 // request_data 복호화
                                 if (row.get("request_data") != null) {
@@ -243,6 +328,185 @@ public class LogDbService {
             log.error("PB FEP 로그 검색 중 오류 발생", e);
             throw new RuntimeException("PB FEP 로그 검색 중 오류가 발생했습니다: " + e.getMessage(), e);
         }
+    }
+
+    private LogDbSearchResponse searchPbFeplog(LogDbSearchRequest request) {
+        return executePbFeplogUnionSearch(request);
+    }
+
+    /**
+     * PB FEP wireframe screen ({@code pb-fep-log-search}): same UNION/query as legacy {@code searchPbFeplog}, response rows use wireframe JSON keys (req 20260326).
+     */
+    public LogDbSearchResponse searchPbFepLogWireframe(LogDbSearchRequest request) {
+        validatePbFepWireframeSearchRequest(request);
+        LogDbSearchRequest exec = copyRequestForPbFeplogWireframeExecution(request);
+        LogDbSearchResponse raw = executePbFeplogUnionSearch(exec);
+        List<Map<String, Object>> mapped = new ArrayList<>(raw.getData().size());
+        for (Map<String, Object> row : raw.getData()) {
+            mapped.add(mapPbFepRowToWireframe(row));
+        }
+        return new LogDbSearchResponse(mapped, raw.getPagination());
+    }
+
+    /**
+     * Validates wireframe-only rules: required dates/loginId, range order, pageSize allowlist, strict sortSpecs allowlist.
+     */
+    void validatePbFepWireframeSearchRequest(LogDbSearchRequest request) {
+        if (request.getLoginId() == null || request.getLoginId().trim().isEmpty()) {
+            throw CustomException.badRequest("Login ID는 필수입니다.", "INVALID_INPUT");
+        }
+        if (request.getStartDate() == null || request.getStartDate().trim().isEmpty()) {
+            throw CustomException.badRequest("시작 일시(startDate)는 필수입니다.", "INVALID_INPUT");
+        }
+        if (request.getEndDate() == null || request.getEndDate().trim().isEmpty()) {
+            throw CustomException.badRequest("종료 일시(endDate)는 필수입니다.", "INVALID_INPUT");
+        }
+        LocalDateTime start = request.getStartDateAsDateTime();
+        LocalDateTime end = request.getEndDateAsDateTime();
+        if (start == null) {
+            throw CustomException.badRequest("시작 일시(startDate) 형식이 올바르지 않습니다.", "INVALID_INPUT");
+        }
+        if (end == null) {
+            throw CustomException.badRequest("종료 일시(endDate) 형식이 올바르지 않습니다.", "INVALID_INPUT");
+        }
+        if (start.isAfter(end)) {
+            throw CustomException.badRequest("검색 기간이 올바르지 않습니다. 시작 일시가 종료 일시보다 늦을 수 없습니다.", "INVALID_INPUT");
+        }
+        Integer ps = request.getPageSize();
+        if (ps != null && ps != 25 && ps != 50 && ps != 100) {
+            throw CustomException.badRequest("pageSize는 25, 50, 100 중 하나여야 합니다.", "INVALID_INPUT");
+        }
+        List<LogDbSortSpec> specs = request.getSortSpecs();
+        if (specs != null) {
+            for (LogDbSortSpec spec : specs) {
+                if (spec == null) {
+                    throw CustomException.badRequest("sortSpecs 항목이 null일 수 없습니다.", "INVALID_INPUT");
+                }
+                String rawField = spec.getField();
+                if (rawField == null || rawField.trim().isEmpty()) {
+                    throw CustomException.badRequest("sortSpecs.field는 비어 있을 수 없습니다.", "INVALID_INPUT");
+                }
+                String col = normalizePbFeplogSortField(rawField.trim());
+                if (col == null || !PB_FEPLOG_SORTABLE_COLUMNS.contains(col)) {
+                    throw CustomException.badRequest("유효하지 않은 정렬 필드입니다: " + rawField.trim(), "INVALID_INPUT");
+                }
+                String dir = spec.getDirection();
+                if (dir != null && !dir.trim().isEmpty()
+                        && !"asc".equalsIgnoreCase(dir.trim())
+                        && !"desc".equalsIgnoreCase(dir.trim())) {
+                    throw CustomException.badRequest("sortSpecs.direction은 asc 또는 desc여야 합니다.", "INVALID_INPUT");
+                }
+            }
+        }
+    }
+
+    private static LogDbSearchRequest copyRequestForPbFeplogWireframeExecution(LogDbSearchRequest in) {
+        LogDbSearchRequest r = new LogDbSearchRequest();
+        r.setStartDate(in.getStartDate());
+        r.setEndDate(in.getEndDate());
+        r.setLoginId(in.getLoginId());
+        r.setTrCode(in.getTrCode());
+        r.setMediaCode(in.getMediaCode());
+        r.setKeywords(in.getKeywords() != null ? new ArrayList<>(in.getKeywords()) : new ArrayList<>());
+        r.setDecryptData(in.getDecryptData());
+        r.setSortSpecs(in.getSortSpecs() != null ? new ArrayList<>(in.getSortSpecs()) : new ArrayList<>());
+        r.setSortField(in.getSortField());
+        r.setSortDirection(in.getSortDirection());
+        r.setPage(in.getPage() != null ? in.getPage() : 1);
+        r.setPageSize(in.getPageSize() != null ? in.getPageSize() : 25);
+        r.setLogType("pb_feplog");
+        r.setDisplayTemplate(in.getDisplayTemplate());
+        return r;
+    }
+
+    private static String formatPbFepMsgCode(Object statusCode) {
+        if (statusCode == null) {
+            return null;
+        }
+        return String.valueOf(statusCode);
+    }
+
+    /** Strip H2 debug form when a CLOB column was already converted to a plain String. */
+    private static String unwrapH2ClobDebugStringIfPresent(String s) {
+        if (s == null || s.length() < 7) {
+            return s;
+        }
+        if (s.startsWith("clob") && s.contains(": '") && s.endsWith("'")) {
+            int start = s.lastIndexOf(": '") + 3;
+            if (start >= 3 && start < s.length()) {
+                return s.substring(start, s.length() - 1).replace("''", "'");
+            }
+        }
+        return s;
+    }
+
+    /** JDBC CLOB (e.g. H2) → string for JSON-safe wireframe fields. */
+    private static String jdbcValueToString(Object value) {
+        if (value == null) {
+            return null;
+        }
+        if (value instanceof Clob) {
+            try {
+                Clob c = (Clob) value;
+                long n = c.length();
+                if (n <= 0) {
+                    return "";
+                }
+                int len = n > Integer.MAX_VALUE ? Integer.MAX_VALUE : (int) n;
+                return unwrapH2ClobDebugStringIfPresent(c.getSubString(1, len));
+            } catch (SQLException e) {
+                return unwrapH2ClobDebugStringIfPresent(value.toString());
+            }
+        }
+        String s = value instanceof String ? (String) value : value.toString();
+        return unwrapH2ClobDebugStringIfPresent(s);
+    }
+
+    private static String buildWireframeDataCellSummary(String requestPayload, String responsePayload) {
+        String res = responsePayload != null ? responsePayload : "";
+        String req = requestPayload != null ? requestPayload : "";
+        String pick = !res.isEmpty() ? res : req;
+        if (pick.isEmpty()) {
+            return null;
+        }
+        int max = 200;
+        if (pick.length() <= max) {
+            return pick;
+        }
+        return pick.substring(0, max) + "...";
+    }
+
+    private static Map<String, Object> mapPbFepRowToWireframe(Map<String, Object> row) {
+        Map<String, Object> out = new LinkedHashMap<>();
+        String branch = row.get("log_type") != null ? row.get("log_type").toString().trim().toLowerCase(Locale.ROOT) : "";
+        out.put("id", row.get("id"));
+        out.put("log_type", row.get("log_type"));
+        out.put("log_timestamp", row.get("log_timestamp"));
+        out.put("tr_code", jdbcValueToString(row.get("tr_code")));
+        out.put("login_id", jdbcValueToString(row.get("user_id")));
+        out.put("msg_code", formatPbFepMsgCode(row.get("status_code")));
+        out.put("bmsg", jdbcValueToString(row.get("error_message")));
+        out.put("log_ch_cd", jdbcValueToString(row.get("device_type")));
+        if ("send".equals(branch)) {
+            out.put("send_recv", "SEND");
+        } else if ("recv".equals(branch)) {
+            out.put("send_recv", "RECV");
+        } else {
+            out.put("send_recv", "RECV");
+        }
+        out.put("src_ip", jdbcValueToString(row.get("ip_address")));
+        out.put("dest_ip", "");
+        Object sessionId = row.get("session_id");
+        out.put("app_id", sessionId != null ? sessionId.toString() : "");
+
+        Object reqRaw = row.get("decrypted_request_data") != null ? row.get("decrypted_request_data") : row.get("request_data");
+        Object resRaw = row.get("decrypted_response_data") != null ? row.get("decrypted_response_data") : row.get("response_data");
+        String reqOut = jdbcValueToString(reqRaw);
+        String resOut = jdbcValueToString(resRaw);
+        out.put("request_data", reqOut);
+        out.put("response_data", resOut);
+        out.put("data", buildWireframeDataCellSummary(reqOut, resOut));
+        return out;
     }
     
     /**
