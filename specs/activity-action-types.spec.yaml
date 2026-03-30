@@ -6,8 +6,8 @@
 ---
 metadata:
   title: "user_activity_log.action_type taxonomy and optional GET /api/activity-log/action-types"
-  version: "1.0"
-  requirement: "20260330-activity-types-user-mgmt-permission-group"
+  version: "1.1"
+  requirement: "20260330-activity-types-user-mgmt-permission-group, 20260330-permission-group-activity-detail-audit"
   status: "draft"
   op_01_note: >
     Closed set below is the Contract proposal for OP-01. Codes marked **provisional** (or “reserved / mapping TBD”)
@@ -90,7 +90,7 @@ JSON object stored in `user_activity_log.action_detail`. Implementations **must 
 |----------|------------------------|-----------|
 | **auth** | method, outcome (success/failure without secrets) | password, token |
 | **log_search** | `logType`, screen id, row identifiers as already used for audit | full request/response bodies with PII unless policy allows |
-| **permission_group** | `permissionGroupId`, `permissionGroupCode`, optional `changedScreenIds` summary | raw JWT, encryption keys |
+| **permission_group** | **`permissionGroupAuditV1`** (see `specs/activity-permission-group-audit.spec.yaml`): `before`/`after` snapshots, nested `allowedScreens` (`AllowedScreenItem`), optional `changeReason` (max 500, provisional). Legacy flat keys may coexist during transition. | raw JWT, encryption keys, denylist keys in §6 of that spec |
 | **user_assignment** | `targetUserId` (numeric `app_user.id`), `permissionGroupId` | — |
 | **user_admin** | `targetUserId`, optional field names changed (not values for secrets) | password hash, temp password |
 | **department_approver** | `departmentCode`, optional approver `userId` references | — |

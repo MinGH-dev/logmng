@@ -15,6 +15,7 @@ Use this skill for activity-statistics scope questions (`self`, `team`, `all`), 
 - `scope=all` keeps request parameters available.
 - Statistics API usage and filter option APIs must stay aligned with the contract/spec.
 - The `department` filter contract is shared with activity-log and search-history; the authoritative source is the new shared filter-options API for department options, not `/api/statistics/departments`. Docs and handoffs must name that shared API, its response shape, and the scope rules, not only a prop such as `departmentList`.
+- **Activity log — permission-group audit**: For `PERMISSION_GROUP_*` and assign/unassign action types, persisted `action_detail` may include structured `permissionGroupAuditV1` (see `specs/activity-permission-group-audit.spec.yaml`). `GET /api/activity-log/{id}` returns the same stored JSON with `action_detail` parsed from DB (String/CLOB); scope rules match `POST /api/activity-log/search` (requirement `20260330-permission-group-activity-detail-audit`).
 
 ## References
 

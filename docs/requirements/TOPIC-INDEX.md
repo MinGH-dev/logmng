@@ -9,6 +9,7 @@ For **RequirementsPastSearch** token optimization. Read this file first to find 
 
 ## permission | access-control | 화면 접근 | 권한 그룹 | is_system_admin
 
+- 20260330-permission-group-activity-detail-audit | Permission group activity rows: audit-grade action_detail (before/after or field diff), detail UI and export path options; Security review for PII and scope
 - 20260330-activity-types-user-mgmt-permission-group | Activity type taxonomy (login, search, admin, decrypt approval); user management and permission group flows emit auditable user_activity_log rows; filterable in activity history API/UI per contract
 - 20260323-approver-eligibility-from-permission-group-only | 계약 `contract.md` 「복호화 승인 자격」: 그룹 `approve` 우선·**`is_system_admin`만 상쇄**; **ADMIN_EXT는 그룹만**+P2-2; `decrypt_approver` DROP; `isApprover` UI 제거. Q&A: `...-PRODUCT-QA.md`
 - 20260317-search-decrypt-permission-ui | 검색하기 화면 복호화 권한 UI: 권한 없을 때 버튼 비활성화 및 "복호화 권한이 없습니다." 표시; 요청 사유는 승인 요청 시 모달에서 입력
@@ -37,6 +38,7 @@ For **RequirementsPastSearch** token optimization. Read this file first to find 
 
 ## activity-log | statistics | 활동 로그 | 통계 | scope
 
+- 20260330-permission-group-activity-detail-audit | Enrich permission-group action_detail and activity-log detail UI for audit evidence; optional export/query; aligns with parent 20260330-activity-types-user-mgmt-permission-group
 - 20260330-activity-types-user-mgmt-permission-group | Activity type taxonomy and audit for permission group / user management; queryable by action type + existing filters; contract/skill touchpoints
 - 20260311-activity-log-statistics-design-improvement | 활동 이력·통계 두 화면 디자인 표준 정렬: 그룹 제목·패널 너비·compact·사용자 블록 동일 크기·검색/초기화·폼 시맨틱·row1=날짜 row2=나머지
 - 20260313-activity-log-statistics-design-standards | 활동 이력·통계 두 화면 디자인 표준 정렬: 그룹 제목·패널 너비·compact·검색/초기화·폼 시맨틱·row1=날짜 row2=나머지·필터 접기 제거

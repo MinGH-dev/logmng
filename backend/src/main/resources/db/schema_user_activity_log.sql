@@ -8,7 +8,11 @@ CREATE TABLE IF NOT EXISTS user_activity_log (
     username VARCHAR(100),
     -- Longest canonical code in specs/activity-action-types.spec.yaml §2: UNASSIGN_USER_FROM_PERMISSION_GROUP (35). OP-04 20260330: VARCHAR(50) sufficient; extend via migration if future codes exceed 50.
     action_type VARCHAR(50) NOT NULL,
-    action_detail TEXT,                -- JSON 형태로 상세 정보 저장
+    -- JSON payload (e.g. permissionGroupAuditV1 in specs/activity-permission-group-audit.spec.yaml).
+    -- TEXT: no PostgreSQL length limit for audit-sized documents; full before/after allowedScreens[]
+    -- (allowed screen list ~12 items per specs/permission-group-hierarchy.spec.yaml §4.1) stays well below practical limits.
+    -- Use JSONB + migration only if Backend requires server-side JSON operators or expression indexes on this column.
+    action_detail TEXT,
     ip_address VARCHAR(45),            -- IPv6 지원
     user_agent TEXT,
     request_method VARCHAR(10),         -- GET, POST, PUT, DELETE

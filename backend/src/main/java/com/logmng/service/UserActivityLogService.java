@@ -33,6 +33,47 @@ public class UserActivityLogService {
         this.dataSource = dataSource;
         this.objectMapper = new ObjectMapper();
     }
+
+    /**
+     * Parses {@code action_detail} from JDBC ({@link String} or {@link Clob}) to a JSON object map.
+     * Search and detail use the same logic (contract: scope parity for structured audit payloads).
+     */
+    Object parseActionDetailColumn(Object jdbcValue) {
+        if (jdbcValue == null) {
+            return null;
+        }
+        String json = readJdbcStringContent(jdbcValue);
+        if (json == null) {
+            return jdbcValue;
+        }
+        try {
+            return objectMapper.readValue(json, new TypeReference<Map<String, Object>>() {});
+        } catch (Exception e) {
+            log.debug("action_detail JSON 파싱 실패: {}", e.getMessage());
+            return json;
+        }
+    }
+
+    private static String readJdbcStringContent(Object jdbcValue) {
+        if (jdbcValue instanceof String s) {
+            return s;
+        }
+        if (jdbcValue instanceof Clob clob) {
+            try {
+                long len = clob.length();
+                if (len <= 0) {
+                    return "";
+                }
+                if (len > Integer.MAX_VALUE) {
+                    return null;
+                }
+                return clob.getSubString(1, (int) len);
+            } catch (Exception e) {
+                return null;
+            }
+        }
+        return null;
+    }
     
     /**
      * 사용자 활동 이력 저장
@@ -273,18 +314,8 @@ public class UserActivityLogService {
                             row.put(columnName, value);
                         }
                         
-                        // action_detail JSON 파싱 (필요 시)
-                        if (row.get("action_detail") != null && row.get("action_detail") instanceof String) {
-                            try {
-                                String actionDetailJson = (String) row.get("action_detail");
-                                Map<String, Object> actionDetail = objectMapper.readValue(
-                                        actionDetailJson,
-                                        new TypeReference<Map<String, Object>>() {});
-                                row.put("action_detail", actionDetail);
-                            } catch (Exception e) {
-                                log.debug("action_detail JSON 파싱 실패: {}", e.getMessage());
-                            }
-                        }
+                        Object rawDetail = row.get("action_detail");
+                        row.put("action_detail", parseActionDetailColumn(rawDetail));
                         
                         results.add(row);
                     }
@@ -351,18 +382,8 @@ public class UserActivityLogService {
                             row.put(columnName, value);
                         }
                         
-                        // action_detail JSON 파싱
-                        if (row.get("action_detail") != null && row.get("action_detail") instanceof String) {
-                            try {
-                                String actionDetailJson = (String) row.get("action_detail");
-                                Map<String, Object> actionDetail = objectMapper.readValue(
-                                        actionDetailJson,
-                                        new TypeReference<Map<String, Object>>() {});
-                                row.put("action_detail", actionDetail);
-                            } catch (Exception e) {
-                                log.debug("action_detail JSON 파싱 실패: {}", e.getMessage());
-                            }
-                        }
+                        Object rawDetail = row.get("action_detail");
+                        row.put("action_detail", parseActionDetailColumn(rawDetail));
                         
                         log.info("✅ 사용자 활동 이력 상세 조회 완료: ID={}", id);
                         return row;

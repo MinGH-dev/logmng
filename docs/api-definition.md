@@ -392,6 +392,11 @@
 - **저장**: 각 행의 유형은 `action_type` 문자열( DB `user_activity_log.action_type`, 예: `VARCHAR(50)` )이다. **닫힌 코드 집합**·라벨·예비(provisional) 코드는 **`specs/activity-action-types.spec.yaml`** §2가 단일 기준이다.
 - **구현 상태**: 이미 기록되는 유형에는 `LOGIN`, `LOGOUT`, `SEARCH`, `VIEW`, `DECRYPT`, `ADVANCED_SEARCH` 등이 있으며, 메서드명 추론 시 `EXPORT`, `STATS_VIEW`, `SCHEMA_VIEW`, `UNKNOWN` 등이 사용될 수 있다(상세 표는 스펙 참고). **권한 그룹·사용자·부서 결재자·검색 이력·복호화 승인** 관련 코드는 요건 `20260330-activity-types-user-mgmt-permission-group`에 따라 Step 4에서 상수·기록 지점과 함께 확정한다.
 - **`action_detail`**: JSON 객체. 카테고리별로 허용되는 키는 스펙 §3(권한 그룹 id, 대상 `userId`, `searchHistoryId` 등 **비민감 식별자**). 비밀번호·토큰·복호화 본문·세션 식별자는 넣지 않는다.
+- **권한 그룹 관련 타입 (`PERMISSION_GROUP_CREATE` / `PERMISSION_GROUP_UPDATE` / `PERMISSION_GROUP_DELETE` / `ASSIGN_USER_TO_PERMISSION_GROUP` / `UNASSIGN_USER_FROM_PERMISSION_GROUP`)**  
+  - **버전 스키마**: 구현 목표는 `action_detail` 내 **`permissionGroupAuditV1`** 객체(자세한 필드·`before`/`after`·중첩 `allowedScreens`는 `specs/activity-permission-group-audit.spec.yaml`).  
+  - **Denylist**: 부모 요건 `20260330-activity-types-user-mgmt-permission-group` §2.1 Security 및 동일 스펙 §6 — `password`, `token`, `refreshToken`, 원시 요청 본문 등 **금지**.  
+  - **`changeReason` (잠정)**: `PERMISSION_GROUP_UPDATE`에서 클라이언트가 보낸 사유는 **`permissionGroupAuditV1.changeReason`**으로 영속할 때 **최대 500자**; 제품이 생략 정책으로 바꾸면 계약·스펙 우선 수정.  
+  - **상세 API 일관성**: 아래 `GET /api/activity-log/{id}` 응답의 `action_detail`은 DB에 저장된 JSON과 동일 계열이며, **검색(`POST /api/activity-log/search`)에서 볼 수 있는 행만** 상세 조회 가능해야 한다(요건 §2.1 AC-S2; MF-02는 백엔드 검증).
 
 ### 8.0.1 활동 유형 필터 옵션(선택 API)
 
@@ -429,7 +434,9 @@
 
 - **GET** `/api/activity-log/{id}`
 - **Path**: `id` — Long
-- **Response (data)**: Map (활동 이력 한 건 상세)
+- **Response (data)**: Map (활동 이력 한 건 상세). 일반적으로 목록 검색과 동일한 필드를 포함하며, **`action_detail`** 은 DB `user_activity_log.action_detail` JSON을 파싱한 객체이다.
+  - **권한 그룹 계열 `action_type`**: `action_detail`에 **`permissionGroupAuditV1`** 가 있으면(요건 `20260330-permission-group-activity-detail-audit`) 감사 증빙은 해당 객체의 `schemaVersion`, `operation`, `before` / `after` (`PermissionGroupSnapshot`, `allowedScreens` = `AllowedScreenItem[]`), `targetUserId`(배정/해제), 선택적 **`changeReason`**(잠정, 최대 500자)로 해석한다. 전체 규격·예시·denylist는 **`specs/activity-permission-group-audit.spec.yaml`**.
+  - **DOC-CODE-SYNC**: 구현체는 저장·응답 형태를 위 스펙에 맞춘다; 차이가 있으면 코드와 동시에 계약을 갱신한다(`docs/workflow/DOC-CODE-SYNC.md`).
 
 ### 8.3 활동 로그 통계 (Activity Statistics)
 

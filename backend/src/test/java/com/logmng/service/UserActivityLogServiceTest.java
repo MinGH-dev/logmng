@@ -14,6 +14,7 @@ import java.sql.Statement;
 import java.sql.Timestamp;
 import java.time.Instant;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -72,6 +73,33 @@ class UserActivityLogServiceTest {
             ps.setLong(1, 20260001L);
             ps.setString(2, username);
             ps.setString(3, departmentCode);
+            ps.executeUpdate();
+        }
+    }
+
+    private void insertActivityLogWithDetail(Long id, String userId, String username, String actionType, String actionDetailJson) throws Exception {
+        Timestamp now = Timestamp.from(Instant.parse("2026-03-13T10:15:30Z"));
+        try (Connection conn = dataSource.getConnection();
+             PreparedStatement ps = conn.prepareStatement(
+                     "INSERT INTO user_activity_log " +
+                             "(id, user_id, username, action_type, action_detail, ip_address, user_agent, request_method, request_path, request_params, response_status, response_time_ms, success, error_message, created_at, updated_at) " +
+                             "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)")) {
+            ps.setLong(1, id);
+            ps.setString(2, userId);
+            ps.setString(3, username);
+            ps.setString(4, actionType);
+            ps.setString(5, actionDetailJson);
+            ps.setString(6, "10.0.0.1");
+            ps.setString(7, "JUnit");
+            ps.setString(8, "PUT");
+            ps.setString(9, "/api/permission-groups/1");
+            ps.setString(10, "{}");
+            ps.setInt(11, 200);
+            ps.setInt(12, 15);
+            ps.setBoolean(13, true);
+            ps.setString(14, null);
+            ps.setTimestamp(15, now);
+            ps.setTimestamp(16, now);
             ps.executeUpdate();
         }
     }
@@ -210,5 +238,51 @@ class UserActivityLogServiceTest {
         org.assertj.core.api.Assertions.assertThatThrownBy(() -> userActivityLogService.saveActivityLog(
                 "u", "u", "Y".repeat(51), null, null, null, "GET", "/", null, 200, 1, true, null))
                 .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    /** TC-08: detail API returns parsed {@code action_detail} including {@code permissionGroupAuditV1} (MF-02). */
+    @Test
+    void getActivityLogDetail_parsesNestedPermissionGroupAuditV1() throws Exception {
+        String json = "{\"permissionGroupAuditV1\":{\"schemaVersion\":\"1\",\"operation\":\"UPDATE\",\"permissionGroupId\":42,"
+                + "\"permissionGroupCode\":\"G\",\"before\":{\"code\":\"G\",\"name\":\"old\",\"sortOrder\":0,\"allowedScreens\":[{\"screenId\":\"activity-log\",\"scope\":\"team\"}]},"
+                + "\"after\":{\"code\":\"G\",\"name\":\"new\",\"sortOrder\":0,\"allowedScreens\":[{\"screenId\":\"activity-log\",\"scope\":\"all\"}]}}}";
+        insertActivityLogWithDetail(100L, "currentUser", "Current User", "PERMISSION_GROUP_UPDATE", json);
+
+        Map<String, Object> row = userActivityLogService.getActivityLogDetail(100L, "currentUser", null);
+        @SuppressWarnings("unchecked")
+        Map<String, Object> ad = (Map<String, Object>) row.get("action_detail");
+        assertThat(ad).isNotNull();
+        @SuppressWarnings("unchecked")
+        Map<String, Object> v1 = (Map<String, Object>) ad.get("permissionGroupAuditV1");
+        assertThat(v1.get("operation")).isEqualTo("UPDATE");
+        assertThat(v1.get("permissionGroupId")).isEqualTo(42);
+        @SuppressWarnings("unchecked")
+        Map<String, Object> before = (Map<String, Object>) v1.get("before");
+        assertThat(before.get("name")).isEqualTo("old");
+    }
+
+    /** TC-09: scope=self — cannot load another user's row. */
+    @Test
+    void getActivityLogDetail_scopeSelf_forbiddenWhenNotOwner() throws Exception {
+        String json = "{\"permissionGroupAuditV1\":{\"operation\":\"UPDATE\"}}";
+        insertActivityLogWithDetail(101L, "outsideUser", "Outside User", "PERMISSION_GROUP_UPDATE", json);
+
+        org.assertj.core.api.Assertions.assertThatThrownBy(() ->
+                        userActivityLogService.getActivityLogDetail(101L, "currentUser", null))
+                .isInstanceOf(CustomException.class);
+    }
+
+    /** TC-10: scope=team — row visible only when actor's team list includes row owner. */
+    @Test
+    void getActivityLogDetail_scopeTeam_forbiddenWhenUserNotInAllowedTeamList() throws Exception {
+        String json = "{\"permissionGroupAuditV1\":{\"operation\":\"LOGIN\"}}";
+        insertActivityLogWithDetail(102L, "outsideUser", "Outside User", "LOGIN", json);
+
+        org.assertj.core.api.Assertions.assertThatThrownBy(() ->
+                        userActivityLogService.getActivityLogDetail(102L, null, List.of("currentUser", "teamMate")))
+                .isInstanceOf(CustomException.class);
+
+        Map<String, Object> teamRow = userActivityLogService.getActivityLogDetail(2L, null, List.of("currentUser", "teamMate"));
+        assertThat(teamRow.get("user_id")).isEqualTo("teamMate");
     }
 }

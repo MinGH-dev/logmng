@@ -1,5 +1,6 @@
 package com.logmng.service;
 
+import com.logmng.activity.PermissionGroupAuditContext;
 import com.logmng.constants.ScreenConstants;
 import com.logmng.dto.request.PermissionGroupCreateRequest;
 import com.logmng.dto.request.PermissionGroupUpdateRequest;
@@ -143,6 +144,7 @@ public class PermissionGroupService {
             validateAllowedScreens(req.getAllowedScreens());
         }
         PermissionGroupResponse existing = findById(id);
+        PermissionGroupAuditContext.setBeforeState(existing);
         String code = req.getCode() != null ? trim(req.getCode()) : existing.getCode();
         String name = req.getName() != null ? trim(req.getName()) : existing.getName();
         if (code.isEmpty()) {
@@ -182,6 +184,7 @@ public class PermissionGroupService {
 
     public void delete(Long id) {
         PermissionGroupResponse existing = findById(id);
+        PermissionGroupAuditContext.setBeforeState(existing);
         int userCount = countUsersInGroup(id);
         if (userCount > 0) {
             throw CustomException.badRequest("사용자가 배정된 권한 그룹은 삭제할 수 없습니다. 먼저 사용자 배정을 해제하세요.", "PERMISSION_GROUP_HAS_USERS");
@@ -244,7 +247,8 @@ public class PermissionGroupService {
         if (userId == null || userId.isBlank()) {
             throw CustomException.badRequest("userId는 필수이며 비어 있을 수 없습니다.", "INVALID_INPUT");
         }
-        findById(groupId);
+        PermissionGroupResponse group = findById(groupId);
+        PermissionGroupAuditContext.setUnassignGroupCode(group.getCode());
         try (Connection conn = dataSource.getConnection()) {
             String sql = "DELETE FROM app_user_permission_group WHERE permission_group_id = ? AND user_id = ?";
             try (PreparedStatement ps = conn.prepareStatement(sql)) {

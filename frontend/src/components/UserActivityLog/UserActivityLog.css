@@ -492,6 +492,84 @@
   margin-bottom: 10px;
 }
 
+/* Permission-group audit (action_detail.permissionGroupAuditV1) */
+.permission-group-audit-section {
+  margin-top: 16px;
+  padding: 12px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 4px;
+}
+
+.permission-group-audit-section h4 {
+  margin: 0 0 12px;
+  font-size: 14px;
+  font-weight: 600;
+  color: #1e293b;
+}
+
+.pg-audit-subsection {
+  margin-top: 16px;
+}
+
+.pg-audit-subheading {
+  margin: 0 0 8px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #334155;
+}
+
+.pg-audit-empty {
+  margin: 8px 0 0;
+  font-size: 13px;
+  color: #64748b;
+}
+
+.pg-audit-truncated-note {
+  margin: 0 0 12px;
+  font-size: 12px;
+  color: #b45309;
+}
+
+.pg-audit-screen-table thead th {
+  font-size: 12px;
+}
+
+.pg-audit-fallback-pre {
+  margin: 0;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.permission-group-legacy-flat,
+.action-detail-unknown-keys {
+  margin-top: 16px;
+}
+
+.permission-group-legacy-flat h4,
+.action-detail-unknown-keys h4 {
+  font-size: 13px;
+  font-weight: 600;
+  margin: 0 0 8px;
+  color: #334155;
+}
+
+/* O4: preset multi-select — layout only; control sizing from sf-compact-panel */
+.activity-log-pg-preset-select {
+  min-height: 7.5rem;
+  width: 100%;
+  max-width: var(--sf-field-extra-block-max, 360px);
+}
+
+.pg-preset-hint {
+  display: block;
+  margin-top: 6px;
+  font-size: 11px;
+  color: #64748b;
+  line-height: 1.35;
+  max-width: var(--sf-field-extra-block-max, 360px);
+}
+
 .activity-log-detail-footer {
   padding: 20px;
   border-top: 1px solid #dee2e6;

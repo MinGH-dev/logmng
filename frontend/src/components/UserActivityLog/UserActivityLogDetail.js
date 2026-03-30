@@ -1,6 +1,67 @@
 import React from 'react';
 import { getActivityActionTypeLabel } from '../../utils/activityActionTypeOptions';
+import {
+  getPermissionGroupOperationLabel,
+  isPermissionGroupFamilyActionType,
+} from '../../utils/permissionGroupActivityAudit';
 import './UserActivityLog.css';
+
+/** Legacy flat enricher keys (may coexist with permissionGroupAuditV1 during transition). */
+const LEGACY_PG_ENRICHER_KEYS = new Set([
+  'permissionGroupId',
+  'permissionGroupCode',
+  'targetUserId',
+  'allowedScreenCount',
+  'screenIds',
+]);
+
+/**
+ * @param {unknown} raw
+ * @returns {Record<string, unknown>}
+ */
+function normalizeActionDetail(raw) {
+  if (raw == null) return {};
+  if (typeof raw === 'string') {
+    try {
+      const p = JSON.parse(raw);
+      return typeof p === 'object' && p !== null && !Array.isArray(p) ? p : {};
+    } catch {
+      return {};
+    }
+  }
+  if (typeof raw === 'object' && !Array.isArray(raw)) return { ...raw };
+  return {};
+}
+
+/**
+ * @param {unknown} v
+ * @returns {string}
+ */
+function plainText(v) {
+  if (v == null) return '-';
+  if (typeof v === 'boolean') return v ? '예' : '아니오';
+  if (typeof v === 'number' && Number.isFinite(v)) return String(v);
+  return String(v);
+}
+
+/**
+ * @param {unknown} snap
+ * @returns {Record<string, unknown>|null}
+ */
+function asSnapshot(snap) {
+  if (snap == null) return null;
+  if (typeof snap !== 'object' || Array.isArray(snap)) return null;
+  return snap;
+}
+
+/**
+ * @param {unknown} row
+ * @returns {Record<string, unknown>|null}
+ */
+function asScreenRow(row) {
+  if (row == null || typeof row !== 'object' || Array.isArray(row)) return null;
+  return row;
+}
 
 const UserActivityLogDetail = ({ log, onClose, actionTypeLabelMap = {} }) => {
   if (!log) {
@@ -26,7 +87,6 @@ const UserActivityLogDetail = ({ log, onClose, actionTypeLabelMap = {} }) => {
       } else {
         parsed = obj;
       }
-      // 민감한 정보 마스킹
       const masked = maskSensitiveData(parsed);
       return JSON.stringify(masked, null, 2);
     } catch (e) {
@@ -34,46 +94,36 @@ const UserActivityLogDetail = ({ log, onClose, actionTypeLabelMap = {} }) => {
     }
   };
 
-  /**
-   * 민감한 정보 마스킹 처리
-   */
   const maskSensitiveData = (data) => {
     if (!data) return data;
-    
+
     if (typeof data === 'string') {
-      // 비밀번호 패턴 마스킹
       let masked = data.replace(/"password"\s*:\s*"([^"]+)"/gi, '"password":"***"');
       masked = masked.replace(/"pwd"\s*:\s*"([^"]+)"/gi, '"pwd":"***"');
       masked = masked.replace(/"secret"\s*:\s*"([^"]+)"/gi, '"secret":"***"');
       masked = masked.replace(/"token"\s*:\s*"([^"]+)"/gi, '"token":"***"');
-      
-      // 주민등록번호 패턴 마스킹
       masked = masked.replace(/(\d{6}-)\d{7}/g, '$1*******');
-      
-      // 신용카드 번호 패턴 마스킹
       masked = masked.replace(/(\d{4}-)\d{4}-\d{4}-(\d{4})/g, '$1****-****-$2');
-      
-      // 전화번호 패턴 마스킹
       masked = masked.replace(/(\d{3}-)\d{4}(-\d{4})/g, '$1****$2');
-      
-      // 이메일 패턴 마스킹
       masked = masked.replace(/([a-zA-Z0-9])[a-zA-Z0-9]*@/g, '$1***@');
-      
       return masked;
     }
-    
+
     if (typeof data === 'object') {
       if (Array.isArray(data)) {
-        return data.map(item => maskSensitiveData(item));
+        return data.map((item) => maskSensitiveData(item));
       }
-      
+
       const masked = {};
       for (const key in data) {
         if (Object.prototype.hasOwnProperty.call(data, key)) {
           const lowerKey = key.toLowerCase();
-          // 민감한 필드는 마스킹
-          if (lowerKey.includes('password') || lowerKey.includes('pwd') || 
-              lowerKey.includes('secret') || lowerKey.includes('token')) {
+          if (
+            lowerKey.includes('password') ||
+            lowerKey.includes('pwd') ||
+            lowerKey.includes('secret') ||
+            lowerKey.includes('token')
+          ) {
             masked[key] = '***';
           } else {
             masked[key] = maskSensitiveData(data[key]);
@@ -82,8 +132,226 @@ const UserActivityLogDetail = ({ log, onClose, actionTypeLabelMap = {} }) => {
       }
       return masked;
     }
-    
+
     return data;
+  };
+
+  const actionDetail = normalizeActionDetail(log.action_detail);
+  const pgAudit = actionDetail.permissionGroupAuditV1;
+  const isPgFamily = isPermissionGroupFamilyActionType(log.action_type);
+  const showActionDetailSection = !!(log.action_detail || isPgFamily);
+
+  const renderAllowedScreensTable = (title, screens) => {
+    if (!Array.isArray(screens) || screens.length === 0) {
+      return (
+        <div className="pg-audit-subsection">
+          <h5 className="pg-audit-subheading">{title}</h5>
+          <p className="pg-audit-empty">없음</p>
+        </div>
+      );
+    }
+    return (
+      <div className="pg-audit-subsection">
+        <h5 className="pg-audit-subheading">{title}</h5>
+        <table className="summary-table pg-audit-screen-table">
+          <thead>
+            <tr>
+              <th scope="col">화면 ID</th>
+              <th scope="col">범위</th>
+              <th scope="col">읽기</th>
+              <th scope="col">쓰기</th>
+              <th scope="col">승인</th>
+              <th scope="col">복호화</th>
+            </tr>
+          </thead>
+          <tbody>
+            {screens.map((raw, idx) => {
+              const row = asScreenRow(raw);
+              if (!row) {
+                return (
+                  <tr key={`bad-${idx}`}>
+                    <td colSpan={6}>{plainText(JSON.stringify(raw))}</td>
+                  </tr>
+                );
+              }
+              return (
+                <tr key={`${String(row.screenId)}-${idx}`}>
+                  <td>{plainText(row.screenId)}</td>
+                  <td>{plainText(row.scope ?? 'team')}</td>
+                  <td>{row.read == null ? '-' : plainText(row.read)}</td>
+                  <td>{row.write == null ? '-' : plainText(row.write)}</td>
+                  <td>{row.approve == null ? '-' : plainText(row.approve)}</td>
+                  <td>{row.decrypt == null ? '-' : plainText(row.decrypt)}</td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+    );
+  };
+
+  const renderSnapshotMetaDiff = (before, after) => {
+    const b = asSnapshot(before);
+    const a = asSnapshot(after);
+    const fields = ['code', 'name', 'description', 'sortOrder'];
+    const rows = fields.map((field) => ({
+      field,
+      beforeVal: b && Object.prototype.hasOwnProperty.call(b, field) ? b[field] : undefined,
+      afterVal: a && Object.prototype.hasOwnProperty.call(a, field) ? a[field] : undefined,
+    }));
+    return (
+      <table className="summary-table">
+        <thead>
+          <tr>
+            <th scope="col">필드</th>
+            <th scope="col">변경 전</th>
+            <th scope="col">변경 후</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map(({ field, beforeVal, afterVal }) => (
+            <tr key={field}>
+              <th scope="row">{field}</th>
+              <td>{beforeVal === undefined ? '-' : plainText(beforeVal)}</td>
+              <td>{afterVal === undefined ? '-' : plainText(afterVal)}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    );
+  };
+
+  const renderPermissionGroupAuditV1 = () => {
+    if (!pgAudit || typeof pgAudit !== 'object' || Array.isArray(pgAudit)) {
+      return null;
+    }
+    const op = pgAudit.operation;
+    const before = pgAudit.before;
+    const after = pgAudit.after;
+    const truncated = pgAudit.allowedScreensTruncated === true;
+
+    return (
+      <div className="permission-group-audit-section">
+        <h4>권한 그룹 감사</h4>
+        {truncated && (
+          <p className="pg-audit-truncated-note" role="status">
+            허용 화면 목록이 저장 정책에 따라 일부만 표시될 수 있습니다.
+          </p>
+        )}
+        <table className="summary-table">
+          <tbody>
+            <tr>
+              <th scope="row">스키마 버전</th>
+              <td>{plainText(pgAudit.schemaVersion)}</td>
+            </tr>
+            <tr>
+              <th scope="row">작업</th>
+              <td>{plainText(getPermissionGroupOperationLabel(op))}</td>
+            </tr>
+            <tr>
+              <th scope="row">권한 그룹 ID</th>
+              <td>{plainText(pgAudit.permissionGroupId)}</td>
+            </tr>
+            {pgAudit.permissionGroupCode != null && String(pgAudit.permissionGroupCode) !== '' && (
+              <tr>
+                <th scope="row">권한 그룹 코드</th>
+                <td>{plainText(pgAudit.permissionGroupCode)}</td>
+              </tr>
+            )}
+            {pgAudit.targetUserId != null && (
+              <tr>
+                <th scope="row">대상 사용자 ID</th>
+                <td>{plainText(pgAudit.targetUserId)}</td>
+              </tr>
+            )}
+            {pgAudit.changeReason != null && String(pgAudit.changeReason).trim() !== '' && (
+              <tr>
+                <th scope="row">변경 사유</th>
+                <td>{plainText(pgAudit.changeReason)}</td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+
+        {(before != null || after != null) && (
+          <div className="pg-audit-subsection">
+            <h5 className="pg-audit-subheading">그룹 메타데이터</h5>
+            {renderSnapshotMetaDiff(before, after)}
+          </div>
+        )}
+
+        {(asSnapshot(before)?.allowedScreens != null || asSnapshot(after)?.allowedScreens != null) && (
+          <>
+            {renderAllowedScreensTable(
+              '변경 전 허용 화면',
+              /** @type {unknown[]} */ (asSnapshot(before)?.allowedScreens ?? []),
+            )}
+            {renderAllowedScreensTable(
+              '변경 후 허용 화면',
+              /** @type {unknown[]} */ (asSnapshot(after)?.allowedScreens ?? []),
+            )}
+          </>
+        )}
+      </div>
+    );
+  };
+
+  const renderPgLegacyAndUnknownTopLevel = () => {
+    const legacyRows = [];
+    const unknown = {};
+    for (const key of Object.keys(actionDetail)) {
+      if (key === 'searchSummary' || key === 'requestParams') continue;
+      if (key === 'permissionGroupAuditV1') continue;
+      const val = actionDetail[key];
+      if (LEGACY_PG_ENRICHER_KEYS.has(key)) {
+        legacyRows.push(
+          <tr key={key}>
+            <th scope="row">{key}</th>
+            <td>
+              {typeof val === 'object' && val !== null ? (
+                <pre className="json-content json-pretty pg-audit-fallback-pre">{formatJSON(val)}</pre>
+              ) : (
+                plainText(val)
+              )}
+            </td>
+          </tr>,
+        );
+      } else {
+        unknown[key] = val;
+      }
+    }
+    const hasLegacy = legacyRows.length > 0;
+    const hasUnknown = Object.keys(unknown).length > 0;
+    const hasV1 = pgAudit && typeof pgAudit === 'object' && !Array.isArray(pgAudit);
+    if (!hasLegacy && !hasUnknown && !hasV1) {
+      return (
+        <p className="pg-audit-empty">
+          구조화된 감사 정보가 없습니다. 레거시 필드 또는 JSON을 확인하세요.
+        </p>
+      );
+    }
+    if (!hasLegacy && !hasUnknown && hasV1) {
+      return null;
+    }
+    return (
+      <>
+        {hasLegacy && (
+          <div className="permission-group-legacy-flat">
+            <h4>추가 필드 (레거시 enricher)</h4>
+            <table className="summary-table">
+              <tbody>{legacyRows}</tbody>
+            </table>
+          </div>
+        )}
+        {hasUnknown && (
+          <div className="action-detail-unknown-keys">
+            <h4>기타 키 (JSON)</h4>
+            <pre className="json-content json-pretty">{formatJSON(unknown)}</pre>
+          </div>
+        )}
+      </>
+    );
   };
 
   return (
@@ -91,7 +359,9 @@ const UserActivityLogDetail = ({ log, onClose, actionTypeLabelMap = {} }) => {
       <div className="activity-log-detail-modal" onClick={(e) => e.stopPropagation()}>
         <div className="activity-log-detail-header">
           <h2>활동 이력 상세</h2>
-          <button className="close-button" onClick={onClose}>×</button>
+          <button type="button" className="close-button" onClick={onClose}>
+            ×
+          </button>
         </div>
         <div className="activity-log-detail-content">
           <div className="detail-section">
@@ -137,9 +407,7 @@ const UserActivityLogDetail = ({ log, onClose, actionTypeLabelMap = {} }) => {
                 <tr>
                   <th>응답 시간</th>
                   <td>
-                    {log.response_time_ms != null
-                      ? `${log.response_time_ms}ms`
-                      : '-'}
+                    {log.response_time_ms != null ? `${log.response_time_ms}ms` : '-'}
                   </td>
                 </tr>
                 <tr>
@@ -162,51 +430,51 @@ const UserActivityLogDetail = ({ log, onClose, actionTypeLabelMap = {} }) => {
             </table>
           </div>
 
-          {log.action_detail && (
+          {showActionDetailSection && (
             <div className="detail-section">
               <h3>액션 상세</h3>
-              {log.action_detail.searchSummary && (
+              {actionDetail.searchSummary && (
                 <div className="search-summary">
                   <h4>검색 결과 요약</h4>
                   <table className="summary-table">
                     <tbody>
-                      {log.action_detail.searchSummary.totalCount != null && (
+                      {actionDetail.searchSummary.totalCount != null && (
                         <tr>
                           <th>전체 건수</th>
                           <td>
-                            {log.action_detail.searchSummary.totalCount.toLocaleString()}건
+                            {actionDetail.searchSummary.totalCount.toLocaleString()}건
                             <span className="summary-description">(검색 조건에 맞는 전체 결과)</span>
                           </td>
                         </tr>
                       )}
-                      {log.action_detail.searchSummary.resultCount != null && (
+                      {actionDetail.searchSummary.resultCount != null && (
                         <tr>
                           <th>반환 건수</th>
                           <td>
-                            {log.action_detail.searchSummary.resultCount.toLocaleString()}건
+                            {actionDetail.searchSummary.resultCount.toLocaleString()}건
                             <span className="summary-description">(현재 페이지에서 실제로 반환된 데이터)</span>
                           </td>
                         </tr>
                       )}
-                      {log.action_detail.searchSummary.currentPage != null && (
+                      {actionDetail.searchSummary.currentPage != null && (
                         <tr>
                           <th>현재 페이지</th>
                           <td>
-                            {log.action_detail.searchSummary.currentPage}페이지
-                            {log.action_detail.searchSummary.totalPages != null && 
-                             log.action_detail.searchSummary.totalPages > 1 && (
-                              <span className="summary-description">
-                                (전체 {log.action_detail.searchSummary.totalPages}페이지 중)
-                              </span>
-                            )}
+                            {actionDetail.searchSummary.currentPage}페이지
+                            {actionDetail.searchSummary.totalPages != null &&
+                              actionDetail.searchSummary.totalPages > 1 && (
+                                <span className="summary-description">
+                                  (전체 {actionDetail.searchSummary.totalPages}페이지 중)
+                                </span>
+                              )}
                           </td>
                         </tr>
                       )}
-                      {log.action_detail.searchSummary.totalPages != null && (
+                      {actionDetail.searchSummary.totalPages != null && (
                         <tr>
                           <th>전체 페이지</th>
                           <td>
-                            {log.action_detail.searchSummary.totalPages}페이지
+                            {actionDetail.searchSummary.totalPages}페이지
                             <span className="summary-description">
                               (페이지당 표시 가능한 최대 건수 기준)
                             </span>
@@ -217,33 +485,28 @@ const UserActivityLogDetail = ({ log, onClose, actionTypeLabelMap = {} }) => {
                   </table>
                 </div>
               )}
-              {log.action_detail.requestParams && (
+              {actionDetail.requestParams && (
                 <div className="search-conditions">
                   <h4>검색 조건</h4>
                   {(() => {
-                    const requestParams = log.action_detail.requestParams;
-                    // requestParams.request 또는 requestParams의 직접 속성 확인
+                    const requestParams = actionDetail.requestParams;
                     let request = requestParams.request;
-                    
-                    // request가 문자열인 경우 (JSON 문자열로 저장된 경우) 파싱 시도
+
                     if (typeof request === 'string') {
                       try {
                         request = JSON.parse(request);
                       } catch (e) {
-                        // 파싱 실패 시 원본 사용
+                        // ignore
                       }
                     }
-                    
-                    // request가 없으면 requestParams 자체를 확인
+
                     if (!request && typeof requestParams === 'object') {
-                      // requestParams의 직접 속성들을 확인
                       if (requestParams.logType || requestParams.startDate) {
                         request = requestParams;
                       }
                     }
-                    
+
                     if (request && typeof request === 'object' && !Array.isArray(request)) {
-                      // 검색 조건을 구조화하여 표시
                       return (
                         <div className="search-conditions-detail">
                           <table className="summary-table">
@@ -269,7 +532,10 @@ const UserActivityLogDetail = ({ log, onClose, actionTypeLabelMap = {} }) => {
                               {request.page && (
                                 <tr>
                                   <th>페이지</th>
-                                  <td>{request.page} / {request.pageSize ? `페이지당 ${request.pageSize}건` : ''}</td>
+                                  <td>
+                                    {request.page} /{' '}
+                                    {request.pageSize ? `페이지당 ${request.pageSize}건` : ''}
+                                  </td>
                                 </tr>
                               )}
                               {request.logType === 'java_fw_imglog' && (
@@ -304,12 +570,14 @@ const UserActivityLogDetail = ({ log, onClose, actionTypeLabelMap = {} }) => {
                                       <td>{request.headerstring}</td>
                                     </tr>
                                   )}
-                                  {request.keywords && Array.isArray(request.keywords) && request.keywords.length > 0 && (
-                                    <tr>
-                                      <th>Keywords</th>
-                                      <td>{request.keywords.join(', ')}</td>
-                                    </tr>
-                                  )}
+                                  {request.keywords &&
+                                    Array.isArray(request.keywords) &&
+                                    request.keywords.length > 0 && (
+                                      <tr>
+                                        <th>Keywords</th>
+                                        <td>{request.keywords.join(', ')}</td>
+                                      </tr>
+                                    )}
                                 </>
                               )}
                               {request.logType === 'pb_feplog' && (
@@ -342,12 +610,17 @@ const UserActivityLogDetail = ({ log, onClose, actionTypeLabelMap = {} }) => {
                           </details>
                         </div>
                       );
-                    } else {
-                      // 구조화되지 않은 경우 원본 JSON 표시
-                      return <pre className="json-content json-pretty">{formatJSON(requestParams)}</pre>;
                     }
+                    return <pre className="json-content json-pretty">{formatJSON(requestParams)}</pre>;
                   })()}
                 </div>
+              )}
+
+              {isPgFamily && (
+                <>
+                  {renderPermissionGroupAuditV1()}
+                  {renderPgLegacyAndUnknownTopLevel()}
+                </>
               )}
             </div>
           )}
@@ -360,7 +633,7 @@ const UserActivityLogDetail = ({ log, onClose, actionTypeLabelMap = {} }) => {
           )}
         </div>
         <div className="activity-log-detail-footer">
-          <button className="btn btn-primary" onClick={onClose}>
+          <button type="button" className="btn btn-primary" onClick={onClose}>
             닫기
           </button>
         </div>
@@ -370,4 +643,3 @@ const UserActivityLogDetail = ({ log, onClose, actionTypeLabelMap = {} }) => {
 };
 
 export default UserActivityLogDetail;
-

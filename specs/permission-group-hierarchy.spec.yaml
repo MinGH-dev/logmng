@@ -6,8 +6,8 @@
 ---
 metadata:
   title: "Permission group CRUD, user-group assignment, user-permission hierarchy, screen access"
-  version: "1.6"
-  requirement: "20250227-user-permission-hierarchy-group, 20250227-permission-group-screen-menu-access, 20250303-activity-statistics-self-only-scope, 20250303-screen-function-availability, explicit-read-write-approve-per-screen, 20260323-approver-eligibility-from-permission-group-only, 20260330-activity-types-user-mgmt-permission-group"
+  version: "1.7"
+  requirement: "20250227-user-permission-hierarchy-group, 20250227-permission-group-screen-menu-access, 20250303-activity-statistics-self-only-scope, 20250303-screen-function-availability, explicit-read-write-approve-per-screen, 20260323-approver-eligibility-from-permission-group-only, 20260330-activity-types-user-mgmt-permission-group, 20260330-permission-group-activity-detail-audit"
   status: "draft"
 
 ---
@@ -15,6 +15,10 @@ metadata:
 
 Base URL: http://localhost:9200/api (per docs/contract.md).
 All endpoints below are **admin-only** (is_system_admin=true). Otherwise 403, code: "FORBIDDEN". (req 20250303)
+
+## 1.0 Activity log — permission group `action_detail`
+
+When `user_activity_log.action_type` is a **permission-group family** code (`PERMISSION_GROUP_*`, `ASSIGN_USER_TO_PERMISSION_GROUP`, `UNASSIGN_USER_FROM_PERMISSION_GROUP` — see `specs/activity-action-types.spec.yaml` §2.3), the persisted **`action_detail`** JSON for audit reconstruction is specified in **`specs/activity-permission-group-audit.spec.yaml`** (`permissionGroupAuditV1`). **`AllowedScreenItem`** in audit snapshots matches §1.1 below (nested `allowedScreens`, not a flat string list).
 
 ## 1.1 Permission group CRUD
 

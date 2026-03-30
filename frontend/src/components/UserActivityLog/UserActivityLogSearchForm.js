@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import UserContextFilterBlock from '../common/UserContextFilterBlock';
+import { PERMISSION_GROUP_AUDIT_PRESET_OPTIONS } from '../../utils/permissionGroupActivityAudit';
 import './UserActivityLog.css';
 
 /**
@@ -74,6 +75,8 @@ const UserActivityLogSearchForm = ({
     ipAddress: '',
   });
   const [errors, setErrors] = useState({});
+  /** O4: 권한 그룹 감사 유형 복수 선택 (UX-only; List에서 단일/병합 검색 처리). */
+  const [pgPresetSelection, setPgPresetSelection] = useState([]);
 
   // 서버 날짜가 나중에 도착하면 폼 표시를 서버 기준 '오늘'로 맞춤 (초기 검색은 List에서 서버 날짜로 이미 실행됨)
   useEffect(() => {
@@ -135,6 +138,9 @@ const UserActivityLogSearchForm = ({
     };
     if (userIdForApi !== undefined) searchParams.userId = userIdForApi;
     else delete searchParams.userId;
+    if (pgPresetSelection.length > 0) {
+      searchParams.pgPresetActionTypes = [...pgPresetSelection];
+    }
     onSearch(searchParams);
   };
 
@@ -148,6 +154,7 @@ const UserActivityLogSearchForm = ({
     };
     setFormData(resetData);
     setErrors({});
+    setPgPresetSelection([]);
     const uid = resetData.userId;
     const n = typeof uid === 'number' ? uid : Number(uid);
     const userIdForApi = (uid !== '' && uid != null && uid !== undefined && !Number.isNaN(n)) ? n : undefined;
@@ -259,6 +266,29 @@ const UserActivityLogSearchForm = ({
                   className="form-control"
                   placeholder="IP 주소"
                 />
+              </div>
+              <div className="form-group">
+                <label htmlFor="pgPresetActionTypes">권한 그룹 감사 (복수 선택)</label>
+                <select
+                  id="pgPresetActionTypes"
+                  multiple
+                  value={pgPresetSelection}
+                  onChange={(e) => {
+                    const selected = Array.from(e.target.selectedOptions).map((o) => o.value);
+                    setPgPresetSelection(selected);
+                  }}
+                  className="form-control activity-log-pg-preset-select"
+                  aria-describedby="pg-preset-hint"
+                >
+                  {PERMISSION_GROUP_AUDIT_PRESET_OPTIONS.map((opt) => (
+                    <option key={opt.value} value={opt.value}>
+                      {opt.label}
+                    </option>
+                  ))}
+                </select>
+                <span id="pg-preset-hint" className="pg-preset-hint">
+                  서버는 요청마다 단일 액션 타입만 필터합니다. 복수 선택 시 결과를 합쳐 표시합니다(UX).
+                </span>
               </div>
             </div>
           </div>
