@@ -4,6 +4,29 @@ import userEvent from '@testing-library/user-event';
 import DataTable from './DataTable';
 
 describe('DataTable', () => {
+  test('TC-null-pagination: omits pagination prop (null) with loading false and rows — no throw, table renders', () => {
+    const { container } = render(
+      <DataTable
+        columns={[
+          { key: 'id', label: 'ID', sortable: false },
+          { key: 'name', label: '이름', sortable: false },
+        ]}
+        loading={false}
+        ariaLabel="권한 그룹 테이블"
+      >
+        <tr>
+          <td>1</td>
+          <td>관리자</td>
+        </tr>
+      </DataTable>,
+    );
+
+    expect(container.querySelector('.log-table-container')).not.toBeNull();
+    expect(screen.getByRole('table', { name: '권한 그룹 테이블' })).toBeInTheDocument();
+    expect(screen.getByRole('cell', { name: '관리자' })).toBeInTheDocument();
+    expect(container.querySelector('.pagination')).toBeNull();
+  });
+
   test('TC-01: one-page data keeps the shared footer visible without page navigation buttons', () => {
     const onPageSizeChange = jest.fn();
     const { container } = render(

@@ -9,6 +9,7 @@ For **RequirementsPastSearch** token optimization. Read this file first to find 
 
 ## permission | access-control | 화면 접근 | 권한 그룹 | is_system_admin
 
+- 20260330-activity-types-user-mgmt-permission-group | Activity type taxonomy (login, search, admin, decrypt approval); user management and permission group flows emit auditable user_activity_log rows; filterable in activity history API/UI per contract
 - 20260323-approver-eligibility-from-permission-group-only | 계약 `contract.md` 「복호화 승인 자격」: 그룹 `approve` 우선·**`is_system_admin`만 상쇄**; **ADMIN_EXT는 그룹만**+P2-2; `decrypt_approver` DROP; `isApprover` UI 제거. Q&A: `...-PRODUCT-QA.md`
 - 20260317-search-decrypt-permission-ui | 검색하기 화면 복호화 권한 UI: 권한 없을 때 버튼 비활성화 및 "복호화 권한이 없습니다." 표시; 요청 사유는 승인 요청 시 모달에서 입력
 - 20260306-search-screen-decrypt-permission | 검색하기(main) 화면 복호화 권한 부여/해제; 권한관리에서 복호화 체크; 복호화 API는 권한 있는 사용자만 요청 가능
@@ -36,6 +37,7 @@ For **RequirementsPastSearch** token optimization. Read this file first to find 
 
 ## activity-log | statistics | 활동 로그 | 통계 | scope
 
+- 20260330-activity-types-user-mgmt-permission-group | Activity type taxonomy and audit for permission group / user management; queryable by action type + existing filters; contract/skill touchpoints
 - 20260311-activity-log-statistics-design-improvement | 활동 이력·통계 두 화면 디자인 표준 정렬: 그룹 제목·패널 너비·compact·사용자 블록 동일 크기·검색/초기화·폼 시맨틱·row1=날짜 row2=나머지
 - 20260313-activity-log-statistics-design-standards | 활동 이력·통계 두 화면 디자인 표준 정렬: 그룹 제목·패널 너비·compact·검색/초기화·폼 시맨틱·row1=날짜 row2=나머지·필터 접기 제거
 - 20260310-search-consistency-all-screens | All screens rule-compliant search; per-screen table (부서·이름·사용자ID, scope=self 숨김); re-review final doc
@@ -79,6 +81,7 @@ For **RequirementsPastSearch** token optimization. Read this file first to find 
 
 ## user-management | 사용자 관리 | hierarchy
 
+- 20260330-activity-types-user-mgmt-permission-group | User management and permission group flows must emit typed activity-log events; canonical action_type list and activity-log filter alignment
 - 20260310-search-consistency-all-screens | User-management·permission-group search form (부서·이름·사용자ID) per-screen table
 - 20250227-user-management-hierarchy-permissions | 사용자 관리: 계층 표시, role·권한 그룹 편집
 - 20250227-user-permission-hierarchy-group | 사용자 권한 계층 및 권한 그룹 관리
@@ -121,6 +124,7 @@ For **RequirementsPastSearch** token optimization. Read this file first to find 
 
 ## image-log | imagelog | datastring
 
+- 20260330-imagelog-dup-guid-sample-data | Seed data: two imagelog rows share guid `GUID-DUP-PRETTY-20260330` with different status (input/output) for Pretty/decrypt manual and integration testing; aligns with parent req 20260330-image-log-pretty-decrypt-row-key
 - 20260320-imagelog-guid-status-composite-key | Java FW Image Log row identity is (guid + status); APIs, decryption-allowed store, approval snapshot, search-history detail, DB constraints, and UI must use the composite end-to-end
 - 20260206-image-log-datastring-search | Image Log datastring 검색 기능 개선
 - 20260206-image-log-decrypt-datastring-display | Image Log 복호화 시 datastring 필드 표시
@@ -155,6 +159,7 @@ For **RequirementsPastSearch** token optimization. Read this file first to find 
 - 20260208-dynamic-log-type-management | 동적 로그 타입 관리 기능
 - 20260320-pb-feplog-empty-results-media-code-verification | PB FEP Log: verify empty search for media code SAAAA100 from 2023 — true data absence vs API/filter bug; read-only DB count vs POST search evidence
 - 20260326-pb-fep-log-search-screen-wireframe | Screen `pb-fep-log-search` only: SVG v10 authoritative for visual/IA (vs notes v11: e.g. 조회일자+시작/종료시간); dedicated `POST .../pb-fep-log-search`; grid/toolbar/table/stream per SVG; §2.D DB mapping from `schema_pb_fep.sql`; legacy `pb-feplog` keeps `db-refactored/search` only
+- 20260330-pb-fep-expand-all-cross-page | `pb-fep-log-search`: expand/collapse all across all pagination pages; 전체 접기 with opposite chevron; manual row toggles keep global control in sync (none / all / mixed)
 
 ## auth | logout | 로그인 | 로그아웃
 

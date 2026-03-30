@@ -6,7 +6,8 @@ CREATE TABLE IF NOT EXISTS user_activity_log (
     id BIGSERIAL PRIMARY KEY,
     user_id VARCHAR(100) NOT NULL,
     username VARCHAR(100),
-    action_type VARCHAR(50) NOT NULL,  -- 'LOGIN', 'LOGOUT', 'SEARCH', 'VIEW', 'EXPORT', etc.
+    -- Longest canonical code in specs/activity-action-types.spec.yaml §2: UNASSIGN_USER_FROM_PERMISSION_GROUP (35). OP-04 20260330: VARCHAR(50) sufficient; extend via migration if future codes exceed 50.
+    action_type VARCHAR(50) NOT NULL,
     action_detail TEXT,                -- JSON 형태로 상세 정보 저장
     ip_address VARCHAR(45),            -- IPv6 지원
     user_agent TEXT,

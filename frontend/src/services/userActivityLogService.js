@@ -37,6 +37,35 @@ export const searchActivityLogs = async (searchParams) => {
 };
 
 /**
+ * 활동 유형 필터 옵션 (GET). 실패 시 클라이언트는 폴백 상수 사용.
+ * @returns {Promise<{ success: boolean, data: { code: string, label: string }[]|null, status?: number }>}
+ */
+export const getActivityLogActionTypes = async () => {
+  try {
+    const response = await fetch(`${getApiBaseUrl()}/activity-log/action-types`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      credentials: 'include',
+    });
+
+    const result = await response.json().catch(() => ({}));
+
+    if (!response.ok) {
+      return { success: false, data: null, status: response.status };
+    }
+
+    const raw = result.data !== undefined ? result.data : result;
+    const list = Array.isArray(raw) ? raw : [];
+    return { success: true, data: list };
+  } catch (error) {
+    console.error('활동 유형 목록 조회 실패:', error);
+    return { success: false, data: null };
+  }
+};
+
+/**
  * 사용자 활동 이력 상세 조회
  */
 export const getActivityLogDetail = async (id) => {

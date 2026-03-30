@@ -6,16 +6,21 @@ import java.util.List;
 /**
  * Generates imagelog sample data: a mix of rows without encrypted content (plain/empty)
  * and rows with encrypted or bracket-wrapped content. Used by GenerateSampleDataScript
- * for startup seed when imagelog is empty. Target total ~100 rows (95–105).
+ * for startup seed when imagelog is empty. Target total ~102 rows (includes duplicate-guid pair).
  */
 public class GenerateEncryptedSampleData {
 
-    /** Target total sample rows (within 95–105 per requirement). */
-    public static final int TARGET_TOTAL = 100;
-    /** Number of rows with no encrypted data (plain or empty data/datastring/header/headerstring). */
+    /** Canonical guid shared by two rows ({@value #DUP_GUID_PAIR_COUNT} statuses) for Pretty/decrypt tests. */
+    public static final String DUP_GUID_PRETTY = "GUID-DUP-PRETTY-20260330";
+
+    /** Extra plain rows: same {@link #DUP_GUID_PRETTY}, different status (input/output). */
+    public static final int DUP_GUID_PAIR_COUNT = 2;
+    /** Target total sample rows (20 plain with "plain-" in data + 2 dup-guid plain + 80 encrypted). */
+    public static final int TARGET_TOTAL = 100 + DUP_GUID_PAIR_COUNT;
+    /** Rows from {@link #buildPlainSample(int)} (data field contains {@code "plain-"} for test counting). */
     public static final int NON_ENCRYPTED_COUNT = 20;
     /** Number of rows with encrypted or bracket-wrapped content. */
-    public static final int ENCRYPTED_COUNT = TARGET_TOTAL - NON_ENCRYPTED_COUNT;
+    public static final int ENCRYPTED_COUNT = TARGET_TOTAL - NON_ENCRYPTED_COUNT - DUP_GUID_PAIR_COUNT;
 
     private final CryptoUtil cryptoUtil;
 
@@ -24,19 +29,46 @@ public class GenerateEncryptedSampleData {
     }
 
     /**
-     * Generates approximately 100 sample rows: first {@value #NON_ENCRYPTED_COUNT} rows
-     * with plain/empty sensitive fields, then {@value #ENCRYPTED_COUNT} rows with
-     * encrypted or bracket-wrapped content.
+     * Generates sample rows: first {@value #NON_ENCRYPTED_COUNT} plain rows (with {@code "plain-"} in data),
+     * then {@value #DUP_GUID_PAIR_COUNT} plain rows sharing {@link #DUP_GUID_PRETTY} (no {@code "plain-"} in data),
+     * then {@value #ENCRYPTED_COUNT} rows with encrypted or bracket-wrapped content.
      */
     public List<SampleData> generateSampleData() {
         List<SampleData> samples = new ArrayList<>(TARGET_TOTAL);
         for (int i = 0; i < NON_ENCRYPTED_COUNT; i++) {
             samples.add(buildPlainSample(i));
         }
+        samples.add(buildDupGuidPrettySample("input"));
+        samples.add(buildDupGuidPrettySample("output"));
         for (int i = 0; i < ENCRYPTED_COUNT; i++) {
             samples.add(buildEncryptedSample(i));
         }
         return samples;
+    }
+
+    /**
+     * Plain JSON rows for same-guid / different-status Pretty tests. Data must not contain {@code "plain-"}
+     * so {@code plain-} counting tests stay aligned with {@link #NON_ENCRYPTED_COUNT}.
+     */
+    private SampleData buildDupGuidPrettySample(String status) {
+        SampleData s = new SampleData();
+        s.application = "LDP";
+        s.servicegroup = "EduSG";
+        s.service = "SE10002_select";
+        s.status = status;
+        s.guid = DUP_GUID_PRETTY;
+        if ("input".equals(status)) {
+            s.data = "{\"scenario\":\"dup-guid\",\"phase\":\"request\",\"note\":\"pretty-input\"}";
+            s.datastring = "{\"payload\":{\"kind\":\"in\",\"seq\":1},\"meta\":{\"dup\":true}}";
+            s.header = "{\"flag\":\"\\u0000\",\"inputMsgType\":\"JSON\",\"guid\":\"" + DUP_GUID_PRETTY + "\"}";
+            s.headerstring = "{\"flag\":\"\\u0000\",\"inputMsgType\":\"JSON\",\"guid\":\"" + DUP_GUID_PRETTY + "\"}";
+        } else {
+            s.data = "{\"scenario\":\"dup-guid\",\"phase\":\"response\",\"note\":\"pretty-output\"}";
+            s.datastring = "{\"payload\":{\"kind\":\"out\",\"seq\":2},\"meta\":{\"dup\":true}}";
+            s.header = "{\"flag\":\"\\u0000\",\"inputMsgType\":\"JSON\",\"guid\":\"" + DUP_GUID_PRETTY + "\"}";
+            s.headerstring = "{\"flag\":\"\\u0000\",\"outputMsgType\":\"JSON\",\"guid\":\"" + DUP_GUID_PRETTY + "\"}";
+        }
+        return s;
     }
 
     /**

@@ -61,6 +61,8 @@ const UserActivityLogSearchForm = ({
   isSelfScope = false,
   departmentList = [],
   selfContext = null,
+  actionTypeOptions = [{ value: '', label: '전체' }],
+  actionTypesLoading = false,
 }) => {
   const serverRange = toDateTimeLocal(initialServerDate);
   const lockedSelfValues = getLockedSelfValues(selfContext);
@@ -158,17 +160,6 @@ const UserActivityLogSearchForm = ({
     });
   };
 
-  const actionTypes = [
-    { value: '', label: '전체' },
-    { value: 'LOGIN', label: '로그인' },
-    { value: 'LOGOUT', label: '로그아웃' },
-    { value: 'SEARCH', label: '검색' },
-    { value: 'VIEW', label: '조회' },
-    { value: 'DECRYPT', label: '복호화' },
-    { value: 'ADVANCED_SEARCH', label: '고급 검색' },
-    { value: 'EXPORT', label: '내보내기' },
-  ];
-
   const dateRangeErrorId = 'user-activity-log-search-form-date-range-error';
 
   return (
@@ -247,9 +238,11 @@ const UserActivityLogSearchForm = ({
                   value={formData.actionType}
                   onChange={handleInputChange}
                   className="form-control"
+                  disabled={actionTypesLoading}
+                  aria-busy={actionTypesLoading}
                 >
-                  {actionTypes.map(type => (
-                    <option key={type.value} value={type.value}>
+                  {actionTypeOptions.map((type) => (
+                    <option key={type.value === '' ? 'all' : type.value} value={type.value}>
                       {type.label}
                     </option>
                   ))}

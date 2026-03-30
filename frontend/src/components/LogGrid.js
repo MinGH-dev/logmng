@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
+import { flushSync } from 'react-dom';
 import SearchForm from './SearchForm';
 import SearchFormLegacy from './SearchFormLegacy';
 import ImageLogSearchForm from './ImageLogSearchForm';
@@ -71,7 +72,24 @@ const LogGrid = ({
   const [sortConfig, setSortConfig] = useState({ key: 'log_timestamp', direction: 'desc' });
   const [sortCriteria, setSortCriteria] = useState([{ key: 'log_timestamp', direction: 'desc' }]);
   const [expandedRowKeys, setExpandedRowKeys] = useState(() => new Set());
+  /**
+   * PB FEP (pb_feplog): cross-page "전체 펼치기" intent (req 20260330).
+   * When true, the user explicitly chose expand-all for the current search result; on each `logs`
+   * update (pagination, sort refetch, etc.) we union current-page row keys into `expandedRowKeys`
+   * so every visited page shows expanded rows without clicking again.
+   * Cleared by: 전체 접기, new search / logType reset, or manual row collapse (invalidates full expand).
+   */
   const [expandAllActive, setExpandAllActive] = useState(false);
+  /** Latest total result row count for pb_feplog row-expand reconciliation (TC-08); avoids stale reads vs pagination. */
+  const totalCountRef = useRef(0);
+  useEffect(() => {
+    totalCountRef.current = Number(totalCount);
+  }, [totalCount]);
+  /** Same-frame as pagination fetch so cross-page keys are not lost before union effect (req 20260330). */
+  const expandAllActiveRef = useRef(false);
+  useEffect(() => {
+    expandAllActiveRef.current = expandAllActive;
+  }, [expandAllActive]);
 
   // 검색 조건 상태
   const [searchParams, setSearchParams] = useState({
@@ -113,6 +131,7 @@ const LogGrid = ({
     if (logType?.id === 'pb_feplog') {
       setSortCriteria([{ key: 'log_timestamp', direction: 'desc' }]);
       setExpandedRowKeys(new Set());
+      expandAllActiveRef.current = false;
       setExpandAllActive(false);
     }
   }, [logType?.id, screenId]);
@@ -132,6 +151,16 @@ const LogGrid = ({
     if (typeof onInitialSearchDone === 'function') onInitialSearchDone();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [logType?.id, initialSearchParams]);
+
+  // Cross-page expand-all: while intent is on, merge every row key on the current `logs` page into the set.
+  useEffect(() => {
+    if (logType?.id !== 'pb_feplog' || !expandAllActiveRef.current || !Array.isArray(logs)) return;
+    setExpandedRowKeys((prev) => {
+      const next = new Set(prev);
+      logs.forEach((log) => next.add(getPbFeplogRowKey(log)));
+      return next;
+    });
+  }, [logs, expandAllActive, logType?.id]);
 
   // GET /api/decrypt/allowed (req 20260318): 복호화 버튼 enabled/dimmed 판단용. screen=pb-feplog|java-fw-imagelog.
   const fetchDecryptionAllowed = React.useCallback(() => {
@@ -231,6 +260,7 @@ const LogGrid = ({
     setCurrentPage(1);
     if (logType?.id === 'pb_feplog') {
       setExpandedRowKeys(new Set());
+      expandAllActiveRef.current = false;
       setExpandAllActive(false);
     }
 
@@ -416,7 +446,24 @@ const LogGrid = ({
   const handleRowExpandChange = (next, meta) => {
     setExpandedRowKeys(next);
     if (meta?.manualCollapse) {
+      expandAllActiveRef.current = false;
       setExpandAllActive(false);
+    } else if (logType?.id === 'pb_feplog' && next && typeof next.size === 'number') {
+      const tc = Number(totalCount);
+      const tcRef = Number(totalCountRef.current);
+      const n = Number.isFinite(tc) && tc > 0 ? tc : tcRef;
+      if (
+        Number.isFinite(n) &&
+        n > 0 &&
+        next.size === n
+      ) {
+        // TC-08 / req 20260330 §2: when expanded key count matches total result rows, restore global
+        // "전체 접기" (expandAllActive). Duplicate or unstable row keys can make Set.size diverge from
+        // totalCount; do not treat as full expand in that case. Loaded-page keys vs server totalCount
+        // must stay consistent with getPbFeplogRowKey (see requirement §2 edge cases).
+        expandAllActiveRef.current = true;
+        setExpandAllActive(true);
+      }
     }
   };
 
@@ -511,6 +558,19 @@ const LogGrid = ({
           setLogs(logData);
           setTotalPages(result.data?.pagination?.totalPages || result.pagination?.totalPages || 1);
           setTotalCount(result.data?.pagination?.totalCount || result.pagination?.totalCount || 0);
+          if (logType?.id === 'pb_feplog') {
+            // flushSync: merge must commit before the next paint so expandedRowKeys retains prior-page keys
+            // when LogTable reads props; otherwise functional updates can be deferred and TC-08 / full-set
+            // reconciliation (next.size === totalCount) never sees 4 keys after page-2 re-expand.
+            flushSync(() => {
+              setExpandedRowKeys((prev) => {
+                if (!expandAllActiveRef.current) return prev;
+                const merged = new Set(prev);
+                logData.forEach((log) => merged.add(getPbFeplogRowKey(log)));
+                return merged;
+              });
+            });
+          }
         } else {
           logger.error('API 오류:', { error: result.error });
         }
@@ -680,13 +740,20 @@ const LogGrid = ({
             type="button"
             className="expand-all-btn"
             onClick={() => {
-              setExpandedRowKeys(new Set(logs.map(getPbFeplogRowKey)));
-              setExpandAllActive(true);
+              if (expandAllActive) {
+                expandAllActiveRef.current = false;
+                setExpandedRowKeys(new Set());
+                setExpandAllActive(false);
+              } else {
+                expandAllActiveRef.current = true;
+                setExpandedRowKeys(new Set(logs.map(getPbFeplogRowKey)));
+                setExpandAllActive(true);
+              }
             }}
             aria-pressed={expandAllActive}
-            aria-label="전체 펼치기"
+            aria-label={expandAllActive ? '전체 접기' : '전체 펼치기'}
           >
-            전체 펼치기 ▾
+            {expandAllActive ? '전체 접기 ▴' : '전체 펼치기 ▾'}
           </button>
         )}
       </div>

@@ -36,6 +36,9 @@ public class ActivityStatisticsService {
      * 일별 통계 조회
      * action_type: LOGIN -> totalLogins, SEARCH/ADVANCED_SEARCH/STATS_VIEW -> totalSearches, DECRYPT -> totalDecrypts
      * 로그타입이 비어 있으면 '전체'로 간주하고, 각 로그타입별 집계를 합산하여 반환(전체 = 합계 정합성 유지).
+     * <p>OP-02 (req 20260330): New admin-only {@code action_type} values (e.g. {@code PERMISSION_GROUP_*}) are
+     * <strong>not</strong> included in the FILTER clauses below — they do not inflate LOGIN/SEARCH/DECRYPT KPIs.
+     * They remain visible in activity-log list/search only.
      */
     public Map<String, Object> getDailyStatistics(String startDate, String endDate,
                                                    String logType, String userId, List<String> allowedUserIds, String department, String ip, String username) {

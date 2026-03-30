@@ -219,9 +219,8 @@ const ImageLogTable = ({
   
   // 상세 보기 상태
   const [selectedLog, setSelectedLog] = useState(null);
-  const [prettyPrint, setPrettyPrint] = useState(true);
-  
-  // Pretty 출력 상태 (각 로그별로 관리)
+
+  // Pretty 출력 상태 — decrypt와 동일하게 guid+status 복합 키 (getLogKey)
   const [prettyLogs, setPrettyLogs] = useState(new Set());
   
   // 복호화 상태 (각 로그별로 관리) - guid+status를 key로 사용
@@ -238,22 +237,22 @@ const ImageLogTable = ({
     setSelectedLog(null);
   };
   
-  // Pretty 출력 토글
-  const togglePretty = (guid) => {
-    setPrettyLogs(prev => {
+  // Pretty 출력 토글 (guid + status — decrypt와 동일 키)
+  const togglePretty = (guid, status) => {
+    const key = getLogKey(guid, status);
+    setPrettyLogs((prev) => {
       const newSet = new Set(prev);
-      if (newSet.has(guid)) {
-        newSet.delete(guid);
+      if (newSet.has(key)) {
+        newSet.delete(key);
       } else {
-        newSet.add(guid);
+        newSet.add(key);
       }
       return newSet;
     });
   };
-  
-  // Pretty 출력 여부 확인
-  const isPretty = (guid) => {
-    return prettyLogs.has(guid);
+
+  const isPretty = (guid, status) => {
+    return prettyLogs.has(getLogKey(guid, status));
   };
   
   // 복호화 처리
@@ -420,7 +419,7 @@ const ImageLogTable = ({
     logs.map((log, index) => {
                 const logGuid = log.guid || `log-${index}`;
                 const logStatus = log.status || '';
-                const isPrettyMode = isPretty(logGuid);
+                const isPrettyMode = isPretty(logGuid, logStatus);
                 const decryptedData = getDecryptedData(logGuid, logStatus);
                 const isDecryptedRow = isDecrypted(logGuid, logStatus);
                 const isDecryptingRow = isDecrypting(logGuid, logStatus);
@@ -525,7 +524,7 @@ const ImageLogTable = ({
                       <button
                         type="button"
                         className={`pretty-btn ${isPrettyMode ? 'active' : ''}`}
-                        onClick={() => togglePretty(logGuid)}
+                        onClick={() => togglePretty(logGuid, logStatus)}
                         title={isPrettyMode ? 'Pretty 출력 끄기' : 'Pretty 출력 켜기'}
                         aria-label={isPrettyMode ? 'Pretty 출력 끄기' : 'Pretty 출력 켜기'}
                       >
@@ -662,10 +661,10 @@ const ImageLogTable = ({
                 <div className="detail-section-header">
                   <h3>Data String</h3>
                   <label className="pretty-print-toggle">
-                    <input 
-                      type="checkbox" 
-                      checked={prettyPrint}
-                      onChange={(e) => setPrettyPrint(e.target.checked)}
+                    <input
+                      type="checkbox"
+                      checked={isPretty(selectedLog.guid || '', selectedLog.status || '')}
+                      onChange={() => togglePretty(selectedLog.guid || '', selectedLog.status || '')}
                     />
                     Pretty Print
                   </label>
@@ -675,24 +674,25 @@ const ImageLogTable = ({
                     const selectedLogGuid = selectedLog.guid || '';
                     const selectedLogStatus = selectedLog.status || '';
                     const decryptedDataForSelected = getDecryptedData(selectedLogGuid, selectedLogStatus);
-                    const datastringToShow = decryptedDataForSelected?.decrypted_datastring 
-                      || selectedLog.datastring 
-                      || selectedLog.decrypted_data 
-                      || selectedLog.data 
+                    const datastringToShow = decryptedDataForSelected?.decrypted_datastring
+                      || selectedLog.datastring
+                      || selectedLog.decrypted_data
+                      || selectedLog.data
                       || '';
-                    return formatJsonString(datastringToShow, prettyPrint);
+                    const modalPretty = isPretty(selectedLogGuid, selectedLogStatus);
+                    return formatJsonString(datastringToShow, modalPretty);
                   })()}
                 </pre>
               </div>
-              
+
               <div className="detail-section">
                 <div className="detail-section-header">
                   <h3>Header String</h3>
                   <label className="pretty-print-toggle">
-                    <input 
-                      type="checkbox" 
-                      checked={prettyPrint}
-                      onChange={(e) => setPrettyPrint(e.target.checked)}
+                    <input
+                      type="checkbox"
+                      checked={isPretty(selectedLog.guid || '', selectedLog.status || '')}
+                      onChange={() => togglePretty(selectedLog.guid || '', selectedLog.status || '')}
                     />
                     Pretty Print
                   </label>
@@ -702,12 +702,13 @@ const ImageLogTable = ({
                     const selectedLogGuid = selectedLog.guid || '';
                     const selectedLogStatus = selectedLog.status || '';
                     const decryptedDataForSelected = getDecryptedData(selectedLogGuid, selectedLogStatus);
-                    const headerstringToShow = decryptedDataForSelected?.decrypted_headerstring 
-                      || selectedLog.headerstring 
-                      || selectedLog.decrypted_header 
-                      || selectedLog.header 
+                    const headerstringToShow = decryptedDataForSelected?.decrypted_headerstring
+                      || selectedLog.headerstring
+                      || selectedLog.decrypted_header
+                      || selectedLog.header
                       || '';
-                    return formatJsonString(headerstringToShow, prettyPrint);
+                    const modalPretty = isPretty(selectedLogGuid, selectedLogStatus);
+                    return formatJsonString(headerstringToShow, modalPretty);
                   })()}
                 </pre>
               </div>

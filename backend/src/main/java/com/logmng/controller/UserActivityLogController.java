@@ -1,5 +1,6 @@
 package com.logmng.controller;
 
+import com.logmng.constants.ActivityActionType;
 import com.logmng.constants.ScreenConstants;
 import com.logmng.dto.request.UserActivityLogSearchRequest;
 import com.logmng.dto.response.ApiResponse;
@@ -15,12 +16,12 @@ import org.slf4j.Logger;
 
 import javax.sql.DataSource;
 import java.util.List;
+import java.util.Map;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import jakarta.servlet.http.HttpServletRequest;
-import java.util.Map;
 
 /**
  * 사용자 활동 이력 컨트롤러.
@@ -44,6 +45,21 @@ public class UserActivityLogController {
         this.appUserResolver = appUserResolver;
     }
     
+    /**
+     * Canonical activity type codes for the activity-log filter (code + label).
+     * GET /api/activity-log/action-types
+     */
+    @GetMapping("/action-types")
+    public ResponseEntity<ApiResponse<List<Map<String, String>>>> getActionTypes(
+            HttpServletRequest httpRequest) {
+        LoginResponse userInfo = authService.getCurrentUserInfo(httpRequest);
+        if (userInfo == null) {
+            throw CustomException.unauthorized("로그인이 필요합니다.", "UNAUTHORIZED");
+        }
+        List<Map<String, String>> data = ActivityActionType.filterDropdownOptions();
+        return ResponseEntity.ok(ApiResponse.success(data));
+    }
+
     /**
      * 사용자 활동 이력 검색
      * POST /api/activity-log/search
@@ -87,10 +103,10 @@ public class UserActivityLogController {
     
     /**
      * 사용자 활동 이력 상세 조회
-     * GET /api/activity-log/{id}
+     * GET /api/activity-log/{id} (numeric id only — avoids capturing literal paths e.g. /action-types)
      * When scope='self', verifies ownership; returns 403 if not owner.
      */
-    @GetMapping("/{id}")
+    @GetMapping("/{id:\\d+}")
     public ResponseEntity<ApiResponse<Map<String, Object>>> getActivityLogDetail(
             @PathVariable Long id,
             HttpServletRequest httpRequest) {

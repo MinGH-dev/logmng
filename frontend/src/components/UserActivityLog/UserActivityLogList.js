@@ -2,7 +2,15 @@ import React, { useState, useEffect } from 'react';
 import UserActivityLogSearchForm from './UserActivityLogSearchForm';
 import UserActivityLogTable from './UserActivityLogTable';
 import UserActivityLogDetail from './UserActivityLogDetail';
-import { searchActivityLogs } from '../../services/userActivityLogService';
+import {
+  searchActivityLogs,
+  getActivityLogActionTypes,
+} from '../../services/userActivityLogService';
+import { FALLBACK_ACTIVITY_ACTION_TYPE_OPTIONS } from '../../constants/activityActionTypesFallback';
+import {
+  toActionTypeSelectOptions,
+  toActionTypeLabelMap,
+} from '../../utils/activityActionTypeOptions';
 import {
   FILTER_OPTION_SCREEN_IDS,
   getDepartmentFilterOptions,
@@ -39,6 +47,13 @@ const UserActivityLogList = ({ user }) => {
   const [authError, setAuthError] = useState(null);
   const [serverToday, setServerToday] = useState(null);
   const [departmentList, setDepartmentList] = useState([]);
+  const [actionTypeSelectOptions, setActionTypeSelectOptions] = useState(() =>
+    toActionTypeSelectOptions(FALLBACK_ACTIVITY_ACTION_TYPE_OPTIONS),
+  );
+  const [actionTypeLabelMap, setActionTypeLabelMap] = useState(() =>
+    toActionTypeLabelMap(FALLBACK_ACTIVITY_ACTION_TYPE_OPTIONS),
+  );
+  const [actionTypesLoading, setActionTypesLoading] = useState(false);
 
   const isSelfScope = !user?.isSystemAdmin && user?.screenScopes?.['activity-log'] === 'self';
   const selfContext = getSelfContextForDisplay(user);
@@ -59,6 +74,25 @@ const UserActivityLogList = ({ user }) => {
         setDepartmentList([]);
       });
   }, [isSelfScope]);
+
+  useEffect(() => {
+    let cancelled = false;
+    setActionTypesLoading(true);
+    getActivityLogActionTypes()
+      .then((res) => {
+        if (cancelled) return;
+        if (res.success && Array.isArray(res.data) && res.data.length > 0) {
+          setActionTypeSelectOptions(toActionTypeSelectOptions(res.data));
+          setActionTypeLabelMap(toActionTypeLabelMap(res.data));
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setActionTypesLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
     if (!isSelfScope) return;
@@ -233,6 +267,8 @@ const UserActivityLogList = ({ user }) => {
         isSelfScope={isSelfScope}
         departmentList={departmentList}
         selfContext={selfContext}
+        actionTypeOptions={actionTypeSelectOptions}
+        actionTypesLoading={actionTypesLoading}
       />
 
       {authError && (
@@ -258,11 +294,16 @@ const UserActivityLogList = ({ user }) => {
           totalCount={totalCount}
           pageSize={pageSize}
           onPageSizeChange={handlePageSizeChange}
+          actionTypeLabelMap={actionTypeLabelMap}
         />
       </div>
 
       {selectedLog && (
-        <UserActivityLogDetail log={selectedLog} onClose={handleCloseDetail} />
+        <UserActivityLogDetail
+          log={selectedLog}
+          onClose={handleCloseDetail}
+          actionTypeLabelMap={actionTypeLabelMap}
+        />
       )}
     </div>
   );

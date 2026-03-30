@@ -15,7 +15,7 @@ public final class ScreenConstants {
 
     /** @deprecated Use PB_FEPLOG or JAVA_FW_IMAGELOG per log type (req 20260318). Kept for migration. */
     public static final String MAIN = "main";
-    /** Log search screen for PB FEP Log. Replaces main for pb_feplog. */
+    /** Log search screen for PB FEP v1.0.0. Replaces main for pb_feplog. */
     public static final String PB_FEPLOG = "pb-feplog";
     /**
      * Additional PB FEP log search screen (new UI wireframe, separate permission). Same logType {@code pb_feplog} for APIs.
@@ -38,18 +38,21 @@ public final class ScreenConstants {
     public static final String DEPARTMENT_APPROVERS = "department-approvers";
     public static final String USER_PERMISSION_HIERARCHY = "user-permission-hierarchy";
     public static final String PERMISSION_GROUP_MANAGEMENT = "permission-group-management";
+    /** 화면–권한 매트릭스 (admin; 권한 데이터 편집). */
+    public static final String PERMISSION_GROUP_SCREEN_MATRIX = "permission-group-screen-matrix";
 
     private static final Set<String> ALL_ALLOWED_SCREENS = Collections.unmodifiableSet(
             Arrays.asList(
                     MAIN, PB_FEPLOG, PB_FEP_LOG_SEARCH, JAVA_FW_IMAGELOG, SEARCH_HISTORY, ACTIVITY_LOG, STATISTICS,
                     PENDING_APPROVALS, USER_MANAGEMENT, DEPARTMENT_APPROVERS,
-                    USER_PERMISSION_HIERARCHY, PERMISSION_GROUP_MANAGEMENT
+                    USER_PERMISSION_HIERARCHY, PERMISSION_GROUP_MANAGEMENT, PERMISSION_GROUP_SCREEN_MATRIX
             ).stream().collect(Collectors.toSet())
     );
 
     /** Screens that support write (create/update/delete). Per spec §4.4. */
     private static final Set<String> SCREENS_WITH_WRITE = Collections.unmodifiableSet(
-            Arrays.asList(USER_MANAGEMENT, DEPARTMENT_APPROVERS, USER_PERMISSION_HIERARCHY, PERMISSION_GROUP_MANAGEMENT).stream().collect(Collectors.toSet())
+            Arrays.asList(USER_MANAGEMENT, DEPARTMENT_APPROVERS, USER_PERMISSION_HIERARCHY, PERMISSION_GROUP_MANAGEMENT,
+                    PERMISSION_GROUP_SCREEN_MATRIX).stream().collect(Collectors.toSet())
     );
 
     /** Screens that support approve (decrypt_approver). Per spec §4.4. */
@@ -132,7 +135,7 @@ public final class ScreenConstants {
         return screenId != null && SCREENS_WITH_SCOPE.contains(screenId.trim());
     }
 
-    /** Returns true if the screen supports write (user-management, department-approvers, user-permission-hierarchy, permission-group-management). Per spec §4.4. */
+    /** Returns true if the screen supports write (user-management, department-approvers, user-permission-hierarchy, permission-group-management, permission-group-screen-matrix). Per spec §4.4. */
     public static boolean supportsWrite(String screenId) {
         return screenId != null && SCREENS_WITH_WRITE.contains(screenId.trim());
     }

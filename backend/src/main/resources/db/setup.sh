@@ -193,6 +193,10 @@ else
   echo "   ✅ 초기 데이터 삽입 완료"
 fi
 
+echo "5-pb-fep. PB FEP pagination / bmsg 샘플 (migrate-pb-fep-pagination-bmsg-sample-20260330)..."
+run_sql_file_sp "$DB_A_NAME" "$SP_APP" "$SCRIPT_DIR/migrate-pb-fep-pagination-bmsg-sample-20260330.sql"
+echo "   ✅ PB FEP pagination/bmsg 샘플 적용(재실행 시 seed 행만 삭제 후 재삽입)"
+
 echo "5a. permission_group_screen main → pb-feplog/java-fw-imagelog 마이그레이션 적용 중..."
 run_sql_file_sp "$DB_A_NAME" "$SP_APP" "$SCRIPT_DIR/migrate-main-to-pb-feplog-java-fw-imagelog.sql"
 echo "   ✅ main → pb-feplog/java-fw-imagelog 마이그레이션 완료"
@@ -204,6 +208,14 @@ echo "   ✅ java-fw_imagelog 정규화 완료"
 echo "5b. imagelog 샘플 데이터 삽입 중 (비어 있을 때만)..."
 run_sql_file_sp "$DB_B_NAME" "${SCHEMA_IMAGELOG}, public" "$SCRIPT_DIR/init-data-imagelog.sql"
 echo "   ✅ imagelog 샘플 데이터 완료"
+
+echo "5b-1. imagelog 동일 GUID·상이 status 샘플 행 마이그레이션 (req 20260330)..."
+run_sql_file_sp "$DB_B_NAME" "${SCHEMA_IMAGELOG}, public" "$SCRIPT_DIR/migrate-imagelog-dup-guid-sample-20260330.sql"
+echo "   ✅ imagelog duplicate-GUID sample 적용(또는 이미 존재)"
+
+echo "5b-2. imagelog 단일-status guid 동반 행 (input↔output/error→input) 마이그레이션 (req 20260330)..."
+run_sql_file_sp "$DB_B_NAME" "${SCHEMA_IMAGELOG}, public" "$SCRIPT_DIR/migrate-imagelog-companion-status-20260330.sql"
+echo "   ✅ imagelog companion-status 적용(또는 이미 존재)"
 
 echo "6. app_user id 마이그레이션 (admin=20269999, 기타=20260001~) 적용 중..."
 run_sql_file_sp "$DB_A_NAME" "$SP_APP" "$SCRIPT_DIR/migrate-app-user-id-2026.sql"

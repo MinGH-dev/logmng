@@ -1,6 +1,6 @@
 /* LogTable — PB FEP dense grid (req 20260326). Base table in DataTable.css. */
 
-/* Wireframe pb-fep-log-search — SVG v10 density, 12 columns */
+/* Wireframe pb-fep-log-search — SVG v10 density, 11 columns (chevron in log_timestamp cell) */
 .log-table.log-table--pb-fep-svg {
   font-size: 12px;
 }
@@ -29,66 +29,91 @@
   background-color: #eef6ff;
 }
 
-.log-table.log-table--pb-fep-svg .pb-fep-expand-hint {
-  width: 28px;
-  max-width: 36px;
-  padding: 2px 4px;
-  color: #555;
+/* Inner wrapper gets flex (not the td) so the cell stretches with the row and border-bottom aligns */
+.log-table.log-table--pb-fep-svg .pb-fep-timestamp-cell-inner {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  flex-wrap: nowrap;
+  box-sizing: border-box;
 }
 
 .pb-fep-expand-hint-inner {
   font-size: 11px;
   display: inline-block;
   min-width: 1em;
+  flex-shrink: 0;
+  color: #555;
+}
+
+/* Full datetime + chevron: do not shrink (DataTable base uses ellipsis on td) */
+.log-table.log-table--pb-fep-svg .pb-fep-timestamp-value {
+  flex-shrink: 0;
+  white-space: nowrap;
+  overflow: visible;
+  text-overflow: clip;
 }
 
 .log-table.log-table--pb-fep-svg th:nth-child(1),
 .log-table.log-table--pb-fep-svg td:nth-child(1) {
-  width: 28px;
+  width: 12%;
+  min-width: 168px;
+  overflow: visible;
+  text-overflow: clip;
+}
+
+.log-table.log-table--pb-fep-svg td:nth-child(1) {
+  white-space: normal;
 }
 
 .log-table.log-table--pb-fep-svg th:nth-child(2),
 .log-table.log-table--pb-fep-svg td:nth-child(2) {
-  width: 10%;
-  min-width: 130px;
-}
-
-.log-table.log-table--pb-fep-svg th:nth-child(3),
-.log-table.log-table--pb-fep-svg td:nth-child(3) {
   width: 6%;
   min-width: 64px;
 }
 
-.log-table.log-table--pb-fep-svg th:nth-child(4),
-.log-table.log-table--pb-fep-svg td:nth-child(4) {
+.log-table.log-table--pb-fep-svg th:nth-child(3),
+.log-table.log-table--pb-fep-svg td:nth-child(3) {
   width: 7%;
   min-width: 72px;
 }
 
-.log-table.log-table--pb-fep-svg th:nth-child(5),
-.log-table.log-table--pb-fep-svg td:nth-child(5) {
+.log-table.log-table--pb-fep-svg th:nth-child(4),
+.log-table.log-table--pb-fep-svg td:nth-child(4) {
   width: 5%;
   min-width: 56px;
+}
+
+.log-table.log-table--pb-fep-svg th:nth-child(5),
+.log-table.log-table--pb-fep-svg td:nth-child(5) {
+  width: 10%;
+  min-width: 88px;
+  white-space: normal;
+  word-break: break-word;
+  overflow-wrap: break-word;
+  overflow: visible;
 }
 
 .log-table.log-table--pb-fep-svg th:nth-child(6),
 .log-table.log-table--pb-fep-svg td:nth-child(6) {
-  width: 9%;
-  min-width: 80px;
-  white-space: normal;
-  word-break: break-word;
-}
-
-.log-table.log-table--pb-fep-svg th:nth-child(7),
-.log-table.log-table--pb-fep-svg td:nth-child(7) {
   width: 5%;
   min-width: 56px;
 }
 
+.log-table.log-table--pb-fep-svg th:nth-child(7),
+.log-table.log-table--pb-fep-svg td:nth-child(7) {
+  width: 7%;
+  min-width: 118px;
+  white-space: nowrap;
+  overflow: visible;
+  text-overflow: clip;
+}
+
 .log-table.log-table--pb-fep-svg th:nth-child(8),
 .log-table.log-table--pb-fep-svg td:nth-child(8) {
-  width: 5%;
-  min-width: 52px;
+  width: 8%;
+  min-width: 88px;
 }
 
 .log-table.log-table--pb-fep-svg th:nth-child(9),
@@ -99,25 +124,25 @@
 
 .log-table.log-table--pb-fep-svg th:nth-child(10),
 .log-table.log-table--pb-fep-svg td:nth-child(10) {
-  width: 8%;
-  min-width: 88px;
-}
-
-.log-table.log-table--pb-fep-svg th:nth-child(11),
-.log-table.log-table--pb-fep-svg td:nth-child(11) {
   width: 6%;
   min-width: 64px;
 }
 
-.log-table.log-table--pb-fep-svg th:nth-child(12),
-.log-table.log-table--pb-fep-svg td:nth-child(12) {
-  width: 14%;
-  min-width: 120px;
+.log-table.log-table--pb-fep-svg th:nth-child(11),
+.log-table.log-table--pb-fep-svg td:nth-child(11) {
+  width: 4%;
+  min-width: 80px;
+  overflow: visible;
+  text-overflow: clip;
 }
 
 .tr-data-cell--pb-fep-svg {
   text-align: center;
   vertical-align: middle;
+}
+
+.log-table.log-table--pb-fep-svg .tr-data-cell--pb-fep-svg .tr-data-expand-action {
+  white-space: nowrap;
 }
 
 .log-expand-stream-cell--svg {

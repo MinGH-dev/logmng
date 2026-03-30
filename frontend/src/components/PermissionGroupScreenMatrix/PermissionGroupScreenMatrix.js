@@ -32,7 +32,7 @@ import {
   SCOPE_SUPPORTING_SCREENS,
 } from './allowedScreensMatrixUtils';
 
-const MATRIX_TITLE = '권한 그룹 관리 — 화면별 기능 (접근·범위·수정·승인·복호화)';
+const MATRIX_TITLE = '권한 그룹 관리 v2.0.0';
 
 const unwrapGroupDetail = (apiResult) => {
   if (!apiResult || typeof apiResult !== 'object') return null;

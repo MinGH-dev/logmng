@@ -2,7 +2,7 @@ import React from 'react';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import UserActivityLogList from './UserActivityLogList';
-import { searchActivityLogs } from '../../services/userActivityLogService';
+import { searchActivityLogs, getActivityLogActionTypes } from '../../services/userActivityLogService';
 import {
   FILTER_OPTION_SCREEN_IDS,
   getDepartmentFilterOptions,
@@ -13,6 +13,7 @@ jest.mock('./UserActivityLogDetail', () => () => null);
 
 jest.mock('../../services/userActivityLogService', () => ({
   searchActivityLogs: jest.fn(),
+  getActivityLogActionTypes: jest.fn(),
 }));
 
 jest.mock('../../services/filterOptionsService', () => ({
@@ -31,6 +32,9 @@ jest.mock('../../utils/logger', () => ({
 }));
 
 describe('UserActivityLogList', () => {
+  /** Align client "today" with /health mock (2026-03-13) so form submit matches assertions on any calendar date. */
+  let dateNowSpy;
+
   const createUser = (scope) => ({
     isSystemAdmin: false,
     screenScopes: { 'activity-log': scope },
@@ -64,6 +68,7 @@ describe('UserActivityLogList', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    dateNowSpy = jest.spyOn(Date, 'now').mockReturnValue(new Date('2026-03-13T12:00:00.000Z').getTime());
     global.fetch = jest.fn().mockResolvedValue({
       json: async () => ({
         success: true,
@@ -81,9 +86,18 @@ describe('UserActivityLogList', () => {
         pagination: { totalPages: 1, totalCount: 0 },
       },
     });
+    getActivityLogActionTypes.mockResolvedValue({
+      success: true,
+      data: [
+        { code: 'LOGIN', label: '로그인' },
+        { code: 'SEARCH', label: '검색' },
+        { code: 'VIEW', label: '조회' },
+      ],
+    });
   });
 
   afterEach(() => {
+    dateNowSpy.mockRestore();
     jest.resetAllMocks();
   });
 
@@ -95,6 +109,9 @@ describe('UserActivityLogList', () => {
     );
 
     await waitForInitialSearchIdle();
+
+    await waitFor(() => expect(getActivityLogActionTypes).toHaveBeenCalled());
+    expect(screen.getByRole('option', { name: '조회' })).toBeInTheDocument();
 
     expect(getDepartmentFilterOptions).not.toHaveBeenCalled();
     expect(screen.getByDisplayValue('개발부')).toHaveAttribute('readonly');

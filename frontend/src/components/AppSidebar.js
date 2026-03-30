@@ -101,7 +101,7 @@ function AppSidebar({
         label: {
           fontFamily: theme.typography.fontFamily,
         },
-        /** §2.1: Submenu content indent so "PB FEP Log"/"검색 이력" align with "활동 이력"/"복호화 승인 관리" */
+        /** §2.1: Submenu content indent so "PB FEP v1.0.0"/"검색 이력" align with "활동 이력"/"복호화 승인 관리" */
         subMenuContent: {
           paddingLeft: SUBMENU_INDENT_PX,
         },

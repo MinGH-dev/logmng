@@ -387,6 +387,21 @@
 
 **화면별 범위(scope)**: is_system_admin=false일 때 권한 그룹의 activity-log scope 적용. scope='self' → user/requester block은 숨기지 않고 visible locked self-context로 유지된다. `department`, `username`, `userId`는 auth/current-user payload의 `selfContext` 기준으로 표시되고 수정할 수 없으며, `userId`는 **numeric** **`app_user.id`**이다. 검색 실행 시 userId는 현재 인증 사용자로 강제되고, username, department(또는 departmentCode), ipAddress 등 사용자·부서 관련 파라미터와 동등한 widening 입력은 무시되거나 안전하게 override되며, 현재 사용자 데이터만 반환한다. `department`에 빈 값, `all`, `ALL`, `전체` 등 "전체" 의미 표현이 들어와도 범위를 넓히지 못한다. scope='team'/'all' → 요청의 department 등 필터 적용. 상세: `specs/permission-group-hierarchy.spec.yaml` §4.3.
 
+### 8.0 `action_type` 단일 기준(OP-01) 및 `action_detail`
+
+- **저장**: 각 행의 유형은 `action_type` 문자열( DB `user_activity_log.action_type`, 예: `VARCHAR(50)` )이다. **닫힌 코드 집합**·라벨·예비(provisional) 코드는 **`specs/activity-action-types.spec.yaml`** §2가 단일 기준이다.
+- **구현 상태**: 이미 기록되는 유형에는 `LOGIN`, `LOGOUT`, `SEARCH`, `VIEW`, `DECRYPT`, `ADVANCED_SEARCH` 등이 있으며, 메서드명 추론 시 `EXPORT`, `STATS_VIEW`, `SCHEMA_VIEW`, `UNKNOWN` 등이 사용될 수 있다(상세 표는 스펙 참고). **권한 그룹·사용자·부서 결재자·검색 이력·복호화 승인** 관련 코드는 요건 `20260330-activity-types-user-mgmt-permission-group`에 따라 Step 4에서 상수·기록 지점과 함께 확정한다.
+- **`action_detail`**: JSON 객체. 카테고리별로 허용되는 키는 스펙 §3(권한 그룹 id, 대상 `userId`, `searchHistoryId` 등 **비민감 식별자**). 비밀번호·토큰·복호화 본문·세션 식별자는 넣지 않는다.
+
+### 8.0.1 활동 유형 필터 옵션(선택 API)
+
+- **GET** `/api/activity-log/action-types`
+- **목적**: 활동 이력 화면의 **활동 유형** `<select>` 옵션을 서버 권위 목록으로 채운다. 프론트엔드 전역 하드코드 배열은 계약상 권장되지 않는다(폴백은 요건 문서 참고).
+- **동등 경로**: 동일 응답 형식이면 `GET /api/filter-options/activity-action-types` 구현을 허용하나, **문서 기준 경로**는 `/api/activity-log/action-types` 이다.
+- **권한**: 인증 필요. **activity-log** 화면에 대한 읽기 접근(및 기존 activity-log API와 동일한 `is_system_admin`·scope 처리)이 없으면 **403** `FORBIDDEN`. **401** 비인증.
+- **Response (data)**: `{ code: string, label: string }[]` — `code`는 `POST /api/activity-log/search`의 `actionType`과 동일 값; `label`은 UI 표시용(한국어 등). 정렬: 기본 `code` 오름차순(스펙 §4.3).
+- **스펙**: `specs/activity-action-types.spec.yaml` §4.
+
 ### 8.1 활동 이력 검색
 
 - **POST** `/api/activity-log/search`
@@ -399,7 +414,7 @@
 | userId | number | (선택) 사용자 ID (numeric `app_user.id`). `scope=self`이면 클라이언트 입력값과 관계없이 현재 인증 사용자로 강제되며, 타 사용자 값으로 범위를 넓힐 수 없다. |
 | username | string | (선택) 사용자명 필터. `scope=self`이면 무시되며 결과 범위를 넓히지 못한다. |
 | department | string | (선택) 부서 필터. `scope=self`이면 무시되며, 빈 값, `all`, `ALL`, `전체` 등 전체 의미 표현도 범위를 넓히지 못한다. `scope=team/all`일 때만 적용. body에 departmentCode로 보내도 동일 필드로 처리. (req 20260310) |
-| actionType | string | |
+| actionType | string | (선택) `user_activity_log.action_type` 정확 일치. 허용 코드는 `specs/activity-action-types.spec.yaml` §2(OP-01). 빈 값 = 전체 유형. |
 | ipAddress | string | |
 | page | integer | 기본 1 |
 | pageSize | integer | 기본 20 |

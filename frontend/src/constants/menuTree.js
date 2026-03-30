@@ -31,15 +31,15 @@ export const ALLOWED_SCREEN_IDS = [
   'permission-group-management',
 ];
 
-/** 2-depth 메뉴 트리 (1차: 그룹, 2차: leaf screens). 로그 검색: PB FEP Log, PB FEP 로그 검색, Java FW Image Log; 이력·승인 = 활동 이력 → 검색 이력 → 복호화 승인 관리. */
+/** 2-depth 메뉴 트리 (1차: 그룹, 2차: leaf screens). 로그 검색: PB FEP v1.0.0, PB FEP v2.0.0, Java FW Image Log; 이력·승인 = 활동 이력 → 검색 이력 → 복호화 승인 관리. */
 export const MENU_TREE = [
   {
     id: 'log-search',
     label: '로그 검색',
     icon: SearchIcon,
     children: [
-      { id: 'pb-feplog', label: 'PB FEP Log', view: 'pb-feplog' },
-      { id: 'pb-fep-log-search', label: 'PB FEP 로그 검색', view: 'pb-fep-log-search' },
+      { id: 'pb-feplog', label: 'PB FEP v1.0.0', view: 'pb-feplog' },
+      { id: 'pb-fep-log-search', label: 'PB FEP v2.0.0', view: 'pb-fep-log-search' },
       { id: 'java-fw-imagelog', label: 'Java FW Image Log', view: 'java-fw-imagelog' },
     ],
   },
@@ -66,8 +66,8 @@ export const MENU_TREE = [
     adminOnly: true,
     children: [
       { id: 'user-management', label: '사용자 관리', view: 'user-management' },
-      { id: 'permission-group-management', label: '권한 그룹 관리', view: 'permission-group-management' },
-      { id: 'permission-group-screen-matrix', label: '권한 그룹 — 화면별 기능', view: 'permission-group-screen-matrix' },
+      { id: 'permission-group-management', label: '권한 그룹 관리 v1.0.0', view: 'permission-group-management' },
+      { id: 'permission-group-screen-matrix', label: '권한 그룹 관리 v2.0.0', view: 'permission-group-screen-matrix' },
     ],
   },
 ];

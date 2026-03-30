@@ -18,9 +18,8 @@ const LOG_COLUMNS_PB_FEP_LEGACY = [
   { key: 'data', label: 'data', sortable: false },
 ];
 
-/** Wireframe SVG v10 — POST .../pb-fep-log-search row keys. */
+/** Wireframe SVG v10 — POST .../pb-fep-log-search row keys (expand chevron in log_timestamp cell). */
 const LOG_COLUMNS_PB_FEP_SVG = [
-  { key: '__expand_hint', label: '\u00a0', sortable: false },
   { key: 'log_timestamp', label: 'log_timestamp', sortable: true },
   { key: 'tr_code', label: 'tr_code', sortable: true },
   { key: 'login_id', label: 'login_id', sortable: true },
@@ -198,10 +197,16 @@ const LogTable = ({
             return (
               <React.Fragment key={rowKey}>
                 <tr className="log-row-pb-fep-svg">
-                  <td className="pb-fep-expand-hint" aria-hidden="true">
-                    <span className="pb-fep-expand-hint-inner">{isExpanded ? '▾' : '▸'}</span>
+                  <td className="pb-fep-timestamp-cell">
+                    <div className="pb-fep-timestamp-cell-inner">
+                      <span className="pb-fep-expand-hint-inner" aria-hidden="true">
+                        {isExpanded ? '▾' : '▸'}
+                      </span>
+                      <span className="pb-fep-timestamp-value">
+                        {formatTime(log.log_timestamp || log.timestamp || log.prc_time || log.log_time)}
+                      </span>
+                    </div>
                   </td>
-                  <td>{formatTime(log.log_timestamp || log.timestamp || log.prc_time || log.log_time)}</td>
                   <td>{log.tr_code ?? ''}</td>
                   <td>{log.login_id ?? log.user_id ?? log.loginId ?? ''}</td>
                   <td>{log.msg_code ?? log.status_code ?? ''}</td>

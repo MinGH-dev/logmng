@@ -1,6 +1,7 @@
 package com.logmng.aspect;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.logmng.activity.ActivityAuditDetailEnricher;
 import com.logmng.annotation.ActivityLog;
 import com.logmng.dto.DecryptionRowKey;
 import com.logmng.dto.response.LoginResponse;
@@ -323,6 +324,14 @@ public class ActivityLogAspect {
                     log.debug("응답 데이터 직렬화 실패: {}", e.getMessage());
                 }
             }
+
+            // Permission group admin: structured action_detail when includeParams=false (req 20260330)
+            ActivityAuditDetailEnricher.enrichPermissionGroup(
+                    signature.getDeclaringType(),
+                    method.getName(),
+                    joinPoint.getArgs(),
+                    methodResult,
+                    actionDetail);
             
             // 요청 파라미터 JSON 문자열 생성 (Servlet 타입은 직렬화 전에 플레이스홀더로 대체)
             String requestParamsJson = null;

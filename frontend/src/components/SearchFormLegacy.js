@@ -2,8 +2,8 @@ import React, { useState, useEffect } from 'react';
 import './SearchForm.css';
 
 /**
- * PB FEP Log (screen pb-feplog) — 레거시 다필드 검색 폼.
- * PB FEP 로그 검색(pb-fep-log-search)은 SearchForm(컴팩트 와이어프레임) 사용.
+ * PB FEP v1.0.0 (screen pb-feplog) — 레거시 다필드 검색 폼.
+ * PB FEP v2.0.0(pb-fep-log-search)은 SearchForm(컴팩트 와이어프레임) 사용.
  */
 const getTodayDateTime = (hours, minutes, seconds) => {
   const today = new Date();

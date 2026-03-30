@@ -37,7 +37,7 @@ describe('PermissionGroupScreenMatrix', () => {
   test('renders title when user may access (system admin)', () => {
     const { container } = render(<PermissionGroupScreenMatrix user={{ isSystemAdmin: true }} />);
     expect(
-      screen.getByRole('heading', { name: /권한 그룹 관리 — 화면별 기능/ })
+      screen.getByRole('heading', { name: /권한 그룹 관리 v2\.0\.0/ })
     ).toBeInTheDocument();
     const root = container.querySelector('.pgsm-root');
     expect(root).toHaveAttribute('data-layout', 'two-pane-group-list-matrix');

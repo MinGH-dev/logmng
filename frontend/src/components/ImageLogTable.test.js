@@ -221,3 +221,161 @@ describe('ImageLogTable (req 20260318 decryption-allowed store and decrypt UI)',
     });
   });
 });
+
+describe('ImageLogTable (req 20260330 Pretty per guid+status)', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    global.alert = jest.fn();
+  });
+
+  const jsonLogsSameGuid = [
+    {
+      guid: 'shared-guid',
+      status: 'S1',
+      insert_time: '2026-03-30 10:00:00',
+      application: 'app1',
+      servicegroup: 'sg1',
+      service: 'svc1',
+      datastring: '{"a":1}',
+      headerstring: '{"h":1}',
+    },
+    {
+      guid: 'shared-guid',
+      status: 'S2',
+      insert_time: '2026-03-30 10:01:00',
+      application: 'app1',
+      servicegroup: 'sg1',
+      service: 'svc1',
+      datastring: '{"b":2}',
+      headerstring: '{"h":2}',
+    },
+  ];
+
+  /** TC-01: Pretty on row 1 does not affect row 2 */
+  test('TC-01: same guid different status — Pretty toggle affects only that row', async () => {
+    const { container } = render(
+      <ImageLogTable {...defaultProps} logs={jsonLogsSameGuid} totalCount={2} />
+    );
+    const rows = container.querySelectorAll('tbody tr');
+    expect(rows.length).toBe(2);
+
+    const prettyBtn0 = within(rows[0].querySelector('td.pretty-action-cell')).getByRole('button', {
+      name: /Pretty 출력/,
+    });
+    const prettyBtn1 = within(rows[1].querySelector('td.pretty-action-cell')).getByRole('button', {
+      name: /Pretty 출력/,
+    });
+    expect(prettyBtn0).toHaveTextContent('Pretty');
+    expect(prettyBtn1).toHaveTextContent('Pretty');
+
+    await userEvent.click(prettyBtn0);
+
+    expect(rows[0].querySelectorAll('td.tr-data-cell.pretty-mode').length).toBeGreaterThan(0);
+    expect(rows[1].querySelectorAll('td.tr-data-cell.pretty-mode').length).toBe(0);
+    expect(
+      within(rows[0].querySelector('td.pretty-action-cell')).getByRole('button', { name: /Pretty 출력/ })
+    ).toHaveTextContent('Pretty OFF');
+    expect(
+      within(rows[1].querySelector('td.pretty-action-cell')).getByRole('button', { name: /Pretty 출력/ })
+    ).toHaveTextContent('Pretty');
+  });
+
+  /** TC-02: both rows can be Pretty ON independently */
+  test('TC-02: Pretty on row 2 after row 1 — both rows independent', async () => {
+    const { container } = render(
+      <ImageLogTable {...defaultProps} logs={jsonLogsSameGuid} totalCount={2} />
+    );
+    const rows = container.querySelectorAll('tbody tr');
+    const prettyBtn0 = within(rows[0].querySelector('td.pretty-action-cell')).getByRole('button', {
+      name: /Pretty 출력/,
+    });
+    const prettyBtn1 = within(rows[1].querySelector('td.pretty-action-cell')).getByRole('button', {
+      name: /Pretty 출력/,
+    });
+
+    await userEvent.click(prettyBtn0);
+    await userEvent.click(prettyBtn1);
+
+    expect(rows[0].querySelectorAll('td.tr-data-cell.pretty-mode').length).toBeGreaterThan(0);
+    expect(rows[1].querySelectorAll('td.tr-data-cell.pretty-mode').length).toBeGreaterThan(0);
+    expect(
+      within(rows[0].querySelector('td.pretty-action-cell')).getByRole('button', { name: /Pretty 출력/ })
+    ).toHaveTextContent('Pretty OFF');
+    expect(
+      within(rows[1].querySelector('td.pretty-action-cell')).getByRole('button', { name: /Pretty 출력/ })
+    ).toHaveTextContent('Pretty OFF');
+  });
+
+  /** TC-03: decrypt remains per guid+status when two rows share guid */
+  test('TC-03: decrypt only the first row — second row still shows 복호화', async () => {
+    const logs = [
+      {
+        guid: 'g-dup',
+        status: 'A',
+        insert_time: '2026-03-30 10:00:00',
+        application: 'app1',
+        servicegroup: 'sg1',
+        service: 'svc1',
+        datastring: '{"k":"[enc-a]"}',
+        headerstring: '{}',
+      },
+      {
+        guid: 'g-dup',
+        status: 'B',
+        insert_time: '2026-03-30 10:01:00',
+        application: 'app1',
+        servicegroup: 'sg1',
+        service: 'svc1',
+        datastring: '{"k":"[enc-b]"}',
+        headerstring: '{}',
+      },
+    ];
+    const decryptionAllowed = {
+      validUntil: '2026-12-31T23:59:59',
+      guids: ['g-dup'],
+      allowedRows: [
+        { guid: 'g-dup', status: 'A' },
+        { guid: 'g-dup', status: 'B' },
+      ],
+    };
+
+    global.fetch = jest.fn(() =>
+      Promise.resolve({
+        ok: true,
+        status: 200,
+        json: () =>
+          Promise.resolve({
+            success: true,
+            data: { decrypted_datastring: '{"a":1}', decrypted_headerstring: '{}' },
+          }),
+      })
+    );
+
+    const { container } = render(
+      <ImageLogTable
+        {...defaultProps}
+        logs={logs}
+        totalCount={2}
+        decryptionAllowed={decryptionAllowed}
+      />
+    );
+    const rows = container.querySelectorAll('tbody tr');
+    const decryptBtn0 = within(rows[0].querySelector('td.decrypt-action-cell')).getByRole('button', {
+      name: '복호화',
+    });
+    await userEvent.click(decryptBtn0);
+
+    await waitFor(() => {
+      expect(global.fetch).toHaveBeenCalled();
+    });
+
+    await waitFor(() => {
+      expect(
+        within(rows[0].querySelector('td.decrypt-action-cell')).getByRole('button', { name: '복호화 해제' })
+      ).toBeInTheDocument();
+    });
+    expect(
+      within(rows[1].querySelector('td.decrypt-action-cell')).getByRole('button', { name: '복호화' })
+    ).toBeInTheDocument();
+  });
+});

@@ -1,5 +1,6 @@
 package com.logmng.controller;
 
+import com.logmng.annotation.ActivityLog;
 import com.logmng.dto.request.PermissionGroupCreateRequest;
 import com.logmng.dto.request.PermissionGroupUpdateRequest;
 import com.logmng.dto.response.ApiResponse;
@@ -94,6 +95,7 @@ public class PermissionGroupController {
      * POST /api/permission-groups — create. §14.2
      */
     @PostMapping
+    @ActivityLog(actionType = "PERMISSION_GROUP_CREATE", description = "권한 그룹 생성", includeParams = false, includeResponse = false)
     public ResponseEntity<ApiResponse<PermissionGroupResponse>> create(
             @Valid @RequestBody PermissionGroupCreateRequest body,
             HttpServletRequest request) {
@@ -119,6 +121,7 @@ public class PermissionGroupController {
      * PUT /api/permission-groups/{id} — update. §14.4
      */
     @PutMapping("/{id}")
+    @ActivityLog(actionType = "PERMISSION_GROUP_UPDATE", description = "권한 그룹 수정", includeParams = false, includeResponse = false)
     public ResponseEntity<ApiResponse<PermissionGroupResponse>> update(
             @PathVariable Long id,
             @RequestBody PermissionGroupUpdateRequest body,
@@ -144,6 +147,7 @@ public class PermissionGroupController {
      * DELETE /api/permission-groups/{id} — delete. §14.5
      */
     @DeleteMapping("/{id}")
+    @ActivityLog(actionType = "PERMISSION_GROUP_DELETE", description = "권한 그룹 삭제", includeParams = false, includeResponse = false)
     public ResponseEntity<ApiResponse<Void>> delete(
             @PathVariable Long id,
             HttpServletRequest request) {
@@ -157,6 +161,7 @@ public class PermissionGroupController {
      * POST /api/permission-groups/{id}/users — assign user. §14.6. Body userId = numeric app_user.id (req 20260316).
      */
     @PostMapping("/{id}/users")
+    @ActivityLog(actionType = "ASSIGN_USER_TO_PERMISSION_GROUP", description = "권한 그룹 사용자 배정", includeParams = false, includeResponse = false)
     public ResponseEntity<ApiResponse<AssignUserToGroupResponse>> assignUser(
             @PathVariable Long id,
             @Valid @RequestBody Map<String, Object> body,
@@ -183,6 +188,7 @@ public class PermissionGroupController {
      * DELETE /api/permission-groups/{id}/users/{userId} — remove user. §14.7. Path userId = numeric app_user.id (req 20260316).
      */
     @DeleteMapping("/{id}/users/{userId}")
+    @ActivityLog(actionType = "UNASSIGN_USER_FROM_PERMISSION_GROUP", description = "권한 그룹 사용자 해제", includeParams = false, includeResponse = false)
     public ResponseEntity<ApiResponse<Void>> unassignUser(
             @PathVariable Long id,
             @PathVariable Long userId,

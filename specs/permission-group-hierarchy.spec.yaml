@@ -6,8 +6,8 @@
 ---
 metadata:
   title: "Permission group CRUD, user-group assignment, user-permission hierarchy, screen access"
-  version: "1.5"
-  requirement: "20250227-user-permission-hierarchy-group, 20250227-permission-group-screen-menu-access, 20250303-activity-statistics-self-only-scope, 20250303-screen-function-availability, explicit-read-write-approve-per-screen, 20260323-approver-eligibility-from-permission-group-only"
+  version: "1.6"
+  requirement: "20250227-user-permission-hierarchy-group, 20250227-permission-group-screen-menu-access, 20250303-activity-statistics-self-only-scope, 20250303-screen-function-availability, explicit-read-write-approve-per-screen, 20260323-approver-eligibility-from-permission-group-only, 20260330-activity-types-user-mgmt-permission-group"
   status: "draft"
 
 ---
@@ -264,8 +264,8 @@ Existing: USER_NOT_FOUND, FORBIDDEN, INVALID_INPUT, SELF_DEMOTION_BLOCKED, LAST_
 | screen_id | Description (frontend MENU_TREE view) |
 |-----------|--------------------------------------|
 | main | (deprecated) 검색하기 — use pb-feplog / java-fw-imagelog (req 20260318) |
-| pb-feplog | PB FEP Log (로그 검색) |
-| pb-fep-log-search | PB FEP 로그 검색 (로그 검색, 동일 logType pb_feplog; 별도 screen_id·권한) |
+| pb-feplog | PB FEP v1.0.0 (로그 검색) |
+| pb-fep-log-search | PB FEP v2.0.0 (로그 검색, 동일 logType pb_feplog; 별도 screen_id·권한) |
 | java-fw-imagelog | Java FW Image Log (로그 검색) |
 | search-history | 검색 이력 |
 | activity-log | 활동 이력 |
@@ -311,7 +311,7 @@ APIs that correspond to screens must validate: user has is_system_admin=true **o
 | pb-feplog | /api/logs/db-refactored/* (when logType=pb_feplog), /api/logs/decrypt/pb_feplog, GET /api/decrypt/allowed?screen=pb-feplog. **logType↔screen**: request logType must match user's allowed screen; else 403 LOG_TYPE_NOT_ALLOWED. | — |
 | java-fw-imagelog | /api/logs/db-refactored/* (when logType=java_fw_imglog), /api/logs/decrypt/java_fw_imglog, GET /api/decrypt/allowed?screen=java-fw-imagelog. **logType↔screen**: same as above. Decrypt function required for decrypt APIs. | — |
 | search-history | /api/search-history/*, /api/filter-options/departments?screen=search-history | Use scope: self → own only, ignore requester filters (`department`, `username`, `userId`), and show visible locked self-context from auth/current-user `selfContext`; shared filter-options endpoint is not the source of those locked values and may return `[]`; team → same department first, then requester filters narrow within that set, and shared filter-options endpoint returns only the current user's own department option; all → pass requester filters as narrowing-only params |
-| activity-log | /api/activity-log/*, /api/filter-options/departments?screen=activity-log | Use scope: self → override `userId`, ignore or safely override `username`, `department`, `departmentCode`, `ipAddress`, and equivalent "all" inputs so the result remains current-user-only, and show visible locked self-context from auth/current-user `selfContext`; shared filter-options endpoint is not the source of those locked values and may return `[]`; team → same department and shared filter-options endpoint returns only the current user's own department option; all → pass params as-is |
+| activity-log | /api/activity-log/*, **GET** `/api/activity-log/action-types` (optional; activity-type filter options), /api/filter-options/departments?screen=activity-log | Use scope: self → override `userId`, ignore or safely override `username`, `department`, `departmentCode`, `ipAddress`, and equivalent "all" inputs so the result remains current-user-only, and show visible locked self-context from auth/current-user `selfContext`; shared filter-options endpoint is not the source of those locked values and may return `[]`; team → same department and shared filter-options endpoint returns only the current user's own department option; all → pass params as-is. Canonical **`action_type`** codes for `user_activity_log` and optional `action-types` response: `specs/activity-action-types.spec.yaml`. |
 | statistics | /api/statistics/*, /api/filter-options/departments?screen=statistics | Use scope: self → override userId, ignore dept/ip, and show visible locked self-context from auth/current-user `selfContext`; shared filter-options endpoint is not the source of those locked values and may return `[]`; team → same department and shared filter-options endpoint returns only the current user's own department option; all → pass params as-is |
 | pending-approvals | /api/search-history/pending, /api/search-history/{id}/approve, /api/search-history/{id}/reject | Require **effective** `screenFunctions` approve (see §4.4). Scope: self → own requests only; team/all → filter list per scope **and** `canApproveForRequester` (same `department_code` only). |
 | user-management | /api/users, /api/users/approvers, /api/users/approvers/{userId} | — |
@@ -373,7 +373,7 @@ screenFunctions: Record<screenId, ScreenFunctionCapability>
 
 ### Log search screens (pb-feplog, pb-fep-log-search, java-fw-imagelog) — req 20260318
 
-- **pb-feplog** (PB FEP Log), **pb-fep-log-search** (PB FEP 로그 검색), **java-fw-imagelog** (Java FW Image Log): each is `{ read: true, decrypt?: boolean }` when user has that screen in allowedScreenIds. **pb-fep-log-search** shares API **logType** `pb_feplog` with **pb-feplog** but is a separate **screen_id** for permission assignment. main is deprecated; same semantics for backward compat.
+- **pb-feplog** (PB FEP v1.0.0), **pb-fep-log-search** (PB FEP v2.0.0), **java-fw-imagelog** (Java FW Image Log): each is `{ read: true, decrypt?: boolean }` when user has that screen in allowedScreenIds. **pb-fep-log-search** shares API **logType** `pb_feplog` with **pb-feplog** but is a separate **screen_id** for permission assignment. main is deprecated; same semantics for backward compat.
 - No write, no approve. Search and view only. **logType access**: `pb_feplog` allowed if user has **pb-feplog** or **pb-fep-log-search**; `java_fw_imglog` requires **java-fw-imagelog**. 403 LOG_TYPE_NOT_ALLOWED when not allowed.
 - **decrypt**: When permission_group_screen.decrypt is true for that screen, user may call the decrypt API for that log type (subject to decryption-allowed store: user_id, **screen** (pb-feplog or java-fw-imagelog), **guid + row_status** for java_fw_imglog, valid_until). searchHistoryId is not used for authorization (optional for audit). req 20260320.
 

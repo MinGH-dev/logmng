@@ -9,12 +9,13 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * Unit tests for GenerateEncryptedSampleData (TC-01, TC-03, TC-04).
- * Requirement: docs/requirements/20260318-image-log-sample-data-preserve.md
+ * Requirements: docs/requirements/20260318-image-log-sample-data-preserve.md,
+ * docs/requirements/20260330-imagelog-dup-guid-sample-data.md
  */
 class GenerateEncryptedSampleDataTest {
 
     @Test
-    void generateSampleData_returnsApproximately100Rows() {
+    void generateSampleData_returnsTargetTotalRows() {
         CryptoUtil cryptoUtil = new CryptoUtil();
         ReflectionTestUtils.setField(cryptoUtil, "encryptionKey", "01234567890123456789012345678901"); // 32 bytes for AES
         ReflectionTestUtils.setField(cryptoUtil, "decryptionEnabled", true);
@@ -23,7 +24,24 @@ class GenerateEncryptedSampleDataTest {
         List<GenerateEncryptedSampleData.SampleData> samples = generator.generateSampleData();
 
         assertThat(samples).hasSize(GenerateEncryptedSampleData.TARGET_TOTAL);
-        assertThat(samples.size()).isBetween(95, 105);
+        assertThat(samples.size()).isBetween(95, 110);
+    }
+
+    @Test
+    void generateSampleData_includesDupGuidPrettyPairWithInputAndOutput() {
+        CryptoUtil cryptoUtil = new CryptoUtil();
+        ReflectionTestUtils.setField(cryptoUtil, "encryptionKey", "01234567890123456789012345678901");
+        ReflectionTestUtils.setField(cryptoUtil, "decryptionEnabled", true);
+
+        GenerateEncryptedSampleData generator = new GenerateEncryptedSampleData(cryptoUtil);
+        List<GenerateEncryptedSampleData.SampleData> samples = generator.generateSampleData();
+
+        assertThat(samples.stream().filter(s -> GenerateEncryptedSampleData.DUP_GUID_PRETTY.equals(s.guid)).count())
+                .isEqualTo(GenerateEncryptedSampleData.DUP_GUID_PAIR_COUNT);
+        assertThat(samples.stream().anyMatch(s -> GenerateEncryptedSampleData.DUP_GUID_PRETTY.equals(s.guid) && "input".equals(s.status)))
+                .isTrue();
+        assertThat(samples.stream().anyMatch(s -> GenerateEncryptedSampleData.DUP_GUID_PRETTY.equals(s.guid) && "output".equals(s.status)))
+                .isTrue();
     }
 
     @Test

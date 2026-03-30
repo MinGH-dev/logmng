@@ -2,6 +2,7 @@ package com.logmng.service;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.logmng.constants.ActivityActionType;
 import com.logmng.dto.request.UserActivityLogSearchRequest;
 import com.logmng.dto.response.UserActivityLogResponse;
 import com.logmng.exception.CustomException;
@@ -41,7 +42,8 @@ public class UserActivityLogService {
                                 String userAgent, String requestMethod, String requestPath,
                                 String requestParams, Integer responseStatus, 
                                 Integer responseTimeMs, Boolean success, String errorMessage) {
-        
+        validateActionTypeLengthForPersist(actionType);
+
         try (Connection connection = dataSource.getConnection()) {
             String sql = "INSERT INTO user_activity_log " +
                         "(user_id, username, action_type, action_detail, ip_address, user_agent, " +
@@ -103,9 +105,33 @@ public class UserActivityLogService {
     }
     
     /**
+     * Rejects overlong {@code action_type} / filter values (DB VARCHAR(50)).
+     */
+    private static void validateActionTypeLengthForPersist(String actionType) {
+        if (actionType != null && actionType.length() > ActivityActionType.MAX_ACTION_TYPE_LENGTH) {
+            throw new IllegalArgumentException(
+                    "action_type exceeds max length " + ActivityActionType.MAX_ACTION_TYPE_LENGTH);
+        }
+    }
+
+    private void validateActionTypeFilter(UserActivityLogSearchRequest request) {
+        if (request.getActionType() == null || request.getActionType().isBlank()) {
+            return;
+        }
+        String t = request.getActionType().trim();
+        if (t.length() > ActivityActionType.MAX_ACTION_TYPE_LENGTH) {
+            throw CustomException.badRequest(
+                    "actionType은 최대 " + ActivityActionType.MAX_ACTION_TYPE_LENGTH + "자입니다.",
+                    "INVALID_INPUT");
+        }
+    }
+
+    /**
      * 사용자 활동 이력 검색
      */
     public UserActivityLogResponse searchActivityLogs(UserActivityLogSearchRequest request) {
+        validateActionTypeFilter(request);
+
         String normalizedUserId = ScopeHelper.normalizeOptionalParam(request.getUserIdForFilter());
         String normalizedUsername = ScopeHelper.normalizeOptionalParam(request.getUsername());
         String normalizedDepartment = ScopeHelper.normalizeDepartmentFilter(request.getDepartment());

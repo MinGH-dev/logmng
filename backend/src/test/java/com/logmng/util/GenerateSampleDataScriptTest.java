@@ -14,7 +14,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 /**
  * Integration-style tests for GenerateSampleDataScript (TC-02, TC-06: preserve on restart).
  * Uses H2 in-memory and real JdbcTemplate because JdbcTemplate is not mockable on newer JVMs.
- * Requirement: docs/requirements/20260318-image-log-sample-data-preserve.md
+ * Requirements: docs/requirements/20260318-image-log-sample-data-preserve.md,
+ * docs/requirements/20260330-imagelog-dup-guid-sample-data.md
  */
 class GenerateSampleDataScriptTest {
 

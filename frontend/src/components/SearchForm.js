@@ -44,8 +44,8 @@ const storedParamsToFormFields = (stored) => {
 };
 
 /**
- * PB FEP 로그 검색 화면(pb-fep-log-search) 전용 — 컴팩트 단일 행 (req 20260326 wireframe / notes v11).
- * PB FEP Log(pb-feplog)는 SearchFormLegacy 사용.
+ * PB FEP v2.0.0 화면(pb-fep-log-search) 전용 — 컴팩트 단일 행 (req 20260326 wireframe / notes v11).
+ * PB FEP v1.0.0(pb-feplog)는 SearchFormLegacy 사용.
  */
 const SearchForm = ({ onSearch, initialFromSearchParams = null }) => {
   const initial = defaultRangeForToday();

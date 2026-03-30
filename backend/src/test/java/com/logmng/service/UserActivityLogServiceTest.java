@@ -2,6 +2,7 @@ package com.logmng.service;
 
 import com.logmng.dto.request.UserActivityLogSearchRequest;
 import com.logmng.dto.response.UserActivityLogResponse;
+import com.logmng.exception.CustomException;
 import com.logmng.util.ScopeHelper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -34,9 +35,9 @@ class UserActivityLogServiceTest {
         insertAppUser("teamMate", "D01");
         insertAppUser("outsideUser", "D02");
 
-        insertActivityLog(1L, "currentUser", "Current User", "10.0.0.1");
-        insertActivityLog(2L, "teamMate", "Team Mate", "10.0.0.2");
-        insertActivityLog(3L, "outsideUser", "Outside User", "10.0.0.3");
+        insertActivityLog(1L, "currentUser", "Current User", "10.0.0.1", "LOGIN");
+        insertActivityLog(2L, "teamMate", "Team Mate", "10.0.0.2", "LOGIN");
+        insertActivityLog(3L, "outsideUser", "Outside User", "10.0.0.3", "LOGIN");
     }
 
     private static DataSource createH2DataSource() throws Exception {
@@ -75,7 +76,7 @@ class UserActivityLogServiceTest {
         }
     }
 
-    private void insertActivityLog(Long id, String userId, String username, String ipAddress) throws Exception {
+    private void insertActivityLog(Long id, String userId, String username, String ipAddress, String actionType) throws Exception {
         Timestamp now = Timestamp.from(Instant.parse("2026-03-13T10:15:30Z"));
         try (Connection conn = dataSource.getConnection();
              PreparedStatement ps = conn.prepareStatement(
@@ -85,7 +86,7 @@ class UserActivityLogServiceTest {
             ps.setLong(1, id);
             ps.setString(2, userId);
             ps.setString(3, username);
-            ps.setString(4, "LOGIN");
+            ps.setString(4, actionType);
             ps.setString(5, "{\"result\":\"ok\"}");
             ps.setString(6, ipAddress);
             ps.setString(7, "JUnit");
@@ -170,5 +171,44 @@ class UserActivityLogServiceTest {
         return response.getData().stream()
                 .map(row -> (String) row.get("user_id"))
                 .collect(Collectors.toList());
+    }
+
+    @Test
+    void searchActivityLogs_scopeSelf_actionTypeFilter_onlyMatchingRows() throws Exception {
+        insertActivityLog(4L, "currentUser", "Current User", "10.0.0.1", "PERMISSION_GROUP_UPDATE");
+        UserActivityLogSearchRequest request = newRequest();
+        request.setActionType("PERMISSION_GROUP_UPDATE");
+        ScopeHelper.applyActivityLogSearchScope(request, "self", "currentUser", null);
+        UserActivityLogResponse response = userActivityLogService.searchActivityLogs(request);
+
+        assertThat(response.getPagination().getTotalCount()).isEqualTo(1L);
+        assertThat(extractUserIds(response)).containsExactly("currentUser");
+    }
+
+    @Test
+    void searchActivityLogs_scopeTeam_actionTypeAndDepartment() throws Exception {
+        insertActivityLog(5L, "teamMate", "Team Mate", "10.0.0.2", "PERMISSION_GROUP_DELETE");
+        UserActivityLogSearchRequest request = newRequest();
+        request.setActionType("PERMISSION_GROUP_DELETE");
+        request.setDepartment("D01");
+        ScopeHelper.applyActivityLogSearchScope(request, "team", "currentUser", List.of("currentUser", "teamMate"));
+        UserActivityLogResponse response = userActivityLogService.searchActivityLogs(request);
+
+        assertThat(extractUserIds(response)).containsExactly("teamMate");
+    }
+
+    @Test
+    void searchActivityLogs_actionTypeTooLong_throws() {
+        UserActivityLogSearchRequest request = newRequest();
+        request.setActionType("X".repeat(51));
+        org.assertj.core.api.Assertions.assertThatThrownBy(() -> userActivityLogService.searchActivityLogs(request))
+                .isInstanceOf(CustomException.class);
+    }
+
+    @Test
+    void saveActivityLog_actionTypeTooLong_throws() {
+        org.assertj.core.api.Assertions.assertThatThrownBy(() -> userActivityLogService.saveActivityLog(
+                "u", "u", "Y".repeat(51), null, null, null, "GET", "/", null, 200, 1, true, null))
+                .isInstanceOf(IllegalArgumentException.class);
     }
 }

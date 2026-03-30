@@ -28,8 +28,8 @@ import { getApiBaseUrl } from './config/runtimeApi';
 
 /** logType objects for log-search screens (req 20260318). */
 const LOG_TYPE_BY_VIEW = {
-  'pb-feplog': { id: 'pb_feplog', name: 'PB FEP Log', description: '' },
-  'pb-fep-log-search': { id: 'pb_feplog', name: 'PB FEP 로그 검색', description: '' },
+  'pb-feplog': { id: 'pb_feplog', name: 'PB FEP v1.0.0', description: '' },
+  'pb-fep-log-search': { id: 'pb_feplog', name: 'PB FEP v2.0.0', description: '' },
   'java-fw-imagelog': { id: 'java_fw_imglog', name: 'Java FW Image Log', description: '' },
 };
 

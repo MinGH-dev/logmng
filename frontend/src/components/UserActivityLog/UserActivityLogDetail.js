@@ -1,7 +1,8 @@
 import React from 'react';
+import { getActivityActionTypeLabel } from '../../utils/activityActionTypeOptions';
 import './UserActivityLog.css';
 
-const UserActivityLogDetail = ({ log, onClose }) => {
+const UserActivityLogDetail = ({ log, onClose, actionTypeLabelMap = {} }) => {
   if (!log) {
     return null;
   }
@@ -85,21 +86,6 @@ const UserActivityLogDetail = ({ log, onClose }) => {
     return data;
   };
 
-  const getActionTypeLabel = (actionType) => {
-    const labels = {
-      'LOGIN': '로그인',
-      'LOGOUT': '로그아웃',
-      'SEARCH': '검색',
-      'VIEW': '조회',
-      'DECRYPT': '복호화',
-      'ADVANCED_SEARCH': '고급 검색',
-      'EXPORT': '내보내기',
-      'STATS_VIEW': '통계 조회',
-      'SCHEMA_VIEW': '스키마 조회',
-    };
-    return labels[actionType] || actionType;
-  };
-
   return (
     <div className="activity-log-detail-overlay" onClick={onClose}>
       <div className="activity-log-detail-modal" onClick={(e) => e.stopPropagation()}>
@@ -126,7 +112,7 @@ const UserActivityLogDetail = ({ log, onClose }) => {
                 </tr>
                 <tr>
                   <th>액션 타입</th>
-                  <td>{getActionTypeLabel(log.action_type)}</td>
+                  <td>{getActivityActionTypeLabel(log.action_type, actionTypeLabelMap)}</td>
                 </tr>
                 <tr>
                   <th>IP 주소</th>

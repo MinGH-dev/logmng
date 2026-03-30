@@ -139,18 +139,19 @@ const DataTable = ({
 
   const paginationButtons = renderPaginationButtons();
 
-  const paginationInner = (
-    <>
-      {pagination.infoText != null ? (
-        <div className="pagination-info">{pagination.infoText}</div>
-      ) : null}
-      {!pagination.simple && (
-        <span className="pagination-aria" aria-live="polite" aria-atomic="true">
-          페이지 {pagination.currentPage} / {pagination.totalPages || 1}
-        </span>
-      )}
-    </>
-  );
+  const paginationInner =
+    pagination != null ? (
+      <>
+        {pagination.infoText != null ? (
+          <div className="pagination-info">{pagination.infoText}</div>
+        ) : null}
+        {!pagination.simple && (
+          <span className="pagination-aria" aria-live="polite" aria-atomic="true">
+            페이지 {pagination.currentPage} / {pagination.totalPages || 1}
+          </span>
+        )}
+      </>
+    ) : null;
 
   const paginationSize = showRowsPerPage && (
     <div className="rows-per-page" aria-label="페이지당 행 수">

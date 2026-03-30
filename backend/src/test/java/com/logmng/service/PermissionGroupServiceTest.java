@@ -1,6 +1,7 @@
 package com.logmng.service;
 
 import com.logmng.dto.request.PermissionGroupCreateRequest;
+import com.logmng.dto.request.PermissionGroupUpdateRequest;
 import com.logmng.dto.response.AllowedScreenItem;
 import com.logmng.exception.CustomException;
 import org.junit.jupiter.api.BeforeEach;
@@ -51,6 +52,50 @@ class PermissionGroupServiceTest {
         org.h2.jdbcx.JdbcDataSource ds = new org.h2.jdbcx.JdbcDataSource();
         ds.setURL(H2_URL);
         return ds;
+    }
+
+    /**
+     * POST/PUT allowedScreens includes permission-group-screen-matrix → validation passes (same class as permission-group-management).
+     * Mirrors invalid-screen-id bugfix pattern (20250303-permission-group-invalid-screen-id-bugfix).
+     */
+    @Test
+    void create_withPermissionGroupScreenMatrix_storesSuccessfully() {
+        PermissionGroupCreateRequest req = new PermissionGroupCreateRequest();
+        req.setCode("pg_matrix_create");
+        req.setName("Screen Matrix Group");
+        AllowedScreenItem matrix = new AllowedScreenItem();
+        matrix.setScreenId("permission-group-screen-matrix");
+        matrix.setRead(true);
+        matrix.setWrite(true);
+        req.setAllowedScreens(List.of(matrix));
+
+        var response = service.create(req);
+        assertThat(response).isNotNull();
+        assertThat(response.getCode()).isEqualTo("pg_matrix_create");
+        assertThat(response.getAllowedScreens()).hasSize(1);
+        assertThat(response.getAllowedScreens().get(0).getScreenId()).isEqualTo("permission-group-screen-matrix");
+        assertThat(response.getAllowedScreens().get(0).getWrite()).isTrue();
+    }
+
+    /**
+     * PUT permission-groups with allowedScreens containing permission-group-screen-matrix passes validation.
+     */
+    @Test
+    void update_withPermissionGroupScreenMatrix_passesValidation() throws Exception {
+        try (Connection conn = dataSource.getConnection();
+             Statement stmt = conn.createStatement()) {
+            stmt.executeUpdate("INSERT INTO permission_group (id, code, name, description, sort_order) VALUES (301, 'pg_matrix_upd', 'Matrix Upd', NULL, 0)");
+        }
+        PermissionGroupUpdateRequest req = new PermissionGroupUpdateRequest();
+        AllowedScreenItem matrix = new AllowedScreenItem();
+        matrix.setScreenId("permission-group-screen-matrix");
+        matrix.setRead(true);
+        matrix.setWrite(true);
+        req.setAllowedScreens(List.of(matrix));
+
+        var response = service.update(301L, req);
+        assertThat(response.getAllowedScreens()).hasSize(1);
+        assertThat(response.getAllowedScreens().get(0).getScreenId()).isEqualTo("permission-group-screen-matrix");
     }
 
     /**

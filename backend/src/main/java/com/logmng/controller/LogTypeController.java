@@ -37,7 +37,7 @@ public class LogTypeController {
         // pb_feplog 타입
         Map<String, Object> pbFeplog = new HashMap<>();
         pbFeplog.put("id", "pb_feplog");
-        pbFeplog.put("name", "PB FEP Log");
+        pbFeplog.put("name", "PB FEP v1.0.0");
         pbFeplog.put("description", "PB FEP 로그 (pb_send, pb_recv)");
         pbFeplog.put("tables", Arrays.asList("pb_send", "pb_recv"));
         logTypes.add(pbFeplog);
@@ -67,7 +67,7 @@ public class LogTypeController {
         if ("pb_feplog".equals(typeId)) {
             logType = new HashMap<>();
             logType.put("id", "pb_feplog");
-            logType.put("name", "PB FEP Log");
+            logType.put("name", "PB FEP v1.0.0");
             logType.put("description", "PB FEP 로그 (pb_send, pb_recv)");
             logType.put("tables", Arrays.asList("pb_send", "pb_recv"));
         } else if ("java_fw_imglog".equals(typeId)) {
