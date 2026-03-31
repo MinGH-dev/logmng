@@ -6,6 +6,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### 2026-03-31 (요구사항 문서·DB 샘플 SQL·보안 감사 증적 초안)
+
+- **docs (requirements)**: 이미지로그 복호화 행 키 정리 — `docs/requirements/20260330-image-log-pretty-decrypt-row-key.md`. 이미지로그 중복 guid 샘플 데이터 — `docs/requirements/20260330-imagelog-dup-guid-sample-data.md`. PB FEP 전체 펼치기·페이지 경계 — `docs/requirements/20260330-pb-fep-expand-all-cross-page.md`.
+- **chore / db (samples)**: 샘플·마이그레이션용 SQL 추가 — `backend/src/main/resources/db/migrate-imagelog-companion-status-20260330.sql`, `migrate-imagelog-dup-guid-sample-20260330.sql`, `migrate-pb-fep-pagination-bmsg-sample-20260330.sql`.
+- **docs (security)**: 사용자 활동 로그 수동 감사 증적 초안 — `docs/security/audit-evidence-user-activity-log-manual-draft.md`.
+
 ### 2026-03-20 (Java FW 이미지로그 복합 행 키·복호화·검색이력·배포/오프라인)
 
 - **feat (imagelog / decrypt / search-history)**: `java_fw_imglog` 행 식별을 **(guid, status)** 복합 키로 통일 — 승인 스냅샷·`user_decryption_allowed`·복호화 API 검증·GET decrypt-allowed·검색 이력 상세·이미지로그 상세/DB 조회까지 guid 단독 키 제거(계약·프론트 허용 목록·그리드 동기화). 관련 마이그레이션·`schema_imagelog`/`schema_sys` 정합. (req `docs/requirements/20260320-imagelog-guid-status-composite-key.md`)
