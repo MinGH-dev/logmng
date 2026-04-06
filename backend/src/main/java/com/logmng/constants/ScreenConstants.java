@@ -45,6 +45,8 @@ public final class ScreenConstants {
     public static final String PERMISSION_GROUP_MANAGEMENT = "permission-group-management";
     /** 화면–권한 매트릭스 (admin; 권한 데이터 편집). */
     public static final String PERMISSION_GROUP_SCREEN_MATRIX = "permission-group-screen-matrix";
+    /** 화면 표시 이름 설정 (system-admin-oriented; navigation grant only — PUT /api/screen-display-labels remains server-enforced). */
+    public static final String SCREEN_DISPLAY_LABELS = "screen-display-labels";
 
     /**
      * Top-level sidebar group ids aligned with {@code MENU_TREE} in {@code frontend/src/constants/menuTree.js}.
@@ -58,7 +60,8 @@ public final class ScreenConstants {
                     MAIN, PB_FEPLOG, PB_FEP_LOG_SEARCH, JAVA_FW_IMAGELOG, SEARCH_HISTORY, ACTIVITY_LOG,
                     ACTIVITY_LOG_DETAIL, ACTIVITY_LOG_ACCESS_AUDIT, STATISTICS,
                     PENDING_APPROVALS, USER_MANAGEMENT, DEPARTMENT_APPROVERS,
-                    USER_PERMISSION_HIERARCHY, PERMISSION_GROUP_MANAGEMENT, PERMISSION_GROUP_SCREEN_MATRIX
+                    USER_PERMISSION_HIERARCHY, PERMISSION_GROUP_MANAGEMENT, PERMISSION_GROUP_SCREEN_MATRIX,
+                    SCREEN_DISPLAY_LABELS
             ).stream().collect(Collectors.toSet())
     );
 

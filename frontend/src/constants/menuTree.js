@@ -32,6 +32,7 @@ export const ALLOWED_SCREEN_IDS = [
   'user-management',
   'user-permission-hierarchy',
   'permission-group-management',
+  'screen-display-labels',
 ];
 
 /** 2-depth 메뉴 트리 (1차: 그룹, 2차: leaf screens). 로그 검색: PB FEP v1.0.0, PB FEP v2.0.0, Java FW Image Log; 이력·승인 = 활동 이력 → 검색 이력 → 복호화 승인 관리. */
@@ -179,4 +180,5 @@ export const ORDERED_SCREEN_IDS = [
   'user-management',
   'user-permission-hierarchy',
   'permission-group-management',
+  'screen-display-labels',
 ];

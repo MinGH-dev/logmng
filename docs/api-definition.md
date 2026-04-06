@@ -670,7 +670,8 @@
 **Base path (권한 그룹)**: `/api/permission-groups`  
 **사용자 권한 계층**: `GET /api/departments/user-permission-hierarchy`
 
-요건: `docs/requirements/20250227-user-permission-hierarchy-group.md`, `docs/requirements/20250227-permission-group-screen-menu-access.md`, `docs/requirements/20250303-activity-statistics-self-only-scope.md`. 상세 스펙: `specs/permission-group-hierarchy.spec.yaml`.  
+요건: `docs/requirements/20250227-user-permission-hierarchy-group.md`, `docs/requirements/20250227-permission-group-screen-menu-access.md`, `docs/requirements/20250303-activity-statistics-self-only-scope.md`, `docs/requirements/20260406-permission-group-invalid-screen-id-screen-display-labels.md`. 상세 스펙: `specs/permission-group-hierarchy.spec.yaml`.  
+**권한 그룹 `allowedScreens.screenId` 허용 목록**에 **`screen-display-labels`**(화면 표시 이름)가 포함되며, 그룹 설정상 **읽기만** 허용(`specs/permission-group-hierarchy.spec.yaml` §1.1.1); **`PUT /api/screen-display-labels`** 본문 저장은 **`is_system_admin=true`**만(표시용 **GET**은 모든 인증 사용자 — 본 문서 **§8.4**, `docs/contract.md`).  
 모든 API는 **관리자(is_system_admin=true)** 만 호출 가능. 그 외 403, `code: "FORBIDDEN"`.  
 **화면 기반 접근**: 화면에 대응하는 API는 사용자가 해당 화면을 권한 그룹으로 허용받았거나 is_system_admin=true이어야 함. 그 외 403. 화면↔API 매핑: `specs/permission-group-hierarchy.spec.yaml` §4.3.  
 **화면별 범위(scope)**: activity-log, statistics, search-history, pending-approvals 화면은 권한 그룹에서 화면별 scope('self'|'team'|'all') 설정 가능. scope='self' → 본인 데이터만(또는 본인 요청만)이며 applicable shared-pattern 화면에서는 user/requester block을 숨기지 않고 `department -> username -> userId`의 visible locked self-context를 표시한다. 이 표시값의 권위 소스는 auth/current-user payload의 `selfContext`이고, **`userId`**는 **numeric** **`app_user.id`**이다. search-history requester filter는 `scope=self`에서 무시된다. scope='team' → 동일 부서 범위; scope='all' → 전체. is_system_admin=false일 때만 적용. 상세: `specs/permission-group-hierarchy.spec.yaml` §4.2, §4.3.

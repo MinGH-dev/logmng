@@ -6,8 +6,8 @@
 ---
 metadata:
   title: "Permission group CRUD, user-group assignment, user-permission hierarchy, screen access"
-  version: "1.7"
-  requirement: "20250227-user-permission-hierarchy-group, 20250227-permission-group-screen-menu-access, 20250303-activity-statistics-self-only-scope, 20250303-screen-function-availability, explicit-read-write-approve-per-screen, 20260323-approver-eligibility-from-permission-group-only, 20260330-activity-types-user-mgmt-permission-group, 20260330-permission-group-activity-detail-audit"
+  version: "1.8"
+  requirement: "20250227-user-permission-hierarchy-group, 20250227-permission-group-screen-menu-access, 20250303-activity-statistics-self-only-scope, 20250303-screen-function-availability, explicit-read-write-approve-per-screen, 20260323-approver-eligibility-from-permission-group-only, 20260330-activity-types-user-mgmt-permission-group, 20260330-permission-group-activity-detail-audit, 20260406-permission-group-invalid-screen-id-screen-display-labels"
   status: "draft"
 
 ---
@@ -79,6 +79,7 @@ On POST/PUT permission-groups, validate each `allowedScreens` item against per-s
 | department-approvers | ✓ | ✓ | — | — | read required; write optional. approve/decrypt must be false or omitted |
 | user-permission-hierarchy | ✓ | ✓ | — | — | read required; write optional. approve/decrypt must be false or omitted |
 | permission-group-management | ✓ | ✓ | — | — | same as user-permission-hierarchy |
+| screen-display-labels | ✓ | — | — | — | read only (menu/navigation grant for the Screen display names admin view). write/approve/decrypt must be false or omitted. **PUT /api/screen-display-labels** (persist label config) remains **system-admin-only** (`is_system_admin=true`); permission-group does not grant that write path. |
 
 **Defaults when omitted** (backward compat): read=true; write/approve = per-screen default (main: false; search-history/pending-approvals: **approve default false** when omitted; management screens: write=true when screen supports it). decrypt: only for main; default false when omitted (req 20260306). **Legacy `decrypt_approver` is not used** for derivation after req 20260323 migration.
 
@@ -279,6 +280,7 @@ Existing: USER_NOT_FOUND, FORBIDDEN, INVALID_INPUT, SELF_DEMOTION_BLOCKED, LAST_
 | department-approvers | 부서별 결재자 |
 | user-permission-hierarchy | 사용자 권한 계층 |
 | permission-group-management | 권한 그룹 관리 (same as user-permission-hierarchy) |
+| screen-display-labels | 화면 표시 이름 (Screen display names — admin settings view; MENU_TREE `screen-display-labels`) |
 
 Validation: PUT/POST permission-groups with `allowedScreens` must have each value in this list; otherwise 400 `INVALID_SCREEN_ID`.
 
@@ -322,6 +324,7 @@ APIs that correspond to screens must validate: user has is_system_admin=true **o
 | department-approvers | /api/departments, /api/departments/{code}/approvers, /api/departments/{code}/members, /api/departments/{code}/approvers/default | — |
 | user-permission-hierarchy | /api/permission-groups/*, /api/departments/user-permission-hierarchy | — |
 | permission-group-management | Same as user-permission-hierarchy | — |
+| screen-display-labels | **GET** `/api/screen-display-labels` — any authenticated user may call (menu/display metadata; see `specs/menu-display-labels.spec.yaml`). **PUT** `/api/screen-display-labels` — **system admin only**; not gated by permission-group `write` (§1.1.1: this screen has no write flag in `allowedScreens`). Route/menu visibility may still require `systemAdminOnly` in the client. | — |
 
 ## 4.4 screenFunctions (per-screen function availability)
 
@@ -374,6 +377,7 @@ screenFunctions: Record<screenId, ScreenFunctionCapability>
 | department-approvers | ✓ | ✓ | — | — | read + write optional | write from group or derived |
 | user-permission-hierarchy | ✓ | ✓ | — | — | read + write optional | write from group or derived |
 | permission-group-management | ✓ | ✓ | — | — | same as user-permission-hierarchy | same |
+| screen-display-labels | ✓ | — | — | — | read only | `{ read: true }` when in allowedScreenIds (no write/approve/decrypt in group config) |
 
 ### Log search screens (pb-feplog, pb-fep-log-search, java-fw-imagelog) — req 20260318
 

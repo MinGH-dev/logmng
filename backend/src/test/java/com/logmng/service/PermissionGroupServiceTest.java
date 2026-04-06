@@ -78,6 +78,86 @@ class PermissionGroupServiceTest {
     }
 
     /**
+     * TC-01 (req 20260406-permission-group-invalid-screen-id-screen-display-labels): POST with
+     * {@code screen-display-labels} (read-only nav) passes validation — no INVALID_SCREEN_ID.
+     */
+    @Test
+    void create_withScreenDisplayLabels_readOnly_storesSuccessfully() {
+        PermissionGroupCreateRequest req = new PermissionGroupCreateRequest();
+        req.setCode("pg_screen_labels");
+        req.setName("Screen Display Labels");
+        AllowedScreenItem labels = new AllowedScreenItem();
+        labels.setScreenId("screen-display-labels");
+        labels.setRead(true);
+        req.setAllowedScreens(List.of(labels));
+
+        var response = service.create(req);
+        assertThat(response).isNotNull();
+        assertThat(response.getCode()).isEqualTo("pg_screen_labels");
+        assertThat(response.getAllowedScreens()).hasSize(1);
+        assertThat(response.getAllowedScreens().get(0).getScreenId()).isEqualTo("screen-display-labels");
+        assertThat(response.getAllowedScreens().get(0).getRead()).isTrue();
+    }
+
+    /**
+     * TC-05 (req 20260406): PUT with java-fw-imagelog, permission-group-screen-matrix, activity-log
+     * and screen-display-labels together — still succeeds (regression guard).
+     */
+    @Test
+    void update_withScreenDisplayLabelsAndLogScreensAndMatrixAndActivityLog_passesValidation() throws Exception {
+        try (Connection conn = dataSource.getConnection();
+             Statement stmt = conn.createStatement()) {
+            stmt.executeUpdate("INSERT INTO permission_group (id, code, name, description, sort_order) VALUES (302, 'pg_tc05', 'TC-05', NULL, 0)");
+        }
+        PermissionGroupUpdateRequest req = new PermissionGroupUpdateRequest();
+        AllowedScreenItem imagelog = new AllowedScreenItem();
+        imagelog.setScreenId("java-fw-imagelog");
+        imagelog.setRead(true);
+        imagelog.setDecrypt(true);
+        AllowedScreenItem matrix = new AllowedScreenItem();
+        matrix.setScreenId("permission-group-screen-matrix");
+        matrix.setRead(true);
+        matrix.setWrite(true);
+        AllowedScreenItem activity = new AllowedScreenItem();
+        activity.setScreenId("activity-log");
+        activity.setRead(true);
+        activity.setScope("team");
+        AllowedScreenItem displayLabels = new AllowedScreenItem();
+        displayLabels.setScreenId("screen-display-labels");
+        displayLabels.setRead(true);
+        req.setAllowedScreens(List.of(imagelog, matrix, activity, displayLabels));
+
+        var response = service.update(302L, req);
+        assertThat(response.getAllowedScreens()).hasSize(4);
+        assertThat(response.getAllowedScreens()).anyMatch(s -> "java-fw-imagelog".equals(s.getScreenId()));
+        assertThat(response.getAllowedScreens()).anyMatch(s -> "permission-group-screen-matrix".equals(s.getScreenId()));
+        assertThat(response.getAllowedScreens()).anyMatch(s -> "activity-log".equals(s.getScreenId()));
+        assertThat(response.getAllowedScreens()).anyMatch(s -> "screen-display-labels".equals(s.getScreenId()));
+    }
+
+    /**
+     * TC-05 regression: unknown screen id still rejected (INVALID_SCREEN_ID).
+     */
+    @Test
+    void create_withUnknownScreenId_throwsInvalidScreenId() {
+        PermissionGroupCreateRequest req = new PermissionGroupCreateRequest();
+        req.setCode("pg_bad_screen");
+        req.setName("Bad");
+        AllowedScreenItem bad = new AllowedScreenItem();
+        bad.setScreenId("not-a-real-screen-id-xyz");
+        bad.setRead(true);
+        req.setAllowedScreens(List.of(bad));
+
+        assertThatThrownBy(() -> service.create(req))
+                .isInstanceOf(CustomException.class)
+                .satisfies(e -> {
+                    CustomException ex = (CustomException) e;
+                    assertThat(ex.getErrorCode()).isEqualTo("INVALID_SCREEN_ID");
+                    assertThat(ex.getMessage()).contains("not-a-real-screen-id-xyz");
+                });
+    }
+
+    /**
      * PUT permission-groups with allowedScreens containing permission-group-screen-matrix passes validation.
      */
     @Test
