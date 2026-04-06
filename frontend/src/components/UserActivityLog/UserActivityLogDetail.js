@@ -1,9 +1,10 @@
-import React from 'react';
+import React, { useState, useCallback } from 'react';
 import { getActivityActionTypeLabel } from '../../utils/activityActionTypeOptions';
 import {
   getPermissionGroupOperationLabel,
   isPermissionGroupFamilyActionType,
 } from '../../utils/permissionGroupActivityAudit';
+import { postActivityLogPrivilegedReveal } from '../../services/userActivityLogService';
 import './UserActivityLog.css';
 
 /** Legacy flat enricher keys (may coexist with permissionGroupAuditV1 during transition). */
@@ -63,8 +64,83 @@ function asScreenRow(row) {
   return row;
 }
 
-const UserActivityLogDetail = ({ log, onClose, actionTypeLabelMap = {} }) => {
-  if (!log) {
+/** @param {string|undefined} actionType */
+function isInAppCopyActionType(actionType) {
+  if (!actionType || typeof actionType !== 'string') return false;
+  const u = actionType.trim().toUpperCase();
+  return u === 'IN_APP_COPY';
+}
+
+/**
+ * @param {Record<string, unknown>} actionDetail
+ * @returns {Record<string, unknown>|null}
+ */
+function getCopyPayload(actionDetail) {
+  const cp = actionDetail?.copyPayload;
+  if (cp && typeof cp === 'object' && !Array.isArray(cp)) return cp;
+  return null;
+}
+
+/**
+ * @param {Record<string, unknown>} log
+ * @param {Record<string, unknown>|null} copyPayload
+ */
+function canOfferPrivilegedCopyReveal(log, copyPayload) {
+  if (!copyPayload) return false;
+  const truncated =
+    copyPayload.was_truncated === true ||
+    copyPayload.wasTruncated === true;
+  if (!truncated) return false;
+  const allowed =
+    log.privilegedRevealCopyBodyAllowed === true ||
+    log.privileged_reveal_copy_body_allowed === true ||
+    copyPayload.privilegedRevealAllowed === true ||
+    copyPayload.privileged_reveal_allowed === true;
+  return allowed === true;
+}
+
+const UserActivityLogDetail = ({
+  log,
+  onClose,
+  actionTypeLabelMap = {},
+  loading = false,
+  error = null,
+  onNavigateToAccessAudit,
+  canOpenAccessAudit = false,
+}) => {
+  const [revealedCopyBody, setRevealedCopyBody] = useState(null);
+  const [revealLoading, setRevealLoading] = useState(false);
+  const [revealError, setRevealError] = useState(null);
+
+  const handleRevealFullCopy = useCallback(async () => {
+    if (!log?.id) return;
+    setRevealError(null);
+    setRevealLoading(true);
+    try {
+      const res = await postActivityLogPrivilegedReveal(log.id, 'COPY_BODY_FULL');
+      if (res.success && res.data) {
+        const full =
+          res.data.copyBodyFull ??
+          res.data.copy_body_full ??
+          (typeof res.data === 'string' ? res.data : null);
+        if (full != null) {
+          setRevealedCopyBody(String(full));
+        } else {
+          setRevealError('응답에 전체 본문이 없습니다.');
+        }
+      } else if (res.status === 403 || res.code === 'REVEAL_NOT_ALLOWED' || res.code === 'FUNCTION_NOT_ALLOWED') {
+        setRevealError('전체 복사 본문을 볼 권한이 없습니다.');
+      } else {
+        setRevealError(res.error || res.message || '특권 공개 요청에 실패했습니다.');
+      }
+    } catch (e) {
+      setRevealError(e?.message || '특권 공개 요청에 실패했습니다.');
+    } finally {
+      setRevealLoading(false);
+    }
+  }, [log?.id]);
+
+  if (!log && !loading && !error) {
     return null;
   }
 
@@ -136,10 +212,13 @@ const UserActivityLogDetail = ({ log, onClose, actionTypeLabelMap = {} }) => {
     return data;
   };
 
-  const actionDetail = normalizeActionDetail(log.action_detail);
+  const actionDetail = normalizeActionDetail(log?.action_detail);
   const pgAudit = actionDetail.permissionGroupAuditV1;
-  const isPgFamily = isPermissionGroupFamilyActionType(log.action_type);
-  const showActionDetailSection = !!(log.action_detail || isPgFamily);
+  const isPgFamily = log ? isPermissionGroupFamilyActionType(log.action_type) : false;
+  const showActionDetailSection = !!(log?.action_detail || isPgFamily);
+  const copyPayload = log ? getCopyPayload(actionDetail) : null;
+  const showCopyPayloadSection =
+    !!log && (isInAppCopyActionType(log.action_type) || copyPayload != null);
 
   const renderAllowedScreensTable = (title, screens) => {
     if (!Array.isArray(screens) || screens.length === 0) {
@@ -364,6 +443,18 @@ const UserActivityLogDetail = ({ log, onClose, actionTypeLabelMap = {} }) => {
           </button>
         </div>
         <div className="activity-log-detail-content">
+          {loading && (
+            <div className="activity-log-detail-loading" role="status" aria-live="polite">
+              상세를 불러오는 중…
+            </div>
+          )}
+          {error && !loading && (
+            <div className="activity-log-detail-fetch-error" role="alert">
+              {error}
+            </div>
+          )}
+          {log && !loading && !error && (
+            <>
           <div className="detail-section">
             <h3>기본 정보</h3>
             <table className="detail-table">
@@ -622,6 +713,43 @@ const UserActivityLogDetail = ({ log, onClose, actionTypeLabelMap = {} }) => {
                   {renderPgLegacyAndUnknownTopLevel()}
                 </>
               )}
+
+              {showCopyPayloadSection && (
+                <div className="activity-log-copy-subsection">
+                  <h4>In-app copy</h4>
+                  {copyPayload ? (
+                    <>
+                      {(copyPayload.was_truncated === true || copyPayload.wasTruncated === true) && (
+                        <span className="badge badge-warning activity-log-truncated-badge">Truncated</span>
+                      )}
+                      <p className="activity-log-copy-meta">
+                        Character count (reported):{' '}
+                        {copyPayload.length != null ? String(copyPayload.length) : '—'}
+                      </p>
+                      <pre className="json-content json-pretty activity-log-copy-preview">
+                        {revealedCopyBody != null ? revealedCopyBody : plainText(copyPayload.text) || '—'}
+                      </pre>
+                      {canOfferPrivilegedCopyReveal(log, copyPayload) && revealedCopyBody == null && (
+                        <button
+                          type="button"
+                          className="btn btn-secondary activity-log-reveal-copy-btn"
+                          onClick={handleRevealFullCopy}
+                          disabled={revealLoading}
+                        >
+                          {revealLoading ? 'Loading…' : 'View full copy body'}
+                        </button>
+                      )}
+                      {revealError && (
+                        <p className="activity-log-reveal-error" role="alert">
+                          {revealError}
+                        </p>
+                      )}
+                    </>
+                  ) : (
+                    <p className="pg-audit-empty">copyPayload가 응답에 없습니다.</p>
+                  )}
+                </div>
+              )}
             </div>
           )}
 
@@ -631,8 +759,19 @@ const UserActivityLogDetail = ({ log, onClose, actionTypeLabelMap = {} }) => {
               <pre className="json-content">{formatJSON(log.request_params)}</pre>
             </div>
           )}
+            </>
+          )}
         </div>
         <div className="activity-log-detail-footer">
+          {canOpenAccessAudit && onNavigateToAccessAudit && log?.id != null && (
+            <button
+              type="button"
+              className="btn btn-link activity-log-open-access-audit-link"
+              onClick={() => onNavigateToAccessAudit(log.id)}
+            >
+              Open access audit for this log
+            </button>
+          )}
           <button type="button" className="btn btn-primary" onClick={onClose}>
             닫기
           </button>

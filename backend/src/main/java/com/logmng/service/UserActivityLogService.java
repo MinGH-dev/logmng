@@ -4,8 +4,11 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.logmng.constants.ActivityActionType;
 import com.logmng.dto.request.UserActivityLogSearchRequest;
+import com.logmng.dto.response.LoginResponse;
 import com.logmng.dto.response.UserActivityLogResponse;
 import com.logmng.exception.CustomException;
+import com.logmng.repository.UserActivityAccessAuditRepository;
+import com.logmng.util.ActivityLogAuditAuthorization;
 import com.logmng.util.ScopeHelper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -26,11 +29,13 @@ public class UserActivityLogService {
     private static final Logger log = LoggerFactory.getLogger(UserActivityLogService.class);
     
     private final DataSource dataSource;
+    private final UserActivityAccessAuditRepository accessAuditRepository;
     private final ObjectMapper objectMapper;
     private static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
     
-    public UserActivityLogService(DataSource dataSource) {
+    public UserActivityLogService(DataSource dataSource, UserActivityAccessAuditRepository accessAuditRepository) {
         this.dataSource = dataSource;
+        this.accessAuditRepository = accessAuditRepository;
         this.objectMapper = new ObjectMapper();
     }
 
@@ -388,7 +393,7 @@ public class UserActivityLogService {
                         log.info("✅ 사용자 활동 이력 상세 조회 완료: ID={}", id);
                         return row;
                     } else {
-                        throw new RuntimeException("활동 이력을 찾을 수 없습니다: id=" + id);
+                        throw CustomException.notFound("활동 이력을 찾을 수 없습니다.", "NOT_FOUND");
                     }
                 }
             }
@@ -397,6 +402,120 @@ public class UserActivityLogService {
         } catch (SQLException e) {
             log.error("❌ 사용자 활동 이력 상세 조회 중 오류 발생", e);
             throw new RuntimeException("사용자 활동 이력 상세 조회 중 오류가 발생했습니다: " + e.getMessage(), e);
+        }
+    }
+
+    /**
+     * Privileged reveal: full stored copy text + mandatory access-audit row (insert first).
+     */
+    public Map<String, Object> privilegedRevealCopyBody(Long id, String revealKind, LoginResponse user,
+            String clientIp, String userAgent,
+            String currentUserIdForOwnership, List<String> allowedUserIdsForTeam) {
+        if (revealKind == null || revealKind.isBlank()) {
+            throw CustomException.badRequest("revealKind이 필요합니다.", "INVALID_INPUT");
+        }
+        if (!"COPY_BODY_FULL".equals(revealKind.trim())) {
+            throw CustomException.badRequest("지원하지 않는 revealKind입니다.", "INVALID_INPUT");
+        }
+        if (!ActivityLogAuditAuthorization.canRevealFullCopy(user)) {
+            throw CustomException.forbidden("전체 복사 본문을 열람할 권한이 없습니다.", "REVEAL_NOT_ALLOWED");
+        }
+        if (user.getUserId() == null) {
+            throw CustomException.badRequest("사용자 식별이 필요합니다.", "INVALID_INPUT");
+        }
+
+        Map<String, Object> row = getActivityLogDetail(id, currentUserIdForOwnership, allowedUserIdsForTeam);
+        Object at = row.get("action_type");
+        if (!ActivityActionType.IN_APP_COPY.getCode().equals(at != null ? String.valueOf(at) : "")) {
+            throw CustomException.badRequest("인앱 복사 유형의 활동 이력만 전체 본문을 공개할 수 있습니다.", "INVALID_INPUT");
+        }
+        Object detailObj = row.get("action_detail");
+        if (!(detailObj instanceof Map)) {
+            throw CustomException.badRequest("action_detail이 없습니다.", "INVALID_INPUT");
+        }
+        @SuppressWarnings("unchecked")
+        Map<String, Object> detail = (Map<String, Object>) detailObj;
+        String fullText = extractCopyPayloadFullText(detail);
+        if (fullText == null) {
+            throw CustomException.badRequest("복사 본문이 없습니다.", "INVALID_INPUT");
+        }
+
+        try {
+            accessAuditRepository.insert(user.getUserId(), id, "COPY_BODY_FULL", clientIp, userAgent);
+        } catch (Exception e) {
+            log.error("접근 감사 기록 실패: activityLogId={}", id, e);
+            throw CustomException.internalError("접근 감사 기록에 실패했습니다.", "INTERNAL_SERVER_ERROR");
+        }
+
+        Map<String, Object> data = new LinkedHashMap<>();
+        data.put("targetActivityLogId", id);
+        data.put("revealKind", "COPY_BODY_FULL");
+        data.put("copyBodyFull", fullText);
+        return data;
+    }
+
+    @SuppressWarnings("unchecked")
+    private static String extractCopyPayloadFullText(Map<String, Object> detail) {
+        Object cp = detail.get("copyPayload");
+        if (!(cp instanceof Map)) {
+            return null;
+        }
+        Object text = ((Map<String, Object>) cp).get("text");
+        return text != null ? String.valueOf(text) : null;
+    }
+
+    /**
+     * Access-audit list (TC-07: scoped to same activity-log visibility as target row).
+     */
+    public UserActivityLogResponse searchAccessAudit(
+            LocalDate startDate,
+            LocalDate endDate,
+            Long accessorUserId,
+            Long targetActivityLogId,
+            String accessType,
+            int page,
+            int pageSize,
+            String sortDirection,
+            boolean systemAdmin,
+            String scope,
+            String currentUsername,
+            List<String> teamUserIds) {
+        UserActivityAccessAuditRepository.ScopeMode mode;
+        if (systemAdmin) {
+            mode = UserActivityAccessAuditRepository.ScopeMode.ADMIN;
+        } else if ("self".equals(scope)) {
+            mode = UserActivityAccessAuditRepository.ScopeMode.SELF;
+        } else if ("team".equals(scope)) {
+            mode = UserActivityAccessAuditRepository.ScopeMode.TEAM;
+        } else {
+            mode = UserActivityAccessAuditRepository.ScopeMode.ALL;
+        }
+        boolean sortDesc = !"asc".equalsIgnoreCase(sortDirection != null ? sortDirection : "desc");
+        var params = new UserActivityAccessAuditRepository.AccessAuditSearchParams(
+                startDate,
+                endDate,
+                accessorUserId,
+                targetActivityLogId,
+                accessType,
+                page,
+                pageSize,
+                sortDesc,
+                mode,
+                currentUsername,
+                teamUserIds
+        );
+        try {
+            long total = accessAuditRepository.countSearch(params);
+            List<Map<String, Object>> rows = accessAuditRepository.search(params);
+            int ps = params.pageSize();
+            int p = params.page();
+            int totalPages = ps > 0 ? (int) Math.ceil((double) total / ps) : 0;
+            UserActivityLogResponse.PaginationInfo pagination =
+                    new UserActivityLogResponse.PaginationInfo(p, totalPages, total);
+            return new UserActivityLogResponse(rows, pagination);
+        } catch (Exception e) {
+            log.error("접근 감사 목록 조회 실패", e);
+            throw new RuntimeException("접근 감사 목록 조회 중 오류가 발생했습니다: " + e.getMessage(), e);
         }
     }
 }

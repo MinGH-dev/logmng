@@ -1,6 +1,11 @@
 import React from 'react';
-import { render, screen } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import UserActivityLogDetail from './UserActivityLogDetail';
+import { postActivityLogPrivilegedReveal } from '../../services/userActivityLogService';
+
+jest.mock('../../services/userActivityLogService', () => ({
+  postActivityLogPrivilegedReveal: jest.fn(),
+}));
 
 const baseLog = (overrides = {}) => ({
   id: 1,
@@ -21,6 +26,14 @@ const baseLog = (overrides = {}) => ({
 });
 
 describe('UserActivityLogDetail', () => {
+  beforeEach(() => {
+    postActivityLogPrivilegedReveal.mockReset();
+    postActivityLogPrivilegedReveal.mockResolvedValue({
+      success: true,
+      data: { copyBodyFull: 'FULL TEXT BODY', revealKind: 'COPY_BODY_FULL' },
+    });
+  });
+
   test('TC-11: PERMISSION_GROUP_UPDATE with permissionGroupAuditV1 shows structured audit section', () => {
     const log = baseLog({
       action_detail: {
@@ -95,5 +108,53 @@ describe('UserActivityLogDetail', () => {
 
     expect(screen.getByRole('heading', { name: '검색 결과 요약' })).toBeInTheDocument();
     expect(screen.getByText(/100/)).toBeInTheDocument();
+  });
+
+  test('IN_APP_COPY: shows Truncated badge and View full copy body when privilegedRevealCopyBodyAllowed', () => {
+    const log = baseLog({
+      action_type: 'IN_APP_COPY',
+      privilegedRevealCopyBodyAllowed: true,
+      action_detail: {
+        copyPayload: {
+          text: 'short…',
+          was_truncated: true,
+          length: 999,
+        },
+      },
+    });
+    render(<UserActivityLogDetail log={log} onClose={() => {}} actionTypeLabelMap={{}} />);
+    expect(screen.getByText('Truncated')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /View full copy body/i })).toBeInTheDocument();
+  });
+
+  test('IN_APP_COPY: hides View full copy body when not privileged', () => {
+    const log = baseLog({
+      action_type: 'IN_APP_COPY',
+      action_detail: {
+        copyPayload: {
+          text: 'short…',
+          was_truncated: true,
+          length: 999,
+        },
+      },
+    });
+    render(<UserActivityLogDetail log={log} onClose={() => {}} actionTypeLabelMap={{}} />);
+    expect(screen.queryByRole('button', { name: /View full copy body/i })).not.toBeInTheDocument();
+  });
+
+  test('IN_APP_COPY: View full copy body replaces preview with API result', async () => {
+    const log = baseLog({
+      action_type: 'IN_APP_COPY',
+      privilegedRevealCopyBodyAllowed: true,
+      action_detail: {
+        copyPayload: { text: 'trunc', was_truncated: true, length: 10 },
+      },
+    });
+    render(<UserActivityLogDetail log={log} onClose={() => {}} actionTypeLabelMap={{}} />);
+    fireEvent.click(screen.getByRole('button', { name: /View full copy body/i }));
+    await waitFor(() => {
+      expect(screen.getByText('FULL TEXT BODY')).toBeInTheDocument();
+    });
+    expect(postActivityLogPrivilegedReveal).toHaveBeenCalledWith(1, 'COPY_BODY_FULL');
   });
 });

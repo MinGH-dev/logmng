@@ -175,6 +175,22 @@ else
 fi
 echo ""
 
+# 6c. screen_display_label (req 20260406-menu-display-names-admin; PUT /api/screen-display-labels; 20260407 parent/order)
+echo "6c. screen_display_label (메뉴 표시 라벨, SCHEMA_SYS=${SCHEMA_SYS})"
+SDL_TABLE=$(psql_app -d "$DB_A_NAME" -tAc "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema='${SCHEMA_SYS}' AND table_name='screen_display_label';" 2>/dev/null || echo "0")
+if [ "$SDL_TABLE" = "1" ]; then
+  SDL_PG=$(psql_app -d "$DB_A_NAME" -tAc "SELECT COUNT(*) FROM information_schema.columns WHERE table_schema='${SCHEMA_SYS}' AND table_name='screen_display_label' AND column_name='parent_group_id';" 2>/dev/null || echo "0")
+  SDL_SO=$(psql_app -d "$DB_A_NAME" -tAc "SELECT COUNT(*) FROM information_schema.columns WHERE table_schema='${SCHEMA_SYS}' AND table_name='screen_display_label' AND column_name='sort_order';" 2>/dev/null || echo "0")
+  if [ "$SDL_PG" = "1" ] && [ "$SDL_SO" = "1" ]; then
+    echo "   ✅ ${SCHEMA_SYS}.screen_display_label 존재 (parent_group_id, sort_order 포함)"
+  else
+    echo "   ⚠️  ${SCHEMA_SYS}.screen_display_label 존재하나 parent_group_id/sort_order 누락 가능 — DB A에 migrate-screen-display-label-parent-order-20260407.sql 적용 (요구사항: docs/requirements/20260407-screen-menu-parent-order.md)"
+  fi
+else
+  echo "   ❌ ${SCHEMA_SYS}.screen_display_label 없음 — DB A에 migrate-screen-display-labels-20260406.sql 적용 필요 (요구사항: docs/requirements/20260406-menu-display-names-admin.md)"
+fi
+echo ""
+
 # 7. 테이블 구조 확인
 echo "7. 테이블 구조 확인"
 if [ "$SEND_TABLE" = "1" ]; then

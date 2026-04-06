@@ -5,6 +5,7 @@ import UserActivityLogDetail from './UserActivityLogDetail';
 import {
   searchActivityLogs,
   getActivityLogActionTypes,
+  getActivityLogDetail,
 } from '../../services/userActivityLogService';
 import { FALLBACK_ACTIVITY_ACTION_TYPE_OPTIONS } from '../../constants/activityActionTypesFallback';
 import {
@@ -21,15 +22,8 @@ import logger from '../../utils/logger';
 import { getApiBaseUrl } from '../../config/runtimeApi';
 const SELF_SCOPE_OMIT_FIELDS = ['userId', 'username', 'department', 'ipAddress'];
 
-/** UX-only preset; never sent to API (server uses single actionType per request). */
-const PG_PRESET_FIELD = 'pgPresetActionTypes';
-
-/** Max rows fetched per action type when merging preset multi-select (O4). */
-const PG_PRESET_MERGE_PAGE_SIZE = 500;
-
 const sanitizeSearchParamsForScope = (params = {}, isSelfScope = false) => {
   const normalizedParams = { ...params };
-  delete normalizedParams[PG_PRESET_FIELD];
 
   if (!isSelfScope) {
     return normalizedParams;
@@ -42,14 +36,21 @@ const sanitizeSearchParamsForScope = (params = {}, isSelfScope = false) => {
   return normalizedParams;
 };
 
-const UserActivityLogList = ({ user }) => {
+const UserActivityLogList = ({
+  user,
+  onNavigateToAccessAudit,
+  canOpenAccessAudit = false,
+}) => {
   const [logs, setLogs] = useState([]);
   const [loading, setLoading] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
   const [pageSize, setPageSize] = useState(20);
+  const [detailOpen, setDetailOpen] = useState(false);
   const [selectedLog, setSelectedLog] = useState(null);
+  const [detailLoading, setDetailLoading] = useState(false);
+  const [detailError, setDetailError] = useState(null);
   const [searchParams, setSearchParams] = useState({});
   const [authError, setAuthError] = useState(null);
   const [serverToday, setServerToday] = useState(null);
@@ -61,11 +62,10 @@ const UserActivityLogList = ({ user }) => {
     toActionTypeLabelMap(FALLBACK_ACTIVITY_ACTION_TYPE_OPTIONS),
   );
   const [actionTypesLoading, setActionTypesLoading] = useState(false);
-  /** When true, pagination slices clientMergedLogs (O4 multi-type preset). */
-  const [clientMergedMode, setClientMergedMode] = useState(false);
-  const [clientMergedLogs, setClientMergedLogs] = useState(null);
 
-  const isSelfScope = !user?.isSystemAdmin && user?.screenScopes?.['activity-log'] === 'self';
+  const activityLogScope =
+    user?.screenScopes?.['activity-log'] ?? user?.screen_scopes?.['activity-log'];
+  const isSelfScope = !user?.isSystemAdmin && activityLogScope === 'self';
   const selfContext = getSelfContextForDisplay(user);
 
   // 부서 목록 로드 (scope≠self일 때 검색 폼 드롭다운용)
@@ -158,75 +158,11 @@ const UserActivityLogList = ({ user }) => {
     setCurrentPage(1);
 
     try {
-      const rawPreset = params[PG_PRESET_FIELD];
-      const presetTypes = Array.isArray(rawPreset)
-        ? rawPreset.filter((c) => c != null && String(c).trim() !== '')
-        : [];
       const sanitizedParams = sanitizeSearchParamsForScope(params, isSelfScope);
-      setSearchParams({ ...sanitizedParams, ...(presetTypes.length ? { [PG_PRESET_FIELD]: presetTypes } : {}) });
-
-      if (presetTypes.length > 1) {
-        const base = { ...sanitizedParams };
-        delete base.actionType;
-        logger.debug('🔍 활동 이력 검색 (권한 그룹 프리셋 병합):', { presetTypes, base });
-
-        const results = await Promise.all(
-          presetTypes.map((actionType) =>
-            searchActivityLogs({
-              ...base,
-              actionType,
-              page: 1,
-              pageSize: PG_PRESET_MERGE_PAGE_SIZE,
-            }),
-          ),
-        );
-
-        const mergedMap = new Map();
-        for (const result of results) {
-          if (result.success && result.data && Array.isArray(result.data.data)) {
-            for (const row of result.data.data) {
-              if (row && row.id != null) mergedMap.set(row.id, row);
-            }
-          } else if (result.code === 'UNAUTHORIZED' || (result.error && result.error.includes('로그인'))) {
-            setAuthError(result.error || '로그인이 필요합니다.');
-            setClientMergedMode(false);
-            setClientMergedLogs(null);
-            setLogs([]);
-            setTotalPages(1);
-            setTotalCount(0);
-            return;
-          }
-        }
-
-        const merged = Array.from(mergedMap.values()).sort((a, b) => {
-          const ta = new Date(a.created_at || 0).getTime();
-          const tb = new Date(b.created_at || 0).getTime();
-          return tb - ta;
-        });
-
-        setAuthError(null);
-        setClientMergedMode(true);
-        setClientMergedLogs(merged);
-        const total = merged.length;
-        const pages = Math.max(1, Math.ceil(total / pageSize));
-        setTotalCount(total);
-        setTotalPages(pages);
-        setLogs(merged.slice(0, pageSize));
-        logger.info('✅ 활동 이력 검색 완료 (프리셋 병합):', { count: merged.length });
-        return;
-      }
-
-      setClientMergedMode(false);
-      setClientMergedLogs(null);
-
-      let effectiveActionType = sanitizedParams.actionType;
-      if (presetTypes.length === 1) {
-        effectiveActionType = presetTypes[0];
-      }
+      setSearchParams(sanitizedParams);
 
       const requestParams = {
         ...sanitizedParams,
-        actionType: effectiveActionType != null ? effectiveActionType : '',
         page: 1,
         pageSize,
       };
@@ -262,8 +198,6 @@ const UserActivityLogList = ({ user }) => {
       setLogs([]);
       setTotalPages(1);
       setTotalCount(0);
-      setClientMergedMode(false);
-      setClientMergedLogs(null);
     } finally {
       setLoading(false);
     }
@@ -271,13 +205,6 @@ const UserActivityLogList = ({ user }) => {
 
   // 페이지 변경
   const handlePageChange = async (page) => {
-    if (clientMergedMode && clientMergedLogs && Array.isArray(clientMergedLogs)) {
-      setCurrentPage(page);
-      const start = (page - 1) * pageSize;
-      setLogs(clientMergedLogs.slice(start, start + pageSize));
-      return;
-    }
-
     setLoading(true);
     setCurrentPage(page);
 
@@ -305,14 +232,6 @@ const UserActivityLogList = ({ user }) => {
     setPageSize(newSize);
     setCurrentPage(1);
 
-    if (clientMergedMode && clientMergedLogs && Array.isArray(clientMergedLogs)) {
-      const total = clientMergedLogs.length;
-      setTotalPages(Math.max(1, Math.ceil(total / newSize)));
-      setTotalCount(total);
-      setLogs(clientMergedLogs.slice(0, newSize));
-      return;
-    }
-
     const sanitizedParams = sanitizeSearchParamsForScope(searchParams, isSelfScope);
     setSearchParams(sanitizedParams);
     const requestParams = { ...sanitizedParams, page: 1, pageSize: newSize };
@@ -331,21 +250,32 @@ const UserActivityLogList = ({ user }) => {
 
   // 행 클릭 (상세 조회)
   const handleRowClick = async (log) => {
+    setDetailOpen(true);
+    setDetailLoading(true);
+    setDetailError(null);
+    setSelectedLog(null);
     try {
-      const { getActivityLogDetail } = await import('../../services/userActivityLogService');
       const result = await getActivityLogDetail(log.id);
 
       if (result.success && result.data) {
         setSelectedLog(result.data);
+      } else {
+        setDetailError(result.error || '상세 조회에 실패했습니다.');
       }
     } catch (error) {
       logger.error('❌ 활동 이력 상세 조회 실패:', { error: error.message });
+      setDetailError(error.message || '상세 조회에 실패했습니다.');
+    } finally {
+      setDetailLoading(false);
     }
   };
 
   // 상세 모달 닫기
   const handleCloseDetail = () => {
+    setDetailOpen(false);
     setSelectedLog(null);
+    setDetailError(null);
+    setDetailLoading(false);
   };
 
   return (
@@ -395,11 +325,15 @@ const UserActivityLogList = ({ user }) => {
         />
       </div>
 
-      {selectedLog && (
+      {detailOpen && (
         <UserActivityLogDetail
           log={selectedLog}
+          loading={detailLoading}
+          error={detailError}
           onClose={handleCloseDetail}
           actionTypeLabelMap={actionTypeLabelMap}
+          onNavigateToAccessAudit={onNavigateToAccessAudit}
+          canOpenAccessAudit={canOpenAccessAudit}
         />
       )}
     </div>

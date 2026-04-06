@@ -48,11 +48,12 @@ const UserContextFilterBlock = ({
     <input
       type="text"
       id={id(name)}
-      value={displayValues[name] || ''}
+      value={displayValues[name] ?? ''}
       readOnly
       aria-readonly="true"
       className="form-control user-context-filter-block__locked-control"
       aria-label={ariaLabel}
+      title="조회 범위가 본인으로 고정되어 변경할 수 없습니다."
     />
   );
 
@@ -82,16 +83,17 @@ const UserContextFilterBlock = ({
 
         <div className="form-group">
           <label htmlFor={id('username')}>{isLocked ? '사용자명' : '사용자명 (최대 5자)'}</label>
-          {isLocked ? renderLockedControl('username', '사용자명') : (
+          {isLocked ? renderLockedControl('username', '사용자명 (본인)') : (
             <input
               type="text"
               id={id('username')}
               value={displayValues.username || ''}
               onChange={(e) => onChange('username', e.target.value)}
-              className="form-control"
+              className="form-control user-context-filter-block__input-editable"
               placeholder="최대 5자"
               aria-label="사용자명 (최대 5자)"
               maxLength={usernameMaxLength}
+              autoComplete="off"
             />
           )}
         </div>

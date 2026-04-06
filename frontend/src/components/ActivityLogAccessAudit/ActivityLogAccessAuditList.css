@@ -1,0 +1,4 @@
+/* Access audit list: shares UserActivityLog.css filter/table layout; layout-only additions here. */
+.activity-log-access-audit-container .search-form-actions {
+  margin-top: 12px;
+}

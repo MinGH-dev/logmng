@@ -15,6 +15,7 @@ function AppSidebar({
   allowedScreenIds = [],
   currentView,
   onNavigate,
+  menuTree = MENU_TREE,
 }) {
   const theme = useTheme();
 
@@ -24,6 +25,7 @@ function AppSidebar({
     const ids = Array.isArray(allowedScreenIds) ? allowedScreenIds : [];
     /** Show child when user has access. user-management and permission-group-management also accept user-permission-hierarchy. */
     const canShowChild = (c) => {
+      if (c.systemAdminOnly === true && !isAdmin) return false;
       if (!c?.view || !ids?.length) return false;
       if (c.view === 'user-management') return ids.includes('user-management') || ids.includes('user-permission-hierarchy');
       if (c.view === 'permission-group-management' || c.view === 'permission-group-screen-matrix') {
@@ -31,7 +33,7 @@ function AppSidebar({
       }
       return ids.includes(c.view);
     };
-    return MENU_TREE.filter((node) => {
+    return menuTree.filter((node) => {
       if (node.adminOnly && !isAdmin) {
         const hasAnyAllowedChild = node.children?.some((c) => canShowChild(c));
         if (!hasAnyAllowedChild) return false;
@@ -47,7 +49,7 @@ function AppSidebar({
         children: node.children.filter((c) => canShowChild(c)),
       };
     });
-  }, [isAdmin, allowedScreenIds]);
+  }, [isAdmin, allowedScreenIds, menuTree]);
 
   /** Controlled open state per SubMenu for aria-expanded (§2.1 a11y) */
   const [openMenus, setOpenMenus] = useState({});

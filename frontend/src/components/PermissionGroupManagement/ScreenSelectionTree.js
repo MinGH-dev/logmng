@@ -77,7 +77,7 @@ const getScreenIdSet = (normalized) => new Set(normalized.map((s) => s.screenId)
 const getItemForScreen = (normalized, screenId) =>
   normalized.find((s) => s.screenId === screenId);
 
-const ScreenSelectionTree = ({ selectedScreens, onChange }) => {
+const ScreenSelectionTree = ({ selectedScreens, onChange, menuTree = MENU_TREE }) => {
   const normalized = React.useMemo(() => normalizeSelected(selectedScreens), [selectedScreens]);
   const screenIdSet = React.useMemo(() => getScreenIdSet(normalized), [normalized]);
 
@@ -148,7 +148,7 @@ const ScreenSelectionTree = ({ selectedScreens, onChange }) => {
 
   return (
     <div className="screen-selection-tree" role="group" aria-label="접근 화면 선택">
-      {MENU_TREE.map((node) => (
+      {menuTree.map((node) => (
         <div key={node.id} className="screen-selection-group" role="group" aria-label={node.label}>
           <div className="screen-selection-group-header">{node.label}</div>
           <ul className="screen-selection-list">

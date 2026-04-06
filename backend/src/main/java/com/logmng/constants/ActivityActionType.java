@@ -46,7 +46,13 @@ public enum ActivityActionType {
     DECRYPT_APPROVAL_REJECT("DECRYPT_APPROVAL_REJECT", "복호화 반려", true),
 
     // §2.6 optional list view
-    USER_LIST_VIEW("USER_LIST_VIEW", "사용자 목록 조회", true);
+    USER_LIST_VIEW("USER_LIST_VIEW", "사용자 목록 조회", true),
+
+    /** Screen/menu display label admin save. Req: 20260406-menu-display-names-admin. */
+    SCREEN_DISPLAY_LABELS_UPDATE("SCREEN_DISPLAY_LABELS_UPDATE", "화면 표시 라벨 변경", true),
+
+    /** In-app copy; {@code action_detail.copyPayload} per specs/activity-log-audit-evidence.spec.yaml §4.1. */
+    IN_APP_COPY("IN_APP_COPY", "인앱 복사", true);
 
     public static final int MAX_ACTION_TYPE_LENGTH = 50;
 

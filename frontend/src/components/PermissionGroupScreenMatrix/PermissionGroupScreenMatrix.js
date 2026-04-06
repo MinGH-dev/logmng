@@ -45,7 +45,7 @@ const unwrapGroupDetail = (apiResult) => {
 const getItemForScreen = (normalized, screenId) =>
   normalized.find((s) => s.screenId === screenId);
 
-const PermissionGroupScreenMatrix = ({ user }) => {
+const PermissionGroupScreenMatrix = ({ user, menuTree }) => {
   const ids = getAllowedScreenIds(user);
   const screenFunctions = getScreenFunctions(user);
   const canAccess =
@@ -87,7 +87,10 @@ const PermissionGroupScreenMatrix = ({ user }) => {
 
   const [sortConfig, setSortConfig] = useState({ key: 'order', direction: 'asc' });
 
-  const flatRows = useMemo(() => flattenMenuTreeToRows(MENU_TREE), []);
+  const flatRows = useMemo(
+    () => flattenMenuTreeToRows(menuTree ?? MENU_TREE),
+    [menuTree]
+  );
 
   const sortedRows = useMemo(() => {
     const rows = [...flatRows];

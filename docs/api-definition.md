@@ -389,9 +389,9 @@
 
 ### 8.0 `action_type` 단일 기준(OP-01) 및 `action_detail`
 
-- **저장**: 각 행의 유형은 `action_type` 문자열( DB `user_activity_log.action_type`, 예: `VARCHAR(50)` )이다. **닫힌 코드 집합**·라벨·예비(provisional) 코드는 **`specs/activity-action-types.spec.yaml`** §2가 단일 기준이다.
+- **저장**: 각 행의 유형은 `action_type` 문자열( DB `user_activity_log.action_type`, 예: `VARCHAR(50)` )이다. **닫힌 코드 집합**·라벨·예비(provisional) 코드는 **`specs/activity-action-types.spec.yaml`** §2가 단일 기준이다. **인앱 복사·접근 감사(동일 테이블 재사용 시)** 등 추가 코드는 **§2.7** 및 요건 `20260330-audit-evidence-activity-log-conservative`를 따른다.
 - **구현 상태**: 이미 기록되는 유형에는 `LOGIN`, `LOGOUT`, `SEARCH`, `VIEW`, `DECRYPT`, `ADVANCED_SEARCH` 등이 있으며, 메서드명 추론 시 `EXPORT`, `STATS_VIEW`, `SCHEMA_VIEW`, `UNKNOWN` 등이 사용될 수 있다(상세 표는 스펙 참고). **권한 그룹·사용자·부서 결재자·검색 이력·복호화 승인** 관련 코드는 요건 `20260330-activity-types-user-mgmt-permission-group`에 따라 Step 4에서 상수·기록 지점과 함께 확정한다.
-- **`action_detail`**: JSON 객체. 카테고리별로 허용되는 키는 스펙 §3(권한 그룹 id, 대상 `userId`, `searchHistoryId` 등 **비민감 식별자**). 비밀번호·토큰·복호화 본문·세션 식별자는 넣지 않는다.
+- **`action_detail`**: JSON 객체. 카테고리별로 허용되는 키는 스펙 §3(권한 그룹 id, 대상 `userId`, `searchHistoryId` 등 **비민감 식별자**). 비밀번호·토큰·복호화 본문·세션 식별자는 넣지 않는다. **보수적 감사 요건**에 따른 **복사 페이로드**(잘림·`was_truncated`), **삭제 스냅샷**, **허용 필드만의 before/after** 는 `specs/activity-log-audit-evidence.spec.yaml` §3·§4가 고수준 권위이며, 필드 분류 매트릭스는 요건 §2 Solution approach 참고.
 - **권한 그룹 관련 타입 (`PERMISSION_GROUP_CREATE` / `PERMISSION_GROUP_UPDATE` / `PERMISSION_GROUP_DELETE` / `ASSIGN_USER_TO_PERMISSION_GROUP` / `UNASSIGN_USER_FROM_PERMISSION_GROUP`)**  
   - **버전 스키마**: 구현 목표는 `action_detail` 내 **`permissionGroupAuditV1`** 객체(자세한 필드·`before`/`after`·중첩 `allowedScreens`는 `specs/activity-permission-group-audit.spec.yaml`).  
   - **Denylist**: 부모 요건 `20260330-activity-types-user-mgmt-permission-group` §2.1 Security 및 동일 스펙 §6 — `password`, `token`, `refreshToken`, 원시 요청 본문 등 **금지**.  
@@ -433,10 +433,43 @@
 ### 8.2 활동 이력 상세 조회
 
 - **GET** `/api/activity-log/{id}`
-- **Path**: `id` — Long
-- **Response (data)**: Map (활동 이력 한 건 상세). 일반적으로 목록 검색과 동일한 필드를 포함하며, **`action_detail`** 은 DB `user_activity_log.action_detail` JSON을 파싱한 객체이다.
+- **Path**: `id` — Long — 대상 `user_activity_log.id`
+- **마스킹 (요건 `20260330-audit-evidence-activity-log-conservative`)**: 응답의 **`action_detail`** 및 필요 시 **`ip_address`** 등 메타필드는 **호출자 역할**에 따라 **마스킹**된다. 비특권 사용자는 **인앱 복사 본문 전체**·민감 키 평문을 받지 않는다(목록에서 조회 가능한 행만 상세 허용 — 기존 MF-02·AC-S2 정신과 동일). 상세 필드 키·마스킹 규칙·복사 하위 구조 요약은 **`specs/activity-log-audit-evidence.spec.yaml`** §3.
+- **Response (data)**: Map (활동 이력 한 건 상세). 일반적으로 목록 검색과 동일한 필드를 포함하며, **`action_detail`** 은 DB JSON을 파싱한 객체이되 **마스킹 뷰**일 수 있다.
   - **권한 그룹 계열 `action_type`**: `action_detail`에 **`permissionGroupAuditV1`** 가 있으면(요건 `20260330-permission-group-activity-detail-audit`) 감사 증빙은 해당 객체의 `schemaVersion`, `operation`, `before` / `after` (`PermissionGroupSnapshot`, `allowedScreens` = `AllowedScreenItem[]`), `targetUserId`(배정/해제), 선택적 **`changeReason`**(잠정, 최대 500자)로 해석한다. 전체 규격·예시·denylist는 **`specs/activity-permission-group-audit.spec.yaml`**.
+  - **인앱 복사·삭제 스냅샷·변경 before/after** 고수준: `action_type` **`IN_APP_COPY`** 등(코드표 `specs/activity-action-types.spec.yaml` §2.7) 및 **`action_detail`** 내 `copyPayload` / `deleteSnapshot` / `before`·`after` — **`specs/activity-log-audit-evidence.spec.yaml`** §3, §4.
   - **DOC-CODE-SYNC**: 구현체는 저장·응답 형태를 위 스펙에 맞춘다; 차이가 있으면 코드와 동시에 계약을 갱신한다(`docs/workflow/DOC-CODE-SYNC.md`).
+
+### 8.2.1 활동 이력 민감 본문 특권 공개 (접근 감사 필수)
+
+- **POST** `/api/activity-log/{id}/privileged-reveal` (가칭 경로; 최종은 `specs/activity-log-audit-evidence.spec.yaml` §2와 동일해야 함)
+- **목적**: 저장된 **전체 인앱 복사 본문** 등 `GET` 상세에서 마스킹된 민감 필드를 **평문으로** 반환. **성공 응답 전에** 서버는 **접근 감사 레코드**를 **append-only**로 기록해야 한다(요건 §2.1, TC-06).
+- **권한**: **특권 역할**만(정확한 permission 모델은 PO/Security — `docs/contract.md` 부록 AAE-02). 부족 시 **403** `REVEAL_NOT_ALLOWED` 또는 `FUNCTION_NOT_ALLOWED`.
+- **Request body** (JSON, 예):
+
+| 필드 | 타입 | 필수 | 설명 |
+|------|------|------|------|
+| revealKind | string | O | 예: **`COPY_BODY_FULL`** — 전체 복사 본문. 추가 값은 스펙 §2. |
+
+- **Response (data)**: 대상 활동 로그 행의 민감 필드 포함 객체(예: 전체 복사 텍스트 및 메타). 정확한 키는 스펙 §2.
+- **에러**: **401** 비인증; **403** 특권 없음 / 대상 행이 caller scope 밖; **404** 없음; **400** 알 수 없는 `revealKind`.
+
+### 8.2.2 (대안·비권장) 쿼리로 공개
+
+- 제품이 **`GET /api/activity-log/{id}?reveal=copy_body_full`** 를 도입할 경우에도 **접근 감사·권한 검사는 POST와 동일**해야 하며, **GET에 부작용이 있는 설계는 REST 관점에서 비권장**이다. 구현 시 계약·스펙에 명시한다.
+
+### 8.2.3 활동 로그 접근 감사 목록 조회
+
+- **GET** `/api/activity-log/access-audit` (가칭; 캐논은 `specs/activity-log-audit-evidence.spec.yaml` §4)
+- **목적**: **누가** 언제 **어떤 활동 로그 행**에 대해 민감 상세·전체 복사 본문 등을 열람했는지 목록(요건 Screen 3 `activity-log-access-audit`).
+- **권한**: **감사/준법** 등 제한 역할(정확한 화면·scope는 PO — 구현 시 `permission-group-hierarchy`와 정렬). caller의 **감사 scope** 밖 행은 반환하지 않는다(TC-07).
+- **Query** (예시): `startDate`, `endDate`, `accessorUserId`(numeric `app_user.id`), `targetActivityLogId`(optional), `page`, `pageSize`, `sortField`, `sortDirection` — 전체는 스펙 §4.
+- **Response (data)**: 페이지 목록; 행당 예: 접근자 `userId`·표시명, `accessedAt`, **`targetActivityLogId`**, **`accessType`** (`DETAIL_VIEW` \| `COPY_BODY_FULL` 등). 저장소가 별도 테이블이면 조인 규칙은 스펙·DB 스키마가 권위.
+- **에러**: **401**; **403** 조회 권한 없음 `ACCESS_AUDIT_FORBIDDEN` 또는 `FORBIDDEN`.
+
+### 8.2.4 (선택·TODO) 활동 로그 반출 승인
+
+- **제3자 감사 패키지 export** 및 **승인 큐**는 요건 Screen 4 및 `docs/contract.md` 부록 AAE-04가 **확정된 뒤** API를 정의한다. 기존 검색 이력 승인 패턴(§6.1.x)과 유사할 수 있으나 **본 문서에는 아직 구현 API를 고정하지 않는다.**
 
 ### 8.3 활동 로그 통계 (Activity Statistics)
 
@@ -477,6 +510,25 @@
 
 - `GET /api/statistics/departments`는 더 이상 권위 있는 계약이 아니다.
 - 구현 전환 중 임시 호환이 필요하더라도, 새 개발과 문서 기준은 항상 `GET /api/filter-options/departments?screen=...`를 사용한다.
+
+### 8.4 화면·메뉴 표시 라벨 (Screen display labels)
+
+**Base path**: `/api/screen-display-labels`  
+요건·스펙: `docs/requirements/20260406-menu-display-names-admin.md`, `docs/requirements/20260407-screen-menu-parent-order.md`, `specs/menu-display-labels.spec.yaml`.
+
+- **GET** `/api/screen-display-labels`
+  - **권한**: 세션 인증 필수. 비인증 **401** `UNAUTHORIZED`. **모든 인증 사용자** 호출 가능(표시·메뉴 트리 메타데이터; 화면 접근은 `allowedScreenIds`·라우팅과 별개).
+  - **Response (data)**: `ScreenDisplayLabelItem[]` — 각 항목 `{ screenId, labelUser, labelAdmin?, parentGroupId?, sortOrder }` (camelCase; `sortOrder`는 0 이상 정수). DB에 없는 화면은 목록에 없음.
+  - **`labelAdmin`**: **`isSystemAdmin === true`** 인 경우에만 포함될 수 있음. 일반 사용자 응답에서는 필드 생략(또는 의미상 null과 동일).
+  - **`parentGroupId`**: 저장된 값이 있으면 포함. 없으면 생략·null — 클라이언트는 `MENU_TREE` 기본값 사용(요건 20260407).
+  - **`sortOrder`**: 항상 숫자로 포함(0 이상). 레거시 DB NULL은 **0**으로 반환.
+- **PUT** `/api/screen-display-labels` (캐논니컬 쓰기 메서드; PATCH 미지원)
+  - **권한**: 세션 인증 + **`is_system_admin === true`** 만. 비관리자 **403** `FORBIDDEN`.
+  - **Request body**: `{ "labels": [ { "screenId", "labelUser", "labelAdmin?", "parentGroupId?", "sortOrder?" }, ... ] }` — 빈 배열 허용(노옵). **`sortOrder`** 생략·null → **0**으로 저장. 그 외 선택 필드 생략·null → DB NULL(클라이언트 기본 트리).
+  - **검증**: `screenId`는 서버 화이트리스트(`ScreenConstants` / 계약 화면 ID 목록과 정합). 불가 시 **400** `INVALID_SCREEN_ID`. `labelUser`·`labelAdmin` 각 최대 256자; `labelUser`는 트림 후 비어 있으면 안 됨. **`parentGroupId`** 가 있으면 허용 집합(`log-search`, `history`, `statistics`, `admin`)만 — 그 외 **400** `INVALID_INPUT`. **`sortOrder`** 가 있으면 0 이상 정수 — 음수 **400** `INVALID_INPUT`.
+  - **성공**: **200**, `success: true`, `data`는 갱신 후 스냅샷(`GET`과 동일하게 관리자는 `labelAdmin` 포함).
+  - **감사**: 성공 시 `@ActivityLog` — `action_type`: **`SCREEN_DISPLAY_LABELS_UPDATE`** (활동 이력 필터 옵션에 노출되려면 `ActivityActionType`·`specs/activity-action-types.spec.yaml` OP-01과 일치).
+  - **DB**: `screen_display_label` UPSERT (`parent_group_id`, `sort_order` 포함), `updated_by` = 현재 사용자 `app_user.id`.
 
 ---
 
@@ -569,7 +621,8 @@
 | PERMISSION_GROUP_NOT_FOUND | 해당 ID의 권한 그룹 없음 (404) |
 | PERMISSION_GROUP_HAS_USERS | 삭제 시 해당 그룹에 사용자 배정 있음 (400) |
 | USER_ALREADY_IN_GROUP | 해당 사용자가 이미 그룹에 배정됨 (400) |
-| INVALID_SCREEN_ID | 허용 목록에 없는 screen_id 포함 또는 공유 필터 옵션 API의 `screen` 파라미터가 지원되지 않음 (400) |
+| INVALID_SCREEN_ID | 허용 목록에 없는 screen_id 포함, 공유 필터 옵션 API의 `screen` 파라미터 미지원, 또는 PUT `/api/screen-display-labels`의 알 수 없는 `screenId` (400) |
+| INTERNAL_SERVER_ERROR | 서버 내부 오류 (500). 화면 표시 라벨 조회/저장 DB 오류 등 |
 | INVALID_SCREEN_FUNCTION | 화면별 read/write/approve 조합이 허용되지 않음 (400). main read-only: main에 write=true 또는 approve=true; approve 미지원 화면에 approve=true; write 미지원 화면에 write=true. POST/PUT permission-groups 시 `specs/permission-group-hierarchy.spec.yaml` §1.1.1 검증. |
 | USER_NOT_FOUND | 해당 사용자 없음 (404) |
 | SELF_DEMOTION_BLOCKED | 자기 자신의 역할 변경 시도 (400) |
@@ -578,6 +631,8 @@
 | LAST_SYSTEM_ADMIN_BLOCKED | 강등 시 시스템 관리자가 0명이 됨 (400) |
 | FUNCTION_NOT_ALLOWED | 해당 기능(approve/write 등) 권한 없음. 403 반환 시 사용. 내부 구조·리소스 존재 여부 노출 금지 (403) |
 | LOG_TYPE_NOT_ALLOWED | 요청한 logType에 해당하는 화면(pb-feplog/java-fw-imagelog) 접근 권한 없음. 로그 검색·상세·복호화 API에서 403 (req 20260318). **`POST /api/logs/db-refactored/pb-fep-log-search`** 에서 **`pb-fep-log-search` / PB FEP 접근 없음 시 동일 계열 (req 20260326). |
+| REVEAL_NOT_ALLOWED | 활동 로그 **특권 공개**(예: 전체 복사 본문) 권한 없음 (403). 요건 `20260330-audit-evidence-activity-log-conservative`. |
+| ACCESS_AUDIT_FORBIDDEN | **접근 감사** 목록·조회 API에 대한 권한 없음 (403). |
 
 ---
 
@@ -606,6 +661,7 @@
 - **사용자 관리·전산요청서·인사배치 등 (미구현 API)**: `specs/user-management.spec.yaml`
 - **PB FEP 와이어프레임 검색 (`pb-fep-log-search`)**: `specs/log-db-pb-fep-log-search.spec.yaml`, 본 문서 §5.1.1.
 - **정의 위치**: 이 문서는 현재 구현 기준. API 추가/변경 시 이 문서와 `specs/*.spec.yaml`을 먼저 갱신할 것.
+- **활동 로그 감사 증빙(마스킹·특권 공개·접근 감사)**: `specs/activity-log-audit-evidence.spec.yaml`, 요건 `docs/requirements/20260330-audit-evidence-activity-log-conservative.md`.
 
 ---
 

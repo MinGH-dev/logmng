@@ -5,6 +5,7 @@ import './App.css';
 import LoginForm from './components/LoginForm';
 import LogGrid from './components/LogGrid';
 import UserActivityLogList from './components/UserActivityLog/UserActivityLogList';
+import ActivityLogAccessAuditList from './components/ActivityLogAccessAudit/ActivityLogAccessAuditList';
 import ActivityStatistics from './components/ActivityStatistics';
 import SearchHistoryList from './components/SearchHistory/SearchHistoryList';
 import UserManagement from './components/UserManagement/UserManagement';
@@ -14,6 +15,8 @@ import PendingApprovals from './components/PendingApprovals/PendingApprovals';
 import AppSidebar from './components/AppSidebar';
 import AppBar from './components/AppBar';
 import { ORDERED_SCREEN_IDS } from './constants/menuTree';
+import { useScreenDisplayLabels } from './hooks/useScreenDisplayLabels';
+import ScreenDisplayLabelsSettings from './components/ScreenDisplayLabelsSettings/ScreenDisplayLabelsSettings';
 import {
   saveMinimalUserData,
   getMinimalUserData,
@@ -25,13 +28,6 @@ import {
 } from './utils/security';
 import logger from './utils/logger';
 import { getApiBaseUrl } from './config/runtimeApi';
-
-/** logType objects for log-search screens (req 20260318). */
-const LOG_TYPE_BY_VIEW = {
-  'pb-feplog': { id: 'pb_feplog', name: 'PB FEP v1.0.0', description: '' },
-  'pb-fep-log-search': { id: 'pb_feplog', name: 'PB FEP v2.0.0', description: '' },
-  'java-fw-imagelog': { id: 'java_fw_imglog', name: 'Java FW Image Log', description: '' },
-};
 
 /** Prefer legacy PB FEP menu when both screens are allowed (검색 이력 재조회 등). */
 const resolvePbFeplogViewForUser = (u) => {
@@ -49,6 +45,12 @@ function App() {
   const [currentView, setCurrentView] = useState('pb-feplog'); // 'pb-feplog' | 'java-fw-imagelog' | 'activity-log' | ...
   const [initialSearchParams, setInitialSearchParams] = useState(null);
   const [initialSearchApprovalId, setInitialSearchApprovalId] = useState(null);
+  const [accessAuditInitialTargetId, setAccessAuditInitialTargetId] = useState(null);
+
+  const { labelItems, setLabelItems, mergedMenuTree, logTypesByView } = useScreenDisplayLabels(
+    isAuthenticated,
+    user
+  );
 
   const canAccessView = (view) => {
     if (user?.isSystemAdmin === true) return true;
@@ -264,6 +266,7 @@ function App() {
           allowedScreenIds={getAllowedScreenIds(user) ?? []}
           currentView={currentView}
           onNavigate={handleNavigate}
+          menuTree={mergedMenuTree}
         />
         <Box
           component="main"
@@ -296,7 +299,24 @@ function App() {
               flexDirection: 'column',
             }}
           >
-            {currentView === 'activity-log' && <UserActivityLogList user={user} />}
+            {currentView === 'activity-log' && (
+              <UserActivityLogList
+                user={user}
+                canOpenAccessAudit={canAccessView('activity-log-access-audit')}
+                onNavigateToAccessAudit={(targetLogId) => {
+                  setAccessAuditInitialTargetId(targetLogId);
+                  if (canAccessView('activity-log-access-audit')) {
+                    setCurrentView('activity-log-access-audit');
+                  }
+                }}
+              />
+            )}
+            {currentView === 'activity-log-access-audit' && canAccessView('activity-log-access-audit') && (
+              <ActivityLogAccessAuditList
+                initialTargetActivityLogId={accessAuditInitialTargetId}
+                onConsumedInitialTarget={() => setAccessAuditInitialTargetId(null)}
+              />
+            )}
             {currentView === 'statistics' && <ActivityStatistics user={user} />}
             {currentView === 'search-history' && (
               <SearchHistoryList user={user} onReSearch={handleReSearchFromHistory} />
@@ -304,14 +324,25 @@ function App() {
             {(currentView === 'user-management' || currentView === 'user-permission-hierarchy') && (
               <UserManagement user={user} />
             )}
-            {currentView === 'permission-group-management' && <PermissionGroupManagement user={user} />}
-            {currentView === 'permission-group-screen-matrix' && <PermissionGroupScreenMatrix user={user} />}
+            {currentView === 'permission-group-management' && (
+              <PermissionGroupManagement user={user} menuTree={mergedMenuTree} />
+            )}
+            {currentView === 'permission-group-screen-matrix' && (
+              <PermissionGroupScreenMatrix user={user} menuTree={mergedMenuTree} />
+            )}
+            {currentView === 'screen-display-labels' && (
+              <ScreenDisplayLabelsSettings
+                user={user}
+                labelItems={labelItems}
+                onLabelsUpdated={setLabelItems}
+              />
+            )}
             {currentView === 'pending-approvals' && <PendingApprovals user={user} />}
             {currentView === 'pb-feplog' && canAccessView('pb-feplog') && (
               <Box sx={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
                 <LogGrid
                   viewId="pb-feplog"
-                  logType={LOG_TYPE_BY_VIEW['pb-feplog']}
+                  logType={logTypesByView['pb-feplog']}
                   initialSearchParams={initialSearchParams}
                   initialSearchApprovalId={initialSearchApprovalId}
                   onInitialSearchDone={handleInitialSearchDone}
@@ -323,7 +354,7 @@ function App() {
               <Box sx={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
                 <LogGrid
                   viewId="pb-fep-log-search"
-                  logType={LOG_TYPE_BY_VIEW['pb-fep-log-search']}
+                  logType={logTypesByView['pb-fep-log-search']}
                   initialSearchParams={initialSearchParams}
                   initialSearchApprovalId={initialSearchApprovalId}
                   onInitialSearchDone={handleInitialSearchDone}
@@ -335,7 +366,7 @@ function App() {
             )}
             {currentView === 'java-fw-imagelog' && canAccessView('java-fw-imagelog') && (
               <LogGrid
-                logType={LOG_TYPE_BY_VIEW['java-fw-imagelog']}
+                logType={logTypesByView['java-fw-imagelog']}
                 initialSearchParams={initialSearchParams}
                 initialSearchApprovalId={initialSearchApprovalId}
                 onInitialSearchDone={handleInitialSearchDone}

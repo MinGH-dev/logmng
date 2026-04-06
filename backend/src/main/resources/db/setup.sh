@@ -139,6 +139,11 @@ else
 fi
 run_sql_file_sp "$DB_A_NAME" "${SCHEMA_SYS}, ${SCHEMA_PB}, public" "$SCRIPT_DIR/schema_sys.sql"
 run_sql_file_sp "$DB_A_NAME" "${SCHEMA_SYS}, ${SCHEMA_PB}, public" "$SCRIPT_DIR/schema_user_activity_log.sql"
+
+echo "4a-user-activity-access-audit. user_activity_access_audit (append-only access audit, req 20260330 audit evidence)..."
+run_sql_file_sp "$DB_A_NAME" "${SCHEMA_SYS}, ${SCHEMA_PB}, public" "$SCRIPT_DIR/migrate-user-activity-access-audit-20260406.sql"
+echo "   ✅ user_activity_access_audit 적용(또는 이미 존재)"
+
 run_sql_file_sp "$DB_B_NAME" "${SCHEMA_IMAGELOG}, public" "$SCRIPT_DIR/schema_imagelog.sql"
 
 echo "4a-imagelog. (guid, status) 유니크 인덱스 — 레거시 DB 정렬 (req 20260320)..."

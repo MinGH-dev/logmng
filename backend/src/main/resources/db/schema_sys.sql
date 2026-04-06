@@ -15,7 +15,7 @@ $$ LANGUAGE plpgsql;
 
 -- DDL 순서(참조 무결성):
 --   department → permission_group → app_user → search_history(FK는 나중에) → search_history_approved_row
---   → DO 블록으로 search_history FK 부착 → decrypt_approver → user_decryption_allowed
+--   → DO 블록으로 search_history FK 부착 → decrypt_approver → user_decryption_allowed → screen_display_label
 --   → app_user_permission_group → permission_group_screen → 마지막에 트리거만 부착
 -- 권한(GRANT)은 setup.sh에서 스키마별로 수행합니다.
 
@@ -160,6 +160,23 @@ CREATE TABLE IF NOT EXISTS user_decryption_allowed (
 );
 CREATE INDEX IF NOT EXISTS idx_user_decryption_allowed_get ON user_decryption_allowed(user_id, screen, valid_until);
 CREATE INDEX IF NOT EXISTS idx_user_decryption_allowed_cleanup ON user_decryption_allowed(user_id, valid_until);
+
+-- 화면/메뉴 표시 라벨 (관리자 설정). screen_id = currentView / permission screen_id (kebab-case). API·스펙: specs/menu-display-labels.spec.yaml.
+-- Req: docs/requirements/20260406-menu-display-names-admin.md (20260406-menu-display-names-admin).
+-- Sidebar parent/order: docs/requirements/20260407-screen-menu-parent-order.md — parent_group_id / sort_order (app allowlist & validation).
+CREATE TABLE IF NOT EXISTS screen_display_label (
+    screen_id        VARCHAR(128) PRIMARY KEY,
+    label_user       VARCHAR(256) NOT NULL,
+    label_admin      VARCHAR(256) NULL,
+    parent_group_id  VARCHAR(64) NULL,
+    sort_order       INT NULL,
+    updated_at       TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_by       BIGINT NULL REFERENCES app_user(id) ON DELETE SET NULL
+);
+CREATE OR REPLACE TRIGGER update_screen_display_label_updated_at
+    BEFORE UPDATE ON screen_display_label
+    FOR EACH ROW
+    EXECUTE FUNCTION update_updated_at_column();
 
 -- 사용자–권한 그룹 1:1 (user_id = app_user.username, UNIQUE). permission_group 삭제 시 CASCADE; 역방향 조회용 인덱스.
 -- req 20250304-single-permission-group-per-user: 사용자당 최대 1개 권한 그룹.

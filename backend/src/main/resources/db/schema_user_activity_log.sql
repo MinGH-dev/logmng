@@ -47,7 +47,25 @@ CREATE TRIGGER update_user_activity_log_updated_at
 GRANT ALL PRIVILEGES ON TABLE user_activity_log TO logmng;
 GRANT ALL PRIVILEGES ON SEQUENCE user_activity_log_id_seq TO logmng;
 
+-- Append-only access audit (who viewed sensitive activity log detail / full copy body).
+-- Same DDL as migrate-user-activity-access-audit-20260406.sql (keep in sync).
+-- FK notes: target_activity_log_id ON DELETE SET NULL; accessor_user_id ON DELETE RESTRICT — see migration file comments.
+CREATE TABLE IF NOT EXISTS user_activity_access_audit (
+    id BIGSERIAL PRIMARY KEY,
+    accessor_user_id BIGINT NOT NULL REFERENCES app_user(id) ON DELETE RESTRICT,
+    target_activity_log_id BIGINT NULL REFERENCES user_activity_log(id) ON DELETE SET NULL,
+    access_type VARCHAR(64) NOT NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    ip_address VARCHAR(45) NULL,
+    user_agent TEXT NULL
+);
 
+CREATE INDEX IF NOT EXISTS idx_user_activity_access_audit_created_at ON user_activity_access_audit(created_at);
+CREATE INDEX IF NOT EXISTS idx_user_activity_access_audit_accessor_created ON user_activity_access_audit(accessor_user_id, created_at);
+CREATE INDEX IF NOT EXISTS idx_user_activity_access_audit_target_log ON user_activity_access_audit(target_activity_log_id);
+
+GRANT ALL PRIVILEGES ON TABLE user_activity_access_audit TO logmng;
+GRANT ALL PRIVILEGES ON SEQUENCE user_activity_access_audit_id_seq TO logmng;
 
 
 

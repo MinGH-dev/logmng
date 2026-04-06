@@ -3,6 +3,7 @@ package com.logmng.constants;
 import java.text.Normalizer;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.Locale;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -27,6 +28,10 @@ public final class ScreenConstants {
     public static final String JAVA_FW_IMAGELOG_LEGACY = "java-fw_imagelog";
     public static final String SEARCH_HISTORY = "search-history";
     public static final String ACTIVITY_LOG = "activity-log";
+    /** Activity log row detail (modal/drawer); optional separate menu permission per specs/permission-group-hierarchy.spec.yaml §4. */
+    public static final String ACTIVITY_LOG_DETAIL = "activity-log-detail";
+    /** Access audit list — who viewed sensitive activity detail / full copy body (req 20260330-audit-evidence). */
+    public static final String ACTIVITY_LOG_ACCESS_AUDIT = "activity-log-access-audit";
     public static final String STATISTICS = "statistics";
 
     public static final String PENDING_APPROVALS = "pending-approvals";
@@ -41,9 +46,17 @@ public final class ScreenConstants {
     /** 화면–권한 매트릭스 (admin; 권한 데이터 편집). */
     public static final String PERMISSION_GROUP_SCREEN_MATRIX = "permission-group-screen-matrix";
 
+    /**
+     * Top-level sidebar group ids aligned with {@code MENU_TREE} in {@code frontend/src/constants/menuTree.js}.
+     * Screen display labels API: {@code parentGroupId} must be one of these when set (specs/menu-display-labels.spec.yaml §2.1).
+     */
+    public static final Set<String> PARENT_GROUP_IDS = Collections.unmodifiableSet(new HashSet<>(Arrays.asList(
+            "log-search", "history", "statistics", "admin")));
+
     private static final Set<String> ALL_ALLOWED_SCREENS = Collections.unmodifiableSet(
             Arrays.asList(
-                    MAIN, PB_FEPLOG, PB_FEP_LOG_SEARCH, JAVA_FW_IMAGELOG, SEARCH_HISTORY, ACTIVITY_LOG, STATISTICS,
+                    MAIN, PB_FEPLOG, PB_FEP_LOG_SEARCH, JAVA_FW_IMAGELOG, SEARCH_HISTORY, ACTIVITY_LOG,
+                    ACTIVITY_LOG_DETAIL, ACTIVITY_LOG_ACCESS_AUDIT, STATISTICS,
                     PENDING_APPROVALS, USER_MANAGEMENT, DEPARTMENT_APPROVERS,
                     USER_PERMISSION_HIERARCHY, PERMISSION_GROUP_MANAGEMENT, PERMISSION_GROUP_SCREEN_MATRIX
             ).stream().collect(Collectors.toSet())

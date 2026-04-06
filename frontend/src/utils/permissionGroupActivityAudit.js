@@ -39,12 +39,3 @@ export function getPermissionGroupOperationLabel(operation) {
   if (operation == null || operation === '') return '-';
   return PERMISSION_GROUP_OPERATION_LABELS[operation] ?? operation;
 }
-
-/** Preset multi-select labels for activity-log search (O4, UX-only). */
-export const PERMISSION_GROUP_AUDIT_PRESET_OPTIONS = Object.freeze([
-  { value: 'PERMISSION_GROUP_CREATE', label: '권한 그룹 생성' },
-  { value: 'PERMISSION_GROUP_UPDATE', label: '권한 그룹 수정' },
-  { value: 'PERMISSION_GROUP_DELETE', label: '권한 그룹 삭제' },
-  { value: 'ASSIGN_USER_TO_PERMISSION_GROUP', label: '권한 그룹 사용자 배정' },
-  { value: 'UNASSIGN_USER_FROM_PERMISSION_GROUP', label: '권한 그룹 사용자 해제' },
-]);

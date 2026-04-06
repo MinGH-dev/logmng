@@ -43,8 +43,6 @@ describe('UserActivityLogSearchForm (TC-11, TC-12)', () => {
     expect(within(actionTypeSelect).getByRole('option', { name: '전체' })).toBeInTheDocument();
     expect(within(actionTypeSelect).getByRole('option', { name: '로그인' })).toBeInTheDocument();
     expect(within(actionTypeSelect).getByRole('option', { name: '권한 그룹 수정' })).toBeInTheDocument();
-    const pgPreset = screen.getByLabelText('권한 그룹 감사 (복수 선택)');
-    expect(within(pgPreset).getByRole('option', { name: '권한 그룹 수정' })).toBeInTheDocument();
   });
 
   test('TC-12: selecting a type and submitting sends actionType in search payload', async () => {

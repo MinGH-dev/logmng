@@ -3,6 +3,7 @@ package com.logmng.service;
 import com.logmng.dto.request.UserActivityLogSearchRequest;
 import com.logmng.dto.response.UserActivityLogResponse;
 import com.logmng.exception.CustomException;
+import com.logmng.repository.UserActivityAccessAuditRepository;
 import com.logmng.util.ScopeHelper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -30,7 +31,7 @@ class UserActivityLogServiceTest {
     void setUp() throws Exception {
         dataSource = createH2DataSource();
         clearAllTables();
-        userActivityLogService = new UserActivityLogService(dataSource);
+        userActivityLogService = new UserActivityLogService(dataSource, new UserActivityAccessAuditRepository(dataSource));
 
         insertAppUser("currentUser", "D01");
         insertAppUser("teamMate", "D01");

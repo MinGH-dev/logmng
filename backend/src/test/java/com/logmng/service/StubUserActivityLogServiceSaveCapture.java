@@ -1,5 +1,7 @@
 package com.logmng.service;
 
+import com.logmng.repository.UserActivityAccessAuditRepository;
+
 import javax.sql.DataSource;
 import java.util.Map;
 
@@ -12,7 +14,7 @@ public class StubUserActivityLogServiceSaveCapture extends UserActivityLogServic
     private Map<String, Object> lastActionDetail;
 
     public StubUserActivityLogServiceSaveCapture(DataSource dataSource) {
-        super(dataSource);
+        super(dataSource, new UserActivityAccessAuditRepository(dataSource));
     }
 
     @Override

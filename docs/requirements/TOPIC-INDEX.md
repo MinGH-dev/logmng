@@ -38,6 +38,7 @@ For **RequirementsPastSearch** token optimization. Read this file first to find 
 
 ## activity-log | statistics | 활동 로그 | 통계 | scope
 
+- 20260330-audit-evidence-activity-log-conservative | Resolve audit manual §8 with conservative defaults: uniform mutation envelope, soft delete or mandatory delete snapshot, allowlisted before/after, in-app copy truncation + privileged access audit, retention/crypto/export gates; SVG wireframe specs for list/detail/access-audit/optional policy
 - 20260330-permission-group-activity-detail-audit | Enrich permission-group action_detail and activity-log detail UI for audit evidence; optional export/query; aligns with parent 20260330-activity-types-user-mgmt-permission-group
 - 20260330-activity-types-user-mgmt-permission-group | Activity type taxonomy and audit for permission group / user management; queryable by action type + existing filters; contract/skill touchpoints
 - 20260311-activity-log-statistics-design-improvement | 활동 이력·통계 두 화면 디자인 표준 정렬: 그룹 제목·패널 너비·compact·사용자 블록 동일 크기·검색/초기화·폼 시맨틱·row1=날짜 row2=나머지
@@ -63,6 +64,8 @@ For **RequirementsPastSearch** token optimization. Read this file first to find 
 
 ## sidebar | layout | 사이드바 | 레이아웃
 
+- 20260407-screen-menu-parent-order | Extends screen display labels: admin sets **closed-set** top-level `parentGroupId` (`MENU_TREE` groups) and per-leaf `sortOrder` in same admin UI; routing/`currentView` unchanged; MENU_TREE fallback; v1 **out of scope** for group title/order overrides
+- 20260406-menu-display-names-admin | Admin-configurable sidebar and screen display labels (`label_user` / optional `label_admin`); stable `screen_id`/`currentView`; GET for authenticated users, admin-only PUT/PATCH; DB + audit; merge over `menuTree`/`LOG_TYPE_BY_VIEW` with fallback
 - 20260225-sidebar-content-scroll-independent | 사이드바·컨텐츠 스크롤 독립화
 - 20260225-sidebar-library-migration | 사이드바 라이브러리 도입 (펼침·스크롤 안정화)
 - 20260225-sidebar-layout-no-overflow | 사이드바 펼침 시 콘텐츠 영역 가로 탈출 수정

@@ -24,6 +24,7 @@ import {
 import { getErrorMessage } from '../../utils/errorMessage';
 import DataTable, { EmptyTableBody } from '../DataTable';
 import ScreenSelectionTree from './ScreenSelectionTree';
+import { MENU_TREE } from '../../constants/menuTree';
 import logger from '../../utils/logger';
 import '../UserManagement/UserManagement.css';
 import './PermissionGroupManagement.css';
@@ -35,7 +36,7 @@ const GROUP_COLUMNS = [
   { key: 'actions', label: '동작', sortable: false },
 ];
 
-const PermissionGroupPanel = ({ user, onRefreshHierarchy }) => {
+const PermissionGroupPanel = ({ user, onRefreshHierarchy, menuTree = MENU_TREE }) => {
   const [groups, setGroups] = useState([]);
   const [userList, setUserList] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -529,6 +530,7 @@ const PermissionGroupPanel = ({ user, onRefreshHierarchy }) => {
               <div className="permission-group-form-row">
                 <span className="permission-group-form-label">접근 화면</span>
                 <ScreenSelectionTree
+                  menuTree={menuTree}
                   selectedScreens={createAllowedScreens}
                   onChange={setCreateAllowedScreens}
                 />
@@ -565,6 +567,7 @@ const PermissionGroupPanel = ({ user, onRefreshHierarchy }) => {
               <div className="permission-group-form-row">
                 <span className="permission-group-form-label">접근 화면</span>
                 <ScreenSelectionTree
+                  menuTree={menuTree}
                   selectedScreens={editAllowedScreens}
                   onChange={(next) => setEditAllowedScreens(next)}
                 />

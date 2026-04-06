@@ -91,6 +91,83 @@ export const getActivityLogDetail = async (id) => {
 };
 
 /**
+ * 특권 공개: 전체 인앱 복사 본문 등 (POST). 성공 시 서버가 접근 감사 기록.
+ * @param {number|string} id — activity log id
+ * @param {string} [revealKind='COPY_BODY_FULL']
+ * @returns {Promise<{ success: boolean, status?: number, data?: object, code?: string, error?: string }>}
+ */
+export const postActivityLogPrivilegedReveal = async (id, revealKind = 'COPY_BODY_FULL') => {
+  try {
+    const response = await fetch(`${getApiBaseUrl()}/activity-log/${id}/privileged-reveal`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      credentials: 'include',
+      body: JSON.stringify({ revealKind }),
+    });
+    const result = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      return {
+        success: false,
+        status: response.status,
+        code: result.code,
+        error: result.error || result.message,
+        ...result,
+      };
+    }
+    return { success: true, ...result };
+  } catch (error) {
+    console.error('활동 이력 특권 공개 요청 실패:', error);
+    return {
+      success: false,
+      error: error.message || '요청 실패',
+    };
+  }
+};
+
+/**
+ * 활동 로그 민감 상세 열람 접근 감사 목록 (GET, 페이지네이션).
+ * @param {Record<string, string|number|undefined>} params — startDate, endDate, accessorUserId, targetActivityLogId, accessType, page, pageSize, sortField, sortDirection
+ */
+export const getActivityLogAccessAudit = async (params = {}) => {
+  try {
+    const qs = new URLSearchParams();
+    Object.entries(params).forEach(([k, v]) => {
+      if (v !== undefined && v !== null && v !== '') {
+        qs.append(k, String(v));
+      }
+    });
+    const q = qs.toString();
+    const url = `${getApiBaseUrl()}/activity-log/access-audit${q ? `?${q}` : ''}`;
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      credentials: 'include',
+    });
+    const result = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      return {
+        success: false,
+        status: response.status,
+        code: result.code,
+        error: result.error || result.message,
+        ...result,
+      };
+    }
+    return result;
+  } catch (error) {
+    console.error('활동 로그 접근 감사 조회 실패:', error);
+    return {
+      success: false,
+      error: error.message || '요청 실패',
+    };
+  }
+};
+
+/**
  * CSV 내보내기 (선택사항 - 나중에 구현)
  */
 export const exportActivityLogs = async (searchParams) => {

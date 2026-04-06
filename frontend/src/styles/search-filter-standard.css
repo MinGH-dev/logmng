@@ -81,6 +81,12 @@
   box-sizing: border-box;
 }
 
+/* 입력 가능 필드는 패널(#f8f9fa)과 구분되도록 흰 배경 (readonly/locked는 컴포넌트에서 별도 지정) */
+.sf-compact-panel input.form-control:not([readonly]):not(:disabled),
+.sf-compact-panel select.form-control:not(:disabled) {
+  background-color: #fff;
+}
+
 .sf-compact-panel .sf-control:focus,
 .sf-compact-panel input.form-control:focus,
 .sf-compact-panel select.form-control:focus {
