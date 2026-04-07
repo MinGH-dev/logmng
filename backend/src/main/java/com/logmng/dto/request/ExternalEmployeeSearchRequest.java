@@ -7,6 +7,8 @@ public class ExternalEmployeeSearchRequest {
 
     private String keyword;
     private String employeeNumber;
+    /** Filter by replicated department display name (ext_department.name), optional. */
+    private String departmentName;
     private String externalDepartmentId;
     private String sourceSystem;
     private Integer page = 1;
@@ -26,6 +28,14 @@ public class ExternalEmployeeSearchRequest {
 
     public void setEmployeeNumber(String employeeNumber) {
         this.employeeNumber = employeeNumber;
+    }
+
+    public String getDepartmentName() {
+        return departmentName;
+    }
+
+    public void setDepartmentName(String departmentName) {
+        this.departmentName = departmentName;
     }
 
     public String getExternalDepartmentId() {

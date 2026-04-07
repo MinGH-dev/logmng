@@ -4,6 +4,12 @@
   border-top: 1px solid #ddd;
 }
 
+.external-provisioning--embedded {
+  margin-top: 0;
+  padding-top: 0;
+  border-top: none;
+}
+
 .external-provisioning-heading,
 .external-provisioning h3 {
   font-size: 1.1rem;
@@ -25,22 +31,43 @@
   font-size: 1rem;
 }
 
-.external-provisioning-table-wrap {
+/* Align with UserManagement / hierarchy-users-table / DataTable scroll wrapper */
+.external-provisioning .log-table-container .table-wrapper {
   overflow: auto;
-  max-height: 40vh;
+  max-height: 70vh;
 }
 
-.external-provisioning-table {
+.external-provisioning-search-row {
+  align-items: flex-end;
+}
+
+.external-provisioning-emp-table {
   width: 100%;
-  border-collapse: collapse;
-  font-size: 0.85rem;
 }
 
-.external-provisioning-table th,
-.external-provisioning-table td {
-  border: 1px solid #ddd;
-  padding: 0.4rem 0.5rem;
-  text-align: left;
+.external-provisioning-provisioned-cell {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem;
+  max-width: 14rem;
+}
+
+.external-provisioning-provisioned-badge {
+  display: inline-block;
+  flex-shrink: 0;
+  padding: 0.15rem 0.4rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #1a5c1a;
+  background: #e8f5e9;
+  border-radius: 4px;
+}
+
+.external-provisioning-provisioned-detail {
+  font-size: 0.8rem;
+  color: #444;
+  word-break: break-word;
 }
 
 .external-provisioning-pagination {
@@ -55,6 +82,29 @@
 .external-provisioning-register {
   margin-top: 1rem;
   align-items: flex-end;
+}
+
+.external-provisioning-reason-field {
+  flex: 1 1 100%;
+  min-width: min(100%, 280px);
+}
+
+.external-provisioning-reason-field label {
+  display: block;
+  margin-bottom: 0.25rem;
+}
+
+.external-provisioning-reason-textarea {
+  width: 100%;
+  min-height: 5rem;
+  resize: vertical;
+}
+
+.external-provisioning-reason-hint {
+  display: block;
+  font-size: 0.8rem;
+  color: #555;
+  margin-top: 0.25rem;
 }
 
 .external-provisioning-alert {

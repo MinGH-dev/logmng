@@ -414,8 +414,9 @@ public class PermissionGroupService {
         findById(groupId);
         List<UserListItemResponse> list = new ArrayList<>();
         try (Connection conn = dataSource.getConnection()) {
-            String sql = "SELECT u.id, u.username, u.role, u.department_code, u.position, u.rank, u.is_system_admin FROM app_user u " +
-                    "INNER JOIN app_user_permission_group a ON u.username = a.user_id WHERE a.permission_group_id = ? ORDER BY u.username";
+            String sql = "SELECT u.id, u.username, u.role, u.department_code, u.position, u.rank, u.is_system_admin, u.employee_number FROM app_user u " +
+                    "INNER JOIN app_user_permission_group a ON u.username = a.user_id "
+                    + "WHERE a.permission_group_id = ? AND u.deleted_at IS NULL ORDER BY u.username";
             try (PreparedStatement ps = conn.prepareStatement(sql)) {
                 ps.setLong(1, groupId);
                 try (ResultSet rs = ps.executeQuery()) {
@@ -427,8 +428,9 @@ public class PermissionGroupService {
                         String position = rs.getString("position");
                         String rank = rs.getString("rank");
                         boolean isSystemAdmin = Boolean.TRUE.equals(rs.getObject("is_system_admin", Boolean.class));
+                        String employeeNumber = rs.getString("employee_number");
                         boolean isApprover = false; // not loaded here; hierarchy uses DecryptApproverService for approver
-                        list.add(new UserListItemResponse(id, username, role, departmentCode, isApprover, position, rank, isSystemAdmin));
+                        list.add(new UserListItemResponse(id, username, role, departmentCode, isApprover, position, rank, isSystemAdmin, employeeNumber));
                     }
                 }
             }
@@ -544,7 +546,7 @@ public class PermissionGroupService {
 
     private void ensureUserExists(String userId) {
         try (Connection conn = dataSource.getConnection()) {
-            String sql = "SELECT 1 FROM app_user WHERE username = ? LIMIT 1";
+            String sql = "SELECT 1 FROM app_user WHERE username = ? AND deleted_at IS NULL LIMIT 1";
             try (PreparedStatement ps = conn.prepareStatement(sql)) {
                 ps.setString(1, userId);
                 try (ResultSet rs = ps.executeQuery()) {

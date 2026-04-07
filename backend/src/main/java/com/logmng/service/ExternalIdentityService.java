@@ -55,6 +55,7 @@ public class ExternalIdentityService {
     private Long lookupByEmployeeKey(String key) {
         String sql = "SELECT m.app_user_id "
                 + "FROM app_user_external_identity m "
+                + "INNER JOIN app_user u ON u.id = m.app_user_id AND u.deleted_at IS NULL "
                 + "INNER JOIN ext_employee e ON e.source_system = m.source_system "
                 + "  AND e.external_employee_id = m.external_employee_id "
                 + "WHERE e.is_active = TRUE AND ("

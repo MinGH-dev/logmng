@@ -32,3 +32,30 @@ export const getUsers = async () => {
   return result;
 };
 
+/**
+ * 사용자 삭제 (소프트/하드는 백엔드 정책). docs/api-definition.md §7
+ * @param {number|string} userId — app_user.id
+ * @param {{ changeReason: string }} body — trim 후 비어 있지 않음, 최대 500자
+ */
+export const deleteUser = async (userId, body) => {
+  const changeReason = String(body?.changeReason ?? '').trim();
+  const response = await fetchWithCreds(`${getApiBaseUrl()}/users/${encodeURIComponent(String(userId))}`, {
+    method: 'DELETE',
+    body: JSON.stringify({ changeReason }),
+  });
+  let result = {};
+  try {
+    result = await response.json();
+  } catch {
+    result = {};
+  }
+  if (!response.ok) {
+    const msg = result.error || (response.status === 403 ? '권한이 없습니다.' : `HTTP ${response.status}`);
+    const err = new Error(msg);
+    err.status = response.status;
+    err.code = result.code;
+    throw err;
+  }
+  return result;
+};
+

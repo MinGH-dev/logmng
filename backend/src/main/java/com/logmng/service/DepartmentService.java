@@ -150,7 +150,7 @@ public class DepartmentService {
             String sql = "SELECT d.name " +
                     "FROM app_user u " +
                     "JOIN department d ON d.code = u.department_code " +
-                    "WHERE u.username = ? AND d.name IS NOT NULL AND d.name <> '' " +
+                    "WHERE u.username = ? AND u.deleted_at IS NULL AND d.name IS NOT NULL AND d.name <> '' " +
                     "LIMIT 1";
             try (PreparedStatement ps = conn.prepareStatement(sql)) {
                 ps.setString(1, username.trim());

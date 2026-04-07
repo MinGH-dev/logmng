@@ -60,10 +60,14 @@ public class AuthProperties {
 
     public static class Ad {
         private String ldapUrl = "";
+        /** UPN DNS suffix when login principal has no {@code @}; env {@code AUTH_AD_DOMAIN}. */
+        private String domain = "";
+        /** Legacy — ignored for authentication (JNDI user simple bind). */
         private String managerDn = "";
         private String managerPassword = "";
+        /** Legacy — ignored for authentication. */
         private String userSearchBase = "";
-        /** LDAP filter; {0} = principal (Spring LDAP MessageFormat). */
+        /** Legacy — ignored for authentication. */
         private String userSearchFilter = "(sAMAccountName={0})";
         private Integer connectTimeoutMs;
         private Integer readTimeoutMs;
@@ -74,6 +78,14 @@ public class AuthProperties {
 
         public void setLdapUrl(String ldapUrl) {
             this.ldapUrl = ldapUrl;
+        }
+
+        public String getDomain() {
+            return domain;
+        }
+
+        public void setDomain(String domain) {
+            this.domain = domain;
         }
 
         public String getManagerDn() {

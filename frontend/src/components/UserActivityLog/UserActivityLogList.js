@@ -68,6 +68,11 @@ const UserActivityLogList = ({
   const activityLogScope =
     user?.screenScopes?.['activity-log'] ?? user?.screen_scopes?.['activity-log'];
   const isSelfScope = !user?.isSystemAdmin && activityLogScope === 'self';
+  /** Align with backend ScopeHelper: team = not self and not all; missing scope defaults to team. */
+  const isTeamScope =
+    !user?.isSystemAdmin &&
+    activityLogScope !== 'self' &&
+    activityLogScope !== 'all';
   const selfContext = getSelfContextForDisplay(user);
 
   // 부서 목록 로드 (scope≠self일 때 검색 폼 드롭다운용)
@@ -156,6 +161,9 @@ const UserActivityLogList = ({
           handleSearch({
             startDate: `${dateStr} 00:00:00`,
             endDate: `${dateStr} 23:59:59`,
+            ...(isTeamScope && selfContext?.department
+              ? { department: selfContext.department }
+              : {}),
           });
         } else {
           const today = new Date();
@@ -165,6 +173,9 @@ const UserActivityLogList = ({
           handleSearch({
             startDate: `${y}-${m}-${d} 00:00:00`,
             endDate: `${y}-${m}-${d} 23:59:59`,
+            ...(isTeamScope && selfContext?.department
+              ? { department: selfContext.department }
+              : {}),
           });
         }
       })
@@ -177,6 +188,9 @@ const UserActivityLogList = ({
           handleSearch({
             startDate: `${y}-${m}-${d} 00:00:00`,
             endDate: `${y}-${m}-${d} 23:59:59`,
+            ...(isTeamScope && selfContext?.department
+              ? { department: selfContext.department }
+              : {}),
           });
         }
       });
@@ -324,6 +338,7 @@ const UserActivityLogList = ({
         loading={loading}
         initialServerDate={serverToday}
         isSelfScope={isSelfScope}
+        isTeamScope={isTeamScope}
         departmentList={departmentList}
         selfContext={selfContext}
         actionTypeOptions={actionTypeSelectOptions}

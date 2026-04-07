@@ -6,6 +6,7 @@ import com.logmng.dto.request.ProvisionFromExternalEmployeeRequest;
 import com.logmng.dto.response.ApiResponse;
 import com.logmng.dto.response.ExternalDepartmentSearchResult;
 import com.logmng.dto.response.ExternalEmployeeSearchResult;
+import com.logmng.dto.response.LoginResponse;
 import com.logmng.dto.response.ProvisionUserResultResponse;
 import com.logmng.exception.CustomException;
 import com.logmng.service.AuthService;
@@ -70,7 +71,15 @@ public class ProvisioningController {
             @RequestBody ProvisionFromExternalEmployeeRequest body,
             HttpServletRequest request) {
         requireProvisioningAccess(request);
-        ProvisionUserResultResponse data = provisioningService.provisionFromExternalEmployee(body);
+        LoginResponse actor = authService.getCurrentUserInfo(request);
+        if (actor == null || actor.getUsername() == null || actor.getUsername().isBlank()) {
+            throw CustomException.unauthorized("로그인이 필요합니다.", "UNAUTHORIZED");
+        }
+        ProvisionUserResultResponse data = provisioningService.provisionFromExternalEmployee(
+                body,
+                actor.getUsername().trim(),
+                request.getRemoteAddr(),
+                request.getHeader("User-Agent"));
         return ResponseEntity.ok(ApiResponse.success(data, "사용자가 등록되었습니다."));
     }
 }

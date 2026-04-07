@@ -6,6 +6,7 @@ import com.logmng.dto.response.PermissionGroupSummary;
 import com.logmng.dto.response.UserPermissionSummary;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import javax.sql.DataSource;
@@ -26,13 +27,20 @@ import java.util.Map;
 public class UserPermissionHierarchyService {
 
     private static final Logger log = LoggerFactory.getLogger(UserPermissionHierarchyService.class);
+    private static final Logger diagnosticLog = LoggerFactory.getLogger("com.logmng.diagnostic.provisioningConsistency");
+
+    /** Synthetic department bucket for users with null {@code department_code} (req 20260407 visibility vs provisioning). */
+    public static final String UNASSIGNED_DEPARTMENT_CODE = "__UNASSIGNED__";
 
     private final DataSource dataSource;
     private final DepartmentService departmentService;
+    private final boolean diagnosticProvisioningConsistency;
 
-    public UserPermissionHierarchyService(DataSource dataSource, DepartmentService departmentService) {
+    public UserPermissionHierarchyService(DataSource dataSource, DepartmentService departmentService,
+                                         @Value("${app.diagnostic.provisioning-consistency:false}") boolean diagnosticProvisioningConsistency) {
         this.dataSource = dataSource;
         this.departmentService = departmentService;
+        this.diagnosticProvisioningConsistency = diagnosticProvisioningConsistency;
     }
 
     /**
@@ -50,6 +58,7 @@ public class UserPermissionHierarchyService {
             result.add(byCode.get(r.getCode()));
         }
         sortRoots(result);
+        appendUnassignedBucketIfNeeded(usersByDept, result);
         return result;
     }
 
@@ -69,6 +78,7 @@ public class UserPermissionHierarchyService {
             node.setUsers(usersByDept.getOrDefault(code, new ArrayList<>()));
             result.add(node);
         }
+        appendUnassignedFlatIfNeeded(usersByDept, result);
         return result;
     }
 
@@ -88,7 +98,8 @@ public class UserPermissionHierarchyService {
         Map<String, List<UserPermissionSummary>> usersByDept = new LinkedHashMap<>();
         Map<String, List<PermissionGroupSummary>> groupsByUser = loadPermissionGroupsByUser();
         try (Connection conn = dataSource.getConnection()) {
-            String sql = "SELECT id, username, name, role, department_code, position, rank, is_system_admin FROM app_user ORDER BY username";
+            String sql = "SELECT id, username, name, role, department_code, position, rank, is_system_admin, employee_number "
+                    + "FROM app_user WHERE deleted_at IS NULL ORDER BY username";
             try (PreparedStatement ps = conn.prepareStatement(sql);
                  ResultSet rs = ps.executeQuery()) {
                 while (rs.next()) {
@@ -100,13 +111,16 @@ public class UserPermissionHierarchyService {
                     String position = rs.getString("position");
                     String rank = rs.getString("rank");
                     boolean isSystemAdmin = Boolean.TRUE.equals(rs.getObject("is_system_admin", Boolean.class));
-                    String dept = (departmentCode != null && !departmentCode.isBlank()) ? departmentCode : null;
-                    if (dept == null) {
-                        continue;
+                    String employeeNumber = rs.getString("employee_number");
+                    String dept = (departmentCode != null && !departmentCode.isBlank()) ? departmentCode.trim() : UNASSIGNED_DEPARTMENT_CODE;
+                    if (diagnosticProvisioningConsistency) {
+                        diagnosticLog.debug(
+                                "[diag-provision] hierarchy user: id={} username={} department_code={} bucket={} employeeNumber={}",
+                                id, username, departmentCode, dept, employeeNumber);
                     }
                     String userName = (name != null && !name.isBlank()) ? name : username;
                     List<PermissionGroupSummary> groups = groupsByUser.getOrDefault(username, new ArrayList<>());
-                    UserPermissionSummary u = new UserPermissionSummary(id, userName, role, position, rank, groups, isSystemAdmin);
+                    UserPermissionSummary u = new UserPermissionSummary(id, userName, role, position, rank, groups, isSystemAdmin, employeeNumber);
                     usersByDept.computeIfAbsent(dept, k -> new ArrayList<>()).add(u);
                 }
             }
@@ -146,5 +160,29 @@ public class UserPermissionHierarchyService {
             if (oa != ob) return Integer.compare(oa, ob);
             return (a.getCode() != null && b.getCode() != null) ? a.getCode().compareTo(b.getCode()) : 0;
         });
+    }
+
+    private void appendUnassignedBucketIfNeeded(Map<String, List<UserPermissionSummary>> usersByDept,
+                                               List<DepartmentNodeWithUsersResponse> roots) {
+        List<UserPermissionSummary> unassigned = usersByDept.get(UNASSIGNED_DEPARTMENT_CODE);
+        if (unassigned == null || unassigned.isEmpty()) {
+            return;
+        }
+        DepartmentNodeWithUsersResponse bucket = new DepartmentNodeWithUsersResponse(
+                UNASSIGNED_DEPARTMENT_CODE, null, "미배치", 999_999);
+        bucket.setUsers(unassigned);
+        roots.add(bucket);
+    }
+
+    private void appendUnassignedFlatIfNeeded(Map<String, List<UserPermissionSummary>> usersByDept,
+                                              List<DepartmentNodeWithUsersResponse> result) {
+        List<UserPermissionSummary> unassigned = usersByDept.get(UNASSIGNED_DEPARTMENT_CODE);
+        if (unassigned == null || unassigned.isEmpty()) {
+            return;
+        }
+        DepartmentNodeWithUsersResponse node = new DepartmentNodeWithUsersResponse(
+                UNASSIGNED_DEPARTMENT_CODE, null, "미배치", 999_999);
+        node.setUsers(unassigned);
+        result.add(node);
     }
 }

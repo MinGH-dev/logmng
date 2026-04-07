@@ -40,4 +40,40 @@ class AuthConfigurationValidatorTest {
         AuthConfigurationValidator v = new AuthConfigurationValidator(p, new MockEnvironment());
         v.validate();
     }
+
+    @Test
+    void adMode_minimalConfig_succeeds() {
+        AuthProperties p = new AuthProperties();
+        p.getLogin().setMode("ad");
+        p.getAd().setLdapUrl("ldaps://dc.example.com:636");
+        p.getAd().setDomain("corp.example.com");
+        AuthConfigurationValidator v = new AuthConfigurationValidator(p, new MockEnvironment());
+        v.validate();
+    }
+
+    @Test
+    void adMode_blankLdapUrl_throws() {
+        AuthProperties p = new AuthProperties();
+        p.getLogin().setMode("ad");
+        p.getAd().setLdapUrl("  ");
+        p.getAd().setDomain("corp.example.com");
+        AuthConfigurationValidator v = new AuthConfigurationValidator(p, new MockEnvironment());
+        assertThatThrownBy(v::validate)
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("AUTH_CONFIGURATION_ERROR")
+                .hasMessageContaining("ldap-url");
+    }
+
+    @Test
+    void adMode_blankDomain_throws() {
+        AuthProperties p = new AuthProperties();
+        p.getLogin().setMode("ad");
+        p.getAd().setLdapUrl("ldaps://dc.example.com:636");
+        p.getAd().setDomain("");
+        AuthConfigurationValidator v = new AuthConfigurationValidator(p, new MockEnvironment());
+        assertThatThrownBy(v::validate)
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("AUTH_CONFIGURATION_ERROR")
+                .hasMessageContaining("domain");
+    }
 }

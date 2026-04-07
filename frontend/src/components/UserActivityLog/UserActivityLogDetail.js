@@ -151,6 +151,13 @@ function isInAppCopyActionType(actionType) {
   return u === 'IN_APP_COPY';
 }
 
+/** USER_CREATE / USER_DELETE flat `action_detail` (docs/api-definition.md §8.0.1) */
+function isUserLifecycleActionType(actionType) {
+  if (!actionType || typeof actionType !== 'string') return false;
+  const u = actionType.trim().toUpperCase();
+  return u === 'USER_CREATE' || u === 'USER_DELETE';
+}
+
 /**
  * @param {Record<string, unknown>} actionDetail
  * @returns {Record<string, unknown>|null}
@@ -487,6 +494,56 @@ const UserActivityLogDetail = ({
     );
   };
 
+  const renderUserLifecycleAudit = () => {
+    if (!log || !isUserLifecycleActionType(log.action_type)) return null;
+    if (actionDetail.permissionGroupAuditV1) return null;
+    const changeReason = actionDetail.changeReason ?? actionDetail.change_reason;
+    const targetUserId = actionDetail.targetUserId ?? actionDetail.target_user_id;
+    const employeeNumber = actionDetail.employeeNumber ?? actionDetail.employee_number;
+    const username = actionDetail.username;
+    const hasAny =
+      (changeReason != null && String(changeReason).trim() !== '') ||
+      targetUserId != null ||
+      (employeeNumber != null && String(employeeNumber).trim() !== '') ||
+      (username != null && String(username).trim() !== '');
+    if (!hasAny) return null;
+    return (
+      <div className="activity-log-user-lifecycle-audit">
+        <h4>사용자 등록·삭제 감사</h4>
+        <table className="summary-table">
+          <tbody>
+            <tr>
+              <th scope="row">변경 사유</th>
+              <td>
+                {changeReason != null && String(changeReason).trim() !== ''
+                  ? plainText(changeReason)
+                  : '-'}
+              </td>
+            </tr>
+            <tr>
+              <th scope="row">대상 사용자 ID (앱)</th>
+              <td>{targetUserId != null ? plainText(targetUserId) : '-'}</td>
+            </tr>
+            <tr>
+              <th scope="row">사용자 ID (인사)</th>
+              <td>
+                {employeeNumber != null && String(employeeNumber).trim() !== ''
+                  ? plainText(employeeNumber)
+                  : '-'}
+              </td>
+            </tr>
+            <tr>
+              <th scope="row">사용자명</th>
+              <td>
+                {username != null && String(username).trim() !== '' ? plainText(username) : '-'}
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    );
+  };
+
   const renderPermissionGroupAuditV1 = () => {
     if (!pgAudit || typeof pgAudit !== 'object' || Array.isArray(pgAudit)) {
       return null;
@@ -734,6 +791,7 @@ const UserActivityLogDetail = ({
             <div className="detail-section">
               <h3>액션 상세</h3>
               {renderGenericMutationSummary()}
+              {renderUserLifecycleAudit()}
               {actionDetail.searchSummary && (
                 <div className="search-summary">
                   <h4>검색 결과 요약</h4>

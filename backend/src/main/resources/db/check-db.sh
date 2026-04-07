@@ -218,6 +218,12 @@ if [ "${EXT_T:-0}" = "3" ]; then
   else
     echo "   ⚠️  ext_employee 행 0건 — init-data.sql 시드 확인"
   fi
+  HR_EMP_OK=$(psql_app -d "$DB_A_NAME" -tAc "SET search_path TO ${SCHEMA_SYS}, public; SELECT COUNT(*) FROM ext_employee e WHERE e.source_system='HR_SAMPLE' AND ((e.external_employee_id = 'E-10001' AND e.employee_number = '20261001') OR (e.external_employee_id = 'E-10002' AND e.employee_number = '20261002') OR (e.external_employee_id = 'E-10003' AND e.employee_number = '20261003') OR (e.external_employee_id = 'E-UNPROV-1' AND e.employee_number = '20261999'));" 2>/dev/null | tail -1 || echo "0")
+  if [ "${HR_EMP_OK:-0}" = "4" ]; then
+    echo "   ✅ HR_SAMPLE ext_employee employee_number 시드 형식(8자리 2026xxxx) 정합"
+  else
+    echo "   ⚠️  HR_SAMPLE ext_employee employee_number 기대 4건(20261001/02/03, 20261999), 실제 매칭 ${HR_EMP_OK:-0} — init-data.sql 또는 migrate-hr-sample-employee-number-userid-format-20260407.sql 검토"
+  fi
   if psql_app -d "$DB_A_NAME" -v ON_ERROR_STOP=1 -c "SET search_path TO ${SCHEMA_SYS}, public; INSERT INTO ext_employee (source_system, external_employee_id, imported_at) VALUES ('__chk__','__deny-ins__', CURRENT_TIMESTAMP);" >/dev/null 2>&1; then
     echo "   ❌ ext_employee 에 앱 역할(${DB_USER}) INSERT 허용됨 — SELECT-only 위반 (setup.sh 4b-ext)"
     psql_app -d "$DB_A_NAME" -c "SET search_path TO ${SCHEMA_SYS}, public; DELETE FROM ext_employee WHERE source_system='__chk__' AND external_employee_id='__deny-ins__';" >/dev/null 2>&1 || true
@@ -226,6 +232,57 @@ if [ "${EXT_T:-0}" = "3" ]; then
   fi
 else
   echo "   ℹ️  외부 복제 테이블 미생성 — migrate-external-identity-tables-20260407.sql / schema_sys.sql 적용 필요"
+fi
+echo ""
+
+# 6f. department_org_link: replica org dept key → department.code (provisioning / hierarchy; 20260407)
+echo "6f. department_org_link (복제 부서키 → department.code, SCHEMA_SYS=${SCHEMA_SYS})"
+DOL_TABLE=$(psql_app -d "$DB_A_NAME" -tAc "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema='${SCHEMA_SYS}' AND table_name='department_org_link';" 2>/dev/null || echo "0")
+if [ "${DOL_TABLE:-0}" = "1" ]; then
+  echo "   ✅ ${SCHEMA_SYS}.department_org_link 존재"
+  DOL_IDX=$(psql_app -d "$DB_A_NAME" -tAc "SELECT COUNT(*) FROM pg_indexes WHERE schemaname='${SCHEMA_SYS}' AND tablename='department_org_link' AND indexname='idx_department_org_link_department';" 2>/dev/null || echo "0")
+  if [ "${DOL_IDX:-0}" = "1" ]; then
+    echo "   ✅ idx_department_org_link_department 존재 (역방향 조회)"
+  else
+    echo "   ⚠️  idx_department_org_link_department 없음 — migrate-department-org-link-20260407.sql 확인"
+  fi
+  DOL_SEL=$(psql_app -d "$DB_A_NAME" -tAc "SET search_path TO ${SCHEMA_SYS}, public; SELECT COUNT(*) FROM department_org_link WHERE source_system='HR_SAMPLE' AND external_department_id IN ('D-SALES-001','D-RD-001');" 2>/dev/null | tail -1 || echo "0")
+  if [ "${DOL_SEL:-0}" = "2" ]; then
+    echo "   ✅ department_org_link HR_SAMPLE 시드 2건 처리 (D-SALES-001 / D-RD-001)"
+  else
+    echo "   ⚠️  department_org_link 시드 기대 2건, 실제 ${DOL_SEL:-0} — init-data.sql 또는 마이그레이션 재실행 검토"
+  fi
+else
+  echo "   ❌ ${SCHEMA_SYS}.department_org_link 없음 — migrate-department-org-link-20260407.sql 적용 필요"
+fi
+echo ""
+
+# 6g. app_user.employee_number (HR 사번; 프로비저닝 ext_employee 동기화, 20260407)
+echo "6g. app_user.employee_number 및 조회 인덱스 (SCHEMA_SYS=${SCHEMA_SYS})"
+AU_TABLE=$(psql_app -d "$DB_A_NAME" -tAc "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema='${SCHEMA_SYS}' AND table_name='app_user';" 2>/dev/null || echo "0")
+if [ "${AU_TABLE:-0}" = "1" ]; then
+  AU_EMPNUM=$(psql_app -d "$DB_A_NAME" -tAc "SELECT COUNT(*) FROM information_schema.columns WHERE table_schema='${SCHEMA_SYS}' AND table_name='app_user' AND column_name='employee_number';" 2>/dev/null || echo "0")
+  AU_IDX=$(psql_app -d "$DB_A_NAME" -tAc "SELECT COUNT(*) FROM pg_indexes WHERE schemaname='${SCHEMA_SYS}' AND tablename='app_user' AND indexname='idx_app_user_employee_number';" 2>/dev/null || echo "0")
+  if [ "${AU_EMPNUM:-0}" = "1" ] && [ "${AU_IDX:-0}" = "1" ]; then
+    echo "   ✅ app_user.employee_number 컬럼 및 idx_app_user_employee_number 존재"
+  elif [ "${AU_EMPNUM:-0}" = "1" ]; then
+    echo "   ⚠️  app_user.employee_number 있으나 idx_app_user_employee_number 없음 — migrate-app-user-employee-number-20260407.sql 재실행 검토"
+  else
+    echo "   ❌ app_user.employee_number 없음 — migrate-app-user-employee-number-20260407.sql 적용 필요 (setup.sh 4-ext-1b)"
+  fi
+else
+  echo "   ℹ️  ${SCHEMA_SYS}.app_user 없음"
+fi
+
+# 6h. app_user.deleted_at (soft delete; DBA·req 20260407)
+if [ "${AU_TABLE:-0}" = "1" ]; then
+  echo "6h. app_user.deleted_at (소프트 삭제, SCHEMA_SYS=${SCHEMA_SYS})"
+  AU_DEL=$(psql_app -d "$DB_A_NAME" -tAc "SELECT COUNT(*) FROM information_schema.columns WHERE table_schema='${SCHEMA_SYS}' AND table_name='app_user' AND column_name='deleted_at';" 2>/dev/null || echo "0")
+  if [ "${AU_DEL:-0}" = "1" ]; then
+    echo "   ✅ app_user.deleted_at 컬럼 존재"
+  else
+    echo "   ❌ app_user.deleted_at 없음 — migrate-app-user-soft-delete-20260407.sql 적용 필요 (setup.sh 4-ext-1c)"
+  fi
 fi
 echo ""
 

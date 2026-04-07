@@ -33,6 +33,9 @@ public class GlobalExceptionHandler {
                 e.getMessage(),
                 e.getErrorCode()
         );
+        if (e.getDetails() != null && !e.getDetails().isEmpty()) {
+            response.setData(e.getDetails());
+        }
         
         return ResponseEntity.status(e.getHttpStatus()).body(response);
     }

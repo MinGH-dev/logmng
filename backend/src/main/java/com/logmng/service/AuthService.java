@@ -108,7 +108,7 @@ public class AuthService {
         String passwordHash = null;
         boolean isSystemAdmin = false;
         try (Connection conn = dataSource.getConnection()) {
-            String sql = "SELECT id, username, password_hash, is_system_admin FROM app_user WHERE id = ?";
+            String sql = "SELECT id, username, password_hash, is_system_admin FROM app_user WHERE id = ? AND deleted_at IS NULL";
             try (PreparedStatement ps = conn.prepareStatement(sql)) {
                 ps.setLong(1, userId);
                 try (ResultSet rs = ps.executeQuery()) {
@@ -186,7 +186,7 @@ public class AuthService {
         String username;
         boolean isSystemAdmin;
         try (Connection conn = dataSource.getConnection()) {
-            String sql = "SELECT username, is_system_admin FROM app_user WHERE id = ?";
+            String sql = "SELECT username, is_system_admin FROM app_user WHERE id = ? AND deleted_at IS NULL";
             try (PreparedStatement ps = conn.prepareStatement(sql)) {
                 ps.setLong(1, userId);
                 try (ResultSet rs = ps.executeQuery()) {
@@ -288,7 +288,7 @@ public class AuthService {
         try (Connection conn = dataSource.getConnection()) {
             String sql = "SELECT u.id, u.department_code, d.name AS department_name, u.name AS user_name " +
                     "FROM app_user u LEFT JOIN department d ON u.department_code = d.code " +
-                    "WHERE u.username = ? LIMIT 1";
+                    "WHERE u.username = ? AND u.deleted_at IS NULL LIMIT 1";
             try (PreparedStatement ps = conn.prepareStatement(sql)) {
                 ps.setString(1, normalizedUsername);
                 try (ResultSet rs = ps.executeQuery()) {

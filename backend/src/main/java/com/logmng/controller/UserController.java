@@ -1,6 +1,8 @@
 package com.logmng.controller;
 
+import com.logmng.dto.request.UserDeleteRequest;
 import com.logmng.dto.response.ApiResponse;
+import com.logmng.dto.response.LoginResponse;
 import com.logmng.dto.response.UserListItemResponse;
 import com.logmng.exception.CustomException;
 import com.logmng.service.AuthService;
@@ -12,7 +14,10 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import jakarta.servlet.http.HttpServletRequest;
+
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * 사용자 관리 (관리자 전용). §7
@@ -50,6 +55,29 @@ public class UserController {
     public ResponseEntity<ApiResponse<List<UserListItemResponse>>> listUsers(HttpServletRequest request) {
         requireUserManagementAccess(request);
         List<UserListItemResponse> data = decryptApproverService.listUsers();
+        return ResponseEntity.ok(ApiResponse.success(data));
+    }
+
+    /**
+     * DELETE /api/users/{userId} — soft delete with required {@code changeReason}. §7.3, req 20260407.
+     */
+    @DeleteMapping("/{userId}")
+    public ResponseEntity<ApiResponse<Map<String, Long>>> deleteUser(
+            @PathVariable Long userId,
+            @RequestBody UserDeleteRequest body,
+            HttpServletRequest request) {
+        requireUserManagementAccess(request);
+        LoginResponse current = authService.getCurrentUserInfo(request);
+        if (current == null || current.getUsername() == null || current.getUsername().isBlank()) {
+            throw CustomException.unauthorized("로그인이 필요합니다.", "UNAUTHORIZED");
+        }
+        decryptApproverService.softDeleteUserById(
+                userId,
+                body != null ? body.getChangeReason() : null,
+                current.getUsername().trim(),
+                request.getRemoteAddr());
+        Map<String, Long> data = new LinkedHashMap<>();
+        data.put("userId", userId);
         return ResponseEntity.ok(ApiResponse.success(data));
     }
 

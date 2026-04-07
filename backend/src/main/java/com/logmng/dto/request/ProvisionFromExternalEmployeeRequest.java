@@ -8,6 +8,8 @@ public class ProvisionFromExternalEmployeeRequest {
     private String externalEmployeeId;
     private String sourceSystem;
     private String departmentCode;
+    /** Required for audit; same rules as permission-group changeReason (max 500, trim, non-empty). */
+    private String changeReason;
 
     public String getExternalEmployeeId() {
         return externalEmployeeId;
@@ -31,5 +33,13 @@ public class ProvisionFromExternalEmployeeRequest {
 
     public void setDepartmentCode(String departmentCode) {
         this.departmentCode = departmentCode;
+    }
+
+    public String getChangeReason() {
+        return changeReason;
+    }
+
+    public void setChangeReason(String changeReason) {
+        this.changeReason = changeReason;
     }
 }

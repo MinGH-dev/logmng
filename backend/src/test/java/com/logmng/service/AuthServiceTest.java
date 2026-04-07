@@ -31,7 +31,7 @@ class AuthServiceTest {
                 new IpUtil(),
                 dataSource,
                 new PermissionGroupService(dataSource, new AppUserResolver(dataSource)),
-                new DecryptApproverService(dataSource, new DepartmentService(dataSource)),
+                new DecryptApproverService(dataSource, new DepartmentService(dataSource), null),
                 new AppUserResolver(dataSource),
                 new AuthProperties(),
                 new ExternalIdentityService(dataSource, new AuthProperties()),
@@ -43,7 +43,7 @@ class AuthServiceTest {
         try (Connection conn = java.sql.DriverManager.getConnection(H2_URL);
              Statement stmt = conn.createStatement()) {
             stmt.execute("CREATE TABLE IF NOT EXISTS app_user (" +
-                    "id BIGINT, username VARCHAR(100) PRIMARY KEY, password_hash VARCHAR(255), is_system_admin BOOLEAN, department_code VARCHAR(50), name VARCHAR(200))");
+                    "id BIGINT, username VARCHAR(100) PRIMARY KEY, password_hash VARCHAR(255), is_system_admin BOOLEAN, department_code VARCHAR(50), name VARCHAR(200), deleted_at TIMESTAMP NULL)");
             stmt.execute("CREATE TABLE IF NOT EXISTS permission_group_screen (" +
                     "permission_group_id BIGINT, screen_id VARCHAR(100), scope VARCHAR(20), read BOOLEAN, write BOOLEAN, approve BOOLEAN, decrypt BOOLEAN)");
             stmt.execute("CREATE TABLE IF NOT EXISTS app_user_permission_group (" +

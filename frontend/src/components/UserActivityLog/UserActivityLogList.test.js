@@ -139,11 +139,51 @@ describe('UserActivityLogList', () => {
     );
     await waitForInitialSearchIdle();
 
+    const firstReq = searchActivityLogs.mock.calls[0][0];
+    if (scope === 'team') {
+      expect(firstReq).toEqual(
+        expect.objectContaining({
+          department: '개발부',
+          startDate: '2026-03-13 00:00:00',
+          endDate: '2026-03-13 23:59:59',
+        }),
+      );
+      await waitFor(() => expect(screen.getByLabelText('부서')).toHaveValue('개발부'));
+    } else {
+      expect(firstReq).not.toHaveProperty('department');
+    }
+
     expect(await screen.findByLabelText('부서')).toBeInTheDocument();
     expect(screen.getByLabelText(/사용자명/)).toBeInTheDocument();
     expect(screen.getByLabelText(/사용자 ID/)).toBeInTheDocument();
     expect(screen.getByLabelText('액션 타입')).toBeInTheDocument();
     expect(screen.getByLabelText('IP 주소')).toBeInTheDocument();
+  });
+
+  test('missing activity-log scope defaults to team: initial search includes department and 부서 select', async () => {
+    render(
+      <UserActivityLogList
+        user={{
+          isSystemAdmin: false,
+          screenScopes: {},
+          selfContext: {
+            department: '개발부',
+            username: '김팀장',
+            userId: 99,
+          },
+        }}
+      />,
+    );
+
+    await waitForInitialSearchIdle();
+    expect(searchActivityLogs.mock.calls[0][0]).toEqual(
+      expect.objectContaining({
+        department: '개발부',
+        startDate: '2026-03-13 00:00:00',
+        endDate: '2026-03-13 23:59:59',
+      }),
+    );
+    await waitFor(() => expect(screen.getByLabelText('부서')).toHaveValue('개발부'));
   });
 
   test('team scope keeps submitted filters in the outgoing request', async () => {
@@ -159,6 +199,14 @@ describe('UserActivityLogList', () => {
       ),
     );
     await waitForInitialSearchIdle();
+
+    expect(searchActivityLogs.mock.calls[0][0]).toEqual(
+      expect.objectContaining({
+        department: '개발부',
+        startDate: '2026-03-13 00:00:00',
+        endDate: '2026-03-13 23:59:59',
+      }),
+    );
 
     expect(await screen.findByRole('option', { name: '개발부' })).toBeInTheDocument();
     await userEvent.selectOptions(screen.getByLabelText('부서'), '개발부');

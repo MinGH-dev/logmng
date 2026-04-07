@@ -36,7 +36,7 @@ class FilterOptionsServiceTest {
             stmt.execute("CREATE TABLE IF NOT EXISTS department (" +
                     "code VARCHAR(50) PRIMARY KEY, parent_code VARCHAR(50), name VARCHAR(100), sort_order INT)");
             stmt.execute("CREATE TABLE IF NOT EXISTS app_user (" +
-                    "username VARCHAR(100) PRIMARY KEY, department_code VARCHAR(50))");
+                    "username VARCHAR(100) PRIMARY KEY, department_code VARCHAR(50), deleted_at TIMESTAMP NULL)");
         }
         org.h2.jdbcx.JdbcDataSource ds = new org.h2.jdbcx.JdbcDataSource();
         ds.setURL(H2_URL);

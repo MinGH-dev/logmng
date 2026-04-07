@@ -98,6 +98,7 @@ For **RequirementsPastSearch** token optimization. Read this file first to find 
 - 20250303-user-management-permission-group-access | 사용자관리: 권한 그룹으로 user-management 허용 시 "관리자만 접근" 오류 수정
 - 20250303-user-management-permission-group-access-bugfix-1 | Frontend: canAccessUserManagement
 - 20250303-user-management-permission-group-access-bugfix-2 | Backend: hierarchy/permission-groups API accept user-management OR user-permission-hierarchy
+- 20260407-user-management-consistency-delete-reason-activity-audit | Administrators need a trustworthy User Management experience: identifiers shown when provisioning from the HR directory (`ext_employee`) must match what appears in the User Management list (`app_user`). Operators report a case where external search marks an employee as already registered (`provisioned`) and disables re-registration, but the corresponding user does not appear in the User Management table—undermining trust in provisioning and list data.
 
 ## decryption | 복호화 | search-history | 검색 이력 | approval
 

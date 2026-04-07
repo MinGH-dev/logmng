@@ -23,12 +23,19 @@ VALUES
     ('HR_SAMPLE', 'D-RD-001', 'Sample R&D Division', NULL, CURRENT_TIMESTAMP)
 ON CONFLICT (source_system, external_department_id) DO NOTHING;
 
+-- 복제 조직 부서키 → 내부 팀 코드 (프로비저닝·권한 트리 조회용)
+INSERT INTO department_org_link (source_system, external_department_id, department_code)
+VALUES
+    ('HR_SAMPLE', 'D-SALES-001', 'TEAM_SALES_A1'),
+    ('HR_SAMPLE', 'D-RD-001', 'TEAM_RESEARCH_1')
+ON CONFLICT (source_system, external_department_id) DO NOTHING;
+
 INSERT INTO ext_employee (source_system, external_employee_id, employee_number, display_name, job_title, external_department_id, is_active, imported_at)
 VALUES
-    ('HR_SAMPLE', 'E-10001', '10001', 'Sample Alpha', 'Developer', 'D-SALES-001', true, CURRENT_TIMESTAMP),
-    ('HR_SAMPLE', 'E-10002', '10002', 'Sample Beta', 'Analyst', 'D-SALES-001', true, CURRENT_TIMESTAMP),
-    ('HR_SAMPLE', 'E-10003', '10003', 'Sample Gamma', 'Manager', 'D-RD-001', true, CURRENT_TIMESTAMP),
-    ('HR_SAMPLE', 'E-UNPROV-1', '99999', 'Unprovisioned User', 'Tester', 'D-RD-001', true, CURRENT_TIMESTAMP)
+    ('HR_SAMPLE', 'E-10001', '20261001', 'Sample Alpha', 'Developer', 'D-SALES-001', true, CURRENT_TIMESTAMP),
+    ('HR_SAMPLE', 'E-10002', '20261002', 'Sample Beta', 'Analyst', 'D-SALES-001', true, CURRENT_TIMESTAMP),
+    ('HR_SAMPLE', 'E-10003', '20261003', 'Sample Gamma', 'Manager', 'D-RD-001', true, CURRENT_TIMESTAMP),
+    ('HR_SAMPLE', 'E-UNPROV-1', '20261999', 'Unprovisioned User', 'Tester', 'D-RD-001', true, CURRENT_TIMESTAMP)
 ON CONFLICT (source_system, external_employee_id) DO NOTHING;
 
 -- 앱 사용자 (department_code는 department.code FK; 부서 삽입 후 실행)

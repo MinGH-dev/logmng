@@ -31,7 +31,7 @@ class DepartmentScopeHelperTest {
         try (Connection conn = java.sql.DriverManager.getConnection(H2_URL);
              Statement stmt = conn.createStatement()) {
             stmt.execute("CREATE TABLE IF NOT EXISTS app_user (" +
-                    "username VARCHAR(100) PRIMARY KEY, department_code VARCHAR(100))");
+                    "username VARCHAR(100) PRIMARY KEY, department_code VARCHAR(100), deleted_at TIMESTAMP NULL)");
         }
         org.h2.jdbcx.JdbcDataSource ds = new org.h2.jdbcx.JdbcDataSource();
         ds.setURL(H2_URL);

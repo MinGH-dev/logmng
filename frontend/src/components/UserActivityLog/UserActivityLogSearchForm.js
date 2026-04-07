@@ -54,11 +54,21 @@ const getLockedSelfValues = (selfContext) => ({
   department: selfContext?.department || '',
 });
 
+/** Non–self scope: editable user block; team scope defaults department from auth selfContext (FilterOptions team = single dept). */
+const getInitialUserBlockValues = (isSelfScope, isTeamScope, selfContext) => {
+  if (isSelfScope) return getLockedSelfValues(selfContext);
+  if (isTeamScope && selfContext?.department) {
+    return { userId: '', username: '', department: selfContext.department };
+  }
+  return { userId: '', username: '', department: '' };
+};
+
 const UserActivityLogSearchForm = ({
   onSearch,
   loading,
   initialServerDate,
   isSelfScope = false,
+  isTeamScope = false,
   departmentList = [],
   selfContext = null,
   actionTypeOptions = [{ value: '', label: '전체' }],
@@ -69,7 +79,7 @@ const UserActivityLogSearchForm = ({
   const [formData, setFormData] = useState({
     startDate: serverRange ? serverRange.start : getTodayStart(),
     endDate: serverRange ? serverRange.end : getTodayEnd(),
-    ...getLockedSelfValues(isSelfScope ? selfContext : null),
+    ...getInitialUserBlockValues(isSelfScope, isTeamScope, selfContext),
     actionType: '',
     ipAddress: '',
   });
@@ -89,14 +99,22 @@ const UserActivityLogSearchForm = ({
   }, [initialServerDate]);
 
   useEffect(() => {
-    setFormData((prev) => ({
-      ...prev,
-      ...getLockedSelfValues(isSelfScope ? selfContext : null),
-      ...(isSelfScope
-        ? { actionType: '', ipAddress: '' }
-        : {}),
-    }));
-  }, [isSelfScope, selfContext]);
+    if (isSelfScope) {
+      setFormData((prev) => ({
+        ...prev,
+        ...getLockedSelfValues(selfContext),
+        actionType: '',
+        ipAddress: '',
+      }));
+      return;
+    }
+    if (isTeamScope && selfContext?.department) {
+      setFormData((prev) => ({
+        ...prev,
+        department: selfContext.department,
+      }));
+    }
+  }, [isSelfScope, isTeamScope, selfContext]);
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -142,7 +160,7 @@ const UserActivityLogSearchForm = ({
     const resetData = {
       startDate: getTodayStart(),
       endDate: getTodayEnd(),
-      ...getLockedSelfValues(isSelfScope ? selfContext : null),
+      ...getInitialUserBlockValues(isSelfScope, isTeamScope, selfContext),
       actionType: '',
       ipAddress: '',
     };

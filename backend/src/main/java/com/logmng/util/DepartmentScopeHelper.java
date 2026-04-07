@@ -32,7 +32,7 @@ public final class DepartmentScopeHelper {
             return Collections.emptyList();
         }
         try (Connection conn = dataSource.getConnection()) {
-            String deptSql = "SELECT department_code FROM app_user WHERE username = ? LIMIT 1";
+            String deptSql = "SELECT department_code FROM app_user WHERE username = ? AND deleted_at IS NULL LIMIT 1";
             String departmentCode;
             try (PreparedStatement ps = conn.prepareStatement(deptSql)) {
                 ps.setString(1, username.trim());
@@ -46,7 +46,7 @@ public final class DepartmentScopeHelper {
             if (departmentCode == null || departmentCode.isBlank()) {
                 return Collections.singletonList(username.trim());
             }
-            String listSql = "SELECT username FROM app_user WHERE department_code = ? ORDER BY username";
+            String listSql = "SELECT username FROM app_user WHERE department_code = ? AND deleted_at IS NULL ORDER BY username";
             List<String> list = new ArrayList<>();
             try (PreparedStatement ps = conn.prepareStatement(listSql)) {
                 ps.setString(1, departmentCode);
@@ -75,7 +75,7 @@ public final class DepartmentScopeHelper {
             return Collections.emptyList();
         }
         try (Connection conn = dataSource.getConnection()) {
-            String deptSql = "SELECT department_code FROM app_user WHERE id = ? LIMIT 1";
+            String deptSql = "SELECT department_code FROM app_user WHERE id = ? AND deleted_at IS NULL LIMIT 1";
             String departmentCode;
             try (PreparedStatement ps = conn.prepareStatement(deptSql)) {
                 ps.setLong(1, userId);
@@ -89,7 +89,7 @@ public final class DepartmentScopeHelper {
             if (departmentCode == null || departmentCode.isBlank()) {
                 return Collections.singletonList(userId);
             }
-            String listSql = "SELECT id FROM app_user WHERE department_code = ? ORDER BY id";
+            String listSql = "SELECT id FROM app_user WHERE department_code = ? AND deleted_at IS NULL ORDER BY id";
             List<Long> list = new ArrayList<>();
             try (PreparedStatement ps = conn.prepareStatement(listSql)) {
                 ps.setString(1, departmentCode);

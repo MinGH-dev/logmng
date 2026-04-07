@@ -40,7 +40,8 @@ PB FEP 로그 검색 API는 `pb_send`와 `pb_recv`를 UNION ALL로 조회하며,
 실제 일괄 실행은 `backend/src/main/resources/db/setup.sh`가 위 순서와 변수를 사용합니다. 점검은 `check-db.sh`로 동일 변수를 넘겨 실행합니다.
 
 **외부 조직 복제 `ext_department` / `ext_employee` (요건 20260407)**  
-ETL·레플리카 작업은 전용 DB 역할 **`logmng_etl`**(기본; 환경 변수 `DB_ETL_USER` / `DB_ETL_PASSWORD`로 덮어쓰기)을 사용해 `ext_*`에 INSERT·UPDATE·DELETE합니다. 애플리케이션 JDBC 사용자(`DB_USER`, 기본 `logmng`)는 **`ext_*`에 SELECT만** 허용됩니다(`setup.sh` 4b-ext). 프로비저닝 시 외부 직원 키와 `app_user`의 연결은 **`app_user_external_identity`** 테이블에 저장합니다(복제 테이블에 대한 FK 없음). 이름 fuzzy 검색에 **`pg_trgm`** 을 쓰려면 별도 마이그레이션에서 `CREATE EXTENSION IF NOT EXISTS pg_trgm` 및 GIN 인덱스를 추가하면 되며, 기본 설치는 btree 인덱스만 포함합니다. 점검: `check-db.sh` 6e(TC-D01/D02).
+ETL·레플리카 작업은 전용 DB 역할 **`logmng_etl`**(기본; 환경 변수 `DB_ETL_USER` / `DB_ETL_PASSWORD`로 덮어쓰기)을 사용해 `ext_*`에 INSERT·UPDATE·DELETE합니다. 애플리케이션 JDBC 사용자(`DB_USER`, 기본 `logmng`)는 **`ext_*`에 SELECT만** 허용됩니다(`setup.sh` 4b-ext). 프로비저닝 시 외부 직원 키와 `app_user`의 연결은 **`app_user_external_identity`** 테이블에 저장합니다(복제 테이블에 대한 FK 없음). 이름 fuzzy 검색에 **`pg_trgm`** 을 쓰려면 별도 마이그레이션에서 `CREATE EXTENSION IF NOT EXISTS pg_trgm` 및 GIN 인덱스를 추가하면 되며, 기본 설치는 btree 인덱스만 포함합니다. 점검: `check-db.sh` 6e(TC-D01/D02).  
+`init-data.sql`의 **HR_SAMPLE** `ext_employee` 시드는 `employee_number`를 **8자리 문자열**(예: `20261001`, `20261999`)로 두어 사용자 관리 화면의 숫자 **사용자 ID** 형식과 맞춥니다(기존 DB는 `migrate-hr-sample-employee-number-userid-format-20260407.sql`).
 
 **애플리케이션 `search_path`**  
 백엔드는 JDBC URL 옵션 또는 커넥션 풀 초기 SQL로 DB A에 `logmng_sys, logmng, public` 등 운영 스키마 순서를 맞춥니다. 상세 키는 `application.yml` 및 `docs/contract.md`(멀티 데이터소스 반영 시)를 따릅니다.

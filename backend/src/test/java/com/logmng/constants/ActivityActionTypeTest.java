@@ -23,4 +23,12 @@ class ActivityActionTypeTest {
     void maxLength_matchesSchemaVarchar50() {
         assertThat(ActivityActionType.MAX_ACTION_TYPE_LENGTH).isEqualTo(50);
     }
+
+    /** TC-11: user lifecycle types in GET /api/activity-log/action-types dropdown. Req 20260407. */
+    @Test
+    void filterDropdownOptions_includesUserCreateAndUserDelete() {
+        List<Map<String, String>> opts = ActivityActionType.filterDropdownOptions();
+        List<String> codes = opts.stream().map(m -> m.get("code")).collect(Collectors.toList());
+        assertThat(codes).contains("USER_CREATE", "USER_DELETE");
+    }
 }

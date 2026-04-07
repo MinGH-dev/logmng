@@ -5,6 +5,8 @@
 
 **User ID (userId)**: 요청/응답/경로/쿼리에서 **`userId`**는 **numeric** **`app_user.id`**(JSON type: number, 예: 20269999, 20260001)이다. 로그인 시 사용자 식별은 **userId (numeric)** 만 사용하며, username(문자열)으로는 로그인할 수 없다. **Breaking change**: 동일 릴리즈부터 클라이언트는 모든 API의 userId를 숫자 타입으로 처리해야 하며, 문자열(username) 기반 userId는 지원하지 않는다.
 
+**사번 (`employeeNumber`, 선택)**: 일부 사용자 응답 객체에 **`employeeNumber`**(string \| null, `app_user.employee_number`)가 포함될 수 있다. HR 복제(`ext_employee.employee_number`)와 동일 문자열이며, 프로비저닝·관리 UI에서 **숫자형 `userId`와 별도로 사번을 표시**하는 데 쓴다. 값이 없으면 필드는 생략되거나 null이다.
+
 ---
 
 ## 1. 공통 응답 형식
@@ -99,11 +101,17 @@
 **요건**: `docs/requirements/20260407-external-dept-employee-ad-login.md`  
 **권한**: **사용자 관리 접근**과 동일 계열 — `is_system_admin=true` **또는** `allowedScreenIds`에 **`user-management`** 또는 **`user-permission-hierarchy`** 포함(`AuthService.canAccessUserManagementView`와 정합). 그 외 **403** `FORBIDDEN`. 비인증 **401**.
 
-### 2a.1 외부 직원(`ext_employee`) 검색
+### 2a.1 외부 직원(`ext_employee`) 검색 (통합 검색)
 
 - **POST** `/api/provisioning/external-employees/search`
-- **Request body** (JSON, 예): `keyword`, `employeeNumber`, `externalDepartmentId`, `sourceSystem`, `page`, `pageSize` 등 — 필드·필수 여부는 `specs/external-identity-auth.spec.yaml` §3.
-- **Response (data)**: 페이지 목록 + 총건수; 각 행은 복제 테이블의 비PII·표시용 필드 및 외부 키(등록 시 사용).
+- **목적**: 단일 엔드포인트로 **부서명** + **사용자 ID(인사정보)**(`ext_employee.employee_number`, 사용자 관리의 **사용자 ID**와 같은 8자리 등 숫자 표기 convention) + **직원명** 등을 함께(선택 조합) 필터링. `POST /api/provisioning/external-departments/search`는 하위 호환을 위해 유지되나, UI에서는 본 API로 통합 검색하는 것을 권장.
+- **Request body** (JSON, 예): `keyword`(직원명, `display_name` ILIKE), `employeeNumber`(앞뒤 공백 trim 후 값이 있을 때만 적용, prefix LIKE), **`departmentName`**(부서 표시명, `ext_department.name` ILIKE; 선택), `externalDepartmentId`, `sourceSystem`, `page`, `pageSize` — 필드·상세는 `specs/external-identity-auth.spec.yaml` §4.1.
+- **Response (data)**: 페이지 목록 + 총건수; 각 행은 복제 테이블의 비PII·표시용 필드, **`departmentName`**(조인된 `ext_department.name`, 없으면 null), 외부 키(등록 시 사용).  
+  **프로비저닝 여부 (UI 중복 등록 비활성화용)**: `ext_employee` 행과 동일 `(source_system, external_employee_id)` 로 **`app_user_external_identity` 에 매핑이 있으면** 조인 결과로 다음 필드가 채워진다(매핑 없으면 `provisioned: false`, 나머지 선택 필드는 생략 또는 null).
+  - **`provisioned`**: boolean — 매핑 행이 있으면 `true`
+  - **`provisionedUsername`**: string (선택) — 연결된 `app_user.username`
+  - **`provisionedAppUserId`**: number (선택) — 연결된 `app_user.id`(numeric, 로그인/표시 힌트)
+  - 목록·건수 쿼리는 동일 `FROM`/`JOIN`/`WHERE` 를 사용한다(외부 킹당 매핑 최대 1행이므로 건수는 직원 행 수와 일치).
 
 ### 2a.2 외부 부서(`ext_department`) 검색
 
@@ -113,9 +121,14 @@
 ### 2a.3 외부 직원 행으로 `app_user` 등록
 
 - **POST** `/api/provisioning/users/from-external-employee`
-- **Request body**: 선택된 **`ext_employee`** 행을 가리키는 키(예: `externalEmployeeId`, `sourceSystem`) 및 선택적 **`departmentCode`**(앱 `department` FK 매핑) 등 — 스펙 §3.
-- **성공**: 새 또는 기존 **`app_user`** + 외부 연동 필드 저장. **AD 비밀번호 저장 없음**.
-- **충돌·중복 외부 키**: **409** 또는 명확한 4xx, 코드는 스펙 §4.
+- **Request body** (JSON, camelCase): 선택된 **`ext_employee`** 행 키 **`externalEmployeeId`**(필수), 선택 **`sourceSystem`**, 선택 **`departmentCode`** — 스펙 `specs/external-identity-auth.spec.yaml` §4.3.  
+  **`changeReason`** (string, **필수**) — 등록·프로비저닝 **사유**. 권한 그룹 감사와 동일 필드명; **trim 후 비어 있지 않음**, **최대 500자**(초과·공백만 → **400** `INVALID_INPUT`). `departmentCode`는 생략 가능; 생략 시 해당 직원의 `external_department_id`에 대해 `department_org_link`에 행이 있으면 그 `department.code`로 `app_user.department_code` 설정.
+- **성공**: 새 **`app_user`** + `app_user_external_identity` 저장(등록). **AD 비밀번호 저장 없음**. **`data`**: `userId`(number, `app_user.id`), `username`(string), **`employeeNumber`**(string \| 생략, `ext_employee.employee_number`와 동일·trim; 복제 행에 사번이 없으면 생략/null) — UI에서는 **사번을 주요 표시 식별자**로 쓰는 것을 권장한다.  
+  **감사**: 성공 시 활동 로그에 **`USER_CREATE`**(또는 제품이 동일 의미로 확정한 코드)와 `action_detail`에 **`changeReason`**, **`targetUserId`**, **`employeeNumber`**, **`username`** 등 비민감 식별자만 포함(§8.0, `specs/activity-action-types.spec.yaml` §3).
+- **충돌·중복 외부 키**: **409**, 코드 **`EXTERNAL_IDENTITY_CONFLICT`**. 응답 본문은 공통 `ApiResponse` 형식이며, **`data`**(실패 시에도 사용 가능)에 기존 계정 힌트가 있을 수 있다(매핑 조회 결과가 있을 때만).
+- **검증 실패**(필수 필드·**`changeReason`** 누락·공백·길이 초과 등): **400** `INVALID_INPUT`.
+  - **`existingUsername`**: string (선택) — 이미 연결된 `app_user.username` (공백이 아닐 때만 포함)
+  - **`existingAppUserId`**: number — 이미 연결된 `app_user.id`
 
 ---
 
@@ -420,6 +433,7 @@
 - **GET** `/api/users`
 - **Response (data)**: 배열. 각 항목:
   - `userId`: number — numeric `app_user.id` (사용자 ID)
+  - `employeeNumber`: string (선택) — `app_user.employee_number`, HR 사번과 동일; 없으면 생략
   - `isSystemAdmin`: boolean — 시스템 관리자 여부 (수정·삭제 불가)
   - `departmentCode`: string | null — 부서코드
   - `position`: string | null — 직책
@@ -436,6 +450,24 @@
   - `success`: false
   - `code`: "ENDPOINT_REMOVED"
 
+### 7.3 사용자 삭제 (req `20260407-user-management-consistency-delete-reason-activity-audit`)
+
+- **DELETE** `/api/users/{userId}`
+- **Path**: `userId` — number — numeric `app_user.id` (요청 URL 경로; JSON 타입은 number와 호환되는 정수 표기).
+- **접근·권한**: **`GET /api/users`와 동일** — `is_system_admin=true` **또는** 사용자 관리 화면 접근(`user-management` / `user-permission-hierarchy` 등 `AuthService.canAccessUserManagementView`와 정합). 비인증 **401**; 접근 불가 **403** `FORBIDDEN` 등.
+- **Request body** (JSON, **필수** — 본문 없는 DELETE는 계약상 거부):  
+
+| 필드 | 타입 | 필수 | 설명 |
+|------|------|------|------|
+| changeReason | string | O | 삭제 **사유**. 권한 그룹 `permissionGroupAuditV1.changeReason`과 **동일 필드명**; **trim 후 비어 있지 않음**, **최대 500자**(MF-03·활동 로그 영속 한도와 정렬). 공백만·누락·초과 시 **400** `INVALID_INPUT` (TC-05). |
+
+- **성공**: **200**, `success: true`. **`data`**: 제품이 정한 요약(예: 삭제된 `userId`) 또는 `null` — 구현과 동일하게 유지(DOC-CODE-SYNC). 물리 삭제 vs 소프트 삭제는 DB/백엔드 결정; 기본 목록(`GET /api/users`)에서 제외되는 동작과 일치해야 함 (TC-06).
+- **감사**: 성공 시 **`USER_DELETE`** 활동 로그; `action_detail`에 **`changeReason`**, **`targetUserId`** 및 존재 시 **`employeeNumber`**, **`username`** 등만 허용(§8.0, `specs/activity-action-types.spec.yaml` §3 denylist).
+- **오류 (요약·테스트 ID)**:
+  - **400** `INVALID_INPUT` — `changeReason` 누락·공백·500자 초과 등 (TC-05).
+  - **400** `LAST_SYSTEM_ADMIN_BLOCKED` / `SYSTEM_ADMIN_IMMUTABLE` — 마지막 시스템 관리자 삭제 불가, 대상이 시스템 관리자 등 기존 시스템 관리자 보호 규칙(`docs/contract.md`). HTTP는 §11·구현과 통일(통상 **400**; TC-07).
+  - **404** `USER_NOT_FOUND` — 대상 사용자 없음.
+  - **409** `USER_DELETE_REFERENCED` — 종속 데이터 등 **FK·참조 무결성**으로 삭제 불가; 부분 삭제 없음 (TC-08). 구현이 **400** + 동일 코드로 통일할 경우 계약·코드 동시 갱신.
 ---
 
 ## 8. 사용자 활동 이력 (Activity Log)
@@ -454,6 +486,7 @@
   - **`ASSIGN_USER_TO_PERMISSION_GROUP` / `UNASSIGN_USER_FROM_PERMISSION_GROUP`**: persisted **`permissionGroupAuditV1`** MUST populate **`before`** and **`after`** per **`specs/activity-permission-group-audit.spec.yaml`** §3.5 and requirement **`docs/requirements/20260407-permission-group-assign-unassign-audit-before-after.md`** — **assign:** `before` = previous group snapshot or **`null`** if no prior membership, `after` = new group snapshot; **unassign:** `before` = group being left, `after` = **`null`**. When `allowedScreens` is incomplete or omitted for size/policy, set **`allowedScreensTruncated`** per spec §3.2.  
   - **Denylist**: 부모 요건 `20260330-activity-types-user-mgmt-permission-group` §2.1 Security 및 동일 스펙 §6 — `password`, `token`, `refreshToken`, 원시 요청 본문 등 **금지**.  
   - **`changeReason` (잠정)**: `PERMISSION_GROUP_UPDATE`에서 클라이언트가 보낸 사유는 **`permissionGroupAuditV1.changeReason`**으로 영속할 때 **최대 500자**; 제품이 생략 정책으로 바꾸면 계약·스펙 우선 수정.  
+  - **사용자 생명주기 (`USER_CREATE`, `USER_DELETE`)** (req `20260407-user-management-consistency-delete-reason-activity-audit`): 외부 직원 **프로비저닝 성공** 시 **`USER_CREATE`**(또는 제품 확정 동일 의미 코드); **사용자 삭제 성공** 시 **`USER_DELETE`**. `action_detail`는 **`changeReason`**, **`targetUserId`**(number, `app_user.id`), 선택 **`employeeNumber`**, **`username`** 및 스펙 §3 **user_admin** / denylist 준수(비밀번호·토큰·원시 요청 본문 금지). 단일 기준 코드·라벨: `specs/activity-action-types.spec.yaml` §2.4·§3, **`GET /api/activity-log/action-types`**에 포함(TC-11).
   - **상세 API 일관성**: 아래 `GET /api/activity-log/{id}` 응답의 `action_detail`은 DB에 저장된 JSON과 동일 계열이며, **검색(`POST /api/activity-log/search`)에서 볼 수 있는 행만** 상세 조회 가능해야 한다(요건 §2.1 AC-S2; MF-02는 백엔드 검증).
 
 ### 8.0.1 활동 유형 필터 옵션(선택 API)
@@ -476,7 +509,7 @@
 | endDate | string | |
 | userId | number | (선택) 사용자 ID (numeric `app_user.id`). `scope=self`이면 클라이언트 입력값과 관계없이 현재 인증 사용자로 강제되며, 타 사용자 값으로 범위를 넓힐 수 없다. |
 | username | string | (선택) 사용자명 필터. `scope=self`이면 무시되며 결과 범위를 넓히지 못한다. |
-| department | string | (선택) 부서 필터. `scope=self`이면 무시되며, 빈 값, `all`, `ALL`, `전체` 등 전체 의미 표현도 범위를 넓히지 못한다. `scope=team/all`일 때만 적용. body에 departmentCode로 보내도 동일 필드로 처리. (req 20260310) |
+| department | string | (선택) 부서 필터. **`department.name` 표시명**과 정확 일치(`GET /api/filter-options/departments` 옵션 문자열과 동일). `app_user.department_code` 직접 비교가 아니다. `scope=self`이면 무시되며, 빈 값, `all`, `ALL`, `전체` 등 전체 의미 표현도 범위를 넓히지 못한다. `scope=team/all`일 때만 적용. body에 departmentCode로 보내도 동일 필드로 처리. (req 20260310) |
 | actionType | string | (선택) `user_activity_log.action_type` 정확 일치. 허용 코드는 `specs/activity-action-types.spec.yaml` §2(OP-01). 빈 값 = 전체 유형. |
 | ipAddress | string | |
 | page | integer | 기본 1 |
@@ -495,6 +528,7 @@
 - **마스킹 (요건 `20260330-audit-evidence-activity-log-conservative`)**: 응답의 **`action_detail`** 및 필요 시 **`ip_address`** 등 메타필드는 **호출자 역할**에 따라 **마스킹**된다. 비특권 사용자는 **인앱 복사 본문 전체**·민감 키 평문을 받지 않는다(목록에서 조회 가능한 행만 상세 허용 — 기존 MF-02·AC-S2 정신과 동일). 상세 필드 키·마스킹 규칙·복사 하위 구조 요약은 **`specs/activity-log-audit-evidence.spec.yaml`** §3.
 - **Response (data)**: Map (활동 이력 한 건 상세). 일반적으로 목록 검색과 동일한 필드를 포함하며, **`action_detail`** 은 DB JSON을 파싱한 객체이되 **마스킹 뷰**일 수 있다.
   - **권한 그룹 계열 `action_type`**: `action_detail`에 **`permissionGroupAuditV1`** 가 있으면(요건 `20260330-permission-group-activity-detail-audit`; 배정/해제 **`before`/`after`** 의무는 `20260407-permission-group-assign-unassign-audit-before-after`) 감사 증빙은 해당 객체의 `schemaVersion`, `operation`, `before` / `after` (`PermissionGroupSnapshot`, `allowedScreens` = `AllowedScreenItem[]`; **assign/unassign** 시 §3.5 시맨틱 및 **`allowedScreensTruncated`** §3.2), `targetUserId`(배정/해제), 선택적 **`changeReason`**(잠정, 최대 500자)로 해석한다. 전체 규격·예시·denylist는 **`specs/activity-permission-group-audit.spec.yaml`**.
+  - **`USER_CREATE` / `USER_DELETE`**: 평탄(중첩 객체 없이) **`action_detail`** 권장 키: **`changeReason`**(필수·최대 500자), **`targetUserId`**(number), **`employeeNumber`**(string, 선택), **`username`**(string, 선택). §3 denylist 동일 적용.
   - **인앱 복사·삭제 스냅샷·변경 before/after** 고수준: `action_type` **`IN_APP_COPY`** 등(코드표 `specs/activity-action-types.spec.yaml` §2.7) 및 **`action_detail`** 내 `copyPayload` / `deleteSnapshot` / `before`·`after` — **`specs/activity-log-audit-evidence.spec.yaml`** §3, §4.
   - **DOC-CODE-SYNC**: 구현체는 저장·응답 형태를 위 스펙에 맞춘다; 차이가 있으면 코드와 동시에 계약을 갱신한다(`docs/workflow/DOC-CODE-SYNC.md`).
 
@@ -684,7 +718,7 @@
 | AUTH_CONFIGURATION_ERROR | (선택) `auth.login.mode`·`auth.ad.*` misconfiguration — 기동 실패 또는 로그인 거부 시 (docs/contract.md). |
 | DIRECTORY_AUTH_FAILED | AD/LDAP 모드에서 디렉터리 자격 증명 거부(401). 사용자 열거 방지 메시지. |
 | APP_USER_NOT_PROVISIONED | AD 인증은 성공했으나 `app_user` 매핑 없음(401). |
-| EXTERNAL_IDENTITY_CONFLICT | 동일 외부 키로 이미 등록됨 등(409). `POST /api/provisioning/users/from-external-employee`. |
+| EXTERNAL_IDENTITY_CONFLICT | 동일 외부 키로 이미 등록됨(409). `POST /api/provisioning/users/from-external-employee`. **data**에 `existingUsername`(선택), `existingAppUserId`(있으면) 포함 가능. |
 | INVALID_INPUT | 부서코드/userId 등 입력값 비어 있음 또는 형식 오류 (400) |
 | PERMISSION_GROUP_NOT_FOUND | 해당 ID의 권한 그룹 없음 (404) |
 | PERMISSION_GROUP_HAS_USERS | 삭제 시 해당 그룹에 사용자 배정 있음 (400) |
@@ -693,6 +727,7 @@
 | INTERNAL_SERVER_ERROR | 서버 내부 오류 (500). 화면 표시 라벨 조회/저장 DB 오류 등 |
 | INVALID_SCREEN_FUNCTION | 화면별 read/write/approve 조합이 허용되지 않음 (400). main read-only: main에 write=true 또는 approve=true; approve 미지원 화면에 approve=true; write 미지원 화면에 write=true. POST/PUT permission-groups 시 `specs/permission-group-hierarchy.spec.yaml` §1.1.1 검증. |
 | USER_NOT_FOUND | 해당 사용자 없음 (404) |
+| USER_DELETE_REFERENCED | 사용자 삭제 불가: FK·참조 데이터 존재 등 (통상 **409**; 구현이 **400**이면 api-definition §7.3과 함께 통일). req `20260407-user-management-consistency-delete-reason-activity-audit` TC-08. |
 | SELF_DEMOTION_BLOCKED | 자기 자신의 역할 변경 시도 (400) |
 | LAST_ADMIN_BLOCKED | 마지막 관리자 강등 시도 (400) |
 | SYSTEM_ADMIN_IMMUTABLE | 대상이 시스템 관리자(수정·삭제 불가) (400) |
@@ -801,7 +836,7 @@
 
 - **GET** `/api/permission-groups/{id}/users`
 - **Path**: `id` — 권한 그룹 ID (Long)
-- **Response (data)**: 배열. 각 항목: `userId` (number, `app_user.id`), `username`, `departmentCode`, `isSystemAdmin` 등 사용자 요약 (role 제외, req 20250303)
+- **Response (data)**: 배열. 각 항목: `userId` (number, `app_user.id`), `username`, `departmentCode`, `isSystemAdmin`, **`employeeNumber`** (선택, string) 등 사용자 요약 (role 제외, req 20250303)
 - **에러**: 401, 403, 404
 
 ### 14.9 사용자 권한 계층 조회
@@ -809,7 +844,7 @@
 - **GET** `/api/departments/user-permission-hierarchy`
 - **Query**: `format` — "tree"(기본) | "flat"
 - **Response (data)**:
-  - **tree**: 루트 노드 배열. 각 노드: `code`, `parentCode`, `name`, `sortOrder`, `children` (재귀), `users` (배열). `users` 각 항목: **`userId`** (number, `app_user.id`, 사용자 ID), **`userName`** (string, 사용자명: `app_user.name`이 존재하고 비어 있지 않으면 그 값, 그렇지 않으면 `app_user.username`), `isSystemAdmin` (boolean, 시스템 관리자 여부), `position` (직책), `rank` (직급), `permissionGroups` (배열: `{ id, code, name }`). role 제외 (req 20250303).
+  - **tree**: 루트 노드 배열. 각 노드: `code`, `parentCode`, `name`, `sortOrder`, `children` (재귀), `users` (배열). `users` 각 항목: **`userId`** (number, `app_user.id`, 사용자 ID), **`userName`** (string, 사용자명: `app_user.name`이 존재하고 비어 있지 않으면 그 값, 그렇지 않으면 `app_user.username`), **`employeeNumber`** (string, 선택, `app_user.employee_number`), `isSystemAdmin` (boolean, 시스템 관리자 여부), `position` (직책), `rank` (직급), `permissionGroups` (배열: `{ id, code, name }`). role 제외 (req 20250303).
   - **flat**: 부서 노드 배열에 `users` 포함(동일 구조), `children` 없음.
 - **에러**: 401, 403
 

@@ -181,6 +181,24 @@ describe('UserActivityLogDetail', () => {
     expect(screen.getByRole('row', { name: /gamma/ })).toBeInTheDocument();
   });
 
+  test('USER_DELETE: flat action_detail shows 변경 사유 and 대상 식별자', () => {
+    const log = baseLog({
+      action_type: 'USER_DELETE',
+      action_detail: {
+        changeReason: '퇴사',
+        targetUserId: 42,
+        employeeNumber: '20261001',
+        username: 'leaved',
+      },
+    });
+    render(<UserActivityLogDetail log={log} onClose={() => {}} actionTypeLabelMap={{}} />);
+    expect(screen.getByRole('heading', { name: '사용자 등록·삭제 감사' })).toBeInTheDocument();
+    expect(screen.getByText('퇴사')).toBeInTheDocument();
+    expect(screen.getByText('42')).toBeInTheDocument();
+    expect(screen.getByText('20261001')).toBeInTheDocument();
+    expect(screen.getByText('leaved')).toBeInTheDocument();
+  });
+
   test('TC-15: SEARCH action still shows search summary (regression)', () => {
     const log = baseLog({
       action_type: 'SEARCH',

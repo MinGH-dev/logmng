@@ -10,11 +10,22 @@ const json = async (response) => {
     const err = new Error(msg);
     err.status = response.status;
     err.code = result.code;
+    /** Full error JSON for UI (e.g. 409 existingUsername / existingAppUserId). */
+    err.payload = result;
     throw err;
   }
   return result;
 };
 
+/**
+ * @param {object} body
+ * @param {string} [body.departmentName] — filter by department name
+ * @param {string} [body.keyword] — employee display name search
+ * @param {string} [body.employeeNumber]
+ * @param {string} [body.sourceSystem]
+ * @param {number} [body.page]
+ * @param {number} [body.pageSize]
+ */
 export async function searchExternalEmployees(body) {
   const apiBaseUrl = getApiBaseUrl();
   const response = await fetch(`${apiBaseUrl}/provisioning/external-employees/search`, {

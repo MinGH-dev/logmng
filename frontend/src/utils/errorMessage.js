@@ -14,7 +14,9 @@ export const getErrorMessage = (e, fallback) => {
   if (code === 'LAST_SYSTEM_ADMIN_BLOCKED') return '최소 1명의 시스템 관리자가 필요합니다.';
   if (code === 'LAST_ADMIN_BLOCKED') return '최소 1명의 관리자가 필요합니다.';
   if (code === 'SELF_DEMOTION_BLOCKED') return '본인 역할을 변경할 수 없습니다.';
-  if (code === 'INVALID_INPUT' || code === 'SELF_DEMOTION') return e?.message || '역할 변경이 허용되지 않습니다.';
+  if (code === 'INVALID_INPUT') return e?.message || '입력값을 확인해 주세요.';
+  if (code === 'SELF_DEMOTION') return e?.message || '역할 변경이 허용되지 않습니다.';
+  if (code === 'USER_DELETE_REFERENCED') return '연결된 데이터가 있어 사용자를 삭제할 수 없습니다.';
   if (code === 'DEPARTMENT_NOT_FOUND') return '부서를 찾을 수 없습니다.';
   if (code === 'ALREADY_APPROVER') return '이미 해당 부서 결재자로 등록되어 있습니다.';
   if (status === 404) return '찾을 수 없습니다.';

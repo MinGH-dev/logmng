@@ -14,7 +14,7 @@ END;
 $$ LANGUAGE plpgsql;
 
 -- DDL 순서(참조 무결성):
---   department → ext_department, ext_employee (외부 복제; 앱 FK 없음) → permission_group → app_user → app_user_external_identity
+--   department → ext_department, ext_employee (조직 복제; 앱 FK 없음) → department_org_link (복제 부서키 → department.code) → permission_group → app_user → app_user_external_identity
 --   → search_history(FK는 나중에) → search_history_approved_row
 --   → DO 블록으로 search_history FK 부착 → decrypt_approver → user_decryption_allowed → screen_display_label
 --   → app_user_permission_group → permission_group_screen → 마지막에 트리거만 부착
@@ -31,7 +31,7 @@ CREATE TABLE IF NOT EXISTS department (
 CREATE INDEX IF NOT EXISTS idx_department_parent ON department(parent_code);
 CREATE INDEX IF NOT EXISTS idx_department_parent_sort ON department(parent_code, sort_order);
 
--- 외부 조직 복제 (ETL/레플리카). 앱 런타임 역할은 SELECT-only (setup.sh 그랜트). 요건: 20260407-external-dept-employee-ad-login
+-- 조직 복제 테이블 (ETL/레플리카). 앱 런타임 역할은 SELECT-only (setup.sh 그랜트). 요건: 20260407-external-dept-employee-ad-login
 -- 자연키: (source_system, external_department_id) / (source_system, external_employee_id). app_user와 FK 없음 — app_user_external_identity로 논리 연결.
 CREATE TABLE IF NOT EXISTS ext_department (
     id                      BIGSERIAL PRIMARY KEY,
@@ -61,6 +61,16 @@ CREATE INDEX IF NOT EXISTS idx_ext_employee_source_empnum ON ext_employee (sourc
 CREATE INDEX IF NOT EXISTS idx_ext_employee_display_name ON ext_employee (display_name);
 CREATE INDEX IF NOT EXISTS idx_ext_employee_source_extdept ON ext_employee (source_system, external_department_id);
 
+-- 복제 조직의 부서 식별자 → 내부 부서 코드(department.code) 매핑. 프로비저닝 시 department_code 보강용.
+CREATE TABLE IF NOT EXISTS department_org_link (
+    source_system           VARCHAR(64) NOT NULL,
+    external_department_id  VARCHAR(256) NOT NULL,
+    department_code         VARCHAR(50) NOT NULL,
+    CONSTRAINT pk_department_org_link PRIMARY KEY (source_system, external_department_id),
+    CONSTRAINT fk_department_org_link_department FOREIGN KEY (department_code) REFERENCES department(code) ON DELETE RESTRICT
+);
+CREATE INDEX IF NOT EXISTS idx_department_org_link_department ON department_org_link (department_code);
+
 -- 권한 그룹 (요건: 20250227-user-permission-hierarchy-group). app_user보다 먼저 — app_user_permission_group이 참조
 CREATE TABLE IF NOT EXISTS permission_group (
     id BIGSERIAL PRIMARY KEY,
@@ -77,6 +87,8 @@ CREATE TABLE IF NOT EXISTS permission_group (
 CREATE TABLE IF NOT EXISTS app_user (
     id BIGSERIAL PRIMARY KEY,
     username VARCHAR(100) NOT NULL UNIQUE,
+    -- 인사정보 사번; 프로비저닝 시 ext_employee.employee_number 와 동일 값
+    employee_number VARCHAR(100) NULL,
     password_hash VARCHAR(255) NOT NULL,
     role VARCHAR(20) NOT NULL,
     department_code VARCHAR(50),
@@ -86,10 +98,13 @@ CREATE TABLE IF NOT EXISTS app_user (
     is_system_admin BOOLEAN NOT NULL DEFAULT false,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    -- Soft delete: NULL = active; non-NULL = user soft-deleted at that instant (UTC). DBA rec. req 20260407 user-management.
+    deleted_at TIMESTAMPTZ NULL,
     CONSTRAINT chk_app_user_role CHECK (role IN ('ADMIN', 'USER')),
     CONSTRAINT fk_app_user_department FOREIGN KEY (department_code) REFERENCES department(code) ON DELETE SET NULL
 );
 CREATE INDEX IF NOT EXISTS idx_app_user_username ON app_user(username);
+CREATE INDEX IF NOT EXISTS idx_app_user_employee_number ON app_user (employee_number);
 
 -- 프로비저닝/AD 로그인용 외부 직원 자연키 → app_user 매핑 (복제 테이블 volatile 시 FK 회피). 요건: 20260407-external-dept-employee-ad-login
 CREATE TABLE IF NOT EXISTS app_user_external_identity (

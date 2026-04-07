@@ -13,5 +13,7 @@ export const FALLBACK_ACTIVITY_ACTION_TYPE_OPTIONS = [
   { code: 'EXPORT', label: '내보내기' },
   { code: 'STATS_VIEW', label: '통계 조회' },
   { code: 'SCHEMA_VIEW', label: '스키마 조회' },
+  { code: 'USER_CREATE', label: '사용자 등록' },
+  { code: 'USER_DELETE', label: '사용자 삭제' },
   { code: 'UNKNOWN', label: '기타' },
 ];

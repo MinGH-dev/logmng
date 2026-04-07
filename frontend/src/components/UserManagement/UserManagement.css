@@ -15,9 +15,42 @@
   border-radius: 4px;
 }
 
+.user-management-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+.user-management-header h2 {
+  margin: 0;
+}
+
 .user-management h2 {
   margin-bottom: 1rem;
   font-size: 1.25rem;
+}
+
+.user-management-header + .user-permission-hierarchy-hint {
+  margin-top: 0;
+}
+
+.user-management-btn-primary {
+  padding: 0.4rem 0.85rem;
+  font-size: 0.9rem;
+  font-weight: 600;
+  border-radius: 4px;
+  cursor: pointer;
+  border: 1px solid #07c;
+  background: #07c;
+  color: #fff;
+}
+
+.user-management-btn-primary:hover:not(:disabled) {
+  background: #069;
+  border-color: #069;
 }
 
 .user-management-back {
@@ -31,6 +64,10 @@
   padding: 0.5rem;
   background: #fff0f0;
   border-radius: 4px;
+}
+
+.user-management-delete-dialog-error {
+  margin-bottom: 0.75rem;
 }
 
 .user-management .log-table-container .table-wrapper {

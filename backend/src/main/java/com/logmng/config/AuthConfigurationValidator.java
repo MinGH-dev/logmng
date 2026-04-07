@@ -43,11 +43,8 @@ public class AuthConfigurationValidator {
 
         if ("ad".equals(normalized)) {
             AuthProperties.Ad ad = authProperties.getAd();
-            if (!StringUtils.hasText(ad.getLdapUrl())
-                    || !StringUtils.hasText(ad.getManagerDn())
-                    || !StringUtils.hasText(ad.getManagerPassword())
-                    || !StringUtils.hasText(ad.getUserSearchBase())) {
-                fail("auth.login.mode=ad requires non-blank auth.ad.ldap-url, manager-dn, manager-password, user-search-base");
+            if (!StringUtils.hasText(ad.getLdapUrl()) || !StringUtils.hasText(ad.getDomain())) {
+                fail("auth.login.mode=ad requires non-blank auth.ad.ldap-url and auth.ad.domain");
             }
         }
 

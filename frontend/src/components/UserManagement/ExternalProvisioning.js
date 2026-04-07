@@ -1,21 +1,61 @@
 import React, { useState, useCallback } from 'react';
 import {
   searchExternalEmployees,
-  searchExternalDepartments,
   provisionUserFromExternalEmployee,
 } from '../../services/provisioningService';
 import { getErrorMessage } from '../../utils/errorMessage';
 import logger from '../../utils/logger';
+import '../DataTable.css';
+import '../UserPermissionHierarchy/UserPermissionHierarchy.css';
+import './UserManagement.css';
 import './ExternalProvisioning.css';
+
+/** docs/api-definition.md §2a provisioning — changeReason max length */
+const PROVISION_CHANGE_REASON_MAX = 500;
 
 const defaultPagination = { currentPage: 1, totalPages: 1, totalCount: 0 };
 
+/** 8-digit 예시 — DB 시드의 사용자 ID 형식과 맞춤 (예: init-data). */
+const USER_ID_SEARCH_PLACEHOLDER = '20261001';
+
+function rowProvisioned(row) {
+  return row?.provisioned === true;
+}
+
+function provisionedDisplayLabel(row) {
+  const username = row?.provisionedUsername ?? row?.provisioned_username;
+  const appUserId = row?.provisionedAppUserId ?? row?.provisioned_app_user_id;
+  const parts = [];
+  if (username != null && String(username).trim() !== '') parts.push(String(username));
+  if (appUserId != null && String(appUserId).trim() !== '') parts.push(`ID ${appUserId}`);
+  return parts.length ? parts.join(' · ') : '—';
+}
+
+function formatProvisionConflictMessage(error) {
+  const base = '이미 인사정보로 등록된 직원입니다.';
+  const p = error?.payload;
+  const existingUsername = p?.existingUsername ?? p?.existing_username;
+  const existingAppUserId = p?.existingAppUserId ?? p?.existing_app_user_id;
+  const extra = [];
+  if (existingUsername != null && String(existingUsername).trim() !== '') {
+    extra.push(`기존 사용자명: ${existingUsername}`);
+  }
+  if (existingAppUserId != null && String(existingAppUserId).trim() !== '') {
+    extra.push(`기존 앱 사용자 ID: ${existingAppUserId}`);
+  }
+  return extra.length ? `${base} ${extra.join(' ')}` : base;
+}
+
 /**
- * Admin-only: search ext_employee / ext_department and register app_user (provisioning APIs).
+ * Admin-only: search replicated HR employee data and register app_user (provisioning APIs).
+ * @param {object} props
+ * @param {() => void} [props.onProvisioned]
+ * @param {boolean} [props.embeddedInModal] — hide page-level chrome when shown inside a dialog
  */
-const ExternalProvisioning = ({ onProvisioned }) => {
-  const [empKeyword, setEmpKeyword] = useState('');
-  const [empNumber, setEmpNumber] = useState('');
+const ExternalProvisioning = ({ onProvisioned, embeddedInModal = false }) => {
+  const [departmentName, setDepartmentName] = useState('');
+  const [employeeNumber, setEmployeeNumber] = useState('');
+  const [keyword, setKeyword] = useState('');
   const [sourceSystem, setSourceSystem] = useState('');
   const [empPage, setEmpPage] = useState(1);
   const [empLoading, setEmpLoading] = useState(false);
@@ -26,13 +66,7 @@ const ExternalProvisioning = ({ onProvisioned }) => {
   const [deptCode, setDeptCode] = useState('');
   const [provisionLoading, setProvisionLoading] = useState(false);
   const [provisionMessage, setProvisionMessage] = useState(null);
-
-  const [deptKeyword, setDeptKeyword] = useState('');
-  const [deptPage, setDeptPage] = useState(1);
-  const [deptLoading, setDeptLoading] = useState(false);
-  const [deptError, setDeptError] = useState(null);
-  const [deptItems, setDeptItems] = useState([]);
-  const [deptPagination, setDeptPagination] = useState(defaultPagination);
+  const [provisionChangeReason, setProvisionChangeReason] = useState('');
 
   const searchEmployees = useCallback(
     async (pageOverride) => {
@@ -41,8 +75,9 @@ const ExternalProvisioning = ({ onProvisioned }) => {
       setEmpError(null);
       try {
         const res = await searchExternalEmployees({
-          keyword: empKeyword.trim() || undefined,
-          employeeNumber: empNumber.trim() || undefined,
+          departmentName: departmentName.trim() || undefined,
+          keyword: keyword.trim() || undefined,
+          employeeNumber: employeeNumber.trim() || undefined,
           sourceSystem: sourceSystem.trim() || undefined,
           page,
           pageSize: 20,
@@ -61,80 +96,80 @@ const ExternalProvisioning = ({ onProvisioned }) => {
         } else {
           setEmpPagination({ ...defaultPagination, currentPage: page, totalCount: items.length });
         }
+        setSelectedEmp((prev) => {
+          if (!prev) return null;
+          const prevId = prev.externalEmployeeId ?? prev.external_employee_id;
+          const prevSrc = prev.sourceSystem || '';
+          const match = items.find((row) => {
+            const id = row.externalEmployeeId ?? row.external_employee_id;
+            return String(id) === String(prevId) && (row.sourceSystem || '') === prevSrc;
+          });
+          if (!match) return null;
+          if (rowProvisioned(match)) return null;
+          return match;
+        });
       } catch (e) {
-        logger.error('외부 직원 검색 실패:', e);
+        logger.error('인사정보 직원 검색 실패:', e);
         setEmpError(getErrorMessage(e, '검색에 실패했습니다.'));
         setEmpItems([]);
       } finally {
         setEmpLoading(false);
       }
     },
-    [empKeyword, empNumber, sourceSystem, empPage]
-  );
-
-  const searchDepartments = useCallback(
-    async (pageOverride) => {
-      const page = pageOverride ?? deptPage;
-      setDeptLoading(true);
-      setDeptError(null);
-      try {
-        const res = await searchExternalDepartments({
-          keyword: deptKeyword.trim() || undefined,
-          sourceSystem: sourceSystem.trim() || undefined,
-          page,
-          pageSize: 20,
-        });
-        const data = res.data || res;
-        const items = data.items || [];
-        setDeptItems(Array.isArray(items) ? items : []);
-        setDeptPage(page);
-        const p = data.pagination;
-        if (p && typeof p === 'object') {
-          setDeptPagination({
-            currentPage: p.currentPage ?? page,
-            totalPages: p.totalPages ?? 1,
-            totalCount: p.totalCount ?? items.length,
-          });
-        } else {
-          setDeptPagination({ ...defaultPagination, currentPage: page, totalCount: items.length });
-        }
-      } catch (e) {
-        logger.error('외부 부서 검색 실패:', e);
-        setDeptError(getErrorMessage(e, '검색에 실패했습니다.'));
-        setDeptItems([]);
-      } finally {
-        setDeptLoading(false);
-      }
-    },
-    [deptKeyword, sourceSystem, deptPage]
+    [departmentName, keyword, employeeNumber, sourceSystem, empPage]
   );
 
   const handleProvision = async () => {
-    if (!selectedEmp?.externalEmployeeId) {
+    const selId = selectedEmp?.externalEmployeeId ?? selectedEmp?.external_employee_id;
+    if (selId == null || String(selId).trim() === '') {
       setProvisionMessage({ type: 'error', text: '등록할 직원 행을 선택하세요.' });
+      return;
+    }
+    if (rowProvisioned(selectedEmp)) {
+      setProvisionMessage({ type: 'error', text: '이미 등록된 직원입니다.' });
+      return;
+    }
+    const reasonTrimmed = provisionChangeReason.trim();
+    if (!reasonTrimmed) {
+      setProvisionMessage({ type: 'error', text: '등록 사유를 입력하세요.' });
+      return;
+    }
+    if (reasonTrimmed.length > PROVISION_CHANGE_REASON_MAX) {
+      setProvisionMessage({
+        type: 'error',
+        text: `등록 사유는 ${PROVISION_CHANGE_REASON_MAX}자 이하여야 합니다.`,
+      });
       return;
     }
     setProvisionLoading(true);
     setProvisionMessage(null);
     try {
+      const extId = selectedEmp.externalEmployeeId ?? selectedEmp.external_employee_id;
       const body = {
-        externalEmployeeId: String(selectedEmp.externalEmployeeId),
+        externalEmployeeId: String(extId),
         sourceSystem: selectedEmp.sourceSystem || sourceSystem.trim() || undefined,
         departmentCode: deptCode.trim() || undefined,
+        changeReason: reasonTrimmed,
       };
       const res = await provisionUserFromExternalEmployee(body);
       const data = res.data || res;
       const uid = data?.userId ?? data?.user_id;
+      const hrEmpNumber = data?.employeeNumber ?? data?.employee_number;
+      const okText =
+        hrEmpNumber != null && String(hrEmpNumber).trim() !== ''
+          ? `등록되었습니다. 사용자 ID(인사): ${hrEmpNumber} · 앱 내부 ID: ${uid != null ? uid : '—'}`
+          : `등록되었습니다. 사용자 ID: ${uid != null ? uid : '—'}`;
       setProvisionMessage({
         type: 'ok',
-        text: `등록되었습니다. 사용자 ID: ${uid != null ? uid : '—'}`,
+        text: okText,
       });
       setSelectedEmp(null);
+      setProvisionChangeReason('');
       if (onProvisioned) onProvisioned();
     } catch (e) {
       const msg =
         e?.status === 409
-          ? '이미 동일 외부 키로 등록된 사용자가 있습니다.'
+          ? formatProvisionConflictMessage(e)
           : getErrorMessage(e, '등록에 실패했습니다.');
       setProvisionMessage({ type: 'error', text: msg });
     } finally {
@@ -142,36 +177,67 @@ const ExternalProvisioning = ({ onProvisioned }) => {
     }
   };
 
+  const rootClass = embeddedInModal
+    ? 'external-provisioning external-provisioning--embedded'
+    : 'external-provisioning';
+
+  const headingId = 'hr-provisioning-search-heading';
+
+  const selectedProvisioned =
+    selectedEmp && rowProvisioned(selectedEmp);
+
   return (
-    <section className="external-provisioning" aria-labelledby="external-provisioning-heading">
-      <h3 id="external-provisioning-heading">외부 조직 데이터에서 사용자 등록</h3>
-      <p className="external-provisioning-intro">
-        복제된 외부 직원·부서 테이블을 검색한 뒤, 선택한 직원을 앱 사용자로 등록합니다.
-      </p>
+    <section className={rootClass} aria-labelledby={headingId}>
+      {!embeddedInModal && (
+        <>
+          <h3 id={headingId}>인사정보 검색 · 사용자 등록</h3>
+          <p className="external-provisioning-intro user-permission-hierarchy-hint">
+            인사정보에서 직원·부서를 검색한 뒤 선택한 직원을 앱 사용자로 등록합니다.
+          </p>
+        </>
+      )}
+      {embeddedInModal && (
+        <h4 id={headingId} className="external-provisioning-subtitle">
+          직원 검색
+        </h4>
+      )}
 
       <div className="sf-compact-panel external-provisioning-panel">
-        <h4 className="external-provisioning-subtitle">외부 직원 검색</h4>
-        <div className="sf-row sf-block">
+        {!embeddedInModal && (
+          <h4 className="external-provisioning-subtitle">직원 검색</h4>
+        )}
+        <div className="sf-row sf-block external-provisioning-search-row">
           <div>
-            <label htmlFor="prov-emp-keyword">이름 키워드</label>
+            <label htmlFor="prov-dept-name">부서</label>
             <input
-              id="prov-emp-keyword"
+              id="prov-dept-name"
               className="sf-control"
               type="text"
-              value={empKeyword}
-              onChange={(e) => setEmpKeyword(e.target.value)}
-              placeholder="이름 일부"
+              value={departmentName}
+              onChange={(e) => setDepartmentName(e.target.value)}
+              placeholder="부서명"
             />
           </div>
           <div>
-            <label htmlFor="prov-emp-number">사번</label>
+            <label htmlFor="prov-emp-number">사용자 ID</label>
             <input
               id="prov-emp-number"
               className="sf-control"
               type="text"
-              value={empNumber}
-              onChange={(e) => setEmpNumber(e.target.value)}
-              placeholder="사번"
+              value={employeeNumber}
+              onChange={(e) => setEmployeeNumber(e.target.value)}
+              placeholder={USER_ID_SEARCH_PLACEHOLDER}
+            />
+          </div>
+          <div>
+            <label htmlFor="prov-emp-keyword">직원명</label>
+            <input
+              id="prov-emp-keyword"
+              className="sf-control"
+              type="text"
+              value={keyword}
+              onChange={(e) => setKeyword(e.target.value)}
+              placeholder="표시명 일부"
             />
           </div>
           <div>
@@ -188,7 +254,7 @@ const ExternalProvisioning = ({ onProvisioned }) => {
           <button
             type="button"
             className="sf-btn"
-            aria-label="외부 직원 검색 실행"
+            aria-label="직원 검색 실행"
             onClick={() => searchEmployees(1)}
           >
             검색
@@ -202,55 +268,88 @@ const ExternalProvisioning = ({ onProvisioned }) => {
         {empLoading ? (
           <p aria-live="polite">검색 중…</p>
         ) : (
-          <div className="external-provisioning-table-wrap">
-            <table className="log-table external-provisioning-table">
-              <thead>
-                <tr>
-                  <th scope="col">선택</th>
-                  <th scope="col">표시명</th>
-                  <th scope="col">사번</th>
-                  <th scope="col">외부 직원 ID</th>
-                  <th scope="col">소스</th>
-                  <th scope="col">외부 부서 ID</th>
-                  <th scope="col">직책</th>
-                </tr>
-              </thead>
-              <tbody>
-                {empItems.length === 0 ? (
+          <div className="log-table-container external-provisioning-table-container">
+            <div className="table-wrapper">
+              <table
+                className="log-table hierarchy-users-table user-management-table external-provisioning-emp-table"
+                aria-label="인사정보 직원 검색 결과"
+              >
+                <thead>
                   <tr>
-                    <td colSpan={7}>검색 결과가 없습니다.</td>
+                    <th scope="col">선택</th>
+                    <th scope="col">표시명</th>
+                    <th scope="col">부서</th>
+                    <th scope="col">사용자 ID</th>
+                    <th scope="col">인사정보 직원 ID</th>
+                    <th scope="col">소스</th>
+                    <th scope="col">인사정보 부서 ID</th>
+                    <th scope="col">직책</th>
+                    <th scope="col">등록</th>
                   </tr>
-                ) : (
-                  empItems.map((row) => {
-                    const id = row.externalEmployeeId ?? row.external_employee_id;
-                    const key = `${id}-${row.sourceSystem || ''}`;
-                    const checked =
-                      selectedEmp &&
-                      String(selectedEmp.externalEmployeeId ?? selectedEmp.external_employee_id) === String(id) &&
-                      (selectedEmp.sourceSystem || '') === (row.sourceSystem || '');
-                    return (
-                      <tr key={key}>
-                        <td>
-                          <input
-                            type="radio"
-                            name="pick-emp"
-                            checked={!!checked}
-                            onChange={() => setSelectedEmp(row)}
-                            aria-label={`선택 ${row.displayName || id}`}
-                          />
-                        </td>
-                        <td>{row.displayName ?? '—'}</td>
-                        <td>{row.employeeNumber ?? '—'}</td>
-                        <td>{id ?? '—'}</td>
-                        <td>{row.sourceSystem ?? '—'}</td>
-                        <td>{row.externalDepartmentId ?? '—'}</td>
-                        <td>{row.jobTitle ?? '—'}</td>
-                      </tr>
-                    );
-                  })
-                )}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {empItems.length === 0 ? (
+                    <tr>
+                      <td colSpan={9}>검색 결과가 없습니다.</td>
+                    </tr>
+                  ) : (
+                    empItems.map((row) => {
+                      const id = row.externalEmployeeId ?? row.external_employee_id;
+                      const key = `${id}-${row.sourceSystem || ''}`;
+                      const prov = rowProvisioned(row);
+                      const checked =
+                        selectedEmp &&
+                        String(selectedEmp.externalEmployeeId ?? selectedEmp.external_employee_id) ===
+                          String(id) &&
+                        (selectedEmp.sourceSystem || '') === (row.sourceSystem || '');
+                      const rowTitle = prov
+                        ? '이 직원은 이미 앱 사용자와 연결되어 있습니다.'
+                        : undefined;
+                      return (
+                        <tr key={key} title={rowTitle}>
+                          <td>
+                            <input
+                              type="radio"
+                              name="pick-emp"
+                              checked={!!checked}
+                              disabled={prov}
+                              onChange={() => {
+                                if (!prov) setSelectedEmp(row);
+                              }}
+                              aria-label={
+                                prov
+                                  ? `이미 등록됨 ${row.displayName || id}`
+                                  : `선택 ${row.displayName || id}`
+                              }
+                              title={prov ? rowTitle : undefined}
+                            />
+                          </td>
+                          <td>{row.displayName ?? '—'}</td>
+                          <td>{row.departmentName ?? '—'}</td>
+                          <td>{row.employeeNumber ?? '—'}</td>
+                          <td>{id ?? '—'}</td>
+                          <td>{row.sourceSystem ?? '—'}</td>
+                          <td>{row.externalDepartmentId ?? '—'}</td>
+                          <td>{row.jobTitle ?? '—'}</td>
+                          <td>
+                            {prov ? (
+                              <span className="external-provisioning-provisioned-cell">
+                                <span className="external-provisioning-provisioned-badge">등록됨</span>
+                                <span className="external-provisioning-provisioned-detail">
+                                  {provisionedDisplayLabel(row)}
+                                </span>
+                              </span>
+                            ) : (
+                              '—'
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })
+                  )}
+                </tbody>
+              </table>
+            </div>
           </div>
         )}
         <div className="external-provisioning-pagination">
@@ -287,10 +386,30 @@ const ExternalProvisioning = ({ onProvisioned }) => {
               placeholder="department.code"
             />
           </div>
+          <div className="external-provisioning-reason-field">
+            <label htmlFor="prov-change-reason">
+              등록 사유 <span aria-hidden="true">*</span>
+            </label>
+            <textarea
+              id="prov-change-reason"
+              className="sf-control external-provisioning-reason-textarea"
+              rows={4}
+              maxLength={PROVISION_CHANGE_REASON_MAX}
+              value={provisionChangeReason}
+              onChange={(e) => setProvisionChangeReason(e.target.value)}
+              placeholder="필수 입력 (전송 시 앞뒤 공백 제거)"
+              aria-required="true"
+              autoComplete="off"
+            />
+            <span className="external-provisioning-reason-hint" aria-live="polite">
+              {provisionChangeReason.trim().length}/{PROVISION_CHANGE_REASON_MAX}
+            </span>
+          </div>
           <button
             type="button"
-            className="sf-btn sf-btn-primary"
-            disabled={provisionLoading || !selectedEmp}
+            className="sf-btn sf-btn-primary user-management-btn-primary"
+            disabled={provisionLoading || !selectedEmp || selectedProvisioned}
+            title={selectedProvisioned ? '이 직원은 이미 앱 사용자와 연결되어 있습니다.' : undefined}
             onClick={handleProvision}
           >
             선택 직원 등록
@@ -306,92 +425,6 @@ const ExternalProvisioning = ({ onProvisioned }) => {
             {provisionMessage.text}
           </div>
         )}
-      </div>
-
-      <div className="sf-compact-panel external-provisioning-panel">
-        <h4 className="external-provisioning-subtitle">외부 부서 검색</h4>
-        <div className="sf-row sf-block">
-          <div>
-            <label htmlFor="prov-dept-keyword">키워드</label>
-            <input
-              id="prov-dept-keyword"
-              className="sf-control"
-              type="text"
-              value={deptKeyword}
-              onChange={(e) => setDeptKeyword(e.target.value)}
-              placeholder="부서명 일부"
-            />
-          </div>
-          <button
-            type="button"
-            className="sf-btn"
-            aria-label="외부 부서 검색 실행"
-            onClick={() => searchDepartments(1)}
-          >
-            검색
-          </button>
-        </div>
-        {deptError && (
-          <div className="external-provisioning-alert" role="alert">
-            {deptError}
-          </div>
-        )}
-        {deptLoading ? (
-          <p aria-live="polite">검색 중…</p>
-        ) : (
-          <div className="external-provisioning-table-wrap">
-            <table className="log-table external-provisioning-table">
-              <thead>
-                <tr>
-                  <th scope="col">외부 부서 ID</th>
-                  <th scope="col">이름</th>
-                  <th scope="col">소스</th>
-                  <th scope="col">상위 외부 부서 ID</th>
-                </tr>
-              </thead>
-              <tbody>
-                {deptItems.length === 0 ? (
-                  <tr>
-                    <td colSpan={4}>검색 결과가 없습니다.</td>
-                  </tr>
-                ) : (
-                  deptItems.map((row) => {
-                    const eid = row.externalDepartmentId ?? row.external_department_id;
-                    return (
-                      <tr key={`${eid}-${row.sourceSystem || ''}`}>
-                        <td>{eid ?? '—'}</td>
-                        <td>{row.name ?? '—'}</td>
-                        <td>{row.sourceSystem ?? '—'}</td>
-                        <td>{row.parentExternalDepartmentId ?? '—'}</td>
-                      </tr>
-                    );
-                  })
-                )}
-              </tbody>
-            </table>
-          </div>
-        )}
-        <div className="external-provisioning-pagination">
-          <button
-            type="button"
-            className="sf-btn"
-            disabled={deptPage <= 1 || deptLoading}
-            onClick={() => searchDepartments(Math.max(1, deptPage - 1))}
-          >
-            이전
-          </button>
-          <span>
-            {deptPagination.currentPage} / {deptPagination.totalPages} (총 {deptPagination.totalCount}건)
-          </span>
-          <button
-            type="button"
-            className="sf-btn"
-            disabled={deptPage >= deptPagination.totalPages || deptLoading}
-            onClick={() => searchDepartments(deptPage + 1)}
-          >
-            다음
-          </button>
-        </div>
       </div>
     </section>
   );

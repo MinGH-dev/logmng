@@ -73,7 +73,7 @@ class SearchHistoryServiceTest {
                     "search_result_total_count INT, decryption_target_count INT)");
             stmt.execute("CREATE TABLE IF NOT EXISTS department (code VARCHAR(50) PRIMARY KEY, name VARCHAR(200))");
             stmt.execute("CREATE TABLE IF NOT EXISTS app_user (" +
-                    "id BIGINT, username VARCHAR(100) PRIMARY KEY, department_code VARCHAR(50), name VARCHAR(200))");
+                    "id BIGINT, username VARCHAR(100) PRIMARY KEY, department_code VARCHAR(50), name VARCHAR(200), deleted_at TIMESTAMP NULL)");
             stmt.execute("CREATE TABLE IF NOT EXISTS user_decryption_allowed (" +
                     "user_id BIGINT NOT NULL, screen VARCHAR(50) NOT NULL, guid VARCHAR(512) NOT NULL, " +
                     "row_status VARCHAR(256) NOT NULL DEFAULT '', valid_until TIMESTAMP NOT NULL, " +
@@ -203,7 +203,7 @@ class SearchHistoryServiceTest {
         insertAppUser(dataSource, 20260001L, "requester1", "D01");
         insertAppUser(dataSource, 20260002L, "approver1", "D02");
         createSearchHistoryTableAndInsertPending(dataSource, 11L, 20260001L, "java_fw_imglog", "{}");
-        DecryptApproverService noApprovalService = new DecryptApproverService(dataSource, new DepartmentService(dataSource)) {
+        DecryptApproverService noApprovalService = new DecryptApproverService(dataSource, new DepartmentService(dataSource), null) {
             @Override
             public boolean canApproveForRequester(Long approverUserId, Long requesterUserId) {
                 return false;
@@ -226,7 +226,7 @@ class SearchHistoryServiceTest {
         insertAppUser(dataSource, 20260001L, "requester1", "D01");
         createSearchHistoryTableAndInsertPending(dataSource, 12L, 20260001L, "java_fw_imglog", "{}");
         long unknownApproverId = 999999L;
-        DecryptApproverService noApprovalStub = new DecryptApproverService(dataSource, new DepartmentService(dataSource)) {
+        DecryptApproverService noApprovalStub = new DecryptApproverService(dataSource, new DepartmentService(dataSource), null) {
             @Override
             public boolean canApproveForRequester(Long approverUserId, Long requesterUserId) {
                 return approverUserId != null && approverUserId != 999999L;

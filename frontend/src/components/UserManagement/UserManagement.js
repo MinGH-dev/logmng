@@ -1,5 +1,14 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { getUsers } from '../../services/userService';
+import {
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  Button,
+  Typography,
+  TextField,
+} from '@mui/material';
+import { getUsers, deleteUser } from '../../services/userService';
 import { getUserPermissionHierarchy, listPermissionGroups } from '../../services/permissionGroupService';
 import { getErrorMessage } from '../../utils/errorMessage';
 import { getAllowedScreenIds, getScreenFunctions } from '../../utils/security';
@@ -8,6 +17,9 @@ import UserGroupAssignment from '../UserGroupAssignment/UserGroupAssignment';
 import ExternalProvisioning from './ExternalProvisioning';
 import '../UserPermissionHierarchy/UserPermissionHierarchy.css';
 import './UserManagement.css';
+
+/** docs/api-definition.md §7 DELETE user — changeReason max length */
+const USER_DELETE_CHANGE_REASON_MAX = 500;
 
 const HierarchyTree = ({
   nodes,
@@ -77,6 +89,7 @@ const HierarchyTree = ({
                           <th scope="col">직책</th>
                           <th scope="col">권한 그룹</th>
                           <th scope="col">결재자 여부</th>
+                          <th scope="col">작업</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -121,6 +134,11 @@ const UserManagement = ({ user }) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [expandedCodes, setExpandedCodes] = useState(() => new Set());
+  const [provisionModalOpen, setProvisionModalOpen] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState(null);
+  const [deleteReason, setDeleteReason] = useState('');
+  const [deleteDialogError, setDeleteDialogError] = useState(null);
+  const [deleteSubmitting, setDeleteSubmitting] = useState(false);
 
   const ids = getAllowedScreenIds(user);
   const screenFunctions = getScreenFunctions(user);
@@ -179,19 +197,66 @@ const UserManagement = ({ user }) => {
     });
   };
 
+  const openDeleteDialog = (u) => {
+    const rowUserId = u.userId ?? u.username;
+    const displayUserId = u.employeeNumber ?? u.employee_number ?? rowUserId;
+    const displayName = u.userName ?? rowUserId;
+    setDeleteTarget({
+      userId: rowUserId,
+      displayName,
+      displayUserId,
+    });
+    setDeleteReason('');
+    setDeleteDialogError(null);
+  };
+
+  const closeDeleteDialog = () => {
+    setDeleteTarget(null);
+    setDeleteReason('');
+    setDeleteDialogError(null);
+    setDeleteSubmitting(false);
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (!deleteTarget?.userId) return;
+    const trimmed = deleteReason.trim();
+    if (!trimmed) {
+      setDeleteDialogError('삭제 사유를 입력하세요.');
+      return;
+    }
+    if (trimmed.length > USER_DELETE_CHANGE_REASON_MAX) {
+      setDeleteDialogError(`사유는 ${USER_DELETE_CHANGE_REASON_MAX}자 이하여야 합니다.`);
+      return;
+    }
+    setDeleteDialogError(null);
+    setDeleteSubmitting(true);
+    try {
+      await deleteUser(deleteTarget.userId, { changeReason: trimmed });
+      closeDeleteDialog();
+      await loadHierarchy();
+    } catch (e) {
+      logger.error('사용자 삭제 실패:', e);
+      setDeleteDialogError(getErrorMessage(e, '삭제에 실패했습니다.'));
+    } finally {
+      setDeleteSubmitting(false);
+    }
+  };
+
   const renderUserRow = (u, isApprover, allGroups, onRefresh) => {
     const userId = u.userId ?? u.username;
+    const displayUserId = u.employeeNumber ?? u.employee_number ?? userId;
     const displayName = u.userName ?? userId;
     const rank = u.rank ?? '-';
     const position = u.position ?? '-';
     const permissionGroups = u.permissionGroups || [];
     const isSystemAdmin = u.isSystemAdmin === true || u.is_system_admin === true;
+    const canDeleteRow = canWrite && !isSystemAdmin;
 
     return (
       <tr key={userId}>
         <td>{displayName}</td>
         <td>
-          {userId}
+          {displayUserId}
           {isSystemAdmin && (
             <span className="system-admin-badge" aria-label="시스템 관리자">
               {' '}시스템 관리자
@@ -210,6 +275,24 @@ const UserManagement = ({ user }) => {
           />
         </td>
         <td>{isApprover ? '예' : '아니오'}</td>
+        <td>
+          {canWrite && (
+            <button
+              type="button"
+              className="user-management-btn remove"
+              disabled={!canDeleteRow}
+              title={
+                isSystemAdmin
+                  ? '시스템 관리자는 삭제할 수 없습니다.'
+                  : '사용자 삭제'
+              }
+              aria-label={`${displayName} 사용자 삭제`}
+              onClick={() => canDeleteRow && openDeleteDialog(u)}
+            >
+              삭제
+            </button>
+          )}
+        </td>
       </tr>
     );
   };
@@ -223,9 +306,23 @@ const UserManagement = ({ user }) => {
     );
   }
 
+  const provisionDialogTitleId = 'user-provision-dialog-title';
+  const deleteDialogTitleId = 'user-delete-dialog-title';
+
   return (
     <div className="user-management">
-      <h2>사용자 관리</h2>
+      <div className="user-management-header">
+        <h2>사용자 관리</h2>
+        {canWrite && (
+          <button
+            type="button"
+            className="user-management-btn user-management-btn-primary"
+            onClick={() => setProvisionModalOpen(true)}
+          >
+            사용자 추가
+          </button>
+        )}
+      </div>
       <p className="user-permission-hierarchy-hint">
         부서를 펼치면 해당 부서의 사용자를 볼 수 있습니다. 권한 그룹, 결재자 여부를 편집할 수 있습니다.
       </p>
@@ -255,7 +352,84 @@ const UserManagement = ({ user }) => {
         </section>
       </div>
 
-      <ExternalProvisioning onProvisioned={loadHierarchy} />
+      {provisionModalOpen && (
+        <Dialog
+          open
+          onClose={() => setProvisionModalOpen(false)}
+          maxWidth="lg"
+          fullWidth
+          aria-labelledby={provisionDialogTitleId}
+        >
+          <DialogTitle id={provisionDialogTitleId}>인사정보에서 사용자 등록</DialogTitle>
+          <DialogContent dividers>
+            <Typography component="p" variant="body2" sx={{ mb: 2 }}>
+              인사정보에서 직원·부서를 검색한 뒤 선택한 직원을 앱 사용자로 등록합니다.
+            </Typography>
+            <ExternalProvisioning embeddedInModal onProvisioned={loadHierarchy} />
+          </DialogContent>
+          <DialogActions>
+            <Button type="button" onClick={() => setProvisionModalOpen(false)}>
+              취소
+            </Button>
+          </DialogActions>
+        </Dialog>
+      )}
+
+      {deleteTarget && (
+        <Dialog
+          open
+          onClose={deleteSubmitting ? undefined : closeDeleteDialog}
+          maxWidth="sm"
+          fullWidth
+          aria-labelledby={deleteDialogTitleId}
+        >
+          <DialogTitle id={deleteDialogTitleId}>사용자 삭제</DialogTitle>
+          <DialogContent dividers>
+            <Typography component="p" variant="body2" sx={{ mb: 2 }}>
+              다음 사용자를 삭제합니다. 되돌릴 수 없을 수 있습니다. 사유는 감사 로그에 남습니다.
+            </Typography>
+            <Typography component="p" variant="body2" sx={{ mb: 2 }}>
+              <strong>{deleteTarget.displayName}</strong>
+              {' '}
+              <span aria-label="표시 사용자 ID">({String(deleteTarget.displayUserId)})</span>
+            </Typography>
+            {deleteDialogError && (
+              <div className="user-management-error user-management-delete-dialog-error" role="alert">
+                {deleteDialogError}
+              </div>
+            )}
+            <TextField
+              label="삭제 사유"
+              placeholder="필수 입력"
+              value={deleteReason}
+              onChange={(ev) => setDeleteReason(ev.target.value)}
+              multiline
+              minRows={4}
+              fullWidth
+              required
+              inputProps={{
+                maxLength: USER_DELETE_CHANGE_REASON_MAX,
+                'aria-required': true,
+              }}
+              helperText={`${deleteReason.trim().length}/${USER_DELETE_CHANGE_REASON_MAX} (공백만 불가, 전송 시 trim)`}
+            />
+          </DialogContent>
+          <DialogActions>
+            <Button type="button" onClick={closeDeleteDialog} disabled={deleteSubmitting}>
+              취소
+            </Button>
+            <Button
+              type="button"
+              color="error"
+              variant="contained"
+              onClick={handleDeleteConfirm}
+              disabled={deleteSubmitting}
+            >
+              {deleteSubmitting ? '처리 중…' : '삭제'}
+            </Button>
+          </DialogActions>
+        </Dialog>
+      )}
     </div>
   );
 };

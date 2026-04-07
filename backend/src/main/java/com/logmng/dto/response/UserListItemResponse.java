@@ -1,6 +1,7 @@
 package com.logmng.dto.response;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 /**
@@ -15,6 +16,8 @@ public class UserListItemResponse {
     private String departmentCode;
     private String position;
     private String rank;
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    private String employeeNumber;
     @JsonProperty("isApprover")
     private boolean approver;
     @JsonProperty("isSystemAdmin")
@@ -36,6 +39,10 @@ public class UserListItemResponse {
     }
 
     public UserListItemResponse(Long userId, String username, String role, String departmentCode, boolean approver, String position, String rank, boolean isSystemAdmin) {
+        this(userId, username, role, departmentCode, approver, position, rank, isSystemAdmin, null);
+    }
+
+    public UserListItemResponse(Long userId, String username, String role, String departmentCode, boolean approver, String position, String rank, boolean isSystemAdmin, String employeeNumber) {
         this.userId = userId;
         this.username = username;
         this.role = role;
@@ -44,6 +51,7 @@ public class UserListItemResponse {
         this.position = position;
         this.rank = rank;
         this.systemAdmin = isSystemAdmin;
+        this.employeeNumber = (employeeNumber != null && !employeeNumber.isBlank()) ? employeeNumber.trim() : null;
     }
 
     public Long getUserId() {
@@ -109,5 +117,13 @@ public class UserListItemResponse {
 
     public void setSystemAdmin(boolean systemAdmin) {
         this.systemAdmin = systemAdmin;
+    }
+
+    public String getEmployeeNumber() {
+        return employeeNumber;
+    }
+
+    public void setEmployeeNumber(String employeeNumber) {
+        this.employeeNumber = (employeeNumber != null && !employeeNumber.isBlank()) ? employeeNumber.trim() : null;
     }
 }

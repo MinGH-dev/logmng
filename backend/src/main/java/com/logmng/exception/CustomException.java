@@ -2,6 +2,8 @@ package com.logmng.exception;
 
 import org.springframework.http.HttpStatus;
 
+import java.util.Map;
+
 /**
  * 커스텀 예외 클래스
  */
@@ -9,7 +11,9 @@ public class CustomException extends RuntimeException {
     
     private final String errorCode;
     private final HttpStatus httpStatus;
-    
+    /** Optional payload for {@link com.logmng.dto.response.ApiResponse#setData(Object)} on error responses. */
+    private final Map<String, Object> details;
+
     public String getErrorCode() {
         return errorCode;
     }
@@ -17,11 +21,23 @@ public class CustomException extends RuntimeException {
     public HttpStatus getHttpStatus() {
         return httpStatus;
     }
+
+    /**
+     * Extra fields for the API error body (e.g. 409 conflict hints). May be null.
+     */
+    public Map<String, Object> getDetails() {
+        return details;
+    }
     
     public CustomException(String message, String errorCode, HttpStatus httpStatus) {
+        this(message, errorCode, httpStatus, null);
+    }
+
+    public CustomException(String message, String errorCode, HttpStatus httpStatus, Map<String, Object> details) {
         super(message);
         this.errorCode = errorCode;
         this.httpStatus = httpStatus;
+        this.details = details;
     }
     
     /**
@@ -57,6 +73,13 @@ public class CustomException extends RuntimeException {
      */
     public static CustomException conflict(String message, String errorCode) {
         return new CustomException(message, errorCode, HttpStatus.CONFLICT);
+    }
+
+    /**
+     * 409 Conflict with optional {@link #getDetails()} merged into ApiResponse {@code data}.
+     */
+    public static CustomException conflict(String message, String errorCode, Map<String, Object> details) {
+        return new CustomException(message, errorCode, HttpStatus.CONFLICT, details);
     }
 
     /**

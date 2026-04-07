@@ -33,6 +33,8 @@ class UserActivityLogServiceTest {
         clearAllTables();
         userActivityLogService = new UserActivityLogService(dataSource, new UserActivityAccessAuditRepository(dataSource));
 
+        insertDepartment("D01", "영업1팀");
+        insertDepartment("D02", "연구2팀");
         insertAppUser("currentUser", "D01");
         insertAppUser("teamMate", "D01");
         insertAppUser("outsideUser", "D02");
@@ -46,6 +48,8 @@ class UserActivityLogServiceTest {
         Class.forName("org.h2.Driver");
         try (Connection conn = java.sql.DriverManager.getConnection(H2_URL);
              Statement stmt = conn.createStatement()) {
+            stmt.execute("CREATE TABLE IF NOT EXISTS department (" +
+                    "code VARCHAR(50) PRIMARY KEY, name VARCHAR(100))");
             stmt.execute("CREATE TABLE IF NOT EXISTS app_user (" +
                     "id BIGINT, username VARCHAR(100) PRIMARY KEY, department_code VARCHAR(50))");
             stmt.execute("CREATE TABLE IF NOT EXISTS user_activity_log (" +
@@ -64,6 +68,16 @@ class UserActivityLogServiceTest {
              Statement stmt = conn.createStatement()) {
             stmt.execute("DELETE FROM user_activity_log");
             stmt.execute("DELETE FROM app_user");
+            stmt.execute("DELETE FROM department");
+        }
+    }
+
+    private void insertDepartment(String code, String name) throws Exception {
+        try (Connection conn = dataSource.getConnection();
+             PreparedStatement ps = conn.prepareStatement("INSERT INTO department (code, name) VALUES (?, ?)")) {
+            ps.setString(1, code);
+            ps.setString(2, name);
+            ps.executeUpdate();
         }
     }
 
@@ -220,11 +234,35 @@ class UserActivityLogServiceTest {
         insertActivityLog(5L, "teamMate", "Team Mate", "10.0.0.2", "PERMISSION_GROUP_DELETE");
         UserActivityLogSearchRequest request = newRequest();
         request.setActionType("PERMISSION_GROUP_DELETE");
-        request.setDepartment("D01");
+        // department filter matches department.name (same strings as filter-options API), not department_code
+        request.setDepartment("영업1팀");
         ScopeHelper.applyActivityLogSearchScope(request, "team", "currentUser", List.of("currentUser", "teamMate"));
         UserActivityLogResponse response = userActivityLogService.searchActivityLogs(request);
 
         assertThat(extractUserIds(response)).containsExactly("teamMate");
+    }
+
+    /** Filter by display name: app_user.department_code is a code; request department is department.name. */
+    @Test
+    void searchActivityLogs_departmentFilter_matchesDepartmentName_notRawCode() throws Exception {
+        UserActivityLogSearchRequest request = newRequest();
+        request.setDepartment("영업1팀");
+        ScopeHelper.applyActivityLogSearchScope(request, "team", "currentUser", List.of("currentUser", "teamMate"));
+        UserActivityLogResponse response = userActivityLogService.searchActivityLogs(request);
+
+        assertThat(extractUserIds(response)).containsExactlyInAnyOrder("currentUser", "teamMate");
+        assertThat(response.getPagination().getTotalCount()).isEqualTo(2L);
+    }
+
+    @Test
+    void searchActivityLogs_departmentFilter_rawCodeDoesNotMatchDisplayName() throws Exception {
+        UserActivityLogSearchRequest request = newRequest();
+        request.setDepartment("D01");
+        ScopeHelper.applyActivityLogSearchScope(request, "team", "currentUser", List.of("currentUser", "teamMate"));
+        UserActivityLogResponse response = userActivityLogService.searchActivityLogs(request);
+
+        assertThat(response.getData()).isEmpty();
+        assertThat(response.getPagination().getTotalCount()).isEqualTo(0L);
     }
 
     @Test

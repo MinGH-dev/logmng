@@ -10,6 +10,7 @@ metadata:
   version: "1.0"
   requirement_ids:
     - "20260407-external-dept-employee-ad-login"
+    - "20260407-user-management-consistency-delete-reason-activity-audit"
   status: "draft"
   base_path: "/api"
 
@@ -44,17 +45,18 @@ metadata:
 
 ## 2.3 auth.ad.* (required when auth.login.mode = ad)
 
-Nested under **`auth.ad`**:
+Nested under **`auth.ad`**. End-user auth uses **JNDI `InitialDirContext` simple bind** against **`auth.ad.ldap-url`** with **UPN** = login `principal` when it contains `@`, else **`principal + "@" + auth.ad.domain`**. After bind, **`ExternalIdentityService`** resolution still uses the **request `principal`** string (trimmed), not only the UPN.
 
 | Property | Required | Description |
 |----------|----------|-------------|
-| **`auth.ad.ldap-url`** | Yes | LDAPS or LDAP URL; production MUST use **LDAPS or LDAP+StartTLS** with cert validation (Security §2.1). |
-| **`auth.ad.manager-dn`** | Yes | Service/bind account DN (least privilege). |
-| **`auth.ad.manager-password`** | Yes | Secret — env / secret manager only; never commit. |
-| **`auth.ad.user-search-base`** | Yes | Base DN for user resolution. |
-| **`auth.ad.user-search-filter`** | No | Filter template; `{0}` = login **principal** (or agreed placeholder). |
-| **`auth.ad.connect-timeout-ms`** | No | Optional. |
-| **`auth.ad.read-timeout-ms`** | No | Optional. |
+| **`auth.ad.ldap-url`** | Yes | LDAPS or LDAP URL; **`Context.PROVIDER_URL`**. Production MUST use **LDAPS or LDAP+StartTLS** with cert validation (Security §2.1). |
+| **`auth.ad.domain`** | Yes | UPN DNS suffix when login principal has no `@`. Env e.g. **`AUTH_AD_DOMAIN`**. |
+| **`auth.ad.manager-dn`** | No | Legacy — **unused** for authentication (retained for YAML compatibility). |
+| **`auth.ad.manager-password`** | No | Legacy — **unused**. |
+| **`auth.ad.user-search-base`** | No | Legacy — **unused**. |
+| **`auth.ad.user-search-filter`** | No | Legacy — **unused**. |
+| **`auth.ad.connect-timeout-ms`** | No | JNDI **`com.sun.jndi.ldap.connect.timeout`**. |
+| **`auth.ad.read-timeout-ms`** | No | JNDI **`com.sun.jndi.ldap.read.timeout`**. |
 
 - If **`auth.login.mode=ad`** and any **required** `auth.ad.*` is missing or blank → **fail-closed** (startup failure or login refusal — same family as §2.1).
 
@@ -108,15 +110,16 @@ Otherwise → **403** `FORBIDDEN`. Unauthenticated → **401**.
 
 ## 4.1 POST /api/provisioning/external-employees/search
 
-Search **`ext_employee`** (replicated table; exact column set in DB schema).
+Search **`ext_employee`** with optional join to **`ext_department`** for department display name and **`departmentName`** filter (unified search: department name + user id (HR `employee_number`, same numeric style as app **user id** in User Management) + person name in one request). Replicated tables; exact column set in DB schema.
 
 **Request body** (JSON, camelCase):
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
-| keyword | string | No | Fuzzy name search (implementation may use `pg_trgm` if enabled). |
-| employeeNumber | string | No | Exact or prefix match per product. |
-| externalDepartmentId | string | No | Filter by external dept id if column exists. |
+| keyword | string | No | **직원명** filter: `ext_employee.display_name` ILIKE `%trim%`. |
+| employeeNumber | string | No | **User id (HR)** / `employee_number`: trim; if empty after trim, filter omitted; else prefix `ext_employee.employee_number` LIKE `trimmed%`. |
+| departmentName | string | No | **부서명** filter: joined `ext_department.name` ILIKE `%trim%` (non-blank only). Server uses `LEFT JOIN ext_department` on `(source_system, external_department_id)`. |
+| externalDepartmentId | string | No | Filter by external dept id on `ext_employee`. |
 | sourceSystem | string | No | When multiple replicas — **source system** discriminator. |
 | page | integer | No | Default 1. |
 | pageSize | integer | No | Default e.g. 20, max cap server-side. |
@@ -132,12 +135,15 @@ Search **`ext_employee`** (replicated table; exact column set in DB schema).
       "employeeNumber": "string",
       "displayName": "string",
       "externalDepartmentId": "string",
-      "jobTitle": "string"
+      "jobTitle": "string",
+      "departmentName": "string"
     }
   ],
   "pagination": { "currentPage": 1, "totalPages": 1, "totalCount": 0 }
 }
 ```
+
+`departmentName` is the replicated department display name when the join resolves; may be null if no matching `ext_department` row.
 
 - Field names MAY mirror DB columns in camelCase; **PII minimization** in logs and error messages.
 
@@ -153,23 +159,24 @@ Search **`ext_department`**.
 
 ## 4.3 POST /api/provisioning/users/from-external-employee
 
-Create or link **`app_user`** from one external employee row.
+Create or link **`app_user`** from one external employee row. **Auditable mutation** (req `20260407-user-management-consistency-delete-reason-activity-audit`): client MUST send a non-blank **`changeReason`**; server validates trim, max **500** characters (same field name and persisted-activity cap as `permissionGroupAuditV1.changeReason` / MF-03 in `docs/api-definition.md` §8.0).
 
-**Request body**:
+**Request body** (JSON, camelCase):
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
 | externalEmployeeId | string | Yes | Natural key from replica row. |
 | sourceSystem | string | No | If omitted, server uses default source tag from config. |
 | departmentCode | string | No | Maps to canonical `department.code` when present. |
+| **changeReason** | string | **Yes** | Reason for provisioning (operator-supplied). Non-blank after trim; max **500** chars. Blank, missing, or over length → **400** `INVALID_INPUT`. |
 
-**Success**: **200** or **201** with `data` containing **`userId`** (numeric `app_user.id`) and minimal user summary.
+**Success**: **200** or **201** with `data` containing **`userId`** (numeric `app_user.id`) and minimal user summary. On success, activity log **`USER_CREATE`** (or product-confirmed equivalent) with `action_detail` keys per `specs/activity-action-types.spec.yaml` §3 (`changeReason`, `targetUserId`, `employeeNumber`, `username` where applicable; denylist applies).
 
 **Errors**:
 
 | HTTP | code | When |
 |------|------|------|
-| 400 | INVALID_INPUT | Missing keys, unknown dept code, etc. |
+| 400 | INVALID_INPUT | Missing keys, **missing/blank/overlong `changeReason`**, unknown dept code, etc. |
 | 401 | UNAUTHORIZED | No session |
 | 403 | FORBIDDEN | Not admin-class user |
 | 409 | EXTERNAL_IDENTITY_CONFLICT | `app_user` already linked to this external key |

@@ -214,7 +214,11 @@ public class UserActivityLogService {
             sql.append(prefix).append("user_agent, ").append(prefix).append("request_method, ").append(prefix).append("request_path, ").append(prefix).append("request_params, ");
             sql.append(prefix).append("response_status, ").append(prefix).append("response_time_ms, ").append(prefix).append("success, ").append(prefix).append("error_message, ");
             sql.append(prefix).append("created_at, ").append(prefix).append("updated_at ");
-            sql.append("FROM user_activity_log u LEFT JOIN app_user a ON u.user_id = a.username WHERE 1=1 ");
+            sql.append("FROM user_activity_log u LEFT JOIN app_user a ON u.user_id = a.username ");
+            if (useDepartmentJoin) {
+                sql.append("LEFT JOIN department dept_f ON dept_f.code = a.department_code ");
+            }
+            sql.append("WHERE 1=1 ");
 
             List<Object> params = new ArrayList<>();
 
@@ -255,9 +259,9 @@ public class UserActivityLogService {
                 params.add(normalizedUserId);
             }
 
-            // 부서 조건: app_user 조인 시 department_code 필터
+            // 부서 조건: filter-options API와 동일하게 department.name(표시명)으로 필터
             if (useDepartmentJoin) {
-                sql.append("AND a.department_code = ? ");
+                sql.append("AND dept_f.name = ? ");
                 params.add(normalizedDepartment);
             }
 

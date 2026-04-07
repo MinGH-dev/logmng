@@ -13,7 +13,7 @@ import java.util.List;
 public class StubDecryptApproverService extends DecryptApproverService {
 
     public StubDecryptApproverService() {
-        super(null, null);
+        super(null, null, null);
     }
 
     @Override
