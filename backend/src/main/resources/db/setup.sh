@@ -51,6 +51,9 @@ SCHEMA_IMAGELOG="${SCHEMA_IMAGELOG:-public}"
 
 DB_USER="${DB_USER:-logmng}"
 DB_PASSWORD="${DB_PASSWORD:-logmng123}"
+# ETL/레플리카 작업 전용: ext_department / ext_employee 에만 INSERT·UPDATE·DELETE (앱 역할은 SELECT-only)
+DB_ETL_USER="${DB_ETL_USER:-logmng_etl}"
+DB_ETL_PASSWORD="${DB_ETL_PASSWORD:-logmng_etl123}"
 DB_HOST="${DB_HOST:-localhost}"
 DB_PORT="${DB_PORT:-5432}"
 
@@ -138,6 +141,9 @@ else
   run_sql_file_sp "$DB_A_NAME" "${SCHEMA_PB}, public" "$SCRIPT_DIR/schema_pb_fep.sql"
 fi
 run_sql_file_sp "$DB_A_NAME" "${SCHEMA_SYS}, ${SCHEMA_PB}, public" "$SCRIPT_DIR/schema_sys.sql"
+echo "4-ext. 외부 복제 ext_* / app_user_external_identity (레거시 DB 정렬, req 20260407)..."
+run_sql_file_sp "$DB_A_NAME" "${SCHEMA_SYS}, ${SCHEMA_PB}, public" "$SCRIPT_DIR/migrate-external-identity-tables-20260407.sql"
+echo "   ✅ migrate-external-identity-tables-20260407.sql 적용(또는 신규 스키마와 동일·no-op)"
 run_sql_file_sp "$DB_A_NAME" "${SCHEMA_SYS}, ${SCHEMA_PB}, public" "$SCRIPT_DIR/schema_user_activity_log.sql"
 
 echo "4a-user-activity-access-audit. user_activity_access_audit (append-only access audit, req 20260330 audit evidence)..."
@@ -156,6 +162,28 @@ echo "4b. 스키마별 GRANT (앱 사용자)..."
 grant_schema_objects "$DB_A_NAME" "$SCHEMA_SYS" "$DB_USER"
 grant_schema_objects "$DB_A_NAME" "$SCHEMA_PB" "$DB_USER"
 grant_schema_objects "$DB_B_NAME" "$SCHEMA_IMAGELOG" "$DB_USER"
+
+echo "4b-ext. ext_department / ext_employee: 앱 역할(${DB_USER}) SELECT-only, ETL 역할(${DB_ETL_USER}) 쓰기 (req 20260407)..."
+EXT_DEP_EXISTS=$(psql_admin -d "$DB_A_NAME" -tAc "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema='${SCHEMA_SYS}' AND table_name='ext_department';" 2>/dev/null || echo "0")
+if [ "${EXT_DEP_EXISTS:-0}" = "1" ]; then
+  psql_admin -d "$DB_A_NAME" -tc "SELECT 1 FROM pg_roles WHERE rolname = '${DB_ETL_USER}'" | grep -q 1 || \
+    psql_admin -d "$DB_A_NAME" -c "CREATE USER ${DB_ETL_USER} WITH PASSWORD '${DB_ETL_PASSWORD}';"
+  psql_admin -d "$DB_A_NAME" -v ON_ERROR_STOP=1 -c "GRANT CONNECT ON DATABASE ${DB_A_NAME} TO ${DB_ETL_USER};"
+  psql_admin -d "$DB_A_NAME" -v ON_ERROR_STOP=1 -c "GRANT USAGE ON SCHEMA ${SCHEMA_SYS} TO ${DB_ETL_USER};"
+  psql_admin -d "$DB_A_NAME" -v ON_ERROR_STOP=1 -c "
+    REVOKE ALL ON TABLE ${SCHEMA_SYS}.ext_department FROM ${DB_USER};
+    REVOKE ALL ON TABLE ${SCHEMA_SYS}.ext_employee FROM ${DB_USER};
+    GRANT SELECT ON TABLE ${SCHEMA_SYS}.ext_department TO ${DB_USER};
+    GRANT SELECT ON TABLE ${SCHEMA_SYS}.ext_employee TO ${DB_USER};
+    GRANT INSERT, UPDATE, DELETE ON TABLE ${SCHEMA_SYS}.ext_department TO ${DB_ETL_USER};
+    GRANT INSERT, UPDATE, DELETE ON TABLE ${SCHEMA_SYS}.ext_employee TO ${DB_ETL_USER};
+    GRANT USAGE, SELECT ON SEQUENCE ${SCHEMA_SYS}.ext_department_id_seq TO ${DB_ETL_USER};
+    GRANT USAGE, SELECT ON SEQUENCE ${SCHEMA_SYS}.ext_employee_id_seq TO ${DB_ETL_USER};
+  "
+  echo "   ✅ ext_*: ${DB_USER}=SELECT only; ${DB_ETL_USER}=DML + 시퀀스(ETL)"
+else
+  echo "   ⚠️  ${SCHEMA_SYS}.ext_department 없음 — migrate-external-identity-tables-20260407.sql 확인"
+fi
 
 SP_APP="${SCHEMA_SYS}, ${SCHEMA_PB}, public"
 
@@ -225,6 +253,10 @@ echo "   ✅ imagelog companion-status 적용(또는 이미 존재)"
 echo "6. app_user id 마이그레이션 (admin=20269999, 기타=20260001~) 적용 중..."
 run_sql_file_sp "$DB_A_NAME" "$SP_APP" "$SCRIPT_DIR/migrate-app-user-id-2026.sql"
 echo "   ✅ app_user id 마이그레이션 완료"
+
+echo "6a. app_user_permission_group.user_id 정규화 (레거시 id::text → username, FK·감사 조회 정합, req 20260316·20260407)..."
+run_sql_file_sp "$DB_A_NAME" "$SP_APP" "$SCRIPT_DIR/migrate-app-user-permission-group-user-id-to-username-20260407.sql"
+echo "   ✅ app_user_permission_group user_id 정규화 완료(또는 이미 username)"
 
 echo ""
 echo "=== 설정 완료 ==="

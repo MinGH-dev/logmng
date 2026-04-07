@@ -86,17 +86,8 @@ public class DecryptController {
 
         log.info("🔓 복호화 요청: logType={}, guid={}, status={}", logType, guid, st);
 
-        try {
-            Map<String, Object> decryptedData = logDbService.decryptRow(logType, guid, st);
-            return ResponseEntity.ok(ApiResponse.success(decryptedData));
-        } catch (IllegalArgumentException e) {
-            return ResponseEntity.badRequest()
-                    .body(ApiResponse.failure(e.getMessage(), "MISSING_STATUS"));
-        } catch (Exception e) {
-            log.error("복호화 중 오류 발생: currentUserId={}, guid={}, status={}", currentUserId, guid, st, e);
-            return ResponseEntity.internalServerError()
-                    .body(ApiResponse.failure("복호화 실패: " + e.getMessage(), "DECRYPTION_FAILED"));
-        }
+        Map<String, Object> decryptedData = logDbService.decryptRow(logType, guid, st);
+        return ResponseEntity.ok(ApiResponse.success(decryptedData));
     }
 
 }

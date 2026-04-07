@@ -17,6 +17,7 @@ Use this skill when planning permission-verification tests or when tracing which
 - `GET /api/activity-log/{id}` uses the same effective scope as search (`self` → owner check; `team` → same-department allowlist; `all` → no extra row filter). A principal must not read detail for a row they could not see in search (MF-02).
 - When permission tests cover a scope-sensitive API, include regression cases for controller normalization and service/query enforcement so hidden request fields cannot bypass the contract.
 - **Search screen decrypt UI**: The search (main) screen must hide or disable decrypt actions (approval request button and per-row decrypt) when the user lacks main decrypt (`screenFunctions.main.decrypt` false and not system admin); the UI shows "복호화 권한이 없습니다." (req 20260317-search-decrypt-permission-ui).
+- **Provisioning (req 20260407)**: Admin-only (same guard as user management: `AuthService.canAccessUserManagementView`). **`POST /api/provisioning/external-employees/search`**, **`POST /api/provisioning/external-departments/search`**, **`POST /api/provisioning/users/from-external-employee`** — unauthenticated **401**, non-admin **403**, success **200** with data; duplicate external key **409** `EXTERNAL_IDENTITY_CONFLICT`. Screen access: `ScreenAccessInterceptor` maps **`/api/provisioning/**`** to **user-management** OR **user-permission-hierarchy** (same as admin provisioning spec).
 
 ## References
 

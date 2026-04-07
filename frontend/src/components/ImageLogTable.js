@@ -13,6 +13,50 @@ function buildJavaFwDecryptApiUrl(screenId) {
     : `${apiBaseUrl}/logs/decrypt/java_fw_imglog`;
 }
 
+/**
+ * Parse fetch response body once; returns `{ parsed, rawText }`.
+ * `parsed` is null if body is empty or not JSON.
+ */
+function parseResponseBodyJson(rawText) {
+  const raw = rawText == null ? '' : String(rawText);
+  if (!raw.trim()) {
+    return { parsed: {}, rawText: raw };
+  }
+  try {
+    const parsed = JSON.parse(raw);
+    return {
+      parsed: parsed && typeof parsed === 'object' ? parsed : {},
+      rawText: raw,
+    };
+  } catch {
+    return { parsed: null, rawText: raw };
+  }
+}
+
+/**
+ * ApiResponse-style message for alerts (message, error string, or nested error.message).
+ * @param {object} payload - normalized object from JSON body
+ * @returns {string|null}
+ */
+function getApiErrorMessageForAlert(payload) {
+  if (!payload || typeof payload !== 'object') return null;
+  if (typeof payload.message === 'string' && payload.message.trim() !== '') {
+    return payload.message.trim();
+  }
+  if (typeof payload.error === 'string' && payload.error.trim() !== '') {
+    return payload.error.trim();
+  }
+  if (
+    payload.error &&
+    typeof payload.error === 'object' &&
+    typeof payload.error.message === 'string' &&
+    payload.error.message.trim() !== ''
+  ) {
+    return payload.error.message.trim();
+  }
+  return null;
+}
+
 const IMAGE_LOG_COLUMNS = [
   { key: 'insert_time', label: 'insert_time', sortable: true },
   { key: 'application', label: 'application', sortable: true },
@@ -292,40 +336,58 @@ const ImageLogTable = ({
         body: JSON.stringify(body)
       });
       
-      logger.debug('🔓 복호화 API 응답 상태:', { status: response.status });
-      
-      if (response.status === 403) {
-        let result = null;
-        try {
-          const text = await response.text();
-          result = text ? JSON.parse(text) : {};
-        } catch (_) {
-          result = {};
-        }
-        // 403 body is in result; log so user can see code, detailCode, error in console
-        logger.debug('🔓 복호화 API 403 응답 body:', { code: result?.code, detailCode: result?.detailCode, error: result?.error });
-        if (result.code === 'DECRYPTION_NOT_APPROVED') {
-          logger.debug('🔓 복호화 승인 미완료:', { code: result.code });
-          alert(getUserFriendlyErrorMessage('복호화', result));
-          return;
-        }
-        if (result.code === 'ROW_NOT_IN_APPROVED_SNAPSHOT') {
-          logger.debug('🔓 승인된 검색 결과에 없는 항목 복호화 시도:', { code: result.code });
-          alert(result.message || '승인된 검색 결과에 포함된 항목만 복호화할 수 있습니다.');
-          return;
-        }
-        // 기타 403: 공통 안내 후 return (body 이미 소비됨)
-        alert(getUserFriendlyErrorMessage('복호화', result));
-        return;
-      }
+      const rawText = await response.text();
+      const { parsed, rawText: bodyText } = parseResponseBodyJson(rawText);
+      const payload = parsed !== null ? parsed : {};
+
+      logger.debug('🔓 복호화 API 응답 상태:', { status: response.status, hasJson: parsed !== null });
       
       if (!response.ok) {
-        const errorText = await response.text();
-        logger.error('🔓 복호화 API 오류:', { status: response.status, error: errorText });
-        throw new Error(`HTTP error! status: ${response.status}`);
+        if (response.status === 403) {
+          logger.debug('🔓 복호화 API 403 응답 body:', {
+            code: payload?.code,
+            detailCode: payload?.detailCode,
+            error: payload?.error,
+          });
+          if (payload.code === 'DECRYPTION_NOT_APPROVED') {
+            logger.debug('🔓 복호화 승인 미완료:', { code: payload.code });
+            alert(getUserFriendlyErrorMessage('복호화', payload));
+            return;
+          }
+          if (payload.code === 'ROW_NOT_IN_APPROVED_SNAPSHOT') {
+            logger.debug('🔓 승인된 검색 결과에 없는 항목 복호화 시도:', { code: payload.code });
+            alert(
+              getApiErrorMessageForAlert(payload) ||
+                '승인된 검색 결과에 포함된 항목만 복호화할 수 있습니다.'
+            );
+            return;
+          }
+          const msg403 = getApiErrorMessageForAlert(payload);
+          alert(msg403 || getUserFriendlyErrorMessage('복호화', payload));
+          return;
+        }
+
+        const apiMsg = getApiErrorMessageForAlert(payload);
+        logger.error('🔓 복호화 API 오류:', {
+          status: response.status,
+          code: payload.code,
+          body: bodyText?.slice?.(0, 500),
+        });
+        if (apiMsg) {
+          alert(apiMsg);
+        } else {
+          alert(getUserFriendlyErrorMessage('복호화', new Error(`HTTP error! status: ${response.status}`)));
+        }
+        return;
       }
-      
-      const result = await response.json();
+
+      if (parsed === null) {
+        logger.error('🔓 복호화 API: 성공 상태이나 본문이 JSON이 아님:', { preview: bodyText?.slice?.(0, 200) });
+        alert(getUserFriendlyErrorMessage('복호화', new Error('Invalid response')));
+        return;
+      }
+
+      const result = parsed;
       logger.debug('🔓 복호화 API 결과:', { 
         success: result.success,
         hasData: !!result.data,
@@ -630,6 +692,8 @@ const ImageLogTable = ({
         pagination={pagination}
         pageSize={pageSize}
         onPageSizeChange={onPageSizeChange}
+        containerClassName="log-table-container--fill"
+        paginationFooterOrder="info-buttons-size"
         ariaLabel="이미지 로그 검색 결과"
       >
         {tableBody}

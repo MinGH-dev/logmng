@@ -34,6 +34,65 @@ describe('UserActivityLogDetail', () => {
     });
   });
 
+  test('TC-06 UX: ASSIGN_USER_TO_PERMISSION_GROUP with before+after shows diff without “no prior group” note', () => {
+    const log = baseLog({
+      action_type: 'ASSIGN_USER_TO_PERMISSION_GROUP',
+      action_detail: {
+        permissionGroupAuditV1: {
+          schemaVersion: '1',
+          operation: 'ASSIGN_USER',
+          permissionGroupId: 7,
+          targetUserId: 'user-99',
+          before: {
+            code: 'OLD_GROUP',
+            name: '이전 그룹',
+            allowedScreens: [{ screenId: 'a', scope: 'team', read: true }],
+          },
+          after: {
+            code: 'NEW_GROUP',
+            name: '새 그룹',
+            allowedScreens: [{ screenId: 'b', scope: 'all', read: true }],
+          },
+        },
+      },
+    });
+
+    render(<UserActivityLogDetail log={log} onClose={() => {}} actionTypeLabelMap={{}} />);
+
+    expect(screen.getByRole('heading', { name: '권한 그룹 감사' })).toBeInTheDocument();
+    expect(screen.getByText('사용자 배정')).toBeInTheDocument();
+    expect(screen.getByText('이전 그룹')).toBeInTheDocument();
+    expect(screen.getByText('새 그룹')).toBeInTheDocument();
+    expect(screen.queryByText(/이전 권한 그룹 없음/)).not.toBeInTheDocument();
+    expect(screen.getByRole('table', { name: '권한 그룹 메타데이터 필드별 변경 전후' })).toBeInTheDocument();
+  });
+
+  test('TC-06 UX: ASSIGN_USER_TO_PERMISSION_GROUP with before null and after shows “이전 권한 그룹 없음” note', () => {
+    const log = baseLog({
+      action_type: 'ASSIGN_USER_TO_PERMISSION_GROUP',
+      action_detail: {
+        permissionGroupAuditV1: {
+          schemaVersion: '1',
+          operation: 'ASSIGN_USER',
+          permissionGroupId: 7,
+          targetUserId: 'user-99',
+          before: null,
+          after: {
+            code: 'NEW_GROUP',
+            name: '새 그룹',
+            allowedScreens: [{ screenId: 'activity-log', scope: 'team', read: true }],
+          },
+        },
+      },
+    });
+
+    render(<UserActivityLogDetail log={log} onClose={() => {}} actionTypeLabelMap={{}} />);
+
+    expect(screen.getByText(/이전 권한 그룹 없음/)).toBeInTheDocument();
+    expect(screen.getByText('새 그룹')).toBeInTheDocument();
+    expect(screen.getByRole('table', { name: '권한 그룹 메타데이터 필드별 변경 전후' })).toBeInTheDocument();
+  });
+
   test('TC-11: PERMISSION_GROUP_UPDATE with permissionGroupAuditV1 shows structured audit section', () => {
     const log = baseLog({
       action_detail: {
@@ -89,6 +148,37 @@ describe('UserActivityLogDetail', () => {
     expect(screen.getByRole('heading', { name: '추가 필드 (레거시 enricher)' })).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: '기타 키 (JSON)' })).toBeInTheDocument();
     expect(screen.getByText(/futureSchemaKey/)).toBeInTheDocument();
+  });
+
+  test('요청 파라미터 (request_params): JSON 문자열 파싱 및 마스킹 표시', () => {
+    const log = baseLog({
+      action_type: 'VIEW',
+      action_detail: {},
+      request_params: JSON.stringify({ page: 1, password: 'secret-value' }),
+    });
+    render(<UserActivityLogDetail log={log} onClose={() => {}} actionTypeLabelMap={{}} />);
+    expect(screen.getByRole('heading', { name: '요청 파라미터 (request_params)' })).toBeInTheDocument();
+    const block = screen.getByRole('heading', { name: '요청 파라미터 (request_params)' }).parentElement;
+    expect(block?.textContent).toMatch(/password/);
+    expect(block?.textContent).toMatch(/\*\*\*/);
+  });
+
+  test('변경·삭제·추가 요약: 일반 UPDATE(before/after 객체) 시 필드별 비교 표', () => {
+    const log = baseLog({
+      action_type: 'CONFIG_PATCH',
+      action_detail: {
+        before: { alpha: 1, beta: 'old' },
+        after: { alpha: 1, beta: 'new', gamma: true },
+      },
+    });
+    render(<UserActivityLogDetail log={log} onClose={() => {}} actionTypeLabelMap={{}} />);
+    expect(screen.getByRole('heading', { name: '변경·삭제·추가 요약' })).toBeInTheDocument();
+    expect(screen.getByRole('columnheader', { name: '필드' })).toBeInTheDocument();
+    expect(screen.getByRole('columnheader', { name: '변경 전' })).toBeInTheDocument();
+    expect(screen.getByRole('columnheader', { name: '변경 후' })).toBeInTheDocument();
+    expect(screen.getByRole('row', { name: /alpha/ })).toBeInTheDocument();
+    expect(screen.getByRole('row', { name: /beta/ })).toBeInTheDocument();
+    expect(screen.getByRole('row', { name: /gamma/ })).toBeInTheDocument();
   });
 
   test('TC-15: SEARCH action still shows search summary (regression)', () => {

@@ -74,6 +74,23 @@ management:
     health:
       show-details: when-authorized
 
+# 인증 모드 (요건 20260407): local = app_user.id + password_hash | ad = LDAP + app_user_external_identity 매핑
+# 운영 AD: auth.login.mode=ad 및 auth.ad.* 환경변수 필수. 묵시 폴백 없음 (fail-closed).
+auth:
+  login:
+    mode: ${AUTH_LOGIN_MODE:local}
+    allow-local-in-production: ${AUTH_LOGIN_ALLOW_LOCAL_IN_PRODUCTION:false}
+  ad:
+    ldap-url: ${AUTH_AD_LDAP_URL:}
+    manager-dn: ${AUTH_AD_MANAGER_DN:}
+    manager-password: ${AUTH_AD_MANAGER_PASSWORD:}
+    user-search-base: ${AUTH_AD_USER_SEARCH_BASE:}
+    user-search-filter: ${AUTH_AD_USER_SEARCH_FILTER:(sAMAccountName={0})}
+    connect-timeout-ms: ${AUTH_AD_CONNECT_TIMEOUT_MS:5000}
+    read-timeout-ms: ${AUTH_AD_READ_TIMEOUT_MS:5000}
+  provisioning:
+    default-source-system: ${AUTH_PROVISIONING_DEFAULT_SOURCE_SYSTEM:HR_SAMPLE}
+
 # Application 설정
 app:
   name: Log Management System

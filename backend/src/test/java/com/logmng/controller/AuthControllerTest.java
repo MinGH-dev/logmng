@@ -79,7 +79,7 @@ class AuthControllerTest {
     private static final class StubAuthService extends AuthService {
 
         private StubAuthService() {
-            super(null, null, null, null, null);
+            super(null, null, null, null, null, new com.logmng.config.AuthProperties(), null, null);
         }
 
         @Override
@@ -110,7 +110,7 @@ class AuthControllerTest {
 
     private static final class StubAuthServiceNoSession extends AuthService {
         private StubAuthServiceNoSession() {
-            super(null, null, null, null, null);
+            super(null, null, null, null, null, new com.logmng.config.AuthProperties(), null, null);
         }
 
         @Override

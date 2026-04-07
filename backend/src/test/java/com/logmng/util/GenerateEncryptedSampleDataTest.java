@@ -5,6 +5,8 @@ import org.springframework.test.util.ReflectionTestUtils;
 
 import java.util.List;
 
+import static com.logmng.util.ProObjectAesCipher.E002;
+
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
@@ -71,9 +73,27 @@ class GenerateEncryptedSampleDataTest {
 
         boolean hasEncrypted = samples.stream().anyMatch(s ->
                 (s.datastring != null && s.datastring.contains("[\"") && s.datastring.contains("\"]"))
-                        || (s.data != null && s.data.length() > 200) // encrypted payload tends to be longer
+                        || (s.data != null && (s.data.length() > 200 || s.data.startsWith(E002)))
         );
         assertThat(hasEncrypted).as("At least one row with encrypted or bracket-wrapped content").isTrue();
+    }
+
+    @Test
+    void generateAppendEncryptedSamples_fixedGuidAndQuotedBracketPattern() {
+        CryptoUtil cryptoUtil = new CryptoUtil();
+        ReflectionTestUtils.setField(cryptoUtil, "encryptionKey", "01234567890123456789012345678901");
+        ReflectionTestUtils.setField(cryptoUtil, "decryptionEnabled", true);
+
+        GenerateEncryptedSampleData generator = new GenerateEncryptedSampleData(cryptoUtil);
+        List<GenerateEncryptedSampleData.SampleData> rows = generator.generateAppendEncryptedSamples();
+
+        assertThat(rows).hasSize(1);
+        GenerateEncryptedSampleData.SampleData s = rows.get(0);
+        assertThat(s.guid).isEqualTo(GenerateEncryptedSampleData.APPEND_ENC_GUID_01);
+        assertThat(s.status).isEqualTo("input");
+        assertThat(s.datastring).contains("\"[");
+        assertThat(s.datastring).contains("]\"");
+        assertThat(s.data).startsWith(E002);
     }
 
     @Test

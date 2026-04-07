@@ -2,8 +2,9 @@ package com.logmng.webtest;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.logmng.controller.DecryptController;
+import com.logmng.exception.CustomException;
+import com.logmng.exception.GlobalExceptionHandler;
 import com.logmng.service.AuthService;
-import com.logmng.service.DecryptApproverService;
 import com.logmng.service.StubDecryptionAllowedService;
 import com.logmng.service.StubLogDbService;
 import com.logmng.util.CryptoUtil;
@@ -46,7 +47,9 @@ class DecryptControllerTest {
         authServiceStub.setCurrentUserId(20260001L);
         authServiceStub.setCurrentUsername("user1");
         DecryptController controller = new DecryptController(logDbService, decryptionAllowedService, authServiceStub);
-        mockMvc = MockMvcBuilders.standaloneSetup(controller).build();
+        mockMvc = MockMvcBuilders.standaloneSetup(controller)
+                .setControllerAdvice(new GlobalExceptionHandler())
+                .build();
     }
 
     private static DataSource createH2DataSource() throws Exception {
@@ -87,6 +90,25 @@ class DecryptControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success").value(true))
                 .andExpect(jsonPath("$.data.decrypted").value("data"));
+    }
+
+    @Test
+    @DisplayName("TC-08: LogDbService signals decrypt failure → 400 DECRYPTION_FAILED (not 500)")
+    void decryptRow_whenPayloadDecryptFails_returns400DecryptionFailed() throws Exception {
+        decryptionAllowedService.setAllowed(true);
+        logDbService.setDecryptRowException(CustomException.badRequest(
+                "복호화할 수 없습니다. 암호문 형식이 올바르지 않거나 키가 일치하지 않을 수 있습니다.",
+                "DECRYPTION_FAILED"));
+
+        mockMvc.perform(post("/api/logs/decrypt/java_fw_imglog")
+                        .sessionAttr("userId", 20260001L)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of("guid", "g1", "status", "s1"))))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.code").value("DECRYPTION_FAILED"))
+                .andExpect(jsonPath("$.error").value(
+                        "복호화할 수 없습니다. 암호문 형식이 올바르지 않거나 키가 일치하지 않을 수 있습니다."));
     }
 
     @Test
@@ -150,7 +172,7 @@ class DecryptControllerTest {
         private String currentUsername = "user1";
 
         StubAuthServiceDecryptAllowed() {
-            super(null, null, null, null, null);
+            super(null, null, null, null, null, new com.logmng.config.AuthProperties(), null, null);
         }
 
         void setCurrentUserId(long userId) {

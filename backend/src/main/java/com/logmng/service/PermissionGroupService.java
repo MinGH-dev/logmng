@@ -209,10 +209,17 @@ public class PermissionGroupService {
         if (uid.length() > MAX_USER_ID_LENGTH) {
             throw CustomException.badRequest("유효하지 않은 userId입니다.", "INVALID_INPUT");
         }
+        PermissionGroupAuditContext.clearAssignAudit();
         PermissionGroupResponse group = findById(groupId);
         ensureUserExists(uid);
         if (isUserInGroup(groupId, uid)) {
             throw CustomException.badRequest("해당 사용자는 이미 이 권한 그룹에 배정되어 있습니다.", "USER_ALREADY_IN_GROUP");
+        }
+        Long previousGroupId = findCurrentPermissionGroupIdForUser(uid);
+        if (previousGroupId != null) {
+            PermissionGroupAuditContext.setAssignPreviousState(findById(previousGroupId));
+        } else {
+            PermissionGroupAuditContext.setAssignPreviousState(null);
         }
         try (Connection conn = dataSource.getConnection()) {
             conn.setAutoCommit(false);
@@ -239,6 +246,7 @@ public class PermissionGroupService {
             log.error("Assign user to group failed: groupId={}, userId={}", groupId, uid, e);
             throw new RuntimeException("사용자 배정 중 오류가 발생했습니다: " + e.getMessage(), e);
         }
+        PermissionGroupAuditContext.setAssignAfterState(group);
         Long numericUserId = appUserResolver.getIdByUsername(uid);
         return new AssignUserToGroupResponse(numericUserId, groupId, group.getCode());
     }
@@ -247,8 +255,10 @@ public class PermissionGroupService {
         if (userId == null || userId.isBlank()) {
             throw CustomException.badRequest("userId는 필수이며 비어 있을 수 없습니다.", "INVALID_INPUT");
         }
+        PermissionGroupAuditContext.clearUnassignAudit();
         PermissionGroupResponse group = findById(groupId);
         PermissionGroupAuditContext.setUnassignGroupCode(group.getCode());
+        PermissionGroupAuditContext.setUnassignBeforeState(group);
         try (Connection conn = dataSource.getConnection()) {
             String sql = "DELETE FROM app_user_permission_group WHERE permission_group_id = ? AND user_id = ?";
             try (PreparedStatement ps = conn.prepareStatement(sql)) {
@@ -476,6 +486,44 @@ public class PermissionGroupService {
             return 0;
         }
         return 0;
+    }
+
+    /**
+     * Current permission_group_id for the user, if any.
+     * Matches {@code user_id} as {@link AppUserResolver}-style username and, when present, as numeric {@code app_user.id}
+     * string (some rows may store either per legacy/manual data).
+     */
+    private Long findCurrentPermissionGroupIdForUser(String userId) {
+        if (userId == null || userId.isBlank()) {
+            return null;
+        }
+        String u = userId.trim();
+        Long numericId = appUserResolver.getIdByUsername(u);
+        try (Connection conn = dataSource.getConnection()) {
+            String sql;
+            if (numericId != null) {
+                sql = "SELECT permission_group_id FROM app_user_permission_group WHERE user_id = ? OR user_id = ? "
+                        + "ORDER BY permission_group_id LIMIT 1";
+            } else {
+                sql = "SELECT permission_group_id FROM app_user_permission_group WHERE user_id = ? "
+                        + "ORDER BY permission_group_id LIMIT 1";
+            }
+            try (PreparedStatement ps = conn.prepareStatement(sql)) {
+                ps.setString(1, u);
+                if (numericId != null) {
+                    ps.setString(2, String.valueOf(numericId));
+                }
+                try (ResultSet rs = ps.executeQuery()) {
+                    if (rs.next()) {
+                        return rs.getLong("permission_group_id");
+                    }
+                }
+            }
+        } catch (SQLException e) {
+            log.error("findCurrentPermissionGroupIdForUser failed: userId={}", userId, e);
+            return null;
+        }
+        return null;
     }
 
     private boolean isUserInGroup(Long groupId, String userId) {

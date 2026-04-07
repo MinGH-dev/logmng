@@ -5,6 +5,7 @@ export const FILTER_OPTION_SCREEN_IDS = Object.freeze({
   ACTIVITY_LOG: 'activity-log',
   STATISTICS: 'statistics',
   SEARCH_HISTORY: 'search-history',
+  PENDING_APPROVALS: 'pending-approvals',
 });
 
 const SUPPORTED_DEPARTMENT_FILTER_SCREENS = new Set(Object.values(FILTER_OPTION_SCREEN_IDS));

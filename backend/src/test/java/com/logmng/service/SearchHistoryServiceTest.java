@@ -1,5 +1,6 @@
 package com.logmng.service;
 
+import com.logmng.constants.ScreenConstants;
 import com.logmng.dto.request.SearchHistoryCreateRequest;
 import com.logmng.dto.request.SearchHistoryListRequest;
 import com.logmng.dto.response.SearchHistoryListResponse;
@@ -1116,7 +1117,8 @@ class SearchHistoryServiceTest {
         insertAppUser(dataSource, 20260002L, "otherUser", "D01");
         long id = insertSearchHistoryRow(dataSource, 103L, 20260001L, false);
 
-        assertThatThrownBy(() -> searchHistoryService.getDetail(20260002L, id))
+        assertThatThrownBy(() -> searchHistoryService.getDetail(20260002L, id, ScreenConstants.SEARCH_HISTORY, false,
+                        Map.of("search-history", "self"), null))
                 .isInstanceOf(CustomException.class)
                 .satisfies(e -> {
                     CustomException ex = (CustomException) e;

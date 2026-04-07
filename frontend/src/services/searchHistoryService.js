@@ -57,6 +57,7 @@ export const createSearchHistory = async (logType, searchParams, requestReason, 
  * @param {string} [opts.requestedAtTo] - 요청일시 범위 종료 (yyyy-MM-dd HH:mm:ss)
  * @param {string[]} [opts.approvalStatuses] - 복호화 승인 여부 (PENDING, APPROVED, REJECTED, EXPIRED); repeated param
  * @param {string} [opts.requestReason] - 요청사유 부분 검색
+ * @param {string} [opts.listContext] - `search-history` | `pending-approvals` (docs/api-definition.md §6.1.2)
  */
 export const getSearchHistoryList = async ({
   page = 1,
@@ -70,6 +71,7 @@ export const getSearchHistoryList = async ({
   requestedAtTo = '',
   approvalStatuses = [],
   requestReason = '',
+  listContext = '',
 } = {}) => {
   const params = new URLSearchParams({
     page: String(page),
@@ -77,6 +79,10 @@ export const getSearchHistoryList = async ({
     sortField,
     sortDirection,
   });
+
+  if (listContext != null && String(listContext).trim() !== '') {
+    params.set('listContext', String(listContext).trim());
+  }
 
   if (department) {
     params.set('department', department);
@@ -109,7 +115,10 @@ export const getSearchHistoryList = async ({
   });
   const result = await response.json();
   if (!response.ok) {
-    throw new Error(result.error || `HTTP ${response.status}`);
+    const err = new Error(result.error || `HTTP ${response.status}`);
+    err.status = response.status;
+    err.code = result.code;
+    throw err;
   }
   return result;
 };
@@ -132,16 +141,27 @@ export const reRequestSearchHistory = async (id) => {
 
 /**
  * 검색 이력 상세 (재조회용)
+ * @param {number|string} id
+ * @param {{ listContext?: string }} [options] - 목록과 동일한 listContext (복호화 승인 관리: `pending-approvals`)
  */
-export const getSearchHistoryDetail = async (id) => {
-  const response = await fetch(`${getApiBaseUrl()}/search-history/${id}`, {
+export const getSearchHistoryDetail = async (id, options = {}) => {
+  const params = new URLSearchParams();
+  if (options.listContext != null && String(options.listContext).trim() !== '') {
+    params.set('listContext', String(options.listContext).trim());
+  }
+  const q = params.toString();
+  const url = `${getApiBaseUrl()}/search-history/${id}${q ? `?${q}` : ''}`;
+  const response = await fetch(url, {
     method: 'GET',
     headers: { 'Content-Type': 'application/json' },
     credentials: 'include',
   });
   const result = await response.json();
   if (!response.ok) {
-    throw new Error(result.error || `HTTP ${response.status}`);
+    const err = new Error(result.error || `HTTP ${response.status}`);
+    err.status = response.status;
+    err.code = result.code;
+    throw err;
   }
   return result;
 };

@@ -1,5 +1,5 @@
 # Permission-group activity: persisted action_detail (user_activity_log)
-# Requirement: docs/requirements/20260330-permission-group-activity-detail-audit.md (MF-01, MF-03, OP-PG-01–02)
+# Requirement: docs/requirements/20260330-permission-group-activity-detail-audit.md (MF-01, MF-03, OP-PG-01–02); assign/unassign before-after: docs/requirements/20260407-permission-group-assign-unassign-audit-before-after.md
 # Contract: docs/contract.md, docs/api-definition.md §8
 # Step 3 — machine-readable schema; Backend/Frontend implement to this spec (see DOC-CODE-SYNC note in contract).
 # DTO alignment: PermissionGroupCreateRequest, PermissionGroupUpdateRequest, AllowedScreenItem — specs/permission-group-hierarchy.spec.yaml §1.1
@@ -8,7 +8,7 @@
 metadata:
   title: "user_activity_log.action_detail — permission group audit (permissionGroupAuditV1)"
   version: "1.0"
-  requirement: "20260330-permission-group-activity-detail-audit, 20260330-activity-types-user-mgmt-permission-group"
+  requirement: "20260330-permission-group-activity-detail-audit, 20260330-activity-types-user-mgmt-permission-group, 20260407-permission-group-assign-unassign-audit-before-after"
   status: "draft"
   schema_key: "permissionGroupAuditV1"
   op_pg_01: "Resolved: nested allowedScreens[] as AllowedScreenItem (same as POST/PUT /api/permission-groups)."
@@ -49,8 +49,8 @@ Other top-level keys in `action_detail` remain category-specific; they MUST NOT 
 | `operation` | string | yes | One of: `CREATE`, `UPDATE`, `DELETE`, `ASSIGN_USER`, `UNASSIGN_USER`. Maps to action types in §4. |
 | `permissionGroupId` | number (integer) | yes* | Numeric permission group id (`permission_group.id`). *Required whenever the group is known at write time. |
 | `permissionGroupCode` | string | no | Group `code` when known (non-secret identifier). |
-| `before` | PermissionGroupSnapshot \| null | no | Pre-mutation snapshot (see §3.3). |
-| `after` | PermissionGroupSnapshot \| null | no | Post-mutation snapshot (see §3.3). |
+| `before` | PermissionGroupSnapshot \| null | no* | Pre-mutation snapshot (see §3.3). *For **`ASSIGN_USER_TO_PERMISSION_GROUP`** and **`UNASSIGN_USER_FROM_PERMISSION_GROUP`**, required semantics in §3.5 (value may be **`null`** where §3.5 allows). |
+| `after` | PermissionGroupSnapshot \| null | no* | Post-mutation snapshot (see §3.3). *Same §3.5 rule for assign/unassign. |
 | `targetUserId` | number (integer) | no | Numeric `app_user.id` for assign/unassign operations. |
 | `changeReason` | string \| omitted | no | **Provisional (MF-03 / OP-PG-02):** If persisted, MUST be truncated to **max length 500** characters at write time. Reflects `PermissionGroupUpdateRequest.changeReason` when the client sent a non-blank value. **Product may revise** the contract to omit this field from persisted audit in v1 — if so, update this spec and §3.4 before production rollout. |
 
@@ -98,10 +98,11 @@ Aligned with **`PermissionGroupResponse`** / create-update DTOs (not an unconstr
 | `PERMISSION_GROUP_CREATE` | `CREATE` | null | non-null (created state) | omit | omit |
 | `PERMISSION_GROUP_UPDATE` | `UPDATE` | non-null when pre-state read succeeds | non-null when post-state known | omit | optional; max 500 if present |
 | `PERMISSION_GROUP_DELETE` | `DELETE` | non-null when pre-delete snapshot available | null | omit | omit |
-| `ASSIGN_USER_TO_PERMISSION_GROUP` | `ASSIGN_USER` | omit or null | omit or null* | required | omit |
-| `UNASSIGN_USER_FROM_PERMISSION_GROUP` | `UNASSIGN_USER` | omit or null | omit or null* | required | omit |
+| `ASSIGN_USER_TO_PERMISSION_GROUP` | `ASSIGN_USER` | **Required:** previous group **`PermissionGroupSnapshot`**, or **`null`** if the user had no prior group membership | **Required:** new group **`PermissionGroupSnapshot`** after assignment (the group targeted by this operation) | required | omit |
+| `UNASSIGN_USER_FROM_PERMISSION_GROUP` | `UNASSIGN_USER` | **Required:** **`PermissionGroupSnapshot`** of the group being left (path `{id}`) | **`null`** (membership removed) | required | omit |
 
-\*For assign/unassign, **`permissionGroupId`** and **`permissionGroupCode`** are required for audit reconstruction; `before`/`after` full snapshots are optional if product accepts minimal rows — if omitted, `schemaVersion` + `operation` + ids + `targetUserId` still satisfy minimal audit. Prefer snapshots when feasible for consistency with CREATE/UPDATE/DELETE.
+- **Requirement:** `docs/requirements/20260407-permission-group-assign-unassign-audit-before-after.md` §2. Top-level **`permissionGroupId`** / **`permissionGroupCode`** refer to the **new** group on assign and the **group being modified** on unassign; they must stay **consistent** with **`before`** / **`after`** per the table above.
+- **Large / truncated lists:** If `allowedScreens` is omitted, shortened, or incomplete for storage or policy reasons, set **`allowedScreensTruncated: true`** per §3.2 so consumers do not assume a full nested list. Minimum auditable snapshot fields remain per §3.3 / parent requirement (e.g. **`code`**, **`name`**, **`sortOrder`** when truncation applies).
 
 ---
 # 4. Mapping: action_type ↔ permissionGroupAuditV1.operation
@@ -177,4 +178,4 @@ Implementations SHOULD add unit/assertion coverage (requirement §3 TC-07).
 ---
 # 8. DOC–CODE sync (this feature)
 
-For permission-group audit rows introduced under requirement **`20260330-permission-group-activity-detail-audit`**, **`specs/activity-permission-group-audit.spec.yaml`** is the **implementation target** for `action_detail` shape. After Step 4, any intentional deviation must update this spec and `docs/contract.md` / `docs/api-definition.md` in the same change (see `docs/workflow/DOC-CODE-SYNC.md`).
+For permission-group audit rows, **`specs/activity-permission-group-audit.spec.yaml`** is the **implementation target** for `action_detail` shape (including **`20260330-permission-group-activity-detail-audit`** and assign/unassign **`before`/`after`** semantics under **`20260407-permission-group-assign-unassign-audit-before-after`**). After Step 4, any intentional deviation must update this spec and `docs/contract.md` / `docs/api-definition.md` in the same change (see `docs/workflow/DOC-CODE-SYNC.md`).

@@ -1,5 +1,11 @@
 /**
  * API base URL for browser → Spring Boot.
+ *
+ * **Alternate login entry (same SPA bundle):** bookmark `/#/login` or `/#/entry` — same
+ * `index.html` and login flow as `/`. For path-based aliases (e.g. `/login`), configure the
+ * reverse proxy or static host to serve `index.html` for those paths; set `homepage` /
+ * `PUBLIC_URL` in build when the app is not deployed at domain root.
+ *
  * Priority: window.__LOGMNG_RUNTIME_CONFIG__.apiBaseUrl (runtime) >
  * REACT_APP_API_BASE_URL (build) > localhost:3000 same-origin /api (CRA dev proxy; cookies match page origin) >
  * localhost on non-3000 ports defaults to backend :9200 to avoid frontend dev-server 404s >

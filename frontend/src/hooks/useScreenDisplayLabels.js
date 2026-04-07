@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo, useCallback } from 'react';
 import { MENU_TREE } from '../constants/menuTree';
 import { fetchScreenDisplayLabelsSilent } from '../api/screenDisplayLabelsApi';
 import { buildMergedMenuTree, applyLogTypeLabelOverrides } from '../utils/mergeMenuLabels';
+import { hasEffectiveAppAccess } from '../utils/security';
 
 const LOG_TYPE_BY_VIEW_DEFAULT = {
   'pb-feplog': { id: 'pb_feplog', name: 'PB FEP v1.0.0', description: '' },
@@ -17,7 +18,7 @@ export function useScreenDisplayLabels(isAuthenticated, user) {
   const [items, setItems] = useState([]);
 
   useEffect(() => {
-    if (!isAuthenticated || !user) {
+    if (!isAuthenticated || !user || !hasEffectiveAppAccess(user)) {
       setItems([]);
       return undefined;
     }

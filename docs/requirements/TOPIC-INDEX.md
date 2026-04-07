@@ -9,6 +9,7 @@ For **RequirementsPastSearch** token optimization. Read this file first to find 
 
 ## permission | access-control | 화면 접근 | 권한 그룹 | is_system_admin
 
+- 20260407-permission-group-assign-unassign-audit-before-after | User management assign/unassign: persist permissionGroupAuditV1 before/after snapshots (prior group vs new group; unassign before+null after); pre-mutation capture; spec alignment
 - 20260330-permission-group-activity-detail-audit | Permission group activity rows: audit-grade action_detail (before/after or field diff), detail UI and export path options; Security review for PII and scope
 - 20260330-activity-types-user-mgmt-permission-group | Activity type taxonomy (login, search, admin, decrypt approval); user management and permission group flows emit auditable user_activity_log rows; filterable in activity history API/UI per contract
 - 20260323-approver-eligibility-from-permission-group-only | 계약 `contract.md` 「복호화 승인 자격」: 그룹 `approve` 우선·**`is_system_admin`만 상쇄**; **ADMIN_EXT는 그룹만**+P2-2; `decrypt_approver` DROP; `isApprover` UI 제거. Q&A: `...-PRODUCT-QA.md`
@@ -35,9 +36,11 @@ For **RequirementsPastSearch** token optimization. Read this file first to find 
 - 20260317-search-decrypt-permission-ui | - **Permission enforcement (UI)**: On the "검색하기" (search) screen, users whose permission group does **not** have the decrypt feature enabled can still trigger decrypt-related actions (e.g. "복호화 승인 요청" button and per-row "복호화" button). This is a permission enforcement bug: the backend correctly returns 403 for the decrypt API when the user lacks `screenFunctions.main.decrypt`, but the UI does not gate these actions.
 - 20260318-permission-group-menu-invalid-screen-id-imagelog | When an administrator opens the permission group management screen and tries to edit menu permissions (allowed screens) for a group, the modal shows the error: **"유효하지 않은 화면 ID입니다: java-fw_imagelog"** (Invalid screen ID: java-fw_imagelog). The backend rejects the screen ID and the save fails with 400 `INVALID_SCREEN_ID`, so the admin cannot complete the permission group update.
 - 20260320-permission-group-screen-entry-error-migration-check | Permission group management screen shows an error on entry; verify root cause via diagnostics and objectively check DB migration applicability (`permission_group_screen` columns vs. `PermissionGroupService` SQL, migrate script inventory vs. `setup.sh`).
+- 20260406-permission-group-invalid-screen-id-screen-display-labels | When a system administrator edits **permission groups** (screen permissions) and saves, the application shows the error **"유효하지 않은 화면 ID입니다: screen-display-labels"** and the save fails with **400** and error code **`INVALID_SCREEN_ID`**. The reported ID **`screen-display-labels`** matches the **menu / view id** used for the **Screen display names** (화면 표시 이름) admin feature.
 
 ## activity-log | statistics | 활동 로그 | 통계 | scope
 
+- 20260407-permission-group-assign-unassign-audit-before-after | Assign/unassign permission-group activity: non-null before/after in permissionGroupAuditV1; ActivityAuditDetailEnricher + PermissionGroupAuditContext + service pre-capture
 - 20260330-audit-evidence-activity-log-conservative | Resolve audit manual §8 with conservative defaults: uniform mutation envelope, soft delete or mandatory delete snapshot, allowlisted before/after, in-app copy truncation + privileged access audit, retention/crypto/export gates; SVG wireframe specs for list/detail/access-audit/optional policy
 - 20260330-permission-group-activity-detail-audit | Enrich permission-group action_detail and activity-log detail UI for audit evidence; optional export/query; aligns with parent 20260330-activity-types-user-mgmt-permission-group
 - 20260330-activity-types-user-mgmt-permission-group | Activity type taxonomy and audit for permission group / user management; queryable by action type + existing filters; contract/skill touchpoints
@@ -98,6 +101,7 @@ For **RequirementsPastSearch** token optimization. Read this file first to find 
 
 ## decryption | 복호화 | search-history | 검색 이력 | approval
 
+- 20260407-pending-approvals-history-search-readonly-requester | 복호화 승인 관리: 이력 검색·조회, 요청자 읽기 전용, 승인자 워크플로 유지, 승인/반려 후 행 유지, 로그 검색(LogGrid) 검색/필터 UI 정렬, 계약·인터셉터·스코프 정합
 - 20260318-search-history-create-server-error-bugfix | Bugfix: server error when submitting "복호화 승인 요청" (POST /api/search-history); Backend to identify root cause and fix so create returns 201 and UI shows success.
 - 20260318-search-history-user2-not-showing | user2로 검색이력 화면에서 검색이력 데이터가 표시되지 않는 문제 원인 파악 및 조치
 - 20260310-search-consistency-all-screens | All screens rule-compliant search; search-history·pending-approvals requester filters (부서·이름·사용자ID)
@@ -168,6 +172,7 @@ For **RequirementsPastSearch** token optimization. Read this file first to find 
 
 ## auth | logout | 로그인 | 로그아웃
 
+- 20260407-external-dept-employee-ad-login | External org replica (`ext_department`/`ext_employee`), admin provisioning search/register APIs, `auth.login.mode` local vs AD, zero-permission modal + server 403 on protected APIs; alternate login URL deployment note
 - 20260225-logout-persist-after-refresh | 로그아웃 후 새로고침 시 로그인 상태 유지 버그
 
 ## misc | bugfix | pretty | highlighting

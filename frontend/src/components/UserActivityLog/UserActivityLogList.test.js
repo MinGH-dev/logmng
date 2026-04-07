@@ -14,6 +14,7 @@ jest.mock('./UserActivityLogDetail', () => () => null);
 jest.mock('../../services/userActivityLogService', () => ({
   searchActivityLogs: jest.fn(),
   getActivityLogActionTypes: jest.fn(),
+  getActivityLogAccessAudit: jest.fn().mockResolvedValue({ success: false }),
 }));
 
 jest.mock('../../services/filterOptionsService', () => ({

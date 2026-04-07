@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.logmng.constants.ScreenConstants;
 import com.logmng.diagnostic.ApprovalFlowDiagnosticLog;
 import com.logmng.util.LogTypeScreenHelper;
+import com.logmng.util.ScopeHelper;
 import com.logmng.dto.ApprovedSnapshotRow;
 import com.logmng.dto.DecryptionRowKey;
 import com.logmng.dto.request.LogDbSearchRequest;
@@ -903,11 +904,47 @@ public class SearchHistoryService {
 
     /**
      * 검색 이력 상세 (재조회 시 검색 조건 반환). userId = numeric app_user.id (req 20260316).
+     * Convenience: search-history list semantics with scope=all (기존 단위 테스트·호환).
      */
     public Map<String, Object> getDetail(Long userId, Long id) {
-        if (userId == null) {
+        return getDetail(userId, id, ScreenConstants.SEARCH_HISTORY, false,
+                Collections.singletonMap(ScreenConstants.SEARCH_HISTORY, "all"), null);
+    }
+
+    /** List-consistent row visibility for GET /api/search-history/{id} (spec §4.3, §6.1.4). */
+    private static void assertSearchHistoryRowVisible(Long actorUserId, Long rowRequesterUserId, String scope,
+                                                     boolean isSystemAdmin, List<Long> teamScopePeerUserIds) {
+        if (isSystemAdmin) {
+            return;
+        }
+        if (rowRequesterUserId != null && rowRequesterUserId.equals(actorUserId)) {
+            return;
+        }
+        if ("self".equals(scope)) {
+            throw CustomException.forbidden("해당 검색 이력에 접근할 수 없습니다.", "FUNCTION_NOT_ALLOWED");
+        }
+        if ("team".equals(scope)) {
+            if (teamScopePeerUserIds == null || teamScopePeerUserIds.isEmpty()
+                    || rowRequesterUserId == null || !teamScopePeerUserIds.contains(rowRequesterUserId)) {
+                throw CustomException.forbidden("해당 검색 이력에 접근할 수 없습니다.", "FUNCTION_NOT_ALLOWED");
+            }
+            return;
+        }
+        if ("all".equals(scope)) {
+            return;
+        }
+        throw CustomException.forbidden("해당 검색 이력에 접근할 수 없습니다.", "FUNCTION_NOT_ALLOWED");
+    }
+
+    /**
+     * 상세 조회: 목록과 동일한 {@code scopeScreenId} + screenScopes + team peers로 가시성 검증 (§6.1.4).
+     */
+    public Map<String, Object> getDetail(Long actorUserId, Long id, String scopeScreenId, boolean isSystemAdmin,
+                                        Map<String, String> screenScopes, List<Long> teamScopePeerUserIds) {
+        if (actorUserId == null) {
             throw new IllegalArgumentException("userId is required");
         }
+        String scope = ScopeHelper.resolveScope(scopeScreenId, isSystemAdmin, screenScopes);
         try (Connection conn = dataSource.getConnection()) {
             String sql = "SELECT id, user_id, log_type, search_params, request_reason, requested_at, expires_at, approval_status, approved_by_user_id, approved_by, approved_at, rejected_by, rejected_at, rejection_reason, " +
                     "search_result_total_count, decryption_target_count FROM search_history WHERE id = ?";
@@ -918,9 +955,7 @@ public class SearchHistoryService {
                         throw new NoSuchElementException("검색 이력을 찾을 수 없습니다: id=" + id);
                     }
                     Long rowUserId = toLongUserId(rs.getObject("user_id"));
-                    if (rowUserId == null || !rowUserId.equals(userId)) {
-                        throw CustomException.forbidden("해당 검색 이력은 요청자만 조회할 수 있습니다.", "FUNCTION_NOT_ALLOWED");
-                    }
+                    assertSearchHistoryRowVisible(actorUserId, rowUserId, scope, isSystemAdmin, teamScopePeerUserIds);
                     Map<String, Object> row = new LinkedHashMap<>();
                     row.put("id", rs.getLong("id"));
                     row.put("logType", rs.getString("log_type"));

@@ -64,6 +64,19 @@ export const getAllowedScreenIds = (user) => {
 };
 
 /**
+ * True if the user may use the main app shell (system admin or at least one allowed screen).
+ * Zero-permission authenticated users must not see the shell (req 20260407-external-dept-employee-ad-login).
+ * @param {object|null|undefined} user
+ * @returns {boolean}
+ */
+export const hasEffectiveAppAccess = (user) => {
+  if (!user) return false;
+  if (user.isSystemAdmin === true) return true;
+  const ids = getAllowedScreenIds(user);
+  return Array.isArray(ids) && ids.length > 0;
+};
+
+/**
  * Normalize screenFunctions from user-like object (handles camelCase and snake_case).
  * @param {object} user - User or userData object
  * @returns {Record<string,{read:boolean,write?:boolean,approve?:boolean}>|null} screenFunctions or null
@@ -240,6 +253,7 @@ const securityUtils = {
   getSelfContext,
   getSelfContextForDisplay,
   deriveScreenFunctionsFromAllowed,
+  hasEffectiveAppAccess,
   clearUserData,
   sanitizeErrorMessage,
   getUserFriendlyErrorMessage

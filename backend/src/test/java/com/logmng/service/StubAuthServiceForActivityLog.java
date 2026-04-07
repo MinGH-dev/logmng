@@ -1,5 +1,6 @@
 package com.logmng.service;
 
+import com.logmng.config.AuthProperties;
 import com.logmng.dto.response.LoginResponse;
 import jakarta.servlet.http.HttpServletRequest;
 
@@ -14,7 +15,7 @@ public class StubAuthServiceForActivityLog extends AuthService {
     private final String scope; // "self", "team", "all"
 
     public StubAuthServiceForActivityLog(String scope) {
-        super(null, null, null, null, null);
+        super(null, null, null, null, null, new AuthProperties(), null, null);
         this.scope = scope != null ? scope : "team";
     }
 

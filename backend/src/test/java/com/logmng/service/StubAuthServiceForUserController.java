@@ -1,5 +1,6 @@
 package com.logmng.service;
 
+import com.logmng.config.AuthProperties;
 import jakarta.servlet.http.HttpServletRequest;
 
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -14,7 +15,7 @@ public class StubAuthServiceForUserController extends AuthService {
     private final AtomicBoolean canAccessUserManagementViewResult = new AtomicBoolean(true);
 
     public StubAuthServiceForUserController() {
-        super(null, null, null, null, null);
+        super(null, null, null, null, null, new AuthProperties(), null, null);
     }
 
     public void setCheckAuth(boolean value) {

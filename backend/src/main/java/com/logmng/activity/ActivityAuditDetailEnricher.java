@@ -7,6 +7,7 @@ import com.logmng.dto.response.AllowedScreenItem;
 import com.logmng.dto.response.ApiResponse;
 import com.logmng.dto.response.AssignUserToGroupResponse;
 import com.logmng.dto.response.PermissionGroupResponse;
+import com.logmng.service.PermissionGroupService;
 import org.springframework.http.ResponseEntity;
 
 import java.util.ArrayList;
@@ -25,11 +26,18 @@ public final class ActivityAuditDetailEnricher {
     /** Persisted max length for {@code permissionGroupAuditV1.changeReason} (contract MF-03). */
     public static final int MAX_CHANGE_REASON_AUDIT_CHARS = 500;
 
+    /**
+     * Max {@code allowedScreens} items per snapshot; larger lists are truncated and {@code allowedScreensTruncated}
+     * is set on that snapshot (spec activity-permission-group-audit §3.2). Full nested lists for typical sizes.
+     */
+    public static final int MAX_ALLOWED_SCREEN_ITEMS_IN_AUDIT_SNAPSHOT = 100;
+
     private ActivityAuditDetailEnricher() {
     }
 
     /**
      * Merges permission-group audit fields into {@code actionDetail} after the aspect runs with {@code includeParams=false}.
+     * {@code permissionGroupService} is used to resolve {@code after} snapshot for assign when ThreadLocal is empty.
      */
     public static void enrichPermissionGroup(
             Class<?> controllerClass,
@@ -37,8 +45,26 @@ public final class ActivityAuditDetailEnricher {
             Object[] args,
             Object methodResult,
             Map<String, Object> actionDetail) {
+        enrichPermissionGroup(controllerClass, methodName, args, methodResult, actionDetail, null);
+    }
+
+    /**
+     * @param permissionGroupService optional; when non-null, {@code ASSIGN_USER} audit can load {@code after} via
+     *                                 {@link PermissionGroupService#findById(Long)} if ThreadLocal did not capture it.
+     */
+    public static void enrichPermissionGroup(
+            Class<?> controllerClass,
+            String methodName,
+            Object[] args,
+            Object methodResult,
+            Map<String, Object> actionDetail,
+            PermissionGroupService permissionGroupService) {
         try {
-            if (controllerClass != PermissionGroupController.class || args == null || actionDetail == null) {
+            // Spring CGLIB proxies use a subclass (e.g. PermissionGroupController$$SpringCGLIB$$0), not the raw class.
+            if (controllerClass == null
+                    || !PermissionGroupController.class.isAssignableFrom(controllerClass)
+                    || args == null
+                    || actionDetail == null) {
                 return;
             }
             switch (methodName) {
@@ -52,7 +78,7 @@ public final class ActivityAuditDetailEnricher {
                     enrichDelete(args, methodResult, actionDetail);
                     break;
                 case "assignUser":
-                    enrichAssign(args, methodResult, actionDetail);
+                    enrichAssign(args, methodResult, actionDetail, permissionGroupService);
                     break;
                 case "unassignUser":
                     enrichUnassign(args, methodResult, actionDetail);
@@ -128,7 +154,11 @@ public final class ActivityAuditDetailEnricher {
         }
     }
 
-    private static void enrichAssign(Object[] args, Object methodResult, Map<String, Object> actionDetail) {
+    private static void enrichAssign(
+            Object[] args,
+            Object methodResult,
+            Map<String, Object> actionDetail,
+            PermissionGroupService permissionGroupService) {
         AssignUserToGroupResponse data = extractApiData(methodResult);
         if (data != null) {
             putIfNotNull(actionDetail, "targetUserId", data.getUserId());
@@ -136,8 +166,17 @@ public final class ActivityAuditDetailEnricher {
             putIfNotNull(actionDetail, "permissionGroupCode", data.getPermissionGroupCode());
             Map<String, Object> v1 = baseV1("ASSIGN_USER", data.getPermissionGroupId(), data.getPermissionGroupCode());
             v1.put("targetUserId", data.getUserId());
-            v1.put("before", null);
-            v1.put("after", null);
+            PermissionGroupResponse prev = PermissionGroupAuditContext.peekAssignPreviousState();
+            PermissionGroupResponse after = PermissionGroupAuditContext.peekAssignAfterState();
+            if (after == null && permissionGroupService != null && data.getPermissionGroupId() != null) {
+                try {
+                    after = permissionGroupService.findById(data.getPermissionGroupId());
+                } catch (Exception ignored) {
+                    // leave after null
+                }
+            }
+            v1.put("before", prev == null ? null : toSnapshotMap(prev));
+            v1.put("after", after == null ? null : toSnapshotMap(after));
             actionDetail.put("permissionGroupAuditV1", v1);
         } else if (args.length > 0 && args[0] instanceof Long gid) {
             actionDetail.put("permissionGroupId", gid);
@@ -153,14 +192,17 @@ public final class ActivityAuditDetailEnricher {
         if (targetUserId != null) {
             actionDetail.put("targetUserId", targetUserId);
         }
-        String code = PermissionGroupAuditContext.peekUnassignGroupCode();
+        PermissionGroupResponse beforeSnap = PermissionGroupAuditContext.peekUnassignBeforeState();
+        String code = beforeSnap != null && beforeSnap.getCode() != null && !beforeSnap.getCode().isBlank()
+                ? beforeSnap.getCode()
+                : PermissionGroupAuditContext.peekUnassignGroupCode();
         putIfNotNull(actionDetail, "permissionGroupCode", code);
 
         Map<String, Object> v1 = baseV1("UNASSIGN_USER", groupId, code);
         if (targetUserId != null) {
             v1.put("targetUserId", targetUserId);
         }
-        v1.put("before", null);
+        v1.put("before", beforeSnap == null ? null : toSnapshotMap(beforeSnap));
         v1.put("after", null);
         actionDetail.put("permissionGroupAuditV1", v1);
     }
@@ -189,15 +231,23 @@ public final class ActivityAuditDetailEnricher {
             m.put("description", r.getDescription());
         }
         m.put("sortOrder", r.getSortOrder() != null ? r.getSortOrder() : 0);
-        if (r.getAllowedScreens() != null && !r.getAllowedScreens().isEmpty()) {
+        List<AllowedScreenItem> raw = r.getAllowedScreens();
+        if (raw != null && !raw.isEmpty()) {
+            boolean truncated = raw.size() > MAX_ALLOWED_SCREEN_ITEMS_IN_AUDIT_SNAPSHOT;
+            List<AllowedScreenItem> slice = truncated
+                    ? raw.subList(0, MAX_ALLOWED_SCREEN_ITEMS_IN_AUDIT_SNAPSHOT)
+                    : raw;
             List<Map<String, Object>> screens = new ArrayList<>();
-            for (AllowedScreenItem item : r.getAllowedScreens()) {
+            for (AllowedScreenItem item : slice) {
                 if (item == null) {
                     continue;
                 }
                 screens.add(toScreenItemMap(item));
             }
             m.put("allowedScreens", screens);
+            if (truncated) {
+                m.put("allowedScreensTruncated", true);
+            }
         } else {
             m.put("allowedScreens", List.of());
         }

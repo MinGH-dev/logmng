@@ -34,6 +34,86 @@ function normalizeActionDetail(raw) {
   return {};
 }
 
+function isPlainObject(v) {
+  return v != null && typeof v === 'object' && !Array.isArray(v);
+}
+
+/**
+ * Parse `request_params` like `action_detail` (string JSON or object).
+ * @param {unknown} raw
+ * @returns {unknown|null}
+ */
+function normalizeRequestParamsForDisplay(raw) {
+  if (raw == null) return null;
+  if (typeof raw === 'string') {
+    const t = raw.trim();
+    if (t === '') return null;
+    try {
+      return JSON.parse(raw);
+    } catch {
+      return raw;
+    }
+  }
+  return raw;
+}
+
+/**
+ * @param {unknown} raw
+ * @returns {unknown|null}
+ */
+function normalizeSnapshotPayload(raw) {
+  if (raw == null) return null;
+  if (typeof raw === 'string') {
+    const t = raw.trim();
+    if (t === '') return null;
+    try {
+      return JSON.parse(raw);
+    } catch {
+      return raw;
+    }
+  }
+  return raw;
+}
+
+/**
+ * UPDATE/DELETE/INSERT summary from `action_detail` (not permissionGroupAuditV1).
+ * @param {Record<string, unknown>} actionDetail
+ * @returns {{ kind: 'UPDATE', before: object, after: object } | { kind: 'DELETE', snapshot: unknown, title: string } | { kind: 'INSERT', payload: unknown, title: string } | null}
+ */
+function getGenericMutationSummary(actionDetail) {
+  if (!actionDetail || typeof actionDetail !== 'object') return null;
+  if (actionDetail.permissionGroupAuditV1) return null;
+
+  const delNamed =
+    actionDetail.deleteSnapshot ??
+    actionDetail.deletedSnapshot ??
+    actionDetail.snapshotBeforeDelete;
+  if (delNamed != null && delNamed !== '') {
+    return { kind: 'DELETE', snapshot: delNamed, title: '삭제 직전 스냅샷' };
+  }
+
+  if (actionDetail.insertPayload != null && actionDetail.insertPayload !== '') {
+    return { kind: 'INSERT', payload: actionDetail.insertPayload, title: '추가된 내용' };
+  }
+
+  const b = actionDetail.before;
+  const a = actionDetail.after;
+  const bObj = isPlainObject(b);
+  const aObj = isPlainObject(a);
+
+  if (bObj && aObj) {
+    return { kind: 'UPDATE', before: b, after: a };
+  }
+  if (bObj && !aObj) {
+    return { kind: 'DELETE', snapshot: b, title: '삭제 직전 스냅샷' };
+  }
+  if (aObj && !bObj) {
+    return { kind: 'INSERT', payload: a, title: '추가된 내용' };
+  }
+
+  return null;
+}
+
 /**
  * @param {unknown} v
  * @returns {string}
@@ -107,6 +187,7 @@ const UserActivityLogDetail = ({
   error = null,
   onNavigateToAccessAudit,
   canOpenAccessAudit = false,
+  accessAuditState = null,
 }) => {
   const [revealedCopyBody, setRevealedCopyBody] = useState(null);
   const [revealLoading, setRevealLoading] = useState(false);
@@ -220,6 +301,17 @@ const UserActivityLogDetail = ({
   const showCopyPayloadSection =
     !!log && (isInAppCopyActionType(log.action_type) || copyPayload != null);
 
+  const normalizedRequestParams = log ? normalizeRequestParamsForDisplay(log.request_params) : null;
+
+  const formatAccessAuditTime = (v) => {
+    if (v == null || v === '') return '-';
+    try {
+      return new Date(v).toLocaleString('ko-KR');
+    } catch {
+      return String(v);
+    }
+  };
+
   const renderAllowedScreensTable = (title, screens) => {
     if (!Array.isArray(screens) || screens.length === 0) {
       return (
@@ -270,34 +362,128 @@ const UserActivityLogDetail = ({
     );
   };
 
-  const renderSnapshotMetaDiff = (before, after) => {
+  const renderDiffCell = (val) => {
+    if (val === undefined) return '-';
+    if (val === null) return plainText(null);
+    if (typeof val === 'object') {
+      return (
+        <pre className="json-content json-pretty activity-log-diff-cell-pre">{formatJSON(val)}</pre>
+      );
+    }
+    return plainText(val);
+  };
+
+  /**
+   * Unified diff: union of keys from both objects (permission-group metadata and generic UPDATE).
+   * @param {unknown} before
+   * @param {unknown} after
+   * @param {{ excludeKeys?: string[] }} [options]
+   */
+  const renderObjectDiffTable = (before, after, options = {}) => {
+    const exclude = new Set(options.excludeKeys || []);
+    const tableAriaLabel = options.tableAriaLabel;
+    const emphasizeChangeColumns = options.emphasizeChangeColumns === true;
     const b = asSnapshot(before);
     const a = asSnapshot(after);
-    const fields = ['code', 'name', 'description', 'sortOrder'];
-    const rows = fields.map((field) => ({
-      field,
-      beforeVal: b && Object.prototype.hasOwnProperty.call(b, field) ? b[field] : undefined,
-      afterVal: a && Object.prototype.hasOwnProperty.call(a, field) ? a[field] : undefined,
-    }));
+    if (!b && !a) return null;
+    const keySet = new Set([
+      ...Object.keys(b || {}).filter((k) => !exclude.has(k)),
+      ...Object.keys(a || {}).filter((k) => !exclude.has(k)),
+    ]);
+    const fields = Array.from(keySet).sort((x, y) => x.localeCompare(y));
+    const beforeThClass = emphasizeChangeColumns ? 'pg-audit-diff-col-before' : undefined;
+    const afterThClass = emphasizeChangeColumns ? 'pg-audit-diff-col-after' : undefined;
     return (
-      <table className="summary-table">
+      <table
+        className="summary-table activity-log-object-diff-table"
+        aria-label={tableAriaLabel || undefined}
+      >
         <thead>
           <tr>
             <th scope="col">필드</th>
-            <th scope="col">변경 전</th>
-            <th scope="col">변경 후</th>
+            <th scope="col" className={beforeThClass}>
+              변경 전
+            </th>
+            <th scope="col" className={afterThClass}>
+              변경 후
+            </th>
           </tr>
         </thead>
         <tbody>
-          {rows.map(({ field, beforeVal, afterVal }) => (
-            <tr key={field}>
-              <th scope="row">{field}</th>
-              <td>{beforeVal === undefined ? '-' : plainText(beforeVal)}</td>
-              <td>{afterVal === undefined ? '-' : plainText(afterVal)}</td>
-            </tr>
-          ))}
+          {fields.map((field) => {
+            const beforeVal =
+              b && Object.prototype.hasOwnProperty.call(b, field) ? b[field] : undefined;
+            const afterVal =
+              a && Object.prototype.hasOwnProperty.call(a, field) ? a[field] : undefined;
+            return (
+              <tr key={field}>
+                <th scope="row">{field}</th>
+                <td>{renderDiffCell(beforeVal)}</td>
+                <td>{renderDiffCell(afterVal)}</td>
+              </tr>
+            );
+          })}
         </tbody>
       </table>
+    );
+  };
+
+  const renderSnapshotPayloadBlock = (raw, headingText) => {
+    const parsed = normalizeSnapshotPayload(raw);
+    if (parsed == null) {
+      return <p className="pg-audit-empty">없음</p>;
+    }
+    if (isPlainObject(parsed)) {
+      const keys = Object.keys(parsed).sort((x, y) => x.localeCompare(y));
+      return (
+        <>
+          {headingText && <h5 className="pg-audit-subheading">{headingText}</h5>}
+          <table className="summary-table activity-log-mutation-kv-table">
+            <thead>
+              <tr>
+                <th scope="col">필드</th>
+                <th scope="col">값</th>
+              </tr>
+            </thead>
+            <tbody>
+              {keys.map((k) => (
+                <tr key={k}>
+                  <th scope="row">{k}</th>
+                  <td>{renderDiffCell(parsed[k])}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          <details className="json-details activity-log-mutation-json-details">
+            <summary>원본 JSON 보기</summary>
+            <pre className="json-content json-pretty">{formatJSON(parsed)}</pre>
+          </details>
+        </>
+      );
+    }
+    return (
+      <>
+        {headingText && <h5 className="pg-audit-subheading">{headingText}</h5>}
+        <pre className="json-content json-pretty">{formatJSON(parsed)}</pre>
+      </>
+    );
+  };
+
+  const renderGenericMutationSummary = () => {
+    const summary = getGenericMutationSummary(actionDetail);
+    if (!summary) return null;
+    return (
+      <div className="activity-log-mutation-summary">
+        <h4>변경·삭제·추가 요약</h4>
+        {summary.kind === 'UPDATE' && (
+          <>
+            <h5 className="pg-audit-subheading">수정 — 필드별 비교</h5>
+            {renderObjectDiffTable(summary.before, summary.after)}
+          </>
+        )}
+        {summary.kind === 'DELETE' && renderSnapshotPayloadBlock(summary.snapshot, summary.title)}
+        {summary.kind === 'INSERT' && renderSnapshotPayloadBlock(summary.payload, summary.title)}
+      </div>
     );
   };
 
@@ -356,7 +542,23 @@ const UserActivityLogDetail = ({
         {(before != null || after != null) && (
           <div className="pg-audit-subsection">
             <h5 className="pg-audit-subheading">그룹 메타데이터</h5>
-            {renderSnapshotMetaDiff(before, after)}
+            {op === 'ASSIGN_USER' && before == null && after != null && (
+              <p className="pg-audit-snapshot-note" role="status">
+                이전 권한 그룹 없음 — 첫 배정이거나 변경 전 소속 그룹이 없었습니다. 아래 &quot;변경 전&quot; 열의
+                &quot;-&quot;는 누락이 아니라 이전 스냅샷이 없음을 뜻합니다.
+              </p>
+            )}
+            {op === 'UNASSIGN_USER' && before != null && after == null && (
+              <p className="pg-audit-snapshot-note" role="status">
+                변경 후에는 이 권한 그룹에 속하지 않습니다. 아래 &quot;변경 후&quot; 열의 &quot;-&quot;는 해제
+                이후 스냅샷이 없음을 뜻합니다.
+              </p>
+            )}
+            {renderObjectDiffTable(before, after, {
+              excludeKeys: ['allowedScreens'],
+              tableAriaLabel: '권한 그룹 메타데이터 필드별 변경 전후',
+              emphasizeChangeColumns: true,
+            })}
           </div>
         )}
 
@@ -521,9 +723,17 @@ const UserActivityLogDetail = ({
             </table>
           </div>
 
+          {normalizedRequestParams != null && (
+            <div className="detail-section">
+              <h3>요청 파라미터 (request_params)</h3>
+              <pre className="json-content json-pretty">{formatJSON(normalizedRequestParams)}</pre>
+            </div>
+          )}
+
           {showActionDetailSection && (
             <div className="detail-section">
               <h3>액션 상세</h3>
+              {renderGenericMutationSummary()}
               {actionDetail.searchSummary && (
                 <div className="search-summary">
                   <h4>검색 결과 요약</h4>
@@ -753,10 +963,46 @@ const UserActivityLogDetail = ({
             </div>
           )}
 
-          {log.request_params && (
-            <div className="detail-section">
-              <h3>요청 파라미터</h3>
-              <pre className="json-content">{formatJSON(log.request_params)}</pre>
+          {canOpenAccessAudit && accessAuditState?.status === 'success' && (
+            <div className="detail-section activity-log-embedded-access-audit-section">
+              <details className="activity-log-embedded-access-audit">
+                <summary>
+                  이 로그에 대한 접근 감사 ({accessAuditState.rows.length}건)
+                </summary>
+                {accessAuditState.rows.length === 0 ? (
+                  <p className="pg-audit-empty">접근 기록이 없습니다.</p>
+                ) : (
+                  <div className="activity-log-access-audit-embed-wrap">
+                    <table className="summary-table activity-log-access-audit-embed-table">
+                      <thead>
+                        <tr>
+                          <th scope="col">접근자 ID</th>
+                          <th scope="col">접근자 이름</th>
+                          <th scope="col">일시</th>
+                          <th scope="col">대상 로그 ID</th>
+                          <th scope="col">접근 유형</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {accessAuditState.rows.map((row, idx) => (
+                          <tr
+                            key={`${String(row.accessedAt ?? row.accessed_at ?? idx)}-${String(row.accessorUserId ?? row.accessor_user_id ?? '')}-${idx}`}
+                          >
+                            <td>{plainText(row.accessorUserId ?? row.accessor_user_id)}</td>
+                            <td>{plainText(row.accessorDisplayName ?? row.accessor_display_name)}</td>
+                            <td>{formatAccessAuditTime(row.accessedAt ?? row.accessed_at)}</td>
+                            <td>{plainText(row.targetActivityLogId ?? row.target_activity_log_id)}</td>
+                            <td>{plainText(row.accessType ?? row.access_type)}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </details>
+              <p className="activity-log-embedded-access-audit-hint">
+                필터·검색이 필요하면 하단 링크로 전체 화면을 이용할 수 있습니다.
+              </p>
             </div>
           )}
             </>
@@ -769,7 +1015,7 @@ const UserActivityLogDetail = ({
               className="btn btn-link activity-log-open-access-audit-link"
               onClick={() => onNavigateToAccessAudit(log.id)}
             >
-              Open access audit for this log
+              접근 감사 전체 화면으로 이동
             </button>
           )}
           <button type="button" className="btn btn-primary" onClick={onClose}>

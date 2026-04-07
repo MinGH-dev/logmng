@@ -42,8 +42,10 @@ public class ScreenAccessInterceptor implements HandlerInterceptor {
             new PathScreenRule("^/api/departments.*", List.of(ScreenConstants.DEPARTMENT_APPROVERS, ScreenConstants.USER_PERMISSION_HIERARCHY)),
             new PathScreenRule("^/api/permission-groups.*", List.of(ScreenConstants.USER_MANAGEMENT, ScreenConstants.USER_PERMISSION_HIERARCHY)),
             new PathScreenRule("^/api/search-history/pending.*", List.of(ScreenConstants.PENDING_APPROVALS)),
-            new PathScreenRule("^/api/search-history/[^/]+/approve.*", List.of(ScreenConstants.PENDING_APPROVALS)),
-            new PathScreenRule("^/api/search-history/[^/]+/reject.*", List.of(ScreenConstants.PENDING_APPROVALS)),
+            new PathScreenRule("^/api/search-history/[^/]+/approve.*",
+                    List.of(ScreenConstants.PENDING_APPROVALS, ScreenConstants.SEARCH_HISTORY)),
+            new PathScreenRule("^/api/search-history/[^/]+/reject.*",
+                    List.of(ScreenConstants.PENDING_APPROVALS, ScreenConstants.SEARCH_HISTORY)),
             new PathScreenRule("^/api/search-history.*", List.of(ScreenConstants.SEARCH_HISTORY)),
             new PathScreenRule("^/api/activity-log/\\d+/privileged-reveal$",
                     List.of(ScreenConstants.ACTIVITY_LOG, ScreenConstants.ACTIVITY_LOG_ACCESS_AUDIT)),
@@ -52,6 +54,7 @@ public class ScreenAccessInterceptor implements HandlerInterceptor {
             new PathScreenRule("^/api/activity-log.*", List.of(ScreenConstants.ACTIVITY_LOG)),
             new PathScreenRule("^/api/statistics.*", List.of(ScreenConstants.STATISTICS)),
             new PathScreenRule("^/api/users.*", List.of(ScreenConstants.USER_MANAGEMENT)),
+            new PathScreenRule("^/api/provisioning.*", List.of(ScreenConstants.USER_MANAGEMENT, ScreenConstants.USER_PERMISSION_HIERARCHY)),
             new PathScreenRule("^/api/logs/db-refactored.*", List.of(ScreenConstants.PB_FEPLOG, ScreenConstants.PB_FEP_LOG_SEARCH, ScreenConstants.JAVA_FW_IMAGELOG)),
             new PathScreenRule("^/api/logs/decrypt.*", List.of(ScreenConstants.PB_FEPLOG, ScreenConstants.PB_FEP_LOG_SEARCH, ScreenConstants.JAVA_FW_IMAGELOG)),
             new PathScreenRule("^/api/search.*", List.of(ScreenConstants.PB_FEPLOG, ScreenConstants.PB_FEP_LOG_SEARCH, ScreenConstants.JAVA_FW_IMAGELOG))
@@ -88,12 +91,25 @@ public class ScreenAccessInterceptor implements HandlerInterceptor {
         if (Boolean.TRUE.equals(userInfo.getIsSystemAdmin())) {
             return true;
         }
+        List<String> allowedScreenIds = userInfo.getAllowedScreenIds();
+        if (allowedScreenIds == null || allowedScreenIds.isEmpty()) {
+            log.warn("Screen access denied (zero permissions): path={} user={}", path, userInfo.getUsername());
+            sendForbidden(response);
+            return false;
+        }
+        if (isSearchHistoryReadGet(request.getMethod(), path)) {
+            if (allowSearchHistoryListOrDetailRead(userInfo)) {
+                return true;
+            }
+            sendForbidden(response);
+            return false;
+        }
         List<String> requiredScreens = findRequiredScreens(path);
         if (requiredScreens == null || requiredScreens.isEmpty()) {
             return true;
         }
-        List<String> allowed = userInfo.getAllowedScreenIds();
-        boolean hasAccess = allowed != null && requiredScreens.stream().anyMatch(allowed::contains);
+        List<String> allowed = allowedScreenIds;
+        boolean hasAccess = requiredScreens.stream().anyMatch(allowed::contains);
         if (hasAccess) {
             return true;
         }
@@ -107,6 +123,31 @@ public class ScreenAccessInterceptor implements HandlerInterceptor {
         }
         log.warn("Screen access denied: path={} requiredScreens={} user={}", path, requiredScreens, userInfo.getUsername());
         sendForbidden(response);
+        return false;
+    }
+
+    private static boolean isSearchHistoryReadGet(String method, String path) {
+        if (!"GET".equalsIgnoreCase(method)) {
+            return false;
+        }
+        if ("/api/search-history".equals(path)) {
+            return true;
+        }
+        return path != null && path.startsWith("/api/search-history/")
+                && path.matches("^/api/search-history/\\d+$");
+    }
+
+    /**
+     * GET list/detail: search-history screen OR pending-approvals with effective read (docs/contract.md §6.1.2).
+     */
+    private boolean allowSearchHistoryListOrDetailRead(LoginResponse userInfo) {
+        List<String> allowed = userInfo.getAllowedScreenIds();
+        if (allowed != null && allowed.contains(ScreenConstants.SEARCH_HISTORY)) {
+            return true;
+        }
+        if (allowed != null && allowed.contains(ScreenConstants.PENDING_APPROVALS)) {
+            return authService.hasEffectiveReadForPendingApprovals(userInfo);
+        }
         return false;
     }
 

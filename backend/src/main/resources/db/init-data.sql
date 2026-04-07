@@ -15,6 +15,22 @@ VALUES
     ('TEAM_RESEARCH_1', 'HQ_RESEARCH', '리서치1팀', 6)
 ON CONFLICT (code) DO NOTHING;
 
+-- 외부 조직 복제 샘플 (요건: 20260407-external-dept-employee-ad-login). 프로비저닝·검색 테스트; PII 최소(가명).
+-- 권한 그룹 연결보다 앞에 둠: 레거시 init-data 재실행 시 하단 UNIQUE 충돌이 있어도 ext_* 시드가 먼저 적재되도록.
+INSERT INTO ext_department (source_system, external_department_id, name, parent_external_department_id, imported_at)
+VALUES
+    ('HR_SAMPLE', 'D-SALES-001', 'Sample Sales Division', NULL, CURRENT_TIMESTAMP),
+    ('HR_SAMPLE', 'D-RD-001', 'Sample R&D Division', NULL, CURRENT_TIMESTAMP)
+ON CONFLICT (source_system, external_department_id) DO NOTHING;
+
+INSERT INTO ext_employee (source_system, external_employee_id, employee_number, display_name, job_title, external_department_id, is_active, imported_at)
+VALUES
+    ('HR_SAMPLE', 'E-10001', '10001', 'Sample Alpha', 'Developer', 'D-SALES-001', true, CURRENT_TIMESTAMP),
+    ('HR_SAMPLE', 'E-10002', '10002', 'Sample Beta', 'Analyst', 'D-SALES-001', true, CURRENT_TIMESTAMP),
+    ('HR_SAMPLE', 'E-10003', '10003', 'Sample Gamma', 'Manager', 'D-RD-001', true, CURRENT_TIMESTAMP),
+    ('HR_SAMPLE', 'E-UNPROV-1', '99999', 'Unprovisioned User', 'Tester', 'D-RD-001', true, CURRENT_TIMESTAMP)
+ON CONFLICT (source_system, external_employee_id) DO NOTHING;
+
 -- 앱 사용자 (department_code는 department.code FK; 부서 삽입 후 실행)
 -- 복호화 결재자 (요건: 20260224-decryption-approver-designation)
 -- position: 요건 20250227-department-approver-position (팀장 지정 테스트용)
@@ -54,6 +70,13 @@ UPDATE app_user SET rank = '사원' WHERE username = 'user3';
 UPDATE app_user SET name = '홍길동' WHERE username = 'user1';
 UPDATE app_user SET name = '김철수' WHERE username = 'user2';
 UPDATE app_user SET name = '이영희' WHERE username = 'user3';
+
+-- user3 ↔ 외부 직원 E-10003 매핑 (AD·로컬 모드 app_user 해석 테스트). app_user 행 이후.
+INSERT INTO app_user_external_identity (app_user_id, source_system, external_employee_id, linked_at)
+SELECT u.id, 'HR_SAMPLE', 'E-10003', CURRENT_TIMESTAMP
+FROM app_user u
+WHERE u.username = 'user3'
+  AND NOT EXISTS (SELECT 1 FROM app_user_external_identity m WHERE m.app_user_id = u.id);
 
 -- 결재자: user1 = 전역 결재자(department_code NULL). app_user 삽입 후 실행. 재실행 시 idempotent.
 -- app_user_id: Req 20260316-decrypt-approval-use-user-id-everywhere. 신규 설치 시 여기서 설정; 기존 DB는 migrate-decrypt-approval-use-user-id.sql backfill.

@@ -14,7 +14,8 @@ END;
 $$ LANGUAGE plpgsql;
 
 -- DDL 순서(참조 무결성):
---   department → permission_group → app_user → search_history(FK는 나중에) → search_history_approved_row
+--   department → ext_department, ext_employee (외부 복제; 앱 FK 없음) → permission_group → app_user → app_user_external_identity
+--   → search_history(FK는 나중에) → search_history_approved_row
 --   → DO 블록으로 search_history FK 부착 → decrypt_approver → user_decryption_allowed → screen_display_label
 --   → app_user_permission_group → permission_group_screen → 마지막에 트리거만 부착
 -- 권한(GRANT)은 setup.sh에서 스키마별로 수행합니다.
@@ -29,6 +30,36 @@ CREATE TABLE IF NOT EXISTS department (
 );
 CREATE INDEX IF NOT EXISTS idx_department_parent ON department(parent_code);
 CREATE INDEX IF NOT EXISTS idx_department_parent_sort ON department(parent_code, sort_order);
+
+-- 외부 조직 복제 (ETL/레플리카). 앱 런타임 역할은 SELECT-only (setup.sh 그랜트). 요건: 20260407-external-dept-employee-ad-login
+-- 자연키: (source_system, external_department_id) / (source_system, external_employee_id). app_user와 FK 없음 — app_user_external_identity로 논리 연결.
+CREATE TABLE IF NOT EXISTS ext_department (
+    id                      BIGSERIAL PRIMARY KEY,
+    source_system           VARCHAR(64) NOT NULL,
+    external_department_id  VARCHAR(256) NOT NULL,
+    name                    VARCHAR(500) NULL,
+    parent_external_department_id VARCHAR(256) NULL,
+    imported_at             TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT uq_ext_department_source_ext UNIQUE (source_system, external_department_id)
+);
+CREATE INDEX IF NOT EXISTS idx_ext_department_name ON ext_department (source_system, name);
+
+CREATE TABLE IF NOT EXISTS ext_employee (
+    id                      BIGSERIAL PRIMARY KEY,
+    source_system           VARCHAR(64) NOT NULL,
+    external_employee_id    VARCHAR(256) NOT NULL,
+    employee_number         VARCHAR(100) NULL,
+    display_name            VARCHAR(500) NULL,
+    job_title               VARCHAR(200) NULL,
+    external_department_id  VARCHAR(256) NULL,
+    email                   VARCHAR(320) NULL,
+    is_active               BOOLEAN NOT NULL DEFAULT true,
+    imported_at             TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT uq_ext_employee_source_ext UNIQUE (source_system, external_employee_id)
+);
+CREATE INDEX IF NOT EXISTS idx_ext_employee_source_empnum ON ext_employee (source_system, employee_number);
+CREATE INDEX IF NOT EXISTS idx_ext_employee_display_name ON ext_employee (display_name);
+CREATE INDEX IF NOT EXISTS idx_ext_employee_source_extdept ON ext_employee (source_system, external_department_id);
 
 -- 권한 그룹 (요건: 20250227-user-permission-hierarchy-group). app_user보다 먼저 — app_user_permission_group이 참조
 CREATE TABLE IF NOT EXISTS permission_group (
@@ -59,6 +90,18 @@ CREATE TABLE IF NOT EXISTS app_user (
     CONSTRAINT fk_app_user_department FOREIGN KEY (department_code) REFERENCES department(code) ON DELETE SET NULL
 );
 CREATE INDEX IF NOT EXISTS idx_app_user_username ON app_user(username);
+
+-- 프로비저닝/AD 로그인용 외부 직원 자연키 → app_user 매핑 (복제 테이블 volatile 시 FK 회피). 요건: 20260407-external-dept-employee-ad-login
+CREATE TABLE IF NOT EXISTS app_user_external_identity (
+    id                      BIGSERIAL PRIMARY KEY,
+    app_user_id             BIGINT NOT NULL REFERENCES app_user(id) ON DELETE CASCADE,
+    source_system           VARCHAR(64) NOT NULL,
+    external_employee_id    VARCHAR(256) NOT NULL,
+    linked_at               TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT uq_app_user_external_identity_natural UNIQUE (source_system, external_employee_id),
+    CONSTRAINT uq_app_user_external_identity_app_user UNIQUE (app_user_id)
+);
+CREATE INDEX IF NOT EXISTS idx_app_user_external_identity_app_user ON app_user_external_identity (app_user_id);
 
 -- 검색 이력 (복호화 승인 부가 기능)
 -- user_id: requester's user id (numeric). app_user.id = search_history.user_id. Do not store username. Req: 20260316-search-history-user-id-query-and-naming.
@@ -180,6 +223,7 @@ CREATE OR REPLACE TRIGGER update_screen_display_label_updated_at
 
 -- 사용자–권한 그룹 1:1 (user_id = app_user.username, UNIQUE). permission_group 삭제 시 CASCADE; 역방향 조회용 인덱스.
 -- req 20250304-single-permission-group-per-user: 사용자당 최대 1개 권한 그룹.
+-- Legacy DBs may have user_id = app_user.id::text; migrate-app-user-permission-group-user-id-to-username-20260407.sql normalizes to username (FK).
 CREATE TABLE IF NOT EXISTS app_user_permission_group (
     user_id VARCHAR(100) NOT NULL,
     permission_group_id BIGINT NOT NULL,

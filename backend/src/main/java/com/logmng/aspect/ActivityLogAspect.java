@@ -6,6 +6,7 @@ import com.logmng.annotation.ActivityLog;
 import com.logmng.dto.DecryptionRowKey;
 import com.logmng.dto.response.LoginResponse;
 import com.logmng.service.AuthService;
+import com.logmng.service.PermissionGroupService;
 import com.logmng.service.UserActivityLogService;
 import jakarta.servlet.ServletRequest;
 import jakarta.servlet.ServletResponse;
@@ -39,11 +40,16 @@ public class ActivityLogAspect {
     
     private final UserActivityLogService userActivityLogService;
     private final AuthService authService;
+    private final PermissionGroupService permissionGroupService;
     private final ObjectMapper objectMapper;
     
-    public ActivityLogAspect(UserActivityLogService userActivityLogService, AuthService authService) {
+    public ActivityLogAspect(
+            UserActivityLogService userActivityLogService,
+            AuthService authService,
+            PermissionGroupService permissionGroupService) {
         this.userActivityLogService = userActivityLogService;
         this.authService = authService;
+        this.permissionGroupService = permissionGroupService;
         this.objectMapper = new ObjectMapper();
     }
     
@@ -331,7 +337,8 @@ public class ActivityLogAspect {
                     method.getName(),
                     joinPoint.getArgs(),
                     methodResult,
-                    actionDetail);
+                    actionDetail,
+                    permissionGroupService);
             
             // 요청 파라미터 JSON 문자열 생성 (Servlet 타입은 직렬화 전에 플레이스홀더로 대체)
             String requestParamsJson = null;

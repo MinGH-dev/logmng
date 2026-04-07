@@ -53,6 +53,33 @@ async function searchPbFepWireframe() {
   });
 }
 
+describe('LogGrid Java FW Image Log layout', () => {
+  beforeEach(() => {
+    global.fetch = jest.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        success: true,
+        data: { validUntil: null, guids: [], allowedRows: [] },
+      }),
+    });
+  });
+
+  test('java_fw_imglog uses flex grid modifier, table region, and DataTable fill + pagination footer', () => {
+    const { container } = render(
+      <LogGrid
+        viewId="java-fw-imagelog"
+        logType={{ id: 'java_fw_imglog', name: 'Java FW Image Log', description: '' }}
+        hasDecryptPermission
+      />
+    );
+    expect(container.querySelector('.log-grid.log-grid--java-fw-imagelog')).toBeInTheDocument();
+    const region = container.querySelector('.log-grid-table-region');
+    expect(region).toBeInTheDocument();
+    expect(region.querySelector('.log-table-container.log-table-container--fill')).toBeInTheDocument();
+    expect(region.querySelector('.pagination.pagination--info-buttons-size')).toBeInTheDocument();
+  });
+});
+
 describe('LogGrid PB FEP endpoints', () => {
   beforeEach(() => {
     global.fetch = jest.fn();

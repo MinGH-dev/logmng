@@ -4,6 +4,10 @@
 
 이 가이드는 PostgreSQL 16을 사용하여 로그 관리 시스템의 데이터베이스를 설정하는 방법을 설명합니다.
 
+## 기존 imagelog가 있는 DB에 암호화 샘플만 추가 (로컬/UI 복호화 테스트)
+
+`imagelog`에 이미 행이 있으면 앱 기동 시 `GenerateSampleDataScript`가 시드를 건너뜁니다. 암호화 필드가 없는 DB에 **삭제 없이** 암호화 테스트용 행만 넣으려면 저장소 루트에서 `./scripts/append-imagelog-encrypted-samples.sh`를 실행합니다. 동일 guid·status가 이미 있으면 다시 실행해도 삽입하지 않습니다. ImageLog 전용 DB를 쓰는 경우 `APP_DATASOURCE_IMAGELOG_URL`(및 USER/PASSWORD)을 `application.yml`과 맞춥니다.
+
 ## 🔀 멀티 데이터베이스·멀티 스키마 (선택)
 
 요구사항 `20260320-multi-datasource-schema-configuration`에 따라, 운영에서는 **DB A**에 시스템 데이터(`SCHEMA_SYS`, 예: `logmng_sys`)와 PB FEP 로그(`SCHEMA_PB`, 예: `logmng`)를 두고, **Java FW ImageLog**는 **DB B**의 스키마(`SCHEMA_IMAGELOG`, 기본 `public`)에 둘 수 있습니다. **새 환경 변수를 설정하지 않으면** 기존과 동일하게 단일 DB(`logmng`)·스키마 `public`으로 `setup.sh`가 동작합니다.
@@ -34,6 +38,9 @@ PB FEP 로그 검색 API는 `pb_send`와 `pb_recv`를 UNION ALL로 조회하며,
 7. **`setup.sh` 단계 4a–4g(레거시 정렬)**: ImageLog 쪽 `migrate-imagelog-guid-status-unique-20260320.sql`(DB B) 후, 시스템 DB A에 `migrate-sys-decryption-composite-pk-20260320.sql`(승인 스냅샷·`user_decryption_allowed`에 `row_status` 및 복합 PK). idempotent.  
 8. **`setup.sh` 단계 4h (`permission_group_screen` 컬럼)**: init-data(5단계) 이전에 DB A에서 다음 네 파일을 **순서대로** 적용 — `migrate-permission-group-screen-scope.sql` → `migrate-permission-group-screen-functions.sql` → `migrate-permission-group-screen-decrypt.sql` → `migrate-permission-group-screen-scope-team.sql`. 신규 설치는 `schema_sys.sql`에 컬럼이 이미 있어 no-op; 레거시 테이블만 실제 DDL이 수행됨. **전체 `setup.sh`를 다시 돌릴 수 없는** 환경에서는 동일 순서로 수동 실행하되 `SET search_path TO SCHEMA_SYS, SCHEMA_PB, public`(또는 운영 환경 변수에 맞는 스키마)을 사용합니다. 점검: `check-db.sh` 6b. 요구사항: `docs/requirements/20260320-permission-group-screen-entry-error-migration-check.md`.  
 실제 일괄 실행은 `backend/src/main/resources/db/setup.sh`가 위 순서와 변수를 사용합니다. 점검은 `check-db.sh`로 동일 변수를 넘겨 실행합니다.
+
+**외부 조직 복제 `ext_department` / `ext_employee` (요건 20260407)**  
+ETL·레플리카 작업은 전용 DB 역할 **`logmng_etl`**(기본; 환경 변수 `DB_ETL_USER` / `DB_ETL_PASSWORD`로 덮어쓰기)을 사용해 `ext_*`에 INSERT·UPDATE·DELETE합니다. 애플리케이션 JDBC 사용자(`DB_USER`, 기본 `logmng`)는 **`ext_*`에 SELECT만** 허용됩니다(`setup.sh` 4b-ext). 프로비저닝 시 외부 직원 키와 `app_user`의 연결은 **`app_user_external_identity`** 테이블에 저장합니다(복제 테이블에 대한 FK 없음). 이름 fuzzy 검색에 **`pg_trgm`** 을 쓰려면 별도 마이그레이션에서 `CREATE EXTENSION IF NOT EXISTS pg_trgm` 및 GIN 인덱스를 추가하면 되며, 기본 설치는 btree 인덱스만 포함합니다. 점검: `check-db.sh` 6e(TC-D01/D02).
 
 **애플리케이션 `search_path`**  
 백엔드는 JDBC URL 옵션 또는 커넥션 풀 초기 SQL로 DB A에 `logmng_sys, logmng, public` 등 운영 스키마 순서를 맞춥니다. 상세 키는 `application.yml` 및 `docs/contract.md`(멀티 데이터소스 반영 시)를 따릅니다.

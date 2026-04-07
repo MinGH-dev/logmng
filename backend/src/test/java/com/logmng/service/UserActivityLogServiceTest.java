@@ -78,7 +78,8 @@ class UserActivityLogServiceTest {
         }
     }
 
-    private void insertActivityLogWithDetail(Long id, String userId, String username, String actionType, String actionDetailJson) throws Exception {
+    private void insertActivityLogWithDetail(Long id, String userId, String username, String actionType, String actionDetailJson,
+            String requestParamsJson) throws Exception {
         Timestamp now = Timestamp.from(Instant.parse("2026-03-13T10:15:30Z"));
         try (Connection conn = dataSource.getConnection();
              PreparedStatement ps = conn.prepareStatement(
@@ -94,7 +95,7 @@ class UserActivityLogServiceTest {
             ps.setString(7, "JUnit");
             ps.setString(8, "PUT");
             ps.setString(9, "/api/permission-groups/1");
-            ps.setString(10, "{}");
+            ps.setString(10, requestParamsJson != null ? requestParamsJson : "{}");
             ps.setInt(11, 200);
             ps.setInt(12, 15);
             ps.setBoolean(13, true);
@@ -247,7 +248,7 @@ class UserActivityLogServiceTest {
         String json = "{\"permissionGroupAuditV1\":{\"schemaVersion\":\"1\",\"operation\":\"UPDATE\",\"permissionGroupId\":42,"
                 + "\"permissionGroupCode\":\"G\",\"before\":{\"code\":\"G\",\"name\":\"old\",\"sortOrder\":0,\"allowedScreens\":[{\"screenId\":\"activity-log\",\"scope\":\"team\"}]},"
                 + "\"after\":{\"code\":\"G\",\"name\":\"new\",\"sortOrder\":0,\"allowedScreens\":[{\"screenId\":\"activity-log\",\"scope\":\"all\"}]}}}";
-        insertActivityLogWithDetail(100L, "currentUser", "Current User", "PERMISSION_GROUP_UPDATE", json);
+        insertActivityLogWithDetail(100L, "currentUser", "Current User", "PERMISSION_GROUP_UPDATE", json, "{}");
 
         Map<String, Object> row = userActivityLogService.getActivityLogDetail(100L, "currentUser", null);
         @SuppressWarnings("unchecked")
@@ -266,7 +267,7 @@ class UserActivityLogServiceTest {
     @Test
     void getActivityLogDetail_scopeSelf_forbiddenWhenNotOwner() throws Exception {
         String json = "{\"permissionGroupAuditV1\":{\"operation\":\"UPDATE\"}}";
-        insertActivityLogWithDetail(101L, "outsideUser", "Outside User", "PERMISSION_GROUP_UPDATE", json);
+        insertActivityLogWithDetail(101L, "outsideUser", "Outside User", "PERMISSION_GROUP_UPDATE", json, "{}");
 
         org.assertj.core.api.Assertions.assertThatThrownBy(() ->
                         userActivityLogService.getActivityLogDetail(101L, "currentUser", null))
@@ -277,7 +278,7 @@ class UserActivityLogServiceTest {
     @Test
     void getActivityLogDetail_scopeTeam_forbiddenWhenUserNotInAllowedTeamList() throws Exception {
         String json = "{\"permissionGroupAuditV1\":{\"operation\":\"LOGIN\"}}";
-        insertActivityLogWithDetail(102L, "outsideUser", "Outside User", "LOGIN", json);
+        insertActivityLogWithDetail(102L, "outsideUser", "Outside User", "LOGIN", json, "{}");
 
         org.assertj.core.api.Assertions.assertThatThrownBy(() ->
                         userActivityLogService.getActivityLogDetail(102L, null, List.of("currentUser", "teamMate")))
@@ -285,5 +286,39 @@ class UserActivityLogServiceTest {
 
         Map<String, Object> teamRow = userActivityLogService.getActivityLogDetail(2L, null, List.of("currentUser", "teamMate"));
         assertThat(teamRow.get("user_id")).isEqualTo("teamMate");
+    }
+
+    /** request_params JSON is parsed in detail API (parity with action_detail). */
+    @Test
+    void getActivityLogDetail_parsesRequestParams() throws Exception {
+        String reqJson = "{\"method\":\"POST\",\"query\":{\"page\":\"1\"},\"password\":\"x\"}";
+        insertActivityLogWithDetail(200L, "currentUser", "Current User", "LOGIN", "{}", reqJson);
+
+        Map<String, Object> row = userActivityLogService.getActivityLogDetail(200L, "currentUser", null);
+        @SuppressWarnings("unchecked")
+        Map<String, Object> rp = (Map<String, Object>) row.get("request_params");
+        assertThat(rp.get("method")).isEqualTo("POST");
+        @SuppressWarnings("unchecked")
+        Map<String, Object> q = (Map<String, Object>) rp.get("query");
+        assertThat(q.get("page")).isEqualTo("1");
+        assertThat(rp.get("password")).isEqualTo("x");
+    }
+
+    /** Search rows parse request_params when selected. */
+    @Test
+    void searchActivityLogs_parsesRequestParamsInRows() throws Exception {
+        String reqJson = "{\"filter\":\"active\"}";
+        insertActivityLogWithDetail(201L, "currentUser", "Current User", "LOGOUT", "{}", reqJson);
+
+        UserActivityLogSearchRequest request = newRequest();
+        request.setActionType("LOGOUT");
+        ScopeHelper.applyActivityLogSearchScope(request, "self", "currentUser", null);
+        UserActivityLogResponse response = userActivityLogService.searchActivityLogs(request);
+
+        assertThat(response.getData()).hasSize(1);
+        Map<String, Object> row = response.getData().get(0);
+        @SuppressWarnings("unchecked")
+        Map<String, Object> rp = (Map<String, Object>) row.get("request_params");
+        assertThat(rp.get("filter")).isEqualTo("active");
     }
 }

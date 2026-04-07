@@ -11,6 +11,7 @@ import com.logmng.dto.request.LogDbSortSpec;
 import com.logmng.dto.response.LogDbSearchResponse;
 import com.logmng.exception.CustomException;
 import com.logmng.util.CryptoUtil;
+import com.logmng.util.CryptoUtil.LogPayloadCryptoVariant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -30,6 +31,11 @@ public class LogDbService {
 
     /** Max rows to fetch when data/header/keyword filters are present; filter in memory then paginate. Per req 20260318. */
     private static final int IMGLOG_FILTER_PREFETCH_CAP = 5000;
+
+    /**
+     * When JSON bracket-wrapped ImageLog ciphertext cannot be decrypted, substitute this instead of echoing E002+Base64.
+     */
+    private static final String IMAGE_LOG_JSON_DECRYPT_FAILED = "복호화에 실패했습니다 (키 불일치 또는 손상된 데이터)";
 
     private static final Logger log = LoggerFactory.getLogger(LogDbService.class);
 
@@ -292,13 +298,13 @@ public class LogDbService {
                                 // request_data 복호화
                                 if (row.get("request_data") != null) {
                                     String encryptedRequest = (String) row.get("request_data");
-                                    String decryptedRequest = cryptoUtil.decrypt(encryptedRequest);
+                                    String decryptedRequest = cryptoUtil.decryptLogPayload(encryptedRequest, LogPayloadCryptoVariant.PB_FEP);
                                     row.put("decrypted_request_data", decryptedRequest);
                                 }
                                 // response_data 복호화
                                 if (row.get("response_data") != null) {
                                     String encryptedResponse = (String) row.get("response_data");
-                                    String decryptedResponse = cryptoUtil.decrypt(encryptedResponse);
+                                    String decryptedResponse = cryptoUtil.decryptLogPayload(encryptedResponse, LogPayloadCryptoVariant.PB_FEP);
                                     row.put("decrypted_response_data", decryptedResponse);
                                 }
                             } catch (Exception e) {
@@ -697,12 +703,12 @@ public class LogDbService {
                 try {
                     if (row.get("data") != null) {
                         String encryptedData = (String) row.get("data");
-                        String decryptedData = cryptoUtil.decrypt(encryptedData);
+                        String decryptedData = cryptoUtil.decryptLogPayload(encryptedData, LogPayloadCryptoVariant.IMAGE_LOG);
                         row.put("decrypted_data", decryptedData);
                     }
                     if (row.get("header") != null) {
                         String encryptedHeader = (String) row.get("header");
-                        String decryptedHeader = cryptoUtil.decrypt(encryptedHeader);
+                        String decryptedHeader = cryptoUtil.decryptLogPayload(encryptedHeader, LogPayloadCryptoVariant.IMAGE_LOG);
                         row.put("decrypted_header", decryptedHeader);
                     }
                 } catch (Exception e) {
@@ -1026,11 +1032,11 @@ public class LogDbService {
         log.info("🔓 단일 로우 복호화 시작: logType={}, guid={}, status={}", logType, guid, status);
         
         if (!"java_fw_imglog".equals(logType)) {
-            throw new RuntimeException("현재 java_fw_imglog만 지원됩니다.");
+            throw CustomException.badRequest("현재 java_fw_imglog만 지원됩니다.", "UNSUPPORTED_LOG_TYPE");
         }
         String st = DecryptionRowKey.normalizeStatus(status);
         if (st.isEmpty()) {
-            throw new IllegalArgumentException("java_fw_imglog 복호화에는 status가 필요합니다.");
+            throw CustomException.badRequest("java_fw_imglog 복호화에는 status가 필요합니다.", "MISSING_STATUS");
         }
         
         try (Connection connection = imagelogDataSource.getConnection()) {
@@ -1065,17 +1071,18 @@ public class LogDbService {
                             row.put(columnName, value);
                         }
                         
-                        // data 필드 복호화
+                        // data 필드 복호화 (실패 시 클라이언트 복구 가능 오류 — 본문에 내부 메시지 미포함)
                         if (row.get("data") != null) {
                             try {
                                 String encryptedData = (String) row.get("data");
-                                String decryptedData = cryptoUtil.decrypt(encryptedData);
+                                String decryptedData = cryptoUtil.decryptLogPayload(encryptedData, LogPayloadCryptoVariant.IMAGE_LOG);
                                 row.put("decrypted_data", decryptedData);
                                 row.put("data_encrypted", true);
                             } catch (Exception e) {
-                                log.warn("data 복호화 실패 (GUID: {}): {}", guid, e.getMessage());
-                                row.put("decrypted_data", "복호화 실패: " + e.getMessage());
-                                row.put("data_encrypted", true);
+                                log.warn("data 복호화 실패 (GUID: {}): {}", guid, e.toString());
+                                throw CustomException.badRequest(
+                                        "복호화할 수 없습니다. 암호문 형식이 올바르지 않거나 키가 일치하지 않을 수 있습니다.",
+                                        "DECRYPTION_FAILED");
                             }
                         }
                         
@@ -1083,13 +1090,14 @@ public class LogDbService {
                         if (row.get("header") != null) {
                             try {
                                 String encryptedHeader = (String) row.get("header");
-                                String decryptedHeader = cryptoUtil.decrypt(encryptedHeader);
+                                String decryptedHeader = cryptoUtil.decryptLogPayload(encryptedHeader, LogPayloadCryptoVariant.IMAGE_LOG);
                                 row.put("decrypted_header", decryptedHeader);
                                 row.put("header_encrypted", true);
                             } catch (Exception e) {
-                                log.warn("header 복호화 실패 (GUID: {}): {}", guid, e.getMessage());
-                                row.put("decrypted_header", "복호화 실패: " + e.getMessage());
-                                row.put("header_encrypted", true);
+                                log.warn("header 복호화 실패 (GUID: {}): {}", guid, e.toString());
+                                throw CustomException.badRequest(
+                                        "복호화할 수 없습니다. 암호문 형식이 올바르지 않거나 키가 일치하지 않을 수 있습니다.",
+                                        "DECRYPTION_FAILED");
                             }
                         }
                         
@@ -1112,13 +1120,15 @@ public class LogDbService {
                                 logType, guid, rowStatus, duration);
                         return row;
                     } else {
-                        throw new RuntimeException("이미지로그를 찾을 수 없습니다: guid=" + guid + ", status=" + st);
+                        throw CustomException.notFound("해당 로그 행을 찾을 수 없습니다.", "LOG_ROW_NOT_FOUND");
                     }
                 }
             }
         } catch (SQLException e) {
             log.error("단일 로우 복호화 중 오류 발생", e);
-            throw new RuntimeException("단일 로우 복호화 중 오류가 발생했습니다: " + e.getMessage(), e);
+            throw CustomException.internalError(
+                    "일시적인 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.",
+                    "INTERNAL_SERVER_ERROR");
         }
     }
     
@@ -1136,14 +1146,14 @@ public class LogDbService {
                 // request_data 복호화
                 if (logData.get("request_data") != null) {
                     String encryptedRequest = (String) logData.get("request_data");
-                    String decryptedRequest = cryptoUtil.decrypt(encryptedRequest);
+                    String decryptedRequest = cryptoUtil.decryptLogPayload(encryptedRequest, LogPayloadCryptoVariant.PB_FEP);
                     logData.put("decrypted_request_data", decryptedRequest);
                 }
                 
                 // response_data 복호화
                 if (logData.get("response_data") != null) {
                     String encryptedResponse = (String) logData.get("response_data");
-                    String decryptedResponse = cryptoUtil.decrypt(encryptedResponse);
+                    String decryptedResponse = cryptoUtil.decryptLogPayload(encryptedResponse, LogPayloadCryptoVariant.PB_FEP);
                     logData.put("decrypted_response_data", decryptedResponse);
                 }
                 
@@ -1167,14 +1177,14 @@ public class LogDbService {
                 // data 복호화
                 if (logData.get("data") != null) {
                     String encryptedData = (String) logData.get("data");
-                    String decryptedData = cryptoUtil.decrypt(encryptedData);
+                    String decryptedData = cryptoUtil.decryptLogPayload(encryptedData, LogPayloadCryptoVariant.IMAGE_LOG);
                     logData.put("decrypted_data", decryptedData);
                 }
                 
                 // header 복호화
                 if (logData.get("header") != null) {
                     String encryptedHeader = (String) logData.get("header");
-                    String decryptedHeader = cryptoUtil.decrypt(encryptedHeader);
+                    String decryptedHeader = cryptoUtil.decryptLogPayload(encryptedHeader, LogPayloadCryptoVariant.IMAGE_LOG);
                     logData.put("decrypted_header", decryptedHeader);
                 }
                 
@@ -1196,9 +1206,9 @@ public class LogDbService {
     
     /**
      * JSON 문자열 내부의 암호화된 값([]로 감싸진 값)을 복호화
-     * 
+     *
      * @param jsonString JSON 문자열
-     * @return 복호화된 JSON 문자열 (복호화 실패 시 원본 값 유지)
+     * @return 복호화된 JSON 문자열 (필드 단위 복호화 실패 시 해당 값은 고정 안내 문구로 대체)
      */
     private String decryptJsonStringValues(String jsonString) {
         if (jsonString == null || jsonString.trim().isEmpty()) {
@@ -1240,13 +1250,13 @@ public class LogDbService {
                         String encryptedValue = textValue.substring(1, textValue.length() - 1);
                         try {
                             // 복호화 시도
-                            String decryptedValue = cryptoUtil.decrypt(encryptedValue);
+                            String decryptedValue = cryptoUtil.decryptLogPayload(encryptedValue, LogPayloadCryptoVariant.IMAGE_LOG);
                             // 복호화 성공 시 값 교체
                             objectNode.put(entry.getKey(), decryptedValue);
                             log.debug("✅ JSON 내부 값 복호화 성공: key={}", entry.getKey());
                         } catch (Exception e) {
-                            // 복호화 실패 시 원본 값 유지
-                            log.debug("복호화 실패, 원본 값 유지: key={}, error={}", entry.getKey(), e.getMessage());
+                            log.debug("복호화 실패, 플레이스홀더로 대체: key={}, error={}", entry.getKey(), e.getMessage());
+                            objectNode.put(entry.getKey(), IMAGE_LOG_JSON_DECRYPT_FAILED);
                         }
                     }
                 } else if (value.isObject() || value.isArray()) {
@@ -1265,14 +1275,15 @@ public class LogDbService {
                         String encryptedValue = textValue.substring(1, textValue.length() - 1);
                         try {
                             // 복호화 시도
-                            String decryptedValue = cryptoUtil.decrypt(encryptedValue);
+                            String decryptedValue = cryptoUtil.decryptLogPayload(encryptedValue, LogPayloadCryptoVariant.IMAGE_LOG);
                             // 복호화 성공 시 값 교체
                             ((com.fasterxml.jackson.databind.node.ArrayNode) node).set(i, 
                                 objectMapper.valueToTree(decryptedValue));
                             log.debug("✅ JSON 배열 내부 값 복호화 성공: index={}", i);
                         } catch (Exception e) {
-                            // 복호화 실패 시 원본 값 유지
-                            log.debug("복호화 실패, 원본 값 유지: index={}, error={}", i, e.getMessage());
+                            log.debug("복호화 실패, 플레이스홀더로 대체: index={}, error={}", i, e.getMessage());
+                            ((com.fasterxml.jackson.databind.node.ArrayNode) node).set(i,
+                                    objectMapper.valueToTree(IMAGE_LOG_JSON_DECRYPT_FAILED));
                         }
                     }
                 } else if (element.isObject() || element.isArray()) {
@@ -1458,16 +1469,18 @@ public class LogDbService {
                             try {
                                 if (row.get("data") != null) {
                                     String encryptedData = (String) row.get("data");
-                                    String decryptedData = cryptoUtil.decrypt(encryptedData);
+                                    String decryptedData = cryptoUtil.decryptLogPayload(encryptedData, LogPayloadCryptoVariant.IMAGE_LOG);
                                     row.put("decrypted_data", decryptedData);
                                 }
                                 if (row.get("header") != null) {
                                     String encryptedHeader = (String) row.get("header");
-                                    String decryptedHeader = cryptoUtil.decrypt(encryptedHeader);
+                                    String decryptedHeader = cryptoUtil.decryptLogPayload(encryptedHeader, LogPayloadCryptoVariant.IMAGE_LOG);
                                     row.put("decrypted_header", decryptedHeader);
                                 }
                             } catch (Exception e) {
                                 log.warn("복호화 실패 (GUID: {}): {}", row.get("guid"), e.getMessage());
+                                row.put("decrypted_data", "복호화 실패: " + e.getMessage());
+                                row.put("decrypted_header", "복호화 실패: " + e.getMessage());
                             }
                         }
                         

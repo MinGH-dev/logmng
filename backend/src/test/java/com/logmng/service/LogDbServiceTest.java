@@ -321,4 +321,27 @@ class LogDbServiceTest {
         req.setSortSpecs(List.of(s));
         assertThat(logDbService.buildPbFeplogOrderBy(req)).isEqualTo("user_id ASC");
     }
+
+    /**
+     * Wrong key: bracket-wrapped ImageLog ciphertext must not appear in output as if decrypted (no E002 echo).
+     */
+    @Test
+    void decryptJsonStringValues_wrongKey_doesNotExposeE002Ciphertext() {
+        CryptoUtil encryptWithDevDefault = new CryptoUtil();
+        ReflectionTestUtils.setField(encryptWithDevDefault, "encryptionKey", "12345678901234567890123456789012");
+        ReflectionTestUtils.setField(encryptWithDevDefault, "decryptionEnabled", true);
+        ReflectionTestUtils.setField(encryptWithDevDefault, "failureHandling", "fallback");
+        String encPayload = encryptWithDevDefault.encryptImageLogPayload("secret-value");
+        String json = String.format("{\"p\":\"[%s]\"}", encPayload);
+
+        CryptoUtil wrongKey = new CryptoUtil();
+        ReflectionTestUtils.setField(wrongKey, "encryptionKey", "test-key-32-bytes-long!!!!!!!!!");
+        ReflectionTestUtils.setField(wrongKey, "decryptionEnabled", true);
+        ReflectionTestUtils.setField(wrongKey, "failureHandling", "fallback");
+        logDbService = new LogDbService(dataSource, dataSource, wrongKey);
+
+        String out = (String) ReflectionTestUtils.invokeMethod(logDbService, "decryptJsonStringValues", json);
+        assertThat(out).doesNotContain("E002");
+        assertThat(out).contains("복호화에 실패했습니다");
+    }
 }

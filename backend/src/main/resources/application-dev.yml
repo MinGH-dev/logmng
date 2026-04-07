@@ -1,0 +1,4 @@
+# 로컬 개발: 테이블 기반 로그인 기본 (auth.login.mode=local). AD 연동은 별도 프로필·환경변수로 전환.
+auth:
+  login:
+    mode: local

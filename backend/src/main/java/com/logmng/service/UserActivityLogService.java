@@ -40,10 +40,10 @@ public class UserActivityLogService {
     }
 
     /**
-     * Parses {@code action_detail} from JDBC ({@link String} or {@link Clob}) to a JSON object map.
-     * Search and detail use the same logic (contract: scope parity for structured audit payloads).
+     * Parses JSON stored in TEXT/CLOB columns ({@code action_detail}, {@code request_params}) to a map.
+     * Search and detail use the same logic (contract: scope parity for structured payloads).
      */
-    Object parseActionDetailColumn(Object jdbcValue) {
+    Object parseJsonTextColumn(Object jdbcValue, String columnLabelForLog) {
         if (jdbcValue == null) {
             return null;
         }
@@ -54,9 +54,23 @@ public class UserActivityLogService {
         try {
             return objectMapper.readValue(json, new TypeReference<Map<String, Object>>() {});
         } catch (Exception e) {
-            log.debug("action_detail JSON 파싱 실패: {}", e.getMessage());
+            log.debug("{} JSON 파싱 실패: {}", columnLabelForLog, e.getMessage());
             return json;
         }
+    }
+
+    /**
+     * Parses {@code action_detail} from JDBC ({@link String} or {@link Clob}) to a JSON object map.
+     */
+    Object parseActionDetailColumn(Object jdbcValue) {
+        return parseJsonTextColumn(jdbcValue, "action_detail");
+    }
+
+    /**
+     * Parses {@code request_params} from JDBC ({@link String} or {@link Clob}) to a JSON object map.
+     */
+    Object parseRequestParamsColumn(Object jdbcValue) {
+        return parseJsonTextColumn(jdbcValue, "request_params");
     }
 
     private static String readJdbcStringContent(Object jdbcValue) {
@@ -321,6 +335,8 @@ public class UserActivityLogService {
                         
                         Object rawDetail = row.get("action_detail");
                         row.put("action_detail", parseActionDetailColumn(rawDetail));
+                        Object rawReqParams = row.get("request_params");
+                        row.put("request_params", parseRequestParamsColumn(rawReqParams));
                         
                         results.add(row);
                     }
@@ -389,6 +405,8 @@ public class UserActivityLogService {
                         
                         Object rawDetail = row.get("action_detail");
                         row.put("action_detail", parseActionDetailColumn(rawDetail));
+                        Object rawReqParams = row.get("request_params");
+                        row.put("request_params", parseRequestParamsColumn(rawReqParams));
                         
                         log.info("✅ 사용자 활동 이력 상세 조회 완료: ID={}", id);
                         return row;

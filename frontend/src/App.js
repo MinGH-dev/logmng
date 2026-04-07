@@ -25,7 +25,9 @@ import {
   getSelfContext,
   deriveScreenFunctionsFromAllowed,
   clearUserData,
+  hasEffectiveAppAccess,
 } from './utils/security';
+import NoPermissionDialog from './components/NoPermissionDialog';
 import logger from './utils/logger';
 import { getApiBaseUrl } from './config/runtimeApi';
 
@@ -79,6 +81,7 @@ function App() {
 
   useEffect(() => {
     if (!isAuthenticated || !user) return;
+    if (!hasEffectiveAppAccess(user)) return;
     const ids = getAllowedScreenIds(user);
     const allowed = user?.isSystemAdmin === true || (ids && ids.length > 0);
     if (!allowed) return;
@@ -178,12 +181,23 @@ function App() {
     saveMinimalUserData(minimalUserData);
   };
 
+  const replaceHistoryForLoginView = () => {
+    try {
+      const path = window.location.pathname || '/';
+      const search = window.location.search || '';
+      window.history.replaceState(null, '', path + search);
+    } catch {
+      /* ignore */
+    }
+  };
+
   const handleLogout = async () => {
     try {
       const apiBaseUrl = getApiBaseUrl();
       await fetch(`${apiBaseUrl}/auth/logout`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
       });
     } catch (error) {
       logger.debug('로그아웃 요청 실패:', { error: error.message });
@@ -192,11 +206,32 @@ function App() {
       setIsAuthenticated(false);
       clearUserData();
       setCurrentView('pb-feplog');
+      replaceHistoryForLoginView();
+    }
+  };
+
+  const handleNoPermissionConfirm = async () => {
+    try {
+      const apiBaseUrl = getApiBaseUrl();
+      await fetch(`${apiBaseUrl}/auth/logout`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+      });
+    } catch (error) {
+      logger.debug('권한 없음 모달 로그아웃 실패:', { error: error.message });
+    } finally {
+      setUser(null);
+      setIsAuthenticated(false);
+      clearUserData();
+      setCurrentView('pb-feplog');
+      replaceHistoryForLoginView();
     }
   };
 
   useEffect(() => {
     if (!isAuthenticated || !user) return;
+    if (!hasEffectiveAppAccess(user)) return;
     const isAdmin = user?.isSystemAdmin === true;
     const ids = getAllowedScreenIds(user);
     const hasAccess =
@@ -245,6 +280,14 @@ function App() {
 
   if (!isAuthenticated) {
     return <LoginForm onLogin={handleLogin} />;
+  }
+
+  if (user && !hasEffectiveAppAccess(user)) {
+    return (
+      <ThemeProvider theme={appTheme}>
+        <NoPermissionDialog open onConfirm={handleNoPermissionConfirm} />
+      </ThemeProvider>
+    );
   }
 
   return (

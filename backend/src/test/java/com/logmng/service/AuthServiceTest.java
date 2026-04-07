@@ -1,5 +1,6 @@
 package com.logmng.service;
 
+import com.logmng.config.AuthProperties;
 import com.logmng.dto.request.LoginRequest;
 import com.logmng.dto.response.LoginResponse;
 import com.logmng.util.IpUtil;
@@ -31,7 +32,10 @@ class AuthServiceTest {
                 dataSource,
                 new PermissionGroupService(dataSource, new AppUserResolver(dataSource)),
                 new DecryptApproverService(dataSource, new DepartmentService(dataSource)),
-                new AppUserResolver(dataSource));
+                new AppUserResolver(dataSource),
+                new AuthProperties(),
+                new ExternalIdentityService(dataSource, new AuthProperties()),
+                null);
     }
 
     private static DataSource createH2DataSource() throws Exception {

@@ -1,16 +1,19 @@
 package com.logmng.dto.request;
 
 import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotNull;
 
 /**
  * 로그인 요청 DTO.
- * 계약: 요청 body는 userId (number, app_user.id)와 password만 사용. username은 로그인에 사용하지 않음.
+ * Shape depends on {@code auth.login.mode}: {@code local} → numeric {@code userId} + {@code password};
+ * {@code ad} → {@code principal} + {@code password}. Validated in {@link com.logmng.service.AuthService}.
  */
 public class LoginRequest {
 
-    @NotNull(message = "사용자 ID는 필수입니다")
+    /** app_user.id — used when auth.login.mode=local */
     private Long userId;
+
+    /** Directory login id (e.g. sAMAccountName) — used when auth.login.mode=ad */
+    private String principal;
 
     @NotBlank(message = "비밀번호는 필수입니다")
     private String password;
@@ -29,6 +32,14 @@ public class LoginRequest {
 
     public void setUserId(Long userId) {
         this.userId = userId;
+    }
+
+    public String getPrincipal() {
+        return principal;
+    }
+
+    public void setPrincipal(String principal) {
+        this.principal = principal;
     }
 
     public String getPassword() {

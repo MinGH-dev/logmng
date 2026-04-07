@@ -10,6 +10,12 @@ import java.util.List;
  */
 public class GenerateEncryptedSampleData {
 
+    /**
+     * Fixed guid for idempotent append-only encrypted samples (dev/UI decrypt button tests).
+     * Use with {@link #generateAppendEncryptedSamples()}; {@link AppendEncryptedImagelogSampleAppender} inserts if absent.
+     */
+    public static final String APPEND_ENC_GUID_01 = "GUID-ENC-APPEND-20260407-01";
+
     /** Canonical guid shared by two rows ({@value #DUP_GUID_PAIR_COUNT} statuses) for Pretty/decrypt tests. */
     public static final String DUP_GUID_PRETTY = "GUID-DUP-PRETTY-20260330";
 
@@ -44,6 +50,34 @@ public class GenerateEncryptedSampleData {
             samples.add(buildEncryptedSample(i));
         }
         return samples;
+    }
+
+    /**
+     * Minimal encrypted sample rows for append-only seeding when imagelog already has data.
+     * Reuses template "case 0" from {@link #buildEncryptedSample(int)} (E002 imagelog crypto, bracket pattern in datastring).
+     */
+    public List<SampleData> generateAppendEncryptedSamples() {
+        List<SampleData> list = new ArrayList<>(1);
+        list.add(buildAppendEncryptedSample01());
+        return list;
+    }
+
+    /**
+     * One row: encrypted data/header and {@code datastring} with {@code "[...]"} pattern for UI {@code quotedBracketPattern}.
+     */
+    private SampleData buildAppendEncryptedSample01() {
+        String guid = APPEND_ENC_GUID_01;
+        SampleData s = new SampleData();
+        s.application = "LDP";
+        s.servicegroup = "EduSG";
+        s.service = "SE10002_select";
+        s.status = "input";
+        s.data = cryptoUtil.encryptImageLogPayload("{\"id\":\"1110\",\"name\":\"홍길동\",\"age\":30,\"email\":\"hong@example.com\"}");
+        s.datastring = String.format("{\"id\":\"1110\",\"name\":\"\",\"age\":0,\"p\":\"[%s]\"}", cryptoUtil.encryptImageLogPayload("password123"));
+        s.header = cryptoUtil.encryptImageLogPayload("{\"flag\":\"\\u0000\",\"inputMsgType\":\"JSON\",\"guid\":\"" + guid + "\",\"sessionId\":\"session123\"}");
+        s.headerstring = "{\"flag\":\"\\u0000\",\"inputMsgType\":\"JSON\",\"guid\":\"" + guid + "\"}";
+        s.guid = guid;
+        return s;
     }
 
     /**
@@ -103,9 +137,9 @@ public class GenerateEncryptedSampleData {
                 s.servicegroup = "EduSG";
                 s.service = "SE10002_select";
                 s.status = "input";
-                s.data = cryptoUtil.encrypt("{\"id\":\"1110\",\"name\":\"홍길동\",\"age\":30,\"email\":\"hong@example.com\"}");
-                s.datastring = String.format("{\"id\":\"1110\",\"name\":\"\",\"age\":0,\"p\":\"[%s]\"}", cryptoUtil.encrypt("password123"));
-                s.header = cryptoUtil.encrypt("{\"flag\":\"\\u0000\",\"inputMsgType\":\"JSON\",\"guid\":\"" + guid + "\",\"sessionId\":\"session123\"}");
+                s.data = cryptoUtil.encryptImageLogPayload("{\"id\":\"1110\",\"name\":\"홍길동\",\"age\":30,\"email\":\"hong@example.com\"}");
+                s.datastring = String.format("{\"id\":\"1110\",\"name\":\"\",\"age\":0,\"p\":\"[%s]\"}", cryptoUtil.encryptImageLogPayload("password123"));
+                s.header = cryptoUtil.encryptImageLogPayload("{\"flag\":\"\\u0000\",\"inputMsgType\":\"JSON\",\"guid\":\"" + guid + "\",\"sessionId\":\"session123\"}");
                 s.headerstring = "{\"flag\":\"\\u0000\",\"inputMsgType\":\"JSON\",\"guid\":\"" + guid + "\"}";
                 break;
             case 1:
@@ -113,19 +147,19 @@ public class GenerateEncryptedSampleData {
                 s.servicegroup = "EduSG";
                 s.service = "SE10003_insert";
                 s.status = "input";
-                s.data = cryptoUtil.encrypt("{\"id\":\"2220\",\"name\":\"김철수\",\"age\":25,\"email\":\"kim@example.com\"}");
-                s.datastring = String.format("{\"id\":\"2220\",\"name\":\"홍길동\",\"email\":\"[%s]\"}", cryptoUtil.encrypt("kim@example.com"));
-                s.header = cryptoUtil.encrypt("{\"flag\":\"\\u0000\",\"inputMsgType\":\"JSON\",\"guid\":\"" + guid + "\",\"sessionId\":\"session456\"}");
-                s.headerstring = String.format("{\"flag\":\"\\u0000\",\"guid\":\"" + guid + "\",\"sessionId\":\"[%s]\"}", cryptoUtil.encrypt("session456"));
+                s.data = cryptoUtil.encryptImageLogPayload("{\"id\":\"2220\",\"name\":\"김철수\",\"age\":25,\"email\":\"kim@example.com\"}");
+                s.datastring = String.format("{\"id\":\"2220\",\"name\":\"홍길동\",\"email\":\"[%s]\"}", cryptoUtil.encryptImageLogPayload("kim@example.com"));
+                s.header = cryptoUtil.encryptImageLogPayload("{\"flag\":\"\\u0000\",\"inputMsgType\":\"JSON\",\"guid\":\"" + guid + "\",\"sessionId\":\"session456\"}");
+                s.headerstring = String.format("{\"flag\":\"\\u0000\",\"guid\":\"" + guid + "\",\"sessionId\":\"[%s]\"}", cryptoUtil.encryptImageLogPayload("session456"));
                 break;
             case 2:
                 s.application = "LDP";
                 s.servicegroup = "EduSG";
                 s.service = "SE10002_select";
                 s.status = "output";
-                s.data = cryptoUtil.encrypt("{\"result\":\"success\",\"data\":[{\"id\":\"1110\",\"name\":\"홍길동\",\"age\":30}],\"count\":1}");
-                s.datastring = String.format("{\"result\":\"success\",\"count\":1,\"message\":\"[%s]\"}", cryptoUtil.encrypt("데이터 조회 성공"));
-                s.header = cryptoUtil.encrypt("{\"flag\":\"\\u0000\",\"inputMsgType\":\"JSON\",\"guid\":\"" + guid + "\",\"responseCode\":\"200\"}");
+                s.data = cryptoUtil.encryptImageLogPayload("{\"result\":\"success\",\"data\":[{\"id\":\"1110\",\"name\":\"홍길동\",\"age\":30}],\"count\":1}");
+                s.datastring = String.format("{\"result\":\"success\",\"count\":1,\"message\":\"[%s]\"}", cryptoUtil.encryptImageLogPayload("데이터 조회 성공"));
+                s.header = cryptoUtil.encryptImageLogPayload("{\"flag\":\"\\u0000\",\"inputMsgType\":\"JSON\",\"guid\":\"" + guid + "\",\"responseCode\":\"200\"}");
                 s.headerstring = "{\"flag\":\"\\u0000\",\"outputMsgType\":\"JSON\",\"guid\":\"" + guid + "\",\"responseCode\":\"200\"}";
                 break;
             case 3:
@@ -133,9 +167,9 @@ public class GenerateEncryptedSampleData {
                 s.servicegroup = "EduSG";
                 s.service = "SE10003_insert";
                 s.status = "output";
-                s.data = cryptoUtil.encrypt("{\"result\":\"success\",\"insertedId\":\"2220\",\"message\":\"저장되었습니다\"}");
-                s.datastring = String.format("{\"result\":\"success\",\"insertedId\":\"2220\",\"timestamp\":\"[%s]\"}", cryptoUtil.encrypt("2026-02-05T15:00:00"));
-                s.header = cryptoUtil.encrypt("{\"flag\":\"\\u0000\",\"inputMsgType\":\"JSON\",\"guid\":\"" + guid + "\",\"responseCode\":\"201\"}");
+                s.data = cryptoUtil.encryptImageLogPayload("{\"result\":\"success\",\"insertedId\":\"2220\",\"message\":\"저장되었습니다\"}");
+                s.datastring = String.format("{\"result\":\"success\",\"insertedId\":\"2220\",\"timestamp\":\"[%s]\"}", cryptoUtil.encryptImageLogPayload("2026-02-05T15:00:00"));
+                s.header = cryptoUtil.encryptImageLogPayload("{\"flag\":\"\\u0000\",\"inputMsgType\":\"JSON\",\"guid\":\"" + guid + "\",\"responseCode\":\"201\"}");
                 s.headerstring = "{\"flag\":\"\\u0000\",\"outputMsgType\":\"JSON\",\"guid\":\"" + guid + "\",\"responseCode\":\"201\"}";
                 break;
             case 4:
@@ -143,9 +177,9 @@ public class GenerateEncryptedSampleData {
                 s.servicegroup = "EduSG";
                 s.service = "SE10002_select";
                 s.status = "error";
-                s.data = cryptoUtil.encrypt("{\"error\":\"Database connection failed\",\"code\":\"DB_ERROR\"}");
-                s.datastring = String.format("{\"error\":\"DB_ERROR\",\"details\":\"[%s]\"}", cryptoUtil.encrypt("데이터베이스 연결 실패: 타임아웃"));
-                s.header = cryptoUtil.encrypt("{\"flag\":\"\\u0000\",\"inputMsgType\":\"JSON\",\"guid\":\"" + guid + "\",\"responseCode\":\"500\"}");
+                s.data = cryptoUtil.encryptImageLogPayload("{\"error\":\"Database connection failed\",\"code\":\"DB_ERROR\"}");
+                s.datastring = String.format("{\"error\":\"DB_ERROR\",\"details\":\"[%s]\"}", cryptoUtil.encryptImageLogPayload("데이터베이스 연결 실패: 타임아웃"));
+                s.header = cryptoUtil.encryptImageLogPayload("{\"flag\":\"\\u0000\",\"inputMsgType\":\"JSON\",\"guid\":\"" + guid + "\",\"responseCode\":\"500\"}");
                 s.headerstring = "{\"flag\":\"\\u0000\",\"guid\":\"" + guid + "\",\"responseCode\":\"500\",\"errorCode\":\"DB_CONNECTION_ERROR\"}";
                 break;
             case 5:
@@ -153,9 +187,9 @@ public class GenerateEncryptedSampleData {
                 s.servicegroup = "EduSG";
                 s.service = "SE10004_update";
                 s.status = "error";
-                s.data = cryptoUtil.encrypt("{\"error\":\"Validation failed\",\"code\":\"VALIDATION_ERROR\",\"fields\":[\"name\",\"email\"]}");
-                s.datastring = String.format("{\"error\":\"VALIDATION_ERROR\",\"message\":\"[%s]\"}", cryptoUtil.encrypt("유효성 검증 실패: 필수 필드 누락"));
-                s.header = cryptoUtil.encrypt("{\"flag\":\"\\u0000\",\"inputMsgType\":\"JSON\",\"guid\":\"" + guid + "\",\"responseCode\":\"400\"}");
+                s.data = cryptoUtil.encryptImageLogPayload("{\"error\":\"Validation failed\",\"code\":\"VALIDATION_ERROR\",\"fields\":[\"name\",\"email\"]}");
+                s.datastring = String.format("{\"error\":\"VALIDATION_ERROR\",\"message\":\"[%s]\"}", cryptoUtil.encryptImageLogPayload("유효성 검증 실패: 필수 필드 누락"));
+                s.header = cryptoUtil.encryptImageLogPayload("{\"flag\":\"\\u0000\",\"inputMsgType\":\"JSON\",\"guid\":\"" + guid + "\",\"responseCode\":\"400\"}");
                 s.headerstring = "{\"flag\":\"\\u0000\",\"guid\":\"" + guid + "\",\"responseCode\":\"400\",\"errorCode\":\"VALIDATION_ERROR\"}";
                 break;
             case 6:
@@ -163,9 +197,9 @@ public class GenerateEncryptedSampleData {
                 s.servicegroup = "Group1";
                 s.service = "SERVICE_001";
                 s.status = "input";
-                s.data = cryptoUtil.encrypt("{\"userId\":\"user123\",\"action\":\"login\",\"password\":\"encrypted_password\"}");
-                s.datastring = String.format("{\"userId\":\"user123\",\"action\":\"login\",\"password\":\"[%s]\"}", cryptoUtil.encrypt("mySecretPassword123"));
-                s.header = cryptoUtil.encrypt("{\"flag\":\"\\u0000\",\"inputMsgType\":\"JSON\",\"guid\":\"" + guid + "\",\"ipAddress\":\"192.168.1.100\"}");
+                s.data = cryptoUtil.encryptImageLogPayload("{\"userId\":\"user123\",\"action\":\"login\",\"password\":\"encrypted_password\"}");
+                s.datastring = String.format("{\"userId\":\"user123\",\"action\":\"login\",\"password\":\"[%s]\"}", cryptoUtil.encryptImageLogPayload("mySecretPassword123"));
+                s.header = cryptoUtil.encryptImageLogPayload("{\"flag\":\"\\u0000\",\"inputMsgType\":\"JSON\",\"guid\":\"" + guid + "\",\"ipAddress\":\"192.168.1.100\"}");
                 s.headerstring = "{\"flag\":\"\\u0000\",\"inputMsgType\":\"JSON\",\"guid\":\"" + guid + "\",\"ipAddress\":\"192.168.1.100\"}";
                 break;
             default: // 7
@@ -173,9 +207,9 @@ public class GenerateEncryptedSampleData {
                 s.servicegroup = "Group1";
                 s.service = "SERVICE_001";
                 s.status = "output";
-                s.data = cryptoUtil.encrypt("{\"result\":\"success\",\"token\":\"jwt_token_here\",\"expiresIn\":3600}");
-                s.datastring = String.format("{\"result\":\"success\",\"token\":\"[%s]\",\"expiresIn\":3600}", cryptoUtil.encrypt("eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9"));
-                s.header = cryptoUtil.encrypt("{\"flag\":\"\\u0000\",\"inputMsgType\":\"JSON\",\"guid\":\"" + guid + "\",\"responseCode\":\"200\"}");
+                s.data = cryptoUtil.encryptImageLogPayload("{\"result\":\"success\",\"token\":\"jwt_token_here\",\"expiresIn\":3600}");
+                s.datastring = String.format("{\"result\":\"success\",\"token\":\"[%s]\",\"expiresIn\":3600}", cryptoUtil.encryptImageLogPayload("eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9"));
+                s.header = cryptoUtil.encryptImageLogPayload("{\"flag\":\"\\u0000\",\"inputMsgType\":\"JSON\",\"guid\":\"" + guid + "\",\"responseCode\":\"200\"}");
                 s.headerstring = "{\"flag\":\"\\u0000\",\"outputMsgType\":\"JSON\",\"guid\":\"" + guid + "\",\"responseCode\":\"200\"}";
                 break;
         }

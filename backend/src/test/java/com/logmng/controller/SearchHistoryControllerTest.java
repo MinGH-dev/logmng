@@ -1,7 +1,10 @@
 package com.logmng.controller;
 
+import com.logmng.constants.ScreenConstants;
 import com.logmng.dto.request.SearchHistoryCreateRequest;
 import com.logmng.dto.request.SearchHistoryListRequest;
+import com.logmng.dto.response.LoginResponse;
+import com.logmng.dto.response.ScreenFunctionCapability;
 import com.logmng.dto.response.SearchHistoryListResponse;
 import com.logmng.dto.response.UserActivityLogResponse;
 import com.logmng.exception.CustomException;
@@ -18,6 +21,8 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
 import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -64,6 +69,7 @@ class SearchHistoryControllerTest {
                         .param("pageSize", "10")
                         .param("sortDirection", "asc")
                         .sessionAttr("userId", "currentUser")
+                        .sessionAttr("allowedScreenIds", List.of("search-history"))
                         .sessionAttr("screenScopes", Map.of("search-history", "self")))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success").value(true));
@@ -88,6 +94,7 @@ class SearchHistoryControllerTest {
                         .param("username", " alice ")
                         .param("userId", "20260001")
                         .sessionAttr("userId", 20260001L)
+                        .sessionAttr("allowedScreenIds", List.of("search-history"))
                         .sessionAttr("screenScopes", Map.of("search-history", "all")))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success").value(true));
@@ -128,6 +135,7 @@ class SearchHistoryControllerTest {
                         .param("username", "김철수")
                         .param("userId", "20260002")
                         .sessionAttr("userId", 20260001L)
+                        .sessionAttr("allowedScreenIds", List.of("search-history"))
                         .sessionAttr("screenScopes", Map.of("search-history", "all")))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success").value(true))
@@ -143,6 +151,7 @@ class SearchHistoryControllerTest {
                         .param("username", "김철수")
                         .param("userId", "")
                         .sessionAttr("userId", 20260001L)
+                        .sessionAttr("allowedScreenIds", List.of("search-history"))
                         .sessionAttr("screenScopes", Map.of("search-history", "all")))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success").value(true));
@@ -156,6 +165,7 @@ class SearchHistoryControllerTest {
         mockMvc.perform(get("/api/search-history")
                         .param("userId", "not-a-number")
                         .sessionAttr("userId", 20260001L)
+                        .sessionAttr("allowedScreenIds", List.of("search-history"))
                         .sessionAttr("screenScopes", Map.of("search-history", "all")))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success").value(true));
@@ -166,7 +176,7 @@ class SearchHistoryControllerTest {
     /** TC-04: When current user resolution throws (e.g. getCurrentUserInfo throws), list returns 401 not 500 */
     @Test
     void list_whenGetCurrentUserInfoThrows_returns401() throws Exception {
-        AuthService throwingAuthService = new AuthService(null, null, null, null, null) {
+        AuthService throwingAuthService = new AuthService(null, null, null, null, null, new com.logmng.config.AuthProperties(), null, null) {
             @Override
             public com.logmng.dto.response.LoginResponse getCurrentUserInfo(jakarta.servlet.http.HttpServletRequest request) {
                 throw new RuntimeException("simulated auth failure");
@@ -191,7 +201,7 @@ class SearchHistoryControllerTest {
     /** TC-05: When getCurrentUserInfo returns null (no/invalid session), list returns 401 */
     @Test
     void list_whenGetCurrentUserInfoReturnsNull_returns401() throws Exception {
-        AuthService nullUserAuthService = new AuthService(null, null, null, null, null) {
+        AuthService nullUserAuthService = new AuthService(null, null, null, null, null, new com.logmng.config.AuthProperties(), null, null) {
             @Override
             public com.logmng.dto.response.LoginResponse getCurrentUserInfo(jakarta.servlet.http.HttpServletRequest request) {
                 return null;
@@ -323,6 +333,7 @@ class SearchHistoryControllerTest {
                         .param("approvalStatus", "APPROVED")
                         .param("requestReason", "검색어")
                         .sessionAttr("userId", 20260001L)
+                        .sessionAttr("allowedScreenIds", List.of("search-history"))
                         .sessionAttr("screenScopes", Map.of("search-history", "all")))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success").value(true));
@@ -358,6 +369,7 @@ class SearchHistoryControllerTest {
                         .param("requestedAtFrom", "2026-03-01")
                         .param("requestedAtTo", "2026-03-17 23:59:59")
                         .sessionAttr("userId", 20260001L)
+                        .sessionAttr("allowedScreenIds", List.of("search-history"))
                         .sessionAttr("screenScopes", Map.of("search-history", "all")))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.success").value(false))
@@ -374,6 +386,7 @@ class SearchHistoryControllerTest {
                         .param("username", "김철수")
                         .param("userId", "20260002")
                         .sessionAttr("userId", 20260001L)
+                        .sessionAttr("allowedScreenIds", List.of("search-history"))
                         .sessionAttr("screenScopes", Map.of("search-history", "all")))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success").value(true));
@@ -389,11 +402,64 @@ class SearchHistoryControllerTest {
                         .param("page", "abc")
                         .param("pageSize", "xyz")
                         .sessionAttr("userId", 20260001L)
+                        .sessionAttr("allowedScreenIds", List.of("search-history"))
                         .sessionAttr("screenScopes", Map.of("search-history", "all")))
                 .andExpect(status().isOk());
 
         assertThat(stubService.getLastRequest().getPage()).isEqualTo(1);
         assertThat(stubService.getLastRequest().getPageSize()).isEqualTo(20);
+    }
+
+    /** listContext=pending-approvals uses screenScopes for pending-approvals (TC-BE-03/04). */
+    @Test
+    void list_listContextPendingApprovals_usesPendingApprovalsScope() throws Exception {
+        mockMvc.perform(get("/api/search-history")
+                        .param("listContext", "pending-approvals")
+                        .param("department", "D01")
+                        .param("userId", "20260002")
+                        .sessionAttr("userId", 20260001L)
+                        .sessionAttr("allowedScreenIds", List.of(ScreenConstants.SEARCH_HISTORY, ScreenConstants.PENDING_APPROVALS))
+                        .sessionAttr("screenScopes", Map.of(
+                                "search-history", "all",
+                                "pending-approvals", "self")))
+                .andExpect(status().isOk());
+
+        SearchHistoryListRequest captured = stubService.getLastRequest();
+        assertThat(captured.getUserId()).isEqualTo(20260001L);
+        assertThat(captured.getDepartment()).isNull();
+    }
+
+    /** TC-BE-02: read-only (approve false) → POST approve 403 FUNCTION_NOT_ALLOWED. */
+    @Test
+    void approve_whenReadOnly_returns403() throws Exception {
+        AuthService readOnlyAuth = new AuthService(null, null, null, null, null, new com.logmng.config.AuthProperties(), null, null) {
+            @Override
+            public LoginResponse getCurrentUserInfo(jakarta.servlet.http.HttpServletRequest request) {
+                LoginResponse r = new LoginResponse();
+                r.setUserId(20260001L);
+                r.setUsername("u1");
+                r.setIsSystemAdmin(false);
+                Map<String, ScreenFunctionCapability> sf = new HashMap<>();
+                sf.put(ScreenConstants.PENDING_APPROVALS, new ScreenFunctionCapability(true, null, false));
+                r.setScreenFunctions(sf);
+                return r;
+            }
+        };
+        SearchHistoryController ctrl = new SearchHistoryController(
+                stubService,
+                new StubDecryptApproverService(),
+                readOnlyAuth,
+                new StubDataSource(),
+                new StubAppUserResolver(new StubDataSource()),
+                false);
+        MockMvc mvc = MockMvcBuilders.standaloneSetup(ctrl)
+                .setControllerAdvice(new com.logmng.exception.GlobalExceptionHandler())
+                .build();
+        mvc.perform(post("/api/search-history/1/approve")
+                        .sessionAttr("userId", 20260001L)
+                        .sessionAttr("isSystemAdmin", false))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.code").value("FUNCTION_NOT_ALLOWED"));
     }
 
     /** TC-01: user1 (approver) approves user2's PENDING request; user1 allowed → HTTP 200 */
@@ -485,7 +551,7 @@ class SearchHistoryControllerTest {
 
     @Test
     void approve_whenGetCurrentUserInfoThrows_returns401() throws Exception {
-        AuthService throwingAuthService = new AuthService(null, null, null, null, null) {
+        AuthService throwingAuthService = new AuthService(null, null, null, null, null, new com.logmng.config.AuthProperties(), null, null) {
             @Override
             public com.logmng.dto.response.LoginResponse getCurrentUserInfo(jakarta.servlet.http.HttpServletRequest request) {
                 throw new RuntimeException("simulated auth failure");
@@ -584,7 +650,7 @@ class SearchHistoryControllerTest {
     private static final class NoopAuthService extends AuthService {
 
         private NoopAuthService() {
-            super(null, null, null, null, null);
+            super(null, null, null, null, null, new com.logmng.config.AuthProperties(), null, null);
         }
 
         @Override

@@ -191,6 +191,44 @@ else
 fi
 echo ""
 
+# 6d. app_user_permission_group.user_id must reference app_user.username (FK); not legacy id::text (req 20260316 / 20260407)
+echo "6d. app_user_permission_group.user_id ⊆ app_user.username (SCHEMA_SYS=${SCHEMA_SYS})"
+AUPG_TABLE=$(psql_app -d "$DB_A_NAME" -tAc "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema='${SCHEMA_SYS}' AND table_name='app_user_permission_group';" 2>/dev/null || echo "0")
+if [ "$AUPG_TABLE" = "1" ]; then
+  # Optional SQL: SELECT * FROM app_user_permission_group aupg WHERE NOT EXISTS (SELECT 1 FROM app_user u WHERE u.username = aupg.user_id);
+  AUPG_ORPHAN=$(psql_app -d "$DB_A_NAME" -tAc "SET search_path TO ${SCHEMA_SYS}, ${SCHEMA_PB}, public; SELECT COUNT(*) FROM app_user_permission_group aupg WHERE NOT EXISTS (SELECT 1 FROM app_user u WHERE u.username = aupg.user_id);" 2>/dev/null | tail -1 || echo "")
+  if [ "${AUPG_ORPHAN:-0}" = "0" ]; then
+    echo "   ✅ app_user_permission_group.user_id 값이 모두 app_user.username에 존재 (FK 정합)"
+  else
+    echo "   ❌ app_user_permission_group에 username에 없는 user_id ${AUPG_ORPHAN}건 — migrate-app-user-permission-group-user-id-to-username-20260407.sql 적용 검토 (setup.sh 6a)"
+  fi
+else
+  echo "   ℹ️  ${SCHEMA_SYS}.app_user_permission_group 없음"
+fi
+echo ""
+
+# 6e. External replica ext_* + app role SELECT-only (req 20260407-external-dept-employee-ad-login; TC-D01 / TC-D02)
+echo "6e. 외부 복제 ext_department / ext_employee 및 앱 역할 SELECT-only (${SCHEMA_SYS})"
+EXT_T=$(psql_app -d "$DB_A_NAME" -tAc "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema='${SCHEMA_SYS}' AND table_name IN ('ext_department','ext_employee','app_user_external_identity');" 2>/dev/null || echo "0")
+if [ "${EXT_T:-0}" = "3" ]; then
+  echo "   ✅ ext_department, ext_employee, app_user_external_identity 존재"
+  EXT_ROWS=$(psql_app -d "$DB_A_NAME" -tAc "SET search_path TO ${SCHEMA_SYS}, public; SELECT COUNT(*) FROM ext_employee;" 2>/dev/null | tail -1 || echo "0")
+  if [ "${EXT_ROWS:-0}" -ge "1" ]; then
+    echo "   ✅ ext_employee 샘플 행 조회 가능 (TC-D01 SELECT)"
+  else
+    echo "   ⚠️  ext_employee 행 0건 — init-data.sql 시드 확인"
+  fi
+  if psql_app -d "$DB_A_NAME" -v ON_ERROR_STOP=1 -c "SET search_path TO ${SCHEMA_SYS}, public; INSERT INTO ext_employee (source_system, external_employee_id, imported_at) VALUES ('__chk__','__deny-ins__', CURRENT_TIMESTAMP);" >/dev/null 2>&1; then
+    echo "   ❌ ext_employee 에 앱 역할(${DB_USER}) INSERT 허용됨 — SELECT-only 위반 (setup.sh 4b-ext)"
+    psql_app -d "$DB_A_NAME" -c "SET search_path TO ${SCHEMA_SYS}, public; DELETE FROM ext_employee WHERE source_system='__chk__' AND external_employee_id='__deny-ins__';" >/dev/null 2>&1 || true
+  else
+    echo "   ✅ ext_employee 앱 역할 INSERT 거부 (TC-D02)"
+  fi
+else
+  echo "   ℹ️  외부 복제 테이블 미생성 — migrate-external-identity-tables-20260407.sql / schema_sys.sql 적용 필요"
+fi
+echo ""
+
 # 7. 테이블 구조 확인
 echo "7. 테이블 구조 확인"
 if [ "$SEND_TABLE" = "1" ]; then

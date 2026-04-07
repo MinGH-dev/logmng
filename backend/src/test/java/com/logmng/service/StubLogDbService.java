@@ -20,6 +20,8 @@ public class StubLogDbService extends LogDbService {
 
     private LogDbSearchResponse searchLogsResponse = new LogDbSearchResponse(Collections.emptyList(), null);
     private Map<String, Object> decryptRowResult = Collections.emptyMap();
+    /** When non-null, {@link #decryptRow} throws this (e.g. CustomException for controller tests). */
+    private RuntimeException decryptRowException;
     /** guid -> { "application", "serviceGroup" }. Default empty = simulates log DB unavailable or guid not in imagelog. */
     private Map<String, Map<String, String>> applicationServiceGroupByGuids = new LinkedHashMap<>();
     /** When non-null: pageSize==1 → totalCount only; else → rows (POST /api/search-history create snapshot). */
@@ -53,6 +55,11 @@ public class StubLogDbService extends LogDbService {
         this.decryptRowResult = result != null ? result : Collections.emptyMap();
     }
 
+    /** Clear after tests that throw from decryptRow. */
+    public void setDecryptRowException(RuntimeException exception) {
+        this.decryptRowException = exception;
+    }
+
     @Override
     public LogDbSearchResponse searchLogs(LogDbSearchRequest request) {
         if (createSnapshotTotalCount != null) {
@@ -69,6 +76,9 @@ public class StubLogDbService extends LogDbService {
 
     @Override
     public Map<String, Object> decryptRow(String logType, String guid, String status) {
+        if (decryptRowException != null) {
+            throw decryptRowException;
+        }
         return decryptRowResult;
     }
 

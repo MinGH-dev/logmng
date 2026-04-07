@@ -4,6 +4,7 @@ import com.logmng.controller.DecryptController;
 import com.logmng.dto.response.ApiResponse;
 import com.logmng.dto.response.LoginResponse;
 import com.logmng.service.AuthService;
+import com.logmng.service.PermissionGroupService;
 import com.logmng.service.StubUserActivityLogServiceSaveCapture;
 import jakarta.servlet.http.HttpServletRequest;
 import org.aspectj.lang.ProceedingJoinPoint;
@@ -71,7 +72,8 @@ class ActivityLogAspectTest {
         doReturn(ResponseEntity.ok(ApiResponse.success(Map.of("decrypted", "data"))))
                 .when(joinPoint).proceed();
 
-        aspect = new ActivityLogAspect(userActivityLogService, authService);
+        PermissionGroupService permissionGroupService = new PermissionGroupService(null, null);
+        aspect = new ActivityLogAspect(userActivityLogService, authService, permissionGroupService);
     }
 
     private static javax.sql.DataSource createH2DataSource() throws Exception {
@@ -183,7 +185,7 @@ class ActivityLogAspectTest {
 
     private static class StubAuthServiceForAspect extends AuthService {
         StubAuthServiceForAspect() {
-            super(null, null, null, null, null);
+            super(null, null, null, null, null, new com.logmng.config.AuthProperties(), null, null);
         }
 
         @Override

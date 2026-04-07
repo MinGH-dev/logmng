@@ -1,0 +1,78 @@
+.external-provisioning {
+  margin-top: 2rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid #ddd;
+}
+
+.external-provisioning-heading,
+.external-provisioning h3 {
+  font-size: 1.1rem;
+  margin-bottom: 0.5rem;
+}
+
+.external-provisioning-intro {
+  margin-bottom: 1rem;
+  color: #444;
+  font-size: 0.9rem;
+}
+
+.external-provisioning-panel {
+  margin-bottom: 1.5rem;
+}
+
+.external-provisioning-subtitle {
+  margin: 0 0 0.75rem;
+  font-size: 1rem;
+}
+
+.external-provisioning-table-wrap {
+  overflow: auto;
+  max-height: 40vh;
+}
+
+.external-provisioning-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.85rem;
+}
+
+.external-provisioning-table th,
+.external-provisioning-table td {
+  border: 1px solid #ddd;
+  padding: 0.4rem 0.5rem;
+  text-align: left;
+}
+
+.external-provisioning-pagination {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem;
+  margin: 0.75rem 0;
+  font-size: 0.9rem;
+}
+
+.external-provisioning-register {
+  margin-top: 1rem;
+  align-items: flex-end;
+}
+
+.external-provisioning-alert {
+  color: #a00;
+  background: #fff5f5;
+  padding: 0.5rem;
+  border-radius: 4px;
+  margin-bottom: 0.5rem;
+}
+
+.external-provisioning-success {
+  color: #060;
+  background: #f0fff4;
+  padding: 0.5rem;
+  border-radius: 4px;
+  margin-bottom: 0.5rem;
+}
+
+.external-provisioning .sf-btn-primary {
+  font-weight: 600;
+}

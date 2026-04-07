@@ -1,48 +1,75 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import './LoginForm.css';
 import logger from '../utils/logger';
 import { getApiBaseUrl } from '../config/runtimeApi';
+import { fetchAuthLoginMode } from '../services/authConfigService';
 
 const LoginForm = ({ onLogin }) => {
   const [formData, setFormData] = useState({
     userId: '',
-    password: ''
+    principal: '',
+    password: '',
   });
   const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(false);
+  const [authMode, setAuthMode] = useState(null);
+  const [modeLoading, setModeLoading] = useState(true);
 
-  // 폼 데이터 변경 처리
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const mode = await fetchAuthLoginMode();
+        if (!cancelled) setAuthMode(mode);
+      } catch (e) {
+        if (!cancelled) setAuthMode('local');
+      } finally {
+        if (!cancelled) setModeLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   const handleInputChange = (e) => {
     const { name, value } = e.target;
-    setFormData(prev => ({
+    setFormData((prev) => ({
       ...prev,
-      [name]: value
+      [name]: value,
     }));
 
-    // 에러 제거
     if (errors[name]) {
-      setErrors(prev => ({
+      setErrors((prev) => ({
         ...prev,
-        [name]: ''
+        [name]: '',
       }));
     }
   };
 
-  // 로그인 처리
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    // 필수 필드 및 userId 숫자 검증
     const newErrors = {};
-    const userIdTrimmed = (formData.userId || '').trim();
-    if (!userIdTrimmed) {
-      newErrors.userId = '사용자 ID를 입력해주세요.';
+    const mode = authMode || 'local';
+
+    if (mode === 'local') {
+      const userIdTrimmed = (formData.userId || '').trim();
+      if (!userIdTrimmed) {
+        newErrors.userId = '사용자 ID를 입력해주세요.';
+      } else {
+        const userIdNum = Number(userIdTrimmed);
+        if (Number.isNaN(userIdNum) || !Number.isInteger(userIdNum) || userIdNum < 0) {
+          newErrors.userId = '사용자 ID는 숫자여야 합니다.';
+        }
+      }
     } else {
-      const userIdNum = Number(userIdTrimmed);
-      if (Number.isNaN(userIdNum) || !Number.isInteger(userIdNum) || userIdNum < 0) {
-        newErrors.userId = '사용자 ID는 숫자여야 합니다.';
+      const p = (formData.principal || '').trim();
+      if (!p) {
+        newErrors.principal = '로그인 ID(Principal)를 입력해주세요.';
       }
     }
+
     if (!formData.password) newErrors.password = '비밀번호를 입력해주세요.';
 
     if (Object.keys(newErrors).length > 0) {
@@ -53,16 +80,23 @@ const LoginForm = ({ onLogin }) => {
     setLoading(true);
     setErrors({});
 
-    const LOGIN_TIMEOUT_MS = 10000; // 10초
+    const LOGIN_TIMEOUT_MS = 10000;
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), LOGIN_TIMEOUT_MS);
 
     const apiBaseUrl = getApiBaseUrl();
+    const requestBody =
+      mode === 'local'
+        ? {
+            userId: Number(formData.userId),
+            password: formData.password,
+          }
+        : {
+            principal: (formData.principal || '').trim(),
+            password: formData.password,
+          };
+
     try {
-      const requestBody = {
-        userId: Number(formData.userId),
-        password: formData.password
-      };
       const response = await fetch(`${apiBaseUrl}/auth/login`, {
         method: 'POST',
         headers: {
@@ -77,9 +111,9 @@ const LoginForm = ({ onLogin }) => {
       const result = await response.json();
 
       if (result.success) {
-        // API 응답 구조: login → result.data.user, check → result.data (flat). Prefer nested user for login.
-        const userData = result.data?.user ?? (result.data?.username ? result.data : null) ?? result.user ?? null;
-        
+        const userData =
+          result.data?.user ?? (result.data?.username ? result.data : null) ?? result.user ?? null;
+
         if (userData) {
           logger.info('✅ 로그인 성공:', { username: userData.username || 'unknown' });
           onLogin(userData);
@@ -88,9 +122,8 @@ const LoginForm = ({ onLogin }) => {
           setErrors({ general: '🚨 로그인 응답 오류가 발생했습니다.\n관리자에게 문의하세요.' });
         }
       } else {
-        // HTTP 상태 코드에 따른 에러 메시지 처리
         let errorMessage = result.error || '로그인에 실패했습니다.';
-        
+
         if (response.status === 403) {
           errorMessage = '🔒 접근이 제한된 IP 주소입니다.\n시스템 관리자에게 접근 권한을 요청하세요.';
         } else if (response.status === 401) {
@@ -102,7 +135,7 @@ const LoginForm = ({ onLogin }) => {
         } else if (response.status === 0 || !response.ok) {
           errorMessage = '🌐 네트워크 연결을 확인해주세요.\n서버에 연결할 수 없습니다.';
         }
-        
+
         setErrors({ general: errorMessage });
       }
     } catch (error) {
@@ -138,6 +171,21 @@ const LoginForm = ({ onLogin }) => {
     }
   };
 
+  if (modeLoading || authMode == null) {
+    return (
+      <div className="login-container">
+        <div className="login-form-wrapper">
+          <div className="login-header">
+            <h1>로그 관리 시스템</h1>
+            <p>로그인 설정을 불러오는 중…</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  const isAd = authMode === 'ad';
+
   return (
     <div className="login-container">
       <div className="login-form-wrapper">
@@ -145,26 +193,46 @@ const LoginForm = ({ onLogin }) => {
           <h1>로그 관리 시스템</h1>
           <p>관리자 로그인이 필요합니다</p>
         </div>
-        
+
         <form onSubmit={handleSubmit} className="login-form">
-          <div className="form-group">
-            <label htmlFor="userId">
-              사용자 ID <span className="required">*</span>
-            </label>
-            <input
-              type="number"
-              id="userId"
-              name="userId"
-              value={formData.userId}
-              onChange={handleInputChange}
-              className={errors.userId ? 'error' : ''}
-              placeholder="사용자 ID를 입력하세요 (예: 20260001)"
-              disabled={loading}
-              inputMode="numeric"
-              step="1"
-            />
-            {errors.userId && <span className="error-message">{errors.userId}</span>}
-          </div>
+          {isAd ? (
+            <div className="form-group">
+              <label htmlFor="principal">
+                로그인 ID (Principal) <span className="required">*</span>
+              </label>
+              <input
+                type="text"
+                id="principal"
+                name="principal"
+                value={formData.principal}
+                onChange={handleInputChange}
+                className={errors.principal ? 'error' : ''}
+                placeholder="디렉터리 로그인 식별자 (예: UPN)"
+                disabled={loading}
+                autoComplete="username"
+              />
+              {errors.principal && <span className="error-message">{errors.principal}</span>}
+            </div>
+          ) : (
+            <div className="form-group">
+              <label htmlFor="userId">
+                사용자 ID <span className="required">*</span>
+              </label>
+              <input
+                type="number"
+                id="userId"
+                name="userId"
+                value={formData.userId}
+                onChange={handleInputChange}
+                className={errors.userId ? 'error' : ''}
+                placeholder="사용자 ID를 입력하세요 (예: 20260001)"
+                disabled={loading}
+                inputMode="numeric"
+                step="1"
+              />
+              {errors.userId && <span className="error-message">{errors.userId}</span>}
+            </div>
+          )}
 
           <div className="form-group">
             <label htmlFor="password">
@@ -179,6 +247,7 @@ const LoginForm = ({ onLogin }) => {
               className={errors.password ? 'error' : ''}
               placeholder="비밀번호를 입력하세요"
               disabled={loading}
+              autoComplete="current-password"
             />
             {errors.password && <span className="error-message">{errors.password}</span>}
           </div>
@@ -189,8 +258,8 @@ const LoginForm = ({ onLogin }) => {
             </div>
           )}
 
-          <button 
-            type="submit" 
+          <button
+            type="submit"
             className="login-button"
             disabled={loading}
           >

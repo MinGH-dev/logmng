@@ -51,6 +51,20 @@ public class CustomException extends RuntimeException {
     public static CustomException notFound(String message, String errorCode) {
         return new CustomException(message, errorCode, HttpStatus.NOT_FOUND);
     }
+
+    /**
+     * 409 Conflict
+     */
+    public static CustomException conflict(String message, String errorCode) {
+        return new CustomException(message, errorCode, HttpStatus.CONFLICT);
+    }
+
+    /**
+     * 503 Service Unavailable
+     */
+    public static CustomException serviceUnavailable(String message, String errorCode) {
+        return new CustomException(message, errorCode, HttpStatus.SERVICE_UNAVAILABLE);
+    }
     
     /**
      * 500 Internal Server Error

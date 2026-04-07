@@ -1,5 +1,6 @@
 package com.logmng.service;
 
+import com.logmng.config.AuthProperties;
 import com.logmng.dto.request.LoginRequest;
 import com.logmng.dto.response.LoginResponse;
 import com.logmng.dto.response.ScreenFunctionCapability;
@@ -7,13 +8,17 @@ import com.logmng.exception.CustomException;
 import com.logmng.util.IpUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
+import org.springframework.util.StringUtils;
 
 import javax.sql.DataSource;
 import jakarta.servlet.http.HttpServletRequest;
 
 import com.logmng.constants.ScreenConstants;
+
+import java.util.Locale;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -38,30 +43,51 @@ public class AuthService {
     private final PermissionGroupService permissionGroupService;
     private final DecryptApproverService decryptApproverService;
     private final AppUserResolver appUserResolver;
+    private final AuthProperties authProperties;
+    private final ExternalIdentityService externalIdentityService;
+    private final LdapBindAuthenticator ldapBindAuthenticator;
 
     @Value("${app.security.authorized-ips:127.0.0.1,localhost,0:0:0:0:0:0:0:1}")
     private String authorizedIPs;
 
     public AuthService(IpUtil ipUtil, DataSource dataSource, PermissionGroupService permissionGroupService,
-                      DecryptApproverService decryptApproverService, AppUserResolver appUserResolver) {
+                      DecryptApproverService decryptApproverService, AppUserResolver appUserResolver,
+                      AuthProperties authProperties, ExternalIdentityService externalIdentityService,
+                      @Autowired(required = false) LdapBindAuthenticator ldapBindAuthenticator) {
         this.ipUtil = ipUtil;
         this.dataSource = dataSource;
         this.permissionGroupService = permissionGroupService;
         this.decryptApproverService = decryptApproverService;
         this.appUserResolver = appUserResolver;
+        this.authProperties = authProperties;
+        this.externalIdentityService = externalIdentityService;
+        this.ldapBindAuthenticator = ldapBindAuthenticator;
     }
 
     /**
-     * 로그인 처리. app_user에서 id로 조회 후 비밀번호 검증.
-     * 계약: 요청은 userId (app_user.id)와 password만 사용.
-     * (개발 환경: password_hash에 평문 저장 시 그대로 비교)
+     * 로그인: {@code auth.login.mode} 가 local 이면 password_hash 검증, ad 이면 디렉터리 바인드 후 외부 매핑으로 app_user 조회.
      */
     public LoginResponse login(LoginRequest request, HttpServletRequest httpRequest) {
+        String mode = authProperties.getLogin().getMode() != null
+                ? authProperties.getLogin().getMode().trim().toLowerCase(Locale.ROOT) : "local";
+        if ("local".equals(mode)) {
+            return loginLocal(request, httpRequest);
+        }
+        if ("ad".equals(mode)) {
+            return loginAd(request, httpRequest);
+        }
+        throw CustomException.serviceUnavailable("인증 설정이 올바르지 않습니다.", "AUTH_CONFIGURATION_ERROR");
+    }
+
+    private LoginResponse loginLocal(LoginRequest request, HttpServletRequest httpRequest) {
+        if (StringUtils.hasText(request.getPrincipal())) {
+            throw CustomException.badRequest("로그인 요청 형식이 올바르지 않습니다.", "INVALID_INPUT");
+        }
         Long userId = request.getUserId();
         String password = request.getPassword();
 
         String clientIP = ipUtil.getClientIP(httpRequest);
-        log.info("로그인 시도 - IP: {}, 사용자 ID: {}", clientIP, userId);
+        log.info("로그인 시도 (local) - IP: {}, 사용자 ID: {}", clientIP, userId);
 
         if (!ipUtil.isAuthorizedIP(clientIP, authorizedIPs)) {
             log.warn("인가되지 않은 IP에서 로그인 시도: {}", clientIP);
@@ -112,7 +138,6 @@ public class AuthService {
             );
         }
 
-        // 개발: password_hash에 평문 저장 시 비교. 추후 BCrypt 등으로 교체 가능.
         if (!password.equals(passwordHash)) {
             log.warn("로그인 실패: 비밀번호 불일치 (id={})", userId);
             throw CustomException.unauthorized(
@@ -121,8 +146,73 @@ public class AuthService {
             );
         }
 
-        log.info("로그인 성공: 사용자 ID: {} isSystemAdmin={} (IP: {})", userId, isSystemAdmin, clientIP);
+        log.info("로그인 성공 (local): 사용자 ID: {} isSystemAdmin={} (IP: {})", userId, isSystemAdmin, clientIP);
+        return buildLoginResponse(username, userId, isSystemAdmin, clientIP);
+    }
 
+    private LoginResponse loginAd(LoginRequest request, HttpServletRequest httpRequest) {
+        if (request.getUserId() != null) {
+            throw CustomException.badRequest("로그인 요청 형식이 올바르지 않습니다.", "INVALID_INPUT");
+        }
+        if (!StringUtils.hasText(request.getPrincipal())) {
+            throw CustomException.badRequest("로그인 요청 형식이 올바르지 않습니다.", "INVALID_INPUT");
+        }
+        if (ldapBindAuthenticator == null) {
+            throw CustomException.serviceUnavailable("인증 설정이 올바르지 않습니다.", "AUTH_CONFIGURATION_ERROR");
+        }
+
+        String principal = request.getPrincipal().trim();
+        String password = request.getPassword();
+        String clientIP = ipUtil.getClientIP(httpRequest);
+        log.info("로그인 시도 (ad) - IP: {}, principal present", clientIP);
+
+        if (!ipUtil.isAuthorizedIP(clientIP, authorizedIPs)) {
+            throw CustomException.forbidden(
+                    "접근이 제한된 IP 주소입니다. 시스템 관리자에게 접근 권한을 요청하세요.",
+                    "IP_ACCESS_DENIED"
+            );
+        }
+
+        ldapBindAuthenticator.authenticate(principal, password);
+
+        Long userId = externalIdentityService.findAppUserIdForDirectoryPrincipal(principal);
+        if (userId == null) {
+            throw CustomException.unauthorized(
+                    "앱에 등록된 사용자가 아닙니다. 관리자에게 문의하세요.",
+                    "APP_USER_NOT_PROVISIONED"
+            );
+        }
+
+        String username;
+        boolean isSystemAdmin;
+        try (Connection conn = dataSource.getConnection()) {
+            String sql = "SELECT username, is_system_admin FROM app_user WHERE id = ?";
+            try (PreparedStatement ps = conn.prepareStatement(sql)) {
+                ps.setLong(1, userId);
+                try (ResultSet rs = ps.executeQuery()) {
+                    if (!rs.next()) {
+                        throw CustomException.unauthorized(
+                                "사용자 ID와 비밀번호를 확인해주세요.",
+                                "INVALID_CREDENTIALS"
+                        );
+                    }
+                    username = rs.getString("username");
+                    isSystemAdmin = Boolean.TRUE.equals(rs.getObject("is_system_admin", Boolean.class));
+                }
+            }
+        } catch (SQLException e) {
+            log.error("로그인 조회 실패 (ad): userId={}", userId, e);
+            throw CustomException.unauthorized(
+                    "사용자 ID와 비밀번호를 확인해주세요.",
+                    "INVALID_CREDENTIALS"
+            );
+        }
+
+        log.info("로그인 성공 (ad): 사용자 ID: {} isSystemAdmin={} (IP: {})", userId, isSystemAdmin, clientIP);
+        return buildLoginResponse(username, userId, isSystemAdmin, clientIP);
+    }
+
+    private LoginResponse buildLoginResponse(String username, Long userId, boolean isSystemAdmin, String clientIP) {
         LoginResponse response = new LoginResponse();
         response.setUsername(username);
         response.setUserId(userId);
@@ -132,7 +222,7 @@ public class AuthService {
         response.setAllowedScreenIds(resolveAllowedScreenIds(username, isSystemAdmin));
         response.setScreenScopes(resolveScreenScopes(username, isSystemAdmin));
         response.setScreenFunctions(resolveScreenFunctions(username, isSystemAdmin));
-        com.logmng.dto.response.LoginResponse.SelfContext selfContext = resolveSelfContext(username);
+        LoginResponse.SelfContext selfContext = resolveSelfContext(username);
         response.setSelfContext(selfContext);
         if (response.getUserId() == null && selfContext != null && selfContext.getUserId() != null) {
             response.setUserId(selfContext.getUserId());
@@ -417,6 +507,25 @@ public class AuthService {
         ScreenFunctionCapability pa = sf.get(ScreenConstants.PENDING_APPROVALS);
         return (sh != null && Boolean.TRUE.equals(sh.getApprove()))
                 || (pa != null && Boolean.TRUE.equals(pa.getApprove()));
+    }
+
+    /**
+     * Effective read on 복호화 승인 관리 for GET /api/search-history list/detail (interceptor).
+     * Per docs/api-definition.md §6.1.2: screen in allowedScreenIds with read true (explicit false denies).
+     */
+    public boolean hasEffectiveReadForPendingApprovals(LoginResponse user) {
+        if (user == null) {
+            return false;
+        }
+        Map<String, ScreenFunctionCapability> sf = user.getScreenFunctions();
+        if (sf == null) {
+            return true;
+        }
+        ScreenFunctionCapability pa = sf.get(ScreenConstants.PENDING_APPROVALS);
+        if (pa == null) {
+            return true;
+        }
+        return pa.isRead();
     }
 
     /**

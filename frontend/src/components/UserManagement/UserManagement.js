@@ -5,6 +5,7 @@ import { getErrorMessage } from '../../utils/errorMessage';
 import { getAllowedScreenIds, getScreenFunctions } from '../../utils/security';
 import logger from '../../utils/logger';
 import UserGroupAssignment from '../UserGroupAssignment/UserGroupAssignment';
+import ExternalProvisioning from './ExternalProvisioning';
 import '../UserPermissionHierarchy/UserPermissionHierarchy.css';
 import './UserManagement.css';
 
@@ -253,6 +254,8 @@ const UserManagement = ({ user }) => {
           )}
         </section>
       </div>
+
+      <ExternalProvisioning onProvisioned={loadHierarchy} />
     </div>
   );
 };

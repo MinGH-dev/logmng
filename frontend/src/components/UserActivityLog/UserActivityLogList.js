@@ -6,6 +6,7 @@ import {
   searchActivityLogs,
   getActivityLogActionTypes,
   getActivityLogDetail,
+  getActivityLogAccessAudit,
 } from '../../services/userActivityLogService';
 import { FALLBACK_ACTIVITY_ACTION_TYPE_OPTIONS } from '../../constants/activityActionTypesFallback';
 import {
@@ -62,6 +63,7 @@ const UserActivityLogList = ({
     toActionTypeLabelMap(FALLBACK_ACTIVITY_ACTION_TYPE_OPTIONS),
   );
   const [actionTypesLoading, setActionTypesLoading] = useState(false);
+  const [accessAuditState, setAccessAuditState] = useState({ status: 'idle', rows: [] });
 
   const activityLogScope =
     user?.screenScopes?.['activity-log'] ?? user?.screen_scopes?.['activity-log'];
@@ -103,6 +105,36 @@ const UserActivityLogList = ({
       cancelled = true;
     };
   }, []);
+
+  useEffect(() => {
+    if (!detailOpen || !selectedLog?.id || !canOpenAccessAudit) {
+      setAccessAuditState({ status: 'idle', rows: [] });
+      return;
+    }
+    let cancelled = false;
+    setAccessAuditState({ status: 'loading', rows: [] });
+    getActivityLogAccessAudit({ targetActivityLogId: selectedLog.id, pageSize: 20 })
+      .then((result) => {
+        if (cancelled) return;
+        if (result.success && result.data != null) {
+          const payload = result.data;
+          const list = Array.isArray(payload.data)
+            ? payload.data
+            : Array.isArray(payload)
+              ? payload
+              : [];
+          setAccessAuditState({ status: 'success', rows: list });
+        } else {
+          setAccessAuditState({ status: 'error', rows: [] });
+        }
+      })
+      .catch(() => {
+        if (!cancelled) setAccessAuditState({ status: 'error', rows: [] });
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [detailOpen, selectedLog?.id, canOpenAccessAudit]);
 
   useEffect(() => {
     if (!isSelfScope) return;
@@ -334,6 +366,7 @@ const UserActivityLogList = ({
           actionTypeLabelMap={actionTypeLabelMap}
           onNavigateToAccessAudit={onNavigateToAccessAudit}
           canOpenAccessAudit={canOpenAccessAudit}
+          accessAuditState={accessAuditState}
         />
       )}
     </div>

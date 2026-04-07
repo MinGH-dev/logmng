@@ -678,7 +678,11 @@ const LogGrid = ({
   const isPbFepLogType = logType?.id === 'pb_feplog';
 
   return (
-    <div className={`log-grid ${isWireframePbFep ? 'log-grid--pb-fep' : ''}`.trim()}>
+    <div
+      className={['log-grid', isWireframePbFep && 'log-grid--pb-fep', isImageLog && 'log-grid--java-fw-imagelog']
+        .filter(Boolean)
+        .join(' ')}
+    >
       <div className="log-grid-header">
         <h2>{logType?.name || '로그 검색'}</h2>
         <p className="log-type-description">{logType?.description || ''}</p>
@@ -796,24 +800,26 @@ const LogGrid = ({
         </div>
       )}
       {isImageLog ? (
-        <ImageLogTable
-          logs={logs}
-          loading={loading}
-          sortConfig={sortConfig}
-          onSort={handleSort}
-          currentPage={currentPage}
-          totalPages={totalPages}
-          totalCount={totalCount}
-          onPageChange={handlePageChange}
-          pageSize={pageSize}
-          onPageSizeChange={handlePageSizeChange}
-          keywords={searchParams.keywords || []}
-          searchParams={searchParams}
-          searchHistoryId={currentApprovalId}
-          hasDecryptPermission={hasDecryptPermission}
-          decryptionAllowed={decryptionAllowed}
-          screenId={screenId}
-        />
+        <div className="log-grid-table-region">
+          <ImageLogTable
+            logs={logs}
+            loading={loading}
+            sortConfig={sortConfig}
+            onSort={handleSort}
+            currentPage={currentPage}
+            totalPages={totalPages}
+            totalCount={totalCount}
+            onPageChange={handlePageChange}
+            pageSize={pageSize}
+            onPageSizeChange={handlePageSizeChange}
+            keywords={searchParams.keywords || []}
+            searchParams={searchParams}
+            searchHistoryId={currentApprovalId}
+            hasDecryptPermission={hasDecryptPermission}
+            decryptionAllowed={decryptionAllowed}
+            screenId={screenId}
+          />
+        </div>
       ) : (
         <div className="log-grid-table-region">
           <LogTable

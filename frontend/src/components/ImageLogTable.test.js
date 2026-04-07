@@ -10,6 +10,17 @@ jest.mock('../utils/logger', () => ({
   error: jest.fn(),
 }));
 
+/** ImageLogTable reads response via text() then JSON.parse — mocks must expose text() */
+function mockDecryptOkResponse(data) {
+  const body = JSON.stringify(data);
+  return {
+    ok: true,
+    status: 200,
+    text: () => Promise.resolve(body),
+    json: () => Promise.resolve(JSON.parse(body)),
+  };
+}
+
 const defaultProps = {
   logs: [],
   loading: false,
@@ -25,6 +36,16 @@ const defaultProps = {
   searchParams: {},
   hasDecryptPermission: true,
 };
+
+describe('ImageLogTable DataTable layout (PB FEP wireframe parity)', () => {
+  test('passes fill container and info-buttons-size pagination footer to DataTable', () => {
+    const { container } = render(
+      <ImageLogTable {...defaultProps} totalCount={3} />
+    );
+    expect(container.querySelector('.log-table-container.log-table-container--fill')).toBeInTheDocument();
+    expect(container.querySelector('.pagination.pagination--info-buttons-size')).toBeInTheDocument();
+  });
+});
 
 describe('ImageLogTable (req 20260318 decryption-allowed store and decrypt UI)', () => {
   beforeEach(() => {
@@ -154,14 +175,12 @@ describe('ImageLogTable (req 20260318 decryption-allowed store and decrypt UI)',
       global.fetch = jest.fn((url, options) => {
         capturedUrl = url;
         capturedBody = options?.body ? JSON.parse(options.body) : null;
-        return Promise.resolve({
-          ok: true,
-          status: 200,
-          json: () => Promise.resolve({
+        return Promise.resolve(
+          mockDecryptOkResponse({
             success: true,
             data: { decrypted_datastring: '{}', decrypted_headerstring: '{}' },
-          }),
-        });
+          })
+        );
       });
 
       const { container } = render(
@@ -218,6 +237,97 @@ describe('ImageLogTable (req 20260318 decryption-allowed store and decrypt UI)',
       const decryptCell = container.querySelector('td.decrypt-action-cell');
       const dimmedBtn = within(decryptCell).getByRole('button', { name: /복호화 \(승인 필요\)/ });
       expect(dimmedBtn).toHaveClass('decrypt-btn--not-allowed');
+    });
+  });
+
+  describe('TC-04: decrypt API non-OK with JSON body shows message', () => {
+    test('500 + DECRYPTION_FAILED alerts API message field', async () => {
+      const logs = [
+        {
+          guid: 'guid-decrypt-fail',
+          status: 'OK',
+          insert_time: '2026-03-18 10:00:00',
+          application: 'app1',
+          servicegroup: 'sg1',
+          service: 'svc1',
+          datastring: '{"key":"[encrypted]"}',
+          headerstring: '{}',
+        },
+      ];
+      const decryptionAllowed = {
+        validUntil: '2026-12-31T23:59:59',
+        guids: ['guid-decrypt-fail'],
+      };
+      global.fetch = jest.fn(() =>
+        Promise.resolve({
+          ok: false,
+          status: 500,
+          text: () =>
+            Promise.resolve(
+              JSON.stringify({
+                code: 'DECRYPTION_FAILED',
+                message: '복호화 처리에 실패했습니다.',
+              })
+            ),
+        })
+      );
+
+      const { container } = render(
+        <ImageLogTable
+          {...defaultProps}
+          logs={logs}
+          totalCount={1}
+          decryptionAllowed={decryptionAllowed}
+        />
+      );
+      const decryptBtn = within(container.querySelector('td.decrypt-action-cell')).getByRole('button', {
+        name: '복호화',
+      });
+      await userEvent.click(decryptBtn);
+      await waitFor(() => {
+        expect(global.alert).toHaveBeenCalledWith('복호화 처리에 실패했습니다.');
+      });
+    });
+
+    test('400 with error string (no message) alerts error field', async () => {
+      const logs = [
+        {
+          guid: 'guid-400',
+          status: 'OK',
+          insert_time: '2026-03-18 10:00:00',
+          application: 'app1',
+          servicegroup: 'sg1',
+          service: 'svc1',
+          datastring: '{"key":"[encrypted]"}',
+          headerstring: '{}',
+        },
+      ];
+      const decryptionAllowed = {
+        validUntil: '2026-12-31T23:59:59',
+        guids: ['guid-400'],
+      };
+      global.fetch = jest.fn(() =>
+        Promise.resolve({
+          ok: false,
+          status: 400,
+          text: () => Promise.resolve(JSON.stringify({ error: 'bad request detail' })),
+        })
+      );
+
+      const { container } = render(
+        <ImageLogTable
+          {...defaultProps}
+          logs={logs}
+          totalCount={1}
+          decryptionAllowed={decryptionAllowed}
+        />
+      );
+      await userEvent.click(
+        within(container.querySelector('td.decrypt-action-cell')).getByRole('button', { name: '복호화' })
+      );
+      await waitFor(() => {
+        expect(global.alert).toHaveBeenCalledWith('bad request detail');
+      });
     });
   });
 });
@@ -340,15 +450,12 @@ describe('ImageLogTable (req 20260330 Pretty per guid+status)', () => {
     };
 
     global.fetch = jest.fn(() =>
-      Promise.resolve({
-        ok: true,
-        status: 200,
-        json: () =>
-          Promise.resolve({
-            success: true,
-            data: { decrypted_datastring: '{"a":1}', decrypted_headerstring: '{}' },
-          }),
-      })
+      Promise.resolve(
+        mockDecryptOkResponse({
+          success: true,
+          data: { decrypted_datastring: '{"a":1}', decrypted_headerstring: '{}' },
+        })
+      )
     );
 
     const { container } = render(

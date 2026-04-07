@@ -570,6 +570,23 @@
   color: #b45309;
 }
 
+.pg-audit-snapshot-note {
+  margin: 0 0 10px;
+  padding: 8px 10px;
+  font-size: 12px;
+  line-height: 1.45;
+  color: #334155;
+  background: #e0f2fe;
+  border: 1px solid #bae6fd;
+  border-radius: 4px;
+}
+
+.activity-log-object-diff-table thead th.pg-audit-diff-col-before,
+.activity-log-object-diff-table thead th.pg-audit-diff-col-after {
+  font-weight: 700;
+  color: #0f172a;
+}
+
 .pg-audit-screen-table thead th {
   font-size: 12px;
 }
@@ -654,6 +671,63 @@
 
 .activity-log-open-access-audit-link {
   margin-right: auto;
+}
+
+/* Generic mutation summary (before/after / delete / insert) */
+.activity-log-mutation-summary {
+  margin-bottom: 20px;
+  padding: 12px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 4px;
+}
+
+.activity-log-mutation-summary > h4 {
+  margin: 0 0 12px;
+  font-size: 14px;
+  font-weight: 600;
+  color: #1e293b;
+}
+
+.activity-log-diff-cell-pre {
+  margin: 0;
+  max-height: 200px;
+  overflow: auto;
+  font-size: 11px;
+}
+
+.activity-log-mutation-json-details {
+  margin-top: 10px;
+}
+
+.activity-log-embedded-access-audit-section {
+  margin-top: 8px;
+}
+
+.activity-log-embedded-access-audit {
+  margin-top: 4px;
+}
+
+.activity-log-embedded-access-audit summary {
+  cursor: pointer;
+  font-weight: 600;
+  color: #334155;
+  padding: 6px 0;
+}
+
+.activity-log-access-audit-embed-wrap {
+  overflow-x: auto;
+  margin-top: 8px;
+}
+
+.activity-log-access-audit-embed-table {
+  min-width: 520px;
+}
+
+.activity-log-embedded-access-audit-hint {
+  margin: 8px 0 0;
+  font-size: 12px;
+  color: #64748b;
 }
 
 /* P9: Loading spinner next to "검색 중..." */

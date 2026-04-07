@@ -28,16 +28,35 @@
 
 **Base path**: `/api/auth`
 
+**인증 모드 (요건 `docs/requirements/20260407-external-dept-employee-ad-login.md`)**  
+백엔드 **`auth.login.mode`** (`application.yml` / **`application-{profile}.yml`**)가 **단일 진실**이다: **`local`** 또는 **`ad`**. 배포당 하나만 활성. 잘못된 값·`ad`인데 필수 디렉터리 설정 누락 등은 **fail-closed**(기동 실패 또는 로그인 전면 거부; 묵시 폴백 없음). 상세·설정 키 표: `docs/contract.md` § 인증 모드·디렉터리, **`specs/external-identity-auth.spec.yaml`**.
+
 ### 2.1 로그인
 
 - **POST** `/api/auth/login`
-- 로그인 시 사용자 식별은 **userId (numeric)** 만 사용하며, username(문자열)으로는 로그인할 수 없다.
+- **요청 형식은 서버에 설정된 `auth.login.mode`에 의해 결정**된다. 클라이언트가 모드를 보내지 않는다.
+
+#### 2.1.1 `auth.login.mode = local` (테이블 `password_hash`)
+
+- 사용자 식별은 **userId (numeric `app_user.id`)** 만 사용한다(문자열 username으로 로그인하지 않음).
 - **Request body** (JSON)
 
 | 필드 | 타입 | 필수 | 설명 |
 |------|------|------|------|
-| userId | number | O | **사용자 ID** (numeric `app_user.id`, 예: 20269999, 20260001). 로그인은 이 숫자 ID로만 가능. |
-| password | string | O | 비밀번호 |
+| userId | number | O | **사용자 ID** (numeric `app_user.id`, 예: 20269999, 20260001). |
+| password | string | O | 비밀번호(`password_hash` 검증 경로). |
+
+#### 2.1.2 `auth.login.mode = ad` (디렉터리/LDAP 바인드 등)
+
+- **Request body** (JSON) — **AD 모드에서는 `userId` 대신 디렉터리 principal 사용**
+
+| 필드 | 타입 | 필수 | 설명 |
+|------|------|------|------|
+| principal | string | O | 디렉터리 로그인 식별자(예: UPN, `sAMAccountName` — 운영·`auth.ad.*`와 정합). **공백 불가.** |
+| password | string | O | 디렉터리 비밀번호. **서버는 이 값을 `app_user`·로그·감사 본문에 저장하지 않는다.** |
+
+- **성공 시**: 디렉터리 검증 후 **`app_user`** 를 **외부 직원 키 매핑**(예: `external_employee_id`, `external_source_system`)으로 조회·결합. 매핑되는 행이 없으면 **401** 및 요건에 따른 코드(미프로비저닝 정책은 스펙 참고).
+- **`local` 모드에서 `principal`만 보내거나, `ad` 모드에서 `userId`만 보내는 경우** → **400** `INVALID_INPUT`(또는 동일 의미 코드).
 
 - **Response (data)**: `{ "user": LoginResponse }`
   - `user.username`: string
@@ -46,7 +65,7 @@
   - `user.isSystemAdmin`: boolean — 시스템 관리자 여부 (req 20250303). true면 전체 화면 접근.
   - `user.allowedScreenIds`: string[] (요건 20250227-permission-group-screen-menu-access) — 사용자 권한 그룹들의 접근 가능 화면 합집합.
   - `user.screenScopes`: Record<string, 'self'|'team'|'all'> (요건 20250303, 20260305) — 화면별 **조회(목록) 범위**. key=screen_id (activity-log, statistics, search-history, pending-approvals), value='self'(본인)|'team'(부서)|'all'(전체). is_system_admin=true이면 생략 가능(프론트는 전체로 처리). **용도**: 목록/조회에만 적용; scope=self → 본인; scope=team → 동일 부서; scope=all → 전체. **승인 범위는 부서로 고정**이며 변경 불가(권한 설정에서 선택하는 scope는 조회 범위만 해당).
-  - `user.screenFunctions`: Record<string, { read: boolean, write?: boolean, approve?: boolean, decrypt?: boolean }> (요건 20250303, 20260318) — 화면별 기능 가능 여부. key=screen_id (pb-feplog, java-fw-imagelog, search-history, pending-approvals 등), value=read(필수), write(수정 지원 화면만), approve(search-history·pending-approvals만), decrypt(로그 검색 화면 pb-feplog·java-fw-imagelog 전용, 복호화 요청 권한). pb-feplog·java-fw-imagelog는 read + optional decrypt; decrypt는 권한관리에서 부여/해제. **용도**: 버튼/액션 enable·disable, 비활성 시 툴팁 표시.
+  - `user.screenFunctions`: Record<string, { read: boolean, write?: boolean, approve?: boolean, decrypt?: boolean }> (요건 20250303, 20260318) — 화면별 기능 가능 여부. key=screen_id (pb-feplog, java-fw-imagelog, search-history, pending-approvals 등), value=read(필수), write(수정 지원 화면만), approve(search-history·pending-approvals만), decrypt(로그 검색 화면 pb-feplog·java-fw-imagelog 전용, 복호화 요청 권한). pb-feplog·java-fw-imagelog는 read + optional decrypt; decrypt는 권한관리에서 부여/해제. **`pending-approvals`**: **`read`** = 화면 접근 + `GET /api/search-history` 등 목록·상세 **조회**(요건 `20260407-pending-approvals-history-search-readonly-requester`); **`approve`** = 승인/반려 **액션만** (`POST .../approve`, `POST .../reject`). **용도**: 버튼/액션 enable·disable, 비활성 시 툴팁 표시.
   - `user.selfContext`: `{ department: string | null, username: string, userId: number }` — self-scoped user/requester block의 **visible locked self-context** 표시값. `scope=self` 화면에서 Department, Username, User ID를 고정 표시할 때 사용하는 권위 소스다. **`userId`**는 **numeric** **`app_user.id`**(JSON number, 예: 20269999, 20260001)이다. **`username`**은 **표시 이름(사용자명)**: `app_user.name`이 존재하고 비어 있지 않으면 그 값, 그렇지 않으면 `app_user.username`을 사용한다.
 
 ### 2.2 로그아웃
@@ -54,6 +73,7 @@
 - **POST** `/api/auth/logout`
 - **Request body**: 없음
 - **Response (data)**: null
+- **변경 없음**: 인증 모드와 무관하게 동일 계약. **권한 없음(제로 퍼미션) 모달** 후에도 클라이언트는 동일 엔드포인트로 세션 무효화(요건 `20260407-external-dept-employee-ad-login`).
 
 ### 2.3 인증 상태 확인
 
@@ -64,7 +84,38 @@
 
 ### 2.4 현재 사용자 정보 (GET /api/auth/me, 선택)
 
-- **GET** `/api/auth/me` — 로그인 사용자 정보 반환. `isSystemAdmin: boolean`, `allowedScreenIds: string[]`, `screenScopes: Record<string, 'self'|'team'|'all'>`, `screenFunctions: Record<string, { read, write?, approve?, decrypt? }>`, `selfContext: { department: string | null, username: string, userId: number }` 포함 (req 20250303, 20260305, 20260313). screenScopes는 조회(목록) 범위(본인/부서/전체) 결정용. 승인 범위는 부서 고정·변경 불가. screenFunctions는 화면별 read/write/approve/decrypt 가능 여부로 버튼·액션 enable·disable용. **`search-history`·`pending-approvals`의 `approve`**: `docs/contract.md` **「복호화 승인 자격」** — 권한 그룹 `permission_group_screen.approve`를 먼저 반영한 뒤 **`is_system_admin=true`이면 해당 화면 `approve`는 유효하지 않음(false)**; `ADMIN_EXT` 등 **`is_system_admin=false`인 사용자는 그룹 설정만** 따름. **`selfContext`**는 applicable shared-pattern 화면에서 `scope=self`일 때 보이는 잠금 self-context 표시값의 권위 소스다. **`selfContext.userId`**는 **numeric** **`app_user.id`**(JSON number). **`username`**은 **표시 이름(사용자명)**: `app_user.name`이 존재하고 비어 있지 않으면 그 값, 그렇지 않으면 `app_user.username`을 사용한다.
+- **GET** `/api/auth/me` — 로그인 사용자 정보 반환. `isSystemAdmin: boolean`, `allowedScreenIds: string[]`, `screenScopes: Record<string, 'self'|'team'|'all'>`, `screenFunctions: Record<string, { read, write?, approve?, decrypt? }>`, `selfContext: { department: string | null, username: string, userId: number }` 포함 (req 20250303, 20260305, 20260313). screenScopes는 조회(목록) 범위(본인/부서/전체) 결정용. 승인 범위는 부서 고정·변경 불가. screenFunctions는 화면별 read/write/approve/decrypt 가능 여부로 버튼·액션 enable·disable용. **`pending-approvals`의 `read` vs `approve`**: `read`는 복호화 승인 관리 화면의 목록·검색 조회; `approve`는 승인/반려만(요건 `20260407-pending-approvals-history-search-readonly-requester`). **`search-history`·`pending-approvals`의 `approve`**: `docs/contract.md` **「복호화 승인 자격」** — 권한 그룹 `permission_group_screen.approve`를 먼저 반영한 뒤 **`is_system_admin=true`이면 해당 화면 `approve`는 유효하지 않음(false)**; `ADMIN_EXT` 등 **`is_system_admin=false`인 사용자는 그룹 설정만** 따름. **`selfContext`**는 applicable shared-pattern 화면에서 `scope=self`일 때 보이는 잠금 self-context 표시값의 권위 소스다. **`selfContext.userId`**는 **numeric** **`app_user.id`**(JSON number). **`username`**은 **표시 이름(사용자명)**: `app_user.name`이 존재하고 비어 있지 않으면 그 값, 그렇지 않으면 `app_user.username`을 사용한다.
+
+### 2.5 인증은 있으나 화면 권한 없음 — 보호 API (요건 `20260407-external-dept-employee-ad-login`)
+
+- **비인증**(세션 없음·만료): 보호 리소스 → **401** `UNAUTHORIZED`(또는 프로젝트 기존 동일 의미 코드).
+- **인증됨** + **시스템 관리자 아님** + **`allowedScreenIds`가 비어 있음**(유효 화면 0): **로그 검색·사용자 관리·프로비저닝 등 보호 API** → **403** `FORBIDDEN` / `FUNCTION_NOT_ALLOWED` 등(리소스별 기존 패턴 유지). **예외 허용(세션 유지·클라이언트 판단용)**: `GET /api/auth/check`, `GET /api/auth/me`, **`POST /api/auth/logout`** — 상세는 `specs/external-identity-auth.spec.yaml` §5.
+
+---
+
+## 2a. 외부 직원·부서 검색 및 사용자 프리프로비저닝 (관리자)
+
+**Base path**: `/api/provisioning`  
+**요건**: `docs/requirements/20260407-external-dept-employee-ad-login.md`  
+**권한**: **사용자 관리 접근**과 동일 계열 — `is_system_admin=true` **또는** `allowedScreenIds`에 **`user-management`** 또는 **`user-permission-hierarchy`** 포함(`AuthService.canAccessUserManagementView`와 정합). 그 외 **403** `FORBIDDEN`. 비인증 **401**.
+
+### 2a.1 외부 직원(`ext_employee`) 검색
+
+- **POST** `/api/provisioning/external-employees/search`
+- **Request body** (JSON, 예): `keyword`, `employeeNumber`, `externalDepartmentId`, `sourceSystem`, `page`, `pageSize` 등 — 필드·필수 여부는 `specs/external-identity-auth.spec.yaml` §3.
+- **Response (data)**: 페이지 목록 + 총건수; 각 행은 복제 테이블의 비PII·표시용 필드 및 외부 키(등록 시 사용).
+
+### 2a.2 외부 부서(`ext_department`) 검색
+
+- **POST** `/api/provisioning/external-departments/search`
+- **Request body** / **Response**: `specs/external-identity-auth.spec.yaml` §3.
+
+### 2a.3 외부 직원 행으로 `app_user` 등록
+
+- **POST** `/api/provisioning/users/from-external-employee`
+- **Request body**: 선택된 **`ext_employee`** 행을 가리키는 키(예: `externalEmployeeId`, `sourceSystem`) 및 선택적 **`departmentCode`**(앱 `department` FK 매핑) 등 — 스펙 §3.
+- **성공**: 새 또는 기존 **`app_user`** + 외부 연동 필드 저장. **AD 비밀번호 저장 없음**.
+- **충돌·중복 외부 키**: **409** 또는 명확한 4xx, 코드는 스펙 §4.
 
 ---
 
@@ -195,6 +246,7 @@
 - **GET** `/api/logs/db-refactored/{logType}/{type}/{identifier}/decrypt`
 - **Path**: 5.2와 동일
 - **Response (data)**: Map (복호화된 필드 포함)
+- **저장 형식과 복호화**: DB에 저장된 암호문은 **ProObject 호환**(PBKDF2로 키 유도, `AES/CBC/PKCS5Padding`, Base64 페이로드)이며, **java_fw_imglog** 는 선택적 **`E002` 접두**가 있을 수 있다. **pb_feplog** 는 동일 알고리즘·`E002` 비적용. 서버는 위 형식 복호화 후 실패 시 **레거시** `ivHex:encryptedHex`(UTF-8 키)를 시도한다. 상세: `docs/contract.md` 암·복호화 표 직후 단락.
 
 ### 5.4 로그 통계 조회
 
@@ -252,7 +304,7 @@
 
 **Storage and join**: `search_history.user_id` stores numeric **`app_user.id`**. List and all search-history operations use join **app_user ON app_user.id = search_history.user_id**. Requester display (requesterUsername, requesterDisplayName, department) is resolved via this join from app_user/department. API `userId` (query params and response) is numeric `app_user.id`.
 
-**화면별 범위(scope)**: is_system_admin=false일 때 권한 그룹의 search-history scope 적용. scope='self' → 현재 요청자 본인 데이터만 반환하며 requester filter(`department`, `username`, `userId`)는 무시한다. 이때 requester block은 숨기지 않고 `department -> username -> userId` 순서의 visible locked self-context를 표시하며, 표시값은 auth/current-user payload의 `selfContext`를 기준으로 한다. scope='team' → 동일 부서 요청자만 반환하며 requester filter는 그 허용 집합 안에서만 추가 좁힘; scope='all' → 전체 가시 집합에 requester filter를 적용. requester filter는 scope를 넓히지 않으며, 상세 규칙은 `specs/permission-group-hierarchy.spec.yaml` §4.3을 따른다.
+**화면별 범위(scope)**: is_system_admin=false일 때 **목록·상세의 유효 scope**는 아래 **`listContext`** 규칙에 따라 `search-history` 또는 `pending-approvals` 중 하나의 `screenScopes` 키를 선택한다(요건 `20260407-pending-approvals-history-search-readonly-requester`). **`listContext=search-history`**(또는 기본이 search-history로 해석되는 경우): 기존과 같이 **`screenScopes['search-history']`** 를 적용한다. **`listContext=pending-approvals`**: **`screenScopes['pending-approvals']`** 를 적용한다(검색 이력 화면과 동일한 self/team/all 해석 패턴; 세부는 `specs/permission-group-hierarchy.spec.yaml` §4.3, `docs/requirements/20260305-pending-approvals-scope-same-as-search-history.md` 정신 유지). scope='self' → 현재 요청자 본인 데이터만 반환하며 requester filter(`department`, `username`, `userId`)는 무시한다. 이때 requester block은 숨기지 않고 `department -> username -> userId` 순서의 visible locked self-context를 표시하며, 표시값은 auth/current-user payload의 `selfContext`를 기준으로 한다. scope='team' → 동일 부서 요청자만 반환하며 requester filter는 그 허용 집합 안에서만 추가 좁힘; scope='all' → 전체 가시 집합에 requester filter를 적용. requester filter는 scope를 넓히지 않으며, 상세 규칙은 `specs/permission-group-hierarchy.spec.yaml` §4.3을 따른다.
 
 - 검색 이력은 "복호화 승인 요청"이 발생한 검색을 저장하며, 사용자별 최근 이력 목록·재요청·재조회를 지원한다.
 - 승인 유효 기간: 요청일시 + 1일. 만료 시 재요청 가능.
@@ -277,8 +329,11 @@
 ### 6.1.2 검색 이력 목록 조회
 
 - **GET** `/api/search-history`
+- **화면 접근(인터셉터)**: 인증 사용자가 **`search-history` 화면**을 가지거나, **`pending-approvals` 화면을 가지고 `screenFunctions.pending-approvals.read === true`** 인 경우 이 GET을 호출할 수 있다(요건 `20260407-pending-approvals-history-search-readonly-requester`). 후자는 복호화 승인 관리에서 **검색 이력 화면 권한 없이** 목록·필터만 사용하는 요청자·승인 전용 그룹을 위한 것이다. 둘 다 없으면 403.
+- **`listContext` (선택)**: `search-history` \| `pending-approvals`. **어떤 화면의 `screenScopes`·필터 규칙으로 행을 제한할지** 지정한다. **생략 시 해석**: `allowedScreenIds`에 **`search-history`가 있으면** `search-history`; **`search-history`는 없고 `pending-approvals`만 있으면** `pending-approvals`; **두 화면 모두 있으면** `search-history`(검색 이력 화면과의 하위 호환). **복호화 승인 관리** UI는 행 집합이 기존 **`/pending` + pending-approvals scope** 와 정합되도록 **`listContext=pending-approvals`** 로 호출한다. 잘못된 값·권한 없는 컨텍스트(예: `listContext=search-history`인데 `search-history` 미보유)는 403 `FUNCTION_NOT_ALLOWED` 등 계약 코드.
 - **List join**: **app_user.id = search_history.user_id**. Requester filter `userId` is exact match on `search_history.user_id` (numeric). Response `userId` is numeric `app_user.id`.
 - **Query**:
+  - `listContext` (선택) — 위 참조.
   - `department` (선택) — requester 부서 코드/값 exact match. `scope=self`에서는 무시.
   - `username` (선택) — requester 사용자명 partial match (`LIKE`). `scope=self`에서는 무시.
   - `userId` (선택) — requester 사용자 ID exact match (numeric `app_user.id`, JSON number); filters by `search_history.user_id`. `scope=self`에서는 무시.
@@ -311,12 +366,14 @@
 
 - **GET** `/api/search-history/{id}`
 - **Path**: `id` — 검색 이력 ID (Long)
+- **Query**: `listContext` (선택) — §6.1.2와 **동일한 값·생략 규칙**. 상세 접근은 **목록에서 해당 `listContext`로 가시한 행만** 허용한다(목록 가시성과 불일치 시 403). 호출 화면(검색 이력 vs 복호화 승인 관리)에 맞춰 목록과 동일한 `listContext`를 전달한다.
 - **Response (data)**: `id`, `logType`, `searchParams` (object, 전체 검색 조건), `requestedAt`, `expiresAt`, `approvalStatus`, `requestReason` (string | null, 요청 사유; req 20260317), **`searchResultTotalCount` (number \| null), `decryptionTargetCount` (number \| null)** — DB 저장 스냅샷(레거시 null), 결재 이력(선택·nullable): `approvedBy` (표시용; req 20260316: `approved_by_user_id`→username, 없으면 `approved_by`), `approvedAt`, `rejectedBy`, `rejectedAt`, `rejectionReason`. **복호화 요청 대상 (항상 포함, req 20260320)**: `decryptionRequestedRows`: `{ application: string | null, serviceGroup: string | null, guid: string, status: string }[]` (java_fw_imglog의 `status`는 행의 비즈니스 status; 스냅샷·복합 키와 정렬), `decryptionRequestedCount`: number. **출처**: `APPROVED`이고 `search_history_approved_row`에 행이 있으면 DB 스냅샷을 사용(없으면 승인과 동일하게 저장 검색 재실행: `search_params`+`logType`, 최대 1만 건, 암호화 데이터가 있는 행만). `PENDING` / `REJECTED` / `EXPIRED`는 항상 저장 검색 재실행으로 수집(동일 규칙). java_fw_imglog는 `(guid, status)`로 로그 DB 보강; 로그 DB 장애·미존재 시 해당 항목은 null. `search_params` 파싱 실패·검색 실패 시 빈 배열·0.
-- **에러**: 403(타 사용자 소유), 404(없음)
+- **에러**: 403(타 사용자 소유 또는 listContext 기준 비가시), 404(없음)
 
 ### 6.1.5 승인 대기 목록 조회 (복호화 승인 권한 보유자 전용)
 
 - **GET** `/api/search-history/pending`
+- **역할**: **PENDING 상태만** 빠르게 보는 전용 큐(레거시). **역사·상태 필터·검색 이력과 동일한 목록**이 필요하면 **`GET /api/search-history`** + §6.1.2 쿼리(`approvalStatus`, `requestedAtFrom` 등) + **`listContext=pending-approvals`** 를 사용한다(요건 `20260407-pending-approvals-history-search-readonly-requester`). `/pending`을 확장해 비-PENDING을 포함하는 모델은 **계약상 선택 사항**이며, 채택 시 동일 PR에서 본 문서·`specs/`를 갱신한다.
 - **권한**: `GET /api/auth/me`의 **`screenFunctions.pending-approvals.approve === true`** 인 사용자만 호출 가능(`docs/contract.md` 「복호화 승인 자격」: 권한 그룹 화면별 승인 반영 후 **`is_system_admin`이면 상쇄되어 false**). **`is_system_admin=true`만으로는 호출 불가**. 그 외 403 `FORBIDDEN_NOT_APPROVER` / `NOT_APPROVER`.
 - **Scope (검색 이력과 동일 규칙, req 20260305)**: is_system_admin=false일 때 권한 그룹의 pending-approvals scope 적용. scope='self' → 요청자(requester)=현재 사용자인 건만; scope='team' → 동일 부서 요청자만(그 중 `canApproveForRequester` 충족); scope='all' → `canApproveForRequester` 충족 건. **`canApproveForRequester`**: 승인자·요청자 **`department_code` 동일**할 때만 true(상위 부서 체인·전역 결재자 없음). auth 응답 `screenScopes['pending-approvals']`에 따라 백엔드가 목록 필터.
 - **Query**: `page` (기본 1), `pageSize` (기본 20)
@@ -394,6 +451,7 @@
 - **`action_detail`**: JSON 객체. 카테고리별로 허용되는 키는 스펙 §3(권한 그룹 id, 대상 `userId`, `searchHistoryId` 등 **비민감 식별자**). 비밀번호·토큰·복호화 본문·세션 식별자는 넣지 않는다. **보수적 감사 요건**에 따른 **복사 페이로드**(잘림·`was_truncated`), **삭제 스냅샷**, **허용 필드만의 before/after** 는 `specs/activity-log-audit-evidence.spec.yaml` §3·§4가 고수준 권위이며, 필드 분류 매트릭스는 요건 §2 Solution approach 참고.
 - **권한 그룹 관련 타입 (`PERMISSION_GROUP_CREATE` / `PERMISSION_GROUP_UPDATE` / `PERMISSION_GROUP_DELETE` / `ASSIGN_USER_TO_PERMISSION_GROUP` / `UNASSIGN_USER_FROM_PERMISSION_GROUP`)**  
   - **버전 스키마**: 구현 목표는 `action_detail` 내 **`permissionGroupAuditV1`** 객체(자세한 필드·`before`/`after`·중첩 `allowedScreens`는 `specs/activity-permission-group-audit.spec.yaml`).  
+  - **`ASSIGN_USER_TO_PERMISSION_GROUP` / `UNASSIGN_USER_FROM_PERMISSION_GROUP`**: persisted **`permissionGroupAuditV1`** MUST populate **`before`** and **`after`** per **`specs/activity-permission-group-audit.spec.yaml`** §3.5 and requirement **`docs/requirements/20260407-permission-group-assign-unassign-audit-before-after.md`** — **assign:** `before` = previous group snapshot or **`null`** if no prior membership, `after` = new group snapshot; **unassign:** `before` = group being left, `after` = **`null`**. When `allowedScreens` is incomplete or omitted for size/policy, set **`allowedScreensTruncated`** per spec §3.2.  
   - **Denylist**: 부모 요건 `20260330-activity-types-user-mgmt-permission-group` §2.1 Security 및 동일 스펙 §6 — `password`, `token`, `refreshToken`, 원시 요청 본문 등 **금지**.  
   - **`changeReason` (잠정)**: `PERMISSION_GROUP_UPDATE`에서 클라이언트가 보낸 사유는 **`permissionGroupAuditV1.changeReason`**으로 영속할 때 **최대 500자**; 제품이 생략 정책으로 바꾸면 계약·스펙 우선 수정.  
   - **상세 API 일관성**: 아래 `GET /api/activity-log/{id}` 응답의 `action_detail`은 DB에 저장된 JSON과 동일 계열이며, **검색(`POST /api/activity-log/search`)에서 볼 수 있는 행만** 상세 조회 가능해야 한다(요건 §2.1 AC-S2; MF-02는 백엔드 검증).
@@ -436,7 +494,7 @@
 - **Path**: `id` — Long — 대상 `user_activity_log.id`
 - **마스킹 (요건 `20260330-audit-evidence-activity-log-conservative`)**: 응답의 **`action_detail`** 및 필요 시 **`ip_address`** 등 메타필드는 **호출자 역할**에 따라 **마스킹**된다. 비특권 사용자는 **인앱 복사 본문 전체**·민감 키 평문을 받지 않는다(목록에서 조회 가능한 행만 상세 허용 — 기존 MF-02·AC-S2 정신과 동일). 상세 필드 키·마스킹 규칙·복사 하위 구조 요약은 **`specs/activity-log-audit-evidence.spec.yaml`** §3.
 - **Response (data)**: Map (활동 이력 한 건 상세). 일반적으로 목록 검색과 동일한 필드를 포함하며, **`action_detail`** 은 DB JSON을 파싱한 객체이되 **마스킹 뷰**일 수 있다.
-  - **권한 그룹 계열 `action_type`**: `action_detail`에 **`permissionGroupAuditV1`** 가 있으면(요건 `20260330-permission-group-activity-detail-audit`) 감사 증빙은 해당 객체의 `schemaVersion`, `operation`, `before` / `after` (`PermissionGroupSnapshot`, `allowedScreens` = `AllowedScreenItem[]`), `targetUserId`(배정/해제), 선택적 **`changeReason`**(잠정, 최대 500자)로 해석한다. 전체 규격·예시·denylist는 **`specs/activity-permission-group-audit.spec.yaml`**.
+  - **권한 그룹 계열 `action_type`**: `action_detail`에 **`permissionGroupAuditV1`** 가 있으면(요건 `20260330-permission-group-activity-detail-audit`; 배정/해제 **`before`/`after`** 의무는 `20260407-permission-group-assign-unassign-audit-before-after`) 감사 증빙은 해당 객체의 `schemaVersion`, `operation`, `before` / `after` (`PermissionGroupSnapshot`, `allowedScreens` = `AllowedScreenItem[]`; **assign/unassign** 시 §3.5 시맨틱 및 **`allowedScreensTruncated`** §3.2), `targetUserId`(배정/해제), 선택적 **`changeReason`**(잠정, 최대 500자)로 해석한다. 전체 규격·예시·denylist는 **`specs/activity-permission-group-audit.spec.yaml`**.
   - **인앱 복사·삭제 스냅샷·변경 before/after** 고수준: `action_type` **`IN_APP_COPY`** 등(코드표 `specs/activity-action-types.spec.yaml` §2.7) 및 **`action_detail`** 내 `copyPayload` / `deleteSnapshot` / `before`·`after` — **`specs/activity-log-audit-evidence.spec.yaml`** §3, §4.
   - **DOC-CODE-SYNC**: 구현체는 저장·응답 형태를 위 스펙에 맞춘다; 차이가 있으면 코드와 동시에 계약을 갱신한다(`docs/workflow/DOC-CODE-SYNC.md`).
 
@@ -482,12 +540,12 @@
 ### 8.3.1 공유 부서 필터 옵션 조회
 
 - **GET** `/api/filter-options/departments`
-- **의도 / 소비 화면**: 활동 이력(`activity-log`), 활동 통계(`statistics`), 검색 이력(`search-history`)의 부서 필터 콤보박스가 공통으로 사용하는 **editable department option source**.
+- **의도 / 소비 화면**: 활동 이력(`activity-log`), 활동 통계(`statistics`), 검색 이력(`search-history`), **복호화 승인 관리(`pending-approvals`)** 의 부서 필터 콤보박스가 공통으로 사용하는 **editable department option source**(요건 `20260407-pending-approvals-history-search-readonly-requester`).
 - **Query**:
-  - `screen` (필수) — 호출 화면 컨텍스트. `activity-log` | `statistics` | `search-history`
+  - `screen` (필수) — 호출 화면 컨텍스트. `activity-log` | `statistics` | `search-history` | `pending-approvals`
 - **권한 / 접근 모델**:
   - 인증 필요. 비인증 시 401.
-  - 요청한 `screen`에 대한 접근 권한이 있는 사용자(또는 `is_system_admin=true`)만 호출 가능. 백엔드는 `screen` 값에 해당하는 화면의 권한과 scope를 적용해 결과를 계산한다.
+  - 요청한 `screen`에 대한 접근 권한이 있는 사용자(또는 `is_system_admin=true`)만 호출 가능. 백엔드는 `screen` 값에 해당하는 화면의 권한과 scope를 적용해 결과를 계산한다(`pending-approvals`는 `screenScopes['pending-approvals']` 기준; `search-history`와 동일 패턴).
   - 이 엔드포인트는 관리자/관리화면용 `GET /api/departments`와 별개다. 검색 필터 소비자는 부서 관리 API 권한을 요구하지 않는다.
 - **Response (data)**: `string[]`
   - 각 항목은 필터 select에서 바로 `value`와 표시 문자열로 사용하는 부서 옵션 값이다.
@@ -501,6 +559,7 @@
   - `GET /api/filter-options/departments?screen=activity-log`
   - `GET /api/filter-options/departments?screen=statistics`
   - `GET /api/filter-options/departments?screen=search-history`
+  - `GET /api/filter-options/departments?screen=pending-approvals`
 - **에러**:
   - 400 `INVALID_SCREEN_ID` — `screen`이 누락되었거나 지원하지 않는 값
   - 401 비인증
@@ -596,7 +655,9 @@
   - java_fw_imglog 외: `code: "UNSUPPORTED_LOG_TYPE"`
   - guid 누락: `code: "MISSING_GUID"`
   - status 누락·공백(java_fw_imglog): `code: "MISSING_STATUS"`
-  - 복호화 실패: `code: "DECRYPTION_FAILED"`
+  - 페이로드 복호화 실패(잘못된 암호문·키 불일치 등): **400** `code: "DECRYPTION_FAILED"` — 사용자용 안전 한국어 메시지(스택·내부 예외 메시지 미포함)
+  - 해당 guid+status 행 없음(imagelog): **404** `code: "LOG_ROW_NOT_FOUND"`
+  - DB 접근 등 서버 오류: **500** `code: "INTERNAL_SERVER_ERROR"`
 
 ---
 
@@ -610,13 +671,20 @@
 | ROW_NOT_IN_APPROVED_SNAPSHOT | (선택) 위와 동일 의미로 사용 가능. 제품에서 DECRYPTION_NOT_APPROVED 로 통일 가능 (403). |
 | MISSING_GUID | 복호화 시 guid 필수 |
 | MISSING_STATUS | java_fw_imglog 복호화 시 status 필수(공백 불가) (400). req 20260320. |
-| DECRYPTION_FAILED | 복호화 처리 실패 |
+| DECRYPTION_FAILED | 단일 로우 페이로드 복호화 실패(암호문/키 등). **400** — 사용자 메시지에 내부 예외·스택 미포함 |
+| LOG_ROW_NOT_FOUND | POST decrypt: imagelog에 해당 guid+status 행 없음 (**404**) |
 | FORBIDDEN_NOT_APPROVER | 승인/반려·대기목록 API: **effective** `screenFunctions` 승인 없음 또는 `is_system_admin`만인 경우 등 (403). `docs/contract.md` 「복호화 승인 자격」 |
 | NOT_APPROVER | 위와 동일 의미. 구현 시 하나로 통일 가능 |
 | DEPARTMENT_NOT_FOUND | 부서 없음 (404) |
 | ALREADY_APPROVER | 해당 부서에 이미 결재자로 등록됨 (400) |
 | USER_NOT_IN_DEPARTMENT | 지정한 사용자가 해당 부서 소속이 아님. 부서별 결재자로 추가 불가 (400) |
 | FORBIDDEN | 권한 없음(예: 부서/결재자 API는 관리자 전용) (403) |
+| UNAUTHORIZED | 비인증·세션 없음 (401). 보호 API 공통. |
+| INVALID_AUTH_MODE | (선택) 서버 인증 모드 설정 오류로 로그인 불가 (503/401 — 구현 정합). 요건 `20260407-external-dept-employee-ad-login`. |
+| AUTH_CONFIGURATION_ERROR | (선택) `auth.login.mode`·`auth.ad.*` misconfiguration — 기동 실패 또는 로그인 거부 시 (docs/contract.md). |
+| DIRECTORY_AUTH_FAILED | AD/LDAP 모드에서 디렉터리 자격 증명 거부(401). 사용자 열거 방지 메시지. |
+| APP_USER_NOT_PROVISIONED | AD 인증은 성공했으나 `app_user` 매핑 없음(401). |
+| EXTERNAL_IDENTITY_CONFLICT | 동일 외부 키로 이미 등록됨 등(409). `POST /api/provisioning/users/from-external-employee`. |
 | INVALID_INPUT | 부서코드/userId 등 입력값 비어 있음 또는 형식 오류 (400) |
 | PERMISSION_GROUP_NOT_FOUND | 해당 ID의 권한 그룹 없음 (404) |
 | PERMISSION_GROUP_HAS_USERS | 삭제 시 해당 그룹에 사용자 배정 있음 (400) |
@@ -674,7 +742,7 @@
 **권한 그룹 `allowedScreens.screenId` 허용 목록**에 **`screen-display-labels`**(화면 표시 이름)가 포함되며, 그룹 설정상 **읽기만** 허용(`specs/permission-group-hierarchy.spec.yaml` §1.1.1); **`PUT /api/screen-display-labels`** 본문 저장은 **`is_system_admin=true`**만(표시용 **GET**은 모든 인증 사용자 — 본 문서 **§8.4**, `docs/contract.md`).  
 모든 API는 **관리자(is_system_admin=true)** 만 호출 가능. 그 외 403, `code: "FORBIDDEN"`.  
 **화면 기반 접근**: 화면에 대응하는 API는 사용자가 해당 화면을 권한 그룹으로 허용받았거나 is_system_admin=true이어야 함. 그 외 403. 화면↔API 매핑: `specs/permission-group-hierarchy.spec.yaml` §4.3.  
-**화면별 범위(scope)**: activity-log, statistics, search-history, pending-approvals 화면은 권한 그룹에서 화면별 scope('self'|'team'|'all') 설정 가능. scope='self' → 본인 데이터만(또는 본인 요청만)이며 applicable shared-pattern 화면에서는 user/requester block을 숨기지 않고 `department -> username -> userId`의 visible locked self-context를 표시한다. 이 표시값의 권위 소스는 auth/current-user payload의 `selfContext`이고, **`userId`**는 **numeric** **`app_user.id`**이다. search-history requester filter는 `scope=self`에서 무시된다. scope='team' → 동일 부서 범위; scope='all' → 전체. is_system_admin=false일 때만 적용. 상세: `specs/permission-group-hierarchy.spec.yaml` §4.2, §4.3.
+**화면별 범위(scope)**: activity-log, statistics, search-history, pending-approvals 화면은 권한 그룹에서 화면별 scope('self'|'team'|'all') 설정 가능. scope='self' → 본인 데이터만(또는 본인 요청만)이며 applicable shared-pattern 화면에서는 user/requester block을 숨기지 않고 `department -> username -> userId`의 visible locked self-context를 표시한다. 이 표시값의 권위 소스는 auth/current-user payload의 `selfContext`이고, **`userId`**는 **numeric** **`app_user.id`**이다. search-history requester filter는 `scope=self`에서 무시된다. **`GET /api/search-history`·`GET /api/search-history/{id}`**는 **`listContext`**로 `search-history` vs `pending-approvals` 중 어느 `screenScopes`를 적용할지 선택한다(§6.1.2). scope='team' → 동일 부서 범위; scope='all' → 전체. is_system_admin=false일 때만 적용. 상세: `specs/permission-group-hierarchy.spec.yaml` §4.2, §4.3.
 
 ### 14.1 권한 그룹 목록 조회
 

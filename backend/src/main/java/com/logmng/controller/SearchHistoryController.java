@@ -15,6 +15,7 @@ import com.logmng.service.DecryptApproverService;
 import com.logmng.service.SearchHistoryService;
 import com.logmng.util.DepartmentScopeHelper;
 import com.logmng.util.ScopeHelper;
+import com.logmng.util.SearchHistoryListContextHelper;
 import org.slf4j.Logger;
 
 import javax.sql.DataSource;
@@ -105,6 +106,15 @@ public class SearchHistoryController {
         if (session == null) return null;
         Object v = session.getAttribute("screenScopes");
         return v instanceof Map ? (Map<String, String>) v : null;
+    }
+
+    @SuppressWarnings("unchecked")
+    private static List<String> getAllowedScreenIds(HttpServletRequest request) {
+        if (request == null) return null;
+        jakarta.servlet.http.HttpSession session = request.getSession(false);
+        if (session == null) return null;
+        Object v = session.getAttribute("allowedScreenIds");
+        return v instanceof List ? (List<String>) v : null;
     }
 
     private static String normalizeOptionalParam(String value) {
@@ -215,6 +225,7 @@ public class SearchHistoryController {
             @RequestParam(name = "pageSize", required = false) String pageSizeParam,
             @RequestParam(defaultValue = "requested_at") String sortField,
             @RequestParam(defaultValue = "desc") String sortDirection,
+            @RequestParam(required = false) String listContext,
             HttpServletRequest httpRequest) {
         Long currentUserId;
         try {
@@ -228,12 +239,22 @@ public class SearchHistoryController {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                     .body(ApiResponse.failure("로그인이 필요합니다.", "UNAUTHORIZED"));
         }
+        List<String> allowedScreens = getAllowedScreenIds(httpRequest);
+        if (allowedScreens == null) {
+            allowedScreens = Collections.emptyList();
+        }
+        final String effectiveScreenId;
+        try {
+            effectiveScreenId = SearchHistoryListContextHelper.resolveEffectiveScreenId(listContext, allowedScreens);
+        } catch (SearchHistoryListContextHelper.ListContextResolutionException e) {
+            throw CustomException.forbidden("해당 기능에 대한 권한이 없습니다.", "FUNCTION_NOT_ALLOWED");
+        }
         try {
             int page = parsePageParam(pageParam, 1);
             int pageSize = parsePageParam(pageSizeParam, 20);
             if (pageSize > 100) pageSize = 100;
             Long requesterUserIdNum = parseRequesterUserIdParam(requesterUserIdParam);
-            String scope = ScopeHelper.resolveScope(ScreenConstants.SEARCH_HISTORY, isSystemAdmin(httpRequest), getScreenScopes(httpRequest));
+            String scope = ScopeHelper.resolveScope(effectiveScreenId, isSystemAdmin(httpRequest), getScreenScopes(httpRequest));
             SearchHistoryListRequest listRequest = new SearchHistoryListRequest();
             listRequest.setActorUserId(currentUserId);
             listRequest.setPage(page);
@@ -258,6 +279,8 @@ public class SearchHistoryController {
 
             SearchHistoryListResponse data = searchHistoryService.list(listRequest);
             return ResponseEntity.ok(ApiResponse.success(data));
+        } catch (CustomException e) {
+            throw e;
         } catch (IllegalArgumentException e) {
             throw e;
         } catch (Throwable t) {
@@ -302,15 +325,34 @@ public class SearchHistoryController {
     @GetMapping("/{id}")
     public ResponseEntity<ApiResponse<Map<String, Object>>> getDetail(
             @PathVariable Long id,
+            @RequestParam(required = false) String listContext,
             HttpServletRequest httpRequest) {
         Long userId = getCurrentUserId(httpRequest);
         if (userId == null) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                     .body(ApiResponse.failure("로그인이 필요합니다.", "UNAUTHORIZED"));
         }
+        List<String> allowedScreens = getAllowedScreenIds(httpRequest);
+        if (allowedScreens == null) {
+            allowedScreens = Collections.emptyList();
+        }
+        final String effectiveScreenId;
         try {
-            Map<String, Object> data = searchHistoryService.getDetail(userId, id);
+            effectiveScreenId = SearchHistoryListContextHelper.resolveEffectiveScreenId(listContext, allowedScreens);
+        } catch (SearchHistoryListContextHelper.ListContextResolutionException e) {
+            throw CustomException.forbidden("해당 기능에 대한 권한이 없습니다.", "FUNCTION_NOT_ALLOWED");
+        }
+        try {
+            boolean sysAdmin = isSystemAdmin(httpRequest);
+            Map<String, String> scopes = getScreenScopes(httpRequest);
+            String scope = ScopeHelper.resolveScope(effectiveScreenId, sysAdmin, scopes);
+            List<Long> teamPeers = "team".equals(scope)
+                    ? DepartmentScopeHelper.getNumericUserIdsInSameDepartment(dataSource, userId)
+                    : null;
+            Map<String, Object> data = searchHistoryService.getDetail(userId, id, effectiveScreenId, sysAdmin, scopes, teamPeers);
             return ResponseEntity.ok(ApiResponse.success(data));
+        } catch (CustomException e) {
+            throw e;
         } catch (NoSuchElementException e) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(ApiResponse.failure(e.getMessage(), "NOT_FOUND"));
         } catch (SecurityException e) {
