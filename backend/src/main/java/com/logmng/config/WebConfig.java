@@ -10,7 +10,7 @@ import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
  * Web 설정
  */
 @Configuration
-@EnableConfigurationProperties({AppCorsProperties.class, AuthProperties.class})
+@EnableConfigurationProperties({AppCorsProperties.class, AuthProperties.class, HrSyncPocProperties.class})
 public class WebConfig implements WebMvcConfigurer {
 
     private final AuthInterceptor authInterceptor;

@@ -1,5 +1,6 @@
 package com.logmng.controller;
 
+import com.logmng.dto.request.ChangeMyPasswordRequest;
 import com.logmng.dto.request.LoginRequest;
 import com.logmng.dto.response.LoginResponse;
 import com.logmng.service.AuthService;
@@ -7,6 +8,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
 import java.time.LocalDateTime;
@@ -76,6 +78,33 @@ class AuthControllerTest {
                 .andExpect(jsonPath("$.data.user.selfContext.userId").value(20260001));
     }
 
+    @Test
+    void changeMyPassword_returns200() throws Exception {
+        AuthController controller = new AuthController(new StubAuthPasswordNoOp());
+        MockMvc mvc = MockMvcBuilders.standaloneSetup(controller)
+                .setControllerAdvice(new com.logmng.exception.GlobalExceptionHandler())
+                .build();
+        mvc.perform(post("/api/auth/me/password")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"currentPassword\":\"old\",\"newPassword\":\"newpass1\",\"confirmNewPassword\":\"newpass1\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true));
+    }
+
+    @Test
+    void changeMyPassword_validationFailure_returns400() throws Exception {
+        AuthController controller = new AuthController(new StubAuthPasswordNoOp());
+        MockMvc mvc = MockMvcBuilders.standaloneSetup(controller)
+                .setControllerAdvice(new com.logmng.exception.GlobalExceptionHandler())
+                .build();
+        mvc.perform(post("/api/auth/me/password")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"currentPassword\":\"old\",\"newPassword\":\"ab\",\"confirmNewPassword\":\"ab\"}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.code").value("VALIDATION_ERROR"));
+    }
+
     private static final class StubAuthService extends AuthService {
 
         private StubAuthService() {
@@ -105,6 +134,18 @@ class AuthControllerTest {
             response.setIsSystemAdmin(false);
             response.setSelfContext(new LoginResponse.SelfContext("D01", "self-user", 20260001L));
             return response;
+        }
+    }
+
+    /** Service stub: password change is not exercised; controller + validation only. */
+    private static final class StubAuthPasswordNoOp extends AuthService {
+        StubAuthPasswordNoOp() {
+            super(null, null, null, null, null, new com.logmng.config.AuthProperties(), null, null);
+        }
+
+        @Override
+        public void changeOwnPassword(HttpServletRequest request, ChangeMyPasswordRequest body) {
+            // no-op; valid requests only reach here after @Valid
         }
     }
 

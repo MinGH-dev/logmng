@@ -1,5 +1,6 @@
 package com.logmng.aspect;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.logmng.controller.DecryptController;
 import com.logmng.dto.response.ApiResponse;
 import com.logmng.dto.response.LoginResponse;
@@ -101,6 +102,7 @@ class ActivityLogAspectTest {
         assertThat(requestParams.get("httpRequest")).isEqualTo("<HttpServletRequest>");
         assertThat(requestParams.get("request")).isNotNull();
         assertThat(requestParams).containsKey("logType");
+        assertThat(requestParams.get("logType")).isEqualTo("java_fw_imglog");
         @SuppressWarnings("unchecked")
         Map<String, Object> decryptBody = (Map<String, Object>) requestParams.get("request");
         assertThat(decryptBody).containsKey("status");
@@ -181,6 +183,20 @@ class ActivityLogAspectTest {
         assertThat(requestMap).containsKey("guid");
         assertThat(requestMap).containsKey("status");
         assertThat(requestMap.toString()).doesNotContain("NamesEnumerator");
+    }
+
+    /**
+     * Activity statistics filters non-LOGIN rows with
+     * {@code action_detail::text LIKE '%"logType":"java_fw_imglog"%'}.
+     * Path-variable {@code logType} must not be stored as a JSON string value (double-encoded quotes).
+     */
+    @Test
+    @DisplayName("TC-04: decryptRow action_detail JSON contains exact statistics substring for logType")
+    void logActivity_decryptRow_actionDetailJsonContainsBareLogTypeForStatisticsLike() throws Throwable {
+        aspect.logActivity(joinPoint);
+        String json = new ObjectMapper().writeValueAsString(userActivityLogService.getLastActionDetail());
+        assertThat(json).contains("\"logType\":\"java_fw_imglog\"");
+        assertThat(json).doesNotContain("\"logType\":\"\\\"java_fw_imglog\\\"\"");
     }
 
     private static class StubAuthServiceForAspect extends AuthService {

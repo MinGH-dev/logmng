@@ -127,4 +127,56 @@ describe('LoginForm', () => {
       expect(capturedBody).not.toHaveProperty('userId');
     });
   });
+
+  describe('login API error messages', () => {
+    async function submitLocalLogin() {
+      render(<LoginForm onLogin={onLogin} />);
+      await userEvent.type(await screen.findByLabelText(/사용자 ID/), '20260001');
+      await userEvent.type(screen.getByLabelText(/^비밀번호/), 'secret');
+      await userEvent.click(screen.getByRole('button', { name: '로그인' }));
+    }
+
+    test('401 USER_ACCOUNT_DISABLED shows disabled-account message, not generic credentials', async () => {
+      global.fetch = jest.fn((url, _options) => {
+        if (String(url).includes('/auth/config')) {
+          return Promise.resolve({ ok: false, status: 404 });
+        }
+        return Promise.resolve({
+          ok: false,
+          status: 401,
+          json: () =>
+            Promise.resolve({
+              success: false,
+              code: 'USER_ACCOUNT_DISABLED',
+              error: 'Account disabled',
+            }),
+        });
+      });
+
+      await submitLocalLogin();
+      expect(await screen.findByText(/비활성/)).toBeInTheDocument();
+      expect(screen.queryByText(/사용자명과 비밀번호를 다시/)).not.toBeInTheDocument();
+    });
+
+    test('400 INVALID_INPUT shows server error string', async () => {
+      global.fetch = jest.fn((url) => {
+        if (String(url).includes('/auth/config')) {
+          return Promise.resolve({ ok: false, status: 404 });
+        }
+        return Promise.resolve({
+          ok: false,
+          status: 400,
+          json: () =>
+            Promise.resolve({
+              success: false,
+              code: 'INVALID_INPUT',
+              error: 'userId는 필수입니다.',
+            }),
+        });
+      });
+
+      await submitLocalLogin();
+      expect(await screen.findByText('userId는 필수입니다.')).toBeInTheDocument();
+    });
+  });
 });

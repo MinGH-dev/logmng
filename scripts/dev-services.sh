@@ -20,6 +20,28 @@ LOGS_DIR="$DEV_ROOT/logs"
 
 mkdir -p "$LOGS_DIR"
 
+# Stale backend jar caused wrong API behavior (e.g. statistics KPIs) while DB had current data; rebuild when jar lags sources.
+ensure_backend_jar_current() {
+  local backend_dir="$DEV_ROOT/backend"
+  local jar="$backend_dir/target/$JAR_NAME"
+  local pom="$backend_dir/pom.xml"
+  local src_java="$backend_dir/src/main/java"
+  local need_build=false
+
+  if [ ! -f "$jar" ]; then
+    need_build=true
+  elif [ -f "$pom" ] && [ "$pom" -nt "$jar" ]; then
+    need_build=true
+  elif [ -d "$src_java" ] && [ -n "$(find "$src_java" -name '*.java' -newer "$jar" 2>/dev/null | head -n 1)" ]; then
+    need_build=true
+  fi
+
+  if [ "$need_build" = true ]; then
+    echo "[...] Building backend (mvn package -DskipTests; jar missing or older than pom/src)..."
+    mvn package -DskipTests -q -f "$pom"
+  fi
+}
+
 kill_port() {
   local port=$1
   local name=$2
@@ -38,18 +60,16 @@ start_backend() {
     echo "[!!] Backend (port $BACKEND_PORT) is already running."
     return 0
   fi
+  ensure_backend_jar_current
   cd "$DEV_ROOT/backend"
-  if [ ! -f "target/$JAR_NAME" ]; then
-    echo "[...] Building backend (mvn clean package -DskipTests)..."
-    mvn clean package -DskipTests -q
-  fi
   mkdir -p logs
   local approval_diag="${APP_DIAGNOSTIC_APPROVAL_FLOW:-false}"
   if [ "${BACKEND_DIAGNOSTIC_APPROVAL:-}" = "1" ] || [ "${BACKEND_DIAGNOSTIC_APPROVAL:-}" = "true" ]; then
     approval_diag=true
     echo "[OK] APP_DIAGNOSTIC_APPROVAL_FLOW=true (BACKEND_DIAGNOSTIC_APPROVAL)"
   fi
-  nohup env APP_DIAGNOSTIC_APPROVAL_FLOW="$approval_diag" java -jar "target/$JAR_NAME" >> logs/backend-stdout.log 2>&1 &
+  # Local dev: enable HR Sync PoC API by default (preview-only; apply stays off in application.yml).
+  nohup env APP_DIAGNOSTIC_APPROVAL_FLOW="$approval_diag" HR_SYNC_POC_ENABLED="${HR_SYNC_POC_ENABLED:-true}" java -jar "target/$JAR_NAME" >> logs/backend-stdout.log 2>&1 &
   echo "[OK] Backend starting (port $BACKEND_PORT). Logs: backend/logs/"
 }
 

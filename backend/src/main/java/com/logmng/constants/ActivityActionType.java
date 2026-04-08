@@ -16,6 +16,8 @@ public enum ActivityActionType {
     // §2.1 existing
     LOGIN("LOGIN", "로그인", true),
     LOGOUT("LOGOUT", "로그아웃", true),
+    /** Local self-service password change (My page). Req: 20260408-my-page-local-password-and-profile. */
+    PASSWORD_SELF_CHANGE("PASSWORD_SELF_CHANGE", "본인 비밀번호 변경", true),
     SEARCH("SEARCH", "검색", true),
     VIEW("VIEW", "상세 조회", true),
     DECRYPT("DECRYPT", "복호화", true),
@@ -38,6 +40,12 @@ public enum ActivityActionType {
     USER_CREATE("USER_CREATE", "사용자 생성", true),
     USER_UPDATE("USER_UPDATE", "사용자 수정", true),
     USER_DELETE("USER_DELETE", "사용자 삭제", true),
+
+    /** Manual department tree (User Management v2). Req: 20260408-user-management-v2-activity-audit-detail-in-activity-log. */
+    DEPARTMENT_CREATE_ROOT("DEPARTMENT_CREATE_ROOT", "부서 생성(루트)", true),
+    DEPARTMENT_CREATE_CHILD("DEPARTMENT_CREATE_CHILD", "부서 생성(하위)", true),
+    DEPARTMENT_DELETE("DEPARTMENT_DELETE", "부서 삭제", true),
+
     DEPARTMENT_APPROVER_UPDATE("DEPARTMENT_APPROVER_UPDATE", "부서 결재자 변경", true),
 
     // §2.5 reserved

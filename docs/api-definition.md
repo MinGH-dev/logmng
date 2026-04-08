@@ -48,6 +48,8 @@
 | userId | number | O | **사용자 ID** (numeric `app_user.id`, 예: 20269999, 20260001). |
 | password | string | O | 비밀번호(`password_hash` 검증 경로). |
 
+- **실패(401) — local**: 존재하지 않는 `userId`·비밀번호 불일치 → `INVALID_CREDENTIALS`. **`app_user.deleted_at` 이 설정된(소프트 삭제) 계정** → `USER_ACCOUNT_DISABLED`(자격 증명과 구분하여 운영 확인용).
+
 #### 2.1.2 `auth.login.mode = ad` (디렉터리/LDAP 바인드 등)
 
 - **Request body** (JSON) — **AD 모드에서는 `userId` 대신 디렉터리 principal 사용**
@@ -88,10 +90,28 @@
 
 - **GET** `/api/auth/me` — 로그인 사용자 정보 반환. `isSystemAdmin: boolean`, `allowedScreenIds: string[]`, `screenScopes: Record<string, 'self'|'team'|'all'>`, `screenFunctions: Record<string, { read, write?, approve?, decrypt? }>`, `selfContext: { department: string | null, username: string, userId: number }` 포함 (req 20250303, 20260305, 20260313). screenScopes는 조회(목록) 범위(본인/부서/전체) 결정용. 승인 범위는 부서 고정·변경 불가. screenFunctions는 화면별 read/write/approve/decrypt 가능 여부로 버튼·액션 enable·disable용. **`pending-approvals`의 `read` vs `approve`**: `read`는 복호화 승인 관리 화면의 목록·검색 조회; `approve`는 승인/반려만(요건 `20260407-pending-approvals-history-search-readonly-requester`). **`search-history`·`pending-approvals`의 `approve`**: `docs/contract.md` **「복호화 승인 자격」** — 권한 그룹 `permission_group_screen.approve`를 먼저 반영한 뒤 **`is_system_admin=true`이면 해당 화면 `approve`는 유효하지 않음(false)**; `ADMIN_EXT` 등 **`is_system_admin=false`인 사용자는 그룹 설정만** 따름. **`selfContext`**는 applicable shared-pattern 화면에서 `scope=self`일 때 보이는 잠금 self-context 표시값의 권위 소스다. **`selfContext.userId`**는 **numeric** **`app_user.id`**(JSON number). **`username`**은 **표시 이름(사용자명)**: `app_user.name`이 존재하고 비어 있지 않으면 그 값, 그렇지 않으면 `app_user.username`을 사용한다.
 
+### 2.4.1 자가 비밀번호 변경 (POST /api/auth/me/password)
+
+- **요건**: `docs/requirements/20260408-my-page-local-password-and-profile.md`. **권위 스펙**: `specs/my-page-password.spec.yaml`.
+- **POST** `/api/auth/me/password` — **세션의 `app_user.id`에 대해서만** 동작(관리자 대리 변경 없음).
+- **`auth.login.mode=local`** 인 배포에서만 **성공 경로**를 허용한다. **`auth.login.mode=ad`** 인 배포에서는 **403**, 공통 `ApiResponse`, **`code`**: **`PASSWORD_CHANGE_NOT_ALLOWED`** (엔드유저 비밀번호는 디렉터리 관리; AD 비밀번호는 `app_user`에 저장하지 않음 — `docs/contract.md` 동일).
+- **Request body** (JSON, camelCase)
+
+| 필드 | 타입 | 필수 | 설명 |
+|------|------|------|------|
+| currentPassword | string | O | 현재 비밀번호(HTTPS 상에서만 평문 전송). |
+| newPassword | string | O | 변경할 비밀번호; 서버는 **해시만** 저장·로그에 평문 금지. |
+| confirmNewPassword | string | O | `newPassword`와 동일해야 함(trim 후); 불일치 시 **400** `INVALID_INPUT`. |
+
+- **성공**: **200**, `success: true`, **`data`**: `null` (또는 구현이 `{}`를 쓰면 스펙·코드 DOC-CODE-SYNC).
+- **오류 (`ApiResponse`)**: 비인증 **401**; AD 모드·정책상 비허용 **403** `PASSWORD_CHANGE_NOT_ALLOWED`; 필드 누락·공백·`newPassword`/`confirmNewPassword` 불일치·(정의 시) 정책 위반 **400** `INVALID_INPUT`; 현재 비밀번호 불일치 **400** `INVALID_CREDENTIALS`(메시지는 사용자 추측 완화에 맞게 일반화 가능).
+- **로컬 신규 사용자 초기 로그인 평문**: 운영·온보딩 기대값 **`user123`** (단일 기본값); 저장은 항상 해시 — `docs/contract.md` 「로컬 프로비저닝·온보딩」.
+- **성공 후 세션** 유지 또는 무효화는 구현 선택; 확정 시 본 절·스펙에 반영(DOC-CODE-SYNC).
+
 ### 2.5 인증은 있으나 화면 권한 없음 — 보호 API (요건 `20260407-external-dept-employee-ad-login`)
 
 - **비인증**(세션 없음·만료): 보호 리소스 → **401** `UNAUTHORIZED`(또는 프로젝트 기존 동일 의미 코드).
-- **인증됨** + **시스템 관리자 아님** + **`allowedScreenIds`가 비어 있음**(유효 화면 0): **로그 검색·사용자 관리·프로비저닝 등 보호 API** → **403** `FORBIDDEN` / `FUNCTION_NOT_ALLOWED` 등(리소스별 기존 패턴 유지). **예외 허용(세션 유지·클라이언트 판단용)**: `GET /api/auth/check`, `GET /api/auth/me`, **`POST /api/auth/logout`** — 상세는 `specs/external-identity-auth.spec.yaml` §5.
+- **인증됨** + **시스템 관리자 아님** + **`allowedScreenIds`가 비어 있음**(유효 화면 0): **로그 검색·사용자 관리·프로비저닝 등 보호 API** → **403** `FORBIDDEN` / `FUNCTION_NOT_ALLOWED` 등(리소스별 기존 패턴 유지). **예외 허용(세션 유지·클라이언트 판단용)**: `GET /api/auth/check`, `GET /api/auth/me`, **`POST /api/auth/me/password`**(로컬 모드에서만 유효한 변경; AD는 **403** `PASSWORD_CHANGE_NOT_ALLOWED`), **`POST /api/auth/logout`** — 상세는 `specs/external-identity-auth.spec.yaml` §5, `specs/my-page-password.spec.yaml`.
 
 ---
 
@@ -124,11 +144,119 @@
 - **Request body** (JSON, camelCase): 선택된 **`ext_employee`** 행 키 **`externalEmployeeId`**(필수), 선택 **`sourceSystem`**, 선택 **`departmentCode`** — 스펙 `specs/external-identity-auth.spec.yaml` §4.3.  
   **`changeReason`** (string, **필수**) — 등록·프로비저닝 **사유**. 권한 그룹 감사와 동일 필드명; **trim 후 비어 있지 않음**, **최대 500자**(초과·공백만 → **400** `INVALID_INPUT`). `departmentCode`는 생략 가능; 생략 시 해당 직원의 `external_department_id`에 대해 `department_org_link`에 행이 있으면 그 `department.code`로 `app_user.department_code` 설정.
 - **성공**: 새 **`app_user`** + `app_user_external_identity` 저장(등록). **AD 비밀번호 저장 없음**. **`data`**: `userId`(number, `app_user.id`), `username`(string), **`employeeNumber`**(string \| 생략, `ext_employee.employee_number`와 동일·trim; 복제 행에 사번이 없으면 생략/null) — UI에서는 **사번을 주요 표시 식별자**로 쓰는 것을 권장한다.  
-  **감사**: 성공 시 활동 로그에 **`USER_CREATE`**(또는 제품이 동일 의미로 확정한 코드)와 `action_detail`에 **`changeReason`**, **`targetUserId`**, **`employeeNumber`**, **`username`** 등 비민감 식별자만 포함(§8.0, `specs/activity-action-types.spec.yaml` §3).
+  **감사**: 성공 시 활동 로그에 **`USER_CREATE`**와 `action_detail`에 **`changeReason`**, **`targetUserId`**, **`employeeNumber`**, **`username`**, **`registrationSource`**: **`EXTERNAL_PROVISIONING`**(신규 기록 권장) 등 비민감 식별자만 포함(§8.0, `specs/activity-action-types.spec.yaml` §2.8·§3 **user_admin**).
 - **충돌·중복 외부 키**: **409**, 코드 **`EXTERNAL_IDENTITY_CONFLICT`**. 응답 본문은 공통 `ApiResponse` 형식이며, **`data`**(실패 시에도 사용 가능)에 기존 계정 힌트가 있을 수 있다(매핑 조회 결과가 있을 때만).
 - **검증 실패**(필수 필드·**`changeReason`** 누락·공백·길이 초과 등): **400** `INVALID_INPUT`.
   - **`existingUsername`**: string (선택) — 이미 연결된 `app_user.username` (공백이 아닐 때만 포함)
   - **`existingAppUserId`**: number — 이미 연결된 `app_user.id`
+
+---
+
+## 2b. HR Sync PoC (preview-only)
+
+**Base path**: `/api/hr-sync/poc`  
+**요건**: `docs/requirements/20260408-external-hr-user-sync-security-db-design.md` (§2.6 PoC), 스냅샷·샘플·인력 조회 `docs/requirements/20260408-hr-sync-poc-snapshot-list-and-sample-data.md`, 미리보기 가시성·스냅샷 범위 `docs/requirements/20260408-hr-sync-poc-run-preview-visible-results.md`, PoC UM v2 격리 클론 `docs/requirements/20260408-poc-user-management-v2-isolated-clone.md`.  
+**계약 요약**: `docs/contract.md` § HR Sync PoC (preview-only). **권위 스펙**: `specs/hr-sync-poc.spec.yaml`. **DOC-CODE-SYNC**: 구현 후 경로·필드·코드가 스펙과 다르면 코드와 동시에 본 문서·계약·스펙을 갱신한다 (`docs/workflow/DOC-CODE-SYNC.md`).
+
+**플래그 (예)**: `HR_SYNC_POC_ENABLED`, `HR_SYNC_POC_DEFAULT_MODE` (기본 **`PREVIEW_ONLY`**), `HR_SYNC_POC_APPLY_ENABLED` (기본 off). `GET .../config`는 **비밀 없이** boolean/string만 반환한다.
+
+### 2b.1 PoC 설정 조회
+
+- **GET** `/api/hr-sync/poc/config`
+- **Response (`data`)**: `{ "pocEnabled": boolean, "defaultMode": string, "applyEnabled": boolean }`
+- **에러**: 비인증 **401**; PoC off 등 **403** `POC_DISABLED` (계약 `docs/contract.md`와 정렬).
+
+### 2b.2 PoC 미리보기 (read-only)
+
+- **POST** `/api/hr-sync/poc/preview`
+- **계약**: **`app_user` / 애플리케이션 권한·프로덕션 권한 소스에 쓰기 없음** (preview 전용).
+- **Request body** (JSON):
+
+| 필드 | 타입 | 필수 | 설명 |
+|------|------|------|------|
+| snapshotId | string | X | 스냅샷 식별자. |
+| ingestRunId | string | X | 업스트림 적재 실행 식별자. |
+
+- **Response (`data`)**:  
+  `{ "previewId": string, "snapshotId": string, "classificationCounts": { "TRANSFER": number, "NEW_HIRE": number, "RESIGNED": number, "UNCHANGED": number, "PROFILE_UPDATE_NON_SECURITY": number, "CONFLICT": number, "ORPHAN": number }, "riskTier": string, "upstreamGateStatus": string, "messageCode": string }`  
+  - **`classificationCounts` 범위**: 요청에 **비어 있지 않은 `snapshotId`가 있으면** 복제 **`ext_employee`의 해당 `snapshot_id` 행만** 집계한다. **`snapshotId`가 없으면** PoC **전역 stub**(스냅샷 미제한·예: 전체 테이블 기준 stub) — 상세 **`specs/hr-sync-poc.spec.yaml` §4.2**.
+  - **빈 스냅샷(0행)**: **200**, 모든 분류 키 **0** — 정상; **404** 아님(스냅샷 인력 §2b.4와 구분).
+  - `riskTier`: 요건의 자동화 위험 등급 계열(예: `AUTO` \| `CONDITIONAL` \| `APPROVAL_REQUIRED`) 또는 구현 placeholder 문자열.  
+  - `upstreamGateStatus`: 업스트림 완료·매니페스트 게이트 상태; **연동 전**에는 placeholder(예: `NOT_READY` / `PLACEHOLDER`) 가능.  
+  - `messageCode`: UI·클라이언트용 안전한 기계 판독 힌트(비밀 없음).
+
+- **에러 (요약)**:
+  - **400** `VALIDATION_ERROR` — 본문·식별자 검증 실패.
+  - **403** `POC_DISABLED` — PoC 비활성 또는 호출 비허용.
+  - **403** 또는 **503** 등 제품 정합 HTTP — `SYNC_SOURCE_NOT_READY` — 업스트림·완료 신호 미사용/미준비(placeholder 응답과 병행 가능; DOC-CODE-SYNC).
+  - **503** `HR_SYNC_POC_PREVIEW_FAILED` — **`classificationCounts` 집계 중** 복제/DB 오류 등; **200**+전부 0으로 실패를 숨기지 않음(스펙 §4.2).
+
+### 2b.3 PoC 스냅샷 목록 (read-only)
+
+- **GET** `/api/hr-sync/poc/snapshots`
+- **목적**: UI가 **서버가 제공하는 스냅샷 id** 중 하나를 고를 수 있도록, 복제데이터 기준 **사용 가능한 스냅샷**과 최소 메타데이터를 반환한다. `GET .../config`로 PoC 활성 여부를 확인한 뒤 호출하는 흐름과 정렬된다.
+- **Response (`data`)**: `{ "snapshots": [ { "snapshotId": string, "label": string | null, "employeeCount": number, "maxImportedAt": string | null }, ... ] }` — 필드 의미·정렬은 **`specs/hr-sync-poc.spec.yaml` §4.3** 과 동일.
+- **인증·권한**: 세션 필수; PoC 미활성 **403** `POC_DISABLED`; PoC 미리보기와 **동일 계열**의 화면·역할이 아니면 **403** `FORBIDDEN` / `FUNCTION_NOT_ALLOWED`(인터셉터·스펙 §3과 DOC-CODE-SYNC).
+- **데이터 경계**: `app_user`·권한 테이블에는 **쓰지 않으며**, 응답에 **비밀·원시 매니페스트**를 넣지 않는다.
+
+### 2b.4 스냅샷별 인력(복제 직원) 페이지 (read-only)
+
+- **GET** `/api/hr-sync/poc/snapshots/{snapshotId}/employees`
+- **목적**: 선택한 **`snapshotId`**에 대해 **`ext_employee`**(필요 시 `ext_department` 조인)를 **페이지 단위**로 읽어, PoC 인력 테이블에 표시할 **최소 필드**만 반환한다.
+- **Query**:
+
+| 파라미터 | 타입 | 기본 | 설명 |
+|----------|------|------|------|
+| page | integer | 1 | 1-based 페이지. |
+| size | integer | 20 | 페이지 크기; **최대 100**(초과 **400** `VALIDATION_ERROR`). |
+
+- **Response (`data`)**: `{ "snapshotId": string, "employees": [ ... ], "pagination": { "currentPage": number, "totalPages": number, "totalCount": number } }`  
+  각 `employees[]` 항목: `displayName`, `jobTitle`, `departmentKey`, `departmentName`, `active`, 선택 `employeeNumber`(**PoC**: `ext_employee.employee_number` **전체**, 마스킹 없음). **`email` 미포함** — 스펙 §4.4.
+- **에러 (요약)**:
+  - **400** `VALIDATION_ERROR` — 잘못된 경로 `snapshotId`, `page`/`size` 범위 위반.
+  - **401** — 비인증.
+  - **403** `POC_DISABLED` — PoC off.
+  - **403** `FORBIDDEN` / `FUNCTION_NOT_ALLOWED` — PoC 인력 API에 대한 접근 불가.
+  - **404** `NOT_FOUND` — 해당 스냅샷에 복제 행이 없음(스펙이 **빈 200** 대신 **404**로 확정; 변경 시 DOC-CODE-SYNC).
+
+### 2b.5 Apply(PoC) — 차단
+
+- 요건: **PoC 기본은 `PREVIEW_ONLY`**; **`HR_SYNC_POC_APPLY_ENABLED` 미충족 시 변경 적용 불가.**
+- 계약: **(a)** apply 전용 경로를 두었다면 **403**(또는 제품 정한 HTTP)으로 거부하거나, **(b)** **엔드포인트 미노출** — 구현 선택. 스케줄/API 우회 허용 없음.
+
+### 2b.6 PoC User Management (UM v2 클론, read-only + stub)
+
+**Prefix**: `/api/hr-sync/poc/user-mgmt`  
+**화면 id**: **`user-management-v2-poc`** (`allowedScreenIds`에 별도 부여; 프로덕션 **`user-management-v2`** 와 독립 — `docs/contract.md`).
+
+**보안 (다른 PoC API와 동일 계열)**
+
+- 비인증 → **401**.
+- **`HR_SYNC_POC_ENABLED` off** → **403** `POC_DISABLED`.
+- 세션은 있으나 **`user-management-v2-poc`** 화면 권한 없음 → **403** `FORBIDDEN` / `FUNCTION_NOT_ALLOWED` (인터셉터·스펙 §3.1).
+
+#### 2b.6.1 복제 부서 트리 (read-only)
+
+- **GET** `/api/hr-sync/poc/user-mgmt/replica-departments/tree`
+- **소스**: **`ext_department`** 만 (PoC/샘플 `source_system`; 쿼리 **`sourceSystem`** 기본 **`HR_SAMPLE`** — `specs/hr-sync-poc.spec.yaml` §4.5).
+- **Response (`data`)**: `{ "sourceSystem": string, "roots": ReplicaDepartmentTreeNode[] }` — 노드: `departmentKey`, `parentDepartmentKey`, `name`, `sortOrder`, `children` (중첩).
+- **쓰기 없음**: `app_user` · 앱 권한 · 프로덕션 Tree 미변경.
+
+#### 2b.6.2 복제 사용자 목록 (read-only)
+
+- **GET** `/api/hr-sync/poc/user-mgmt/replica-users`
+- **소스**: **`ext_employee`** (+ `ext_department` 조인 표시명). 선택 **`snapshotId`**, **`departmentKey`**, **`sourceSystem`**(기본 `HR_SAMPLE`), **`page`** / **`size`** (size 최대 **100**).
+- **Response (`data`)**: `{ "snapshotId": string | null, "departmentKey": string | null, "sourceSystem": string, "users": [...], "pagination": { "currentPage", "totalPages", "totalCount" } }`  
+  `users[]` 항목은 §2b.4 `employees[]`와 동일 계열(`displayName`, `jobTitle`, `departmentKey`, `departmentName`, `active`, 선택 `employeeNumber`; **email 없음**).
+- **`snapshotId`가 있고** 복제에 없거나 0건이면 **404** `NOT_FOUND`(§4.6 스펙 선택; `snapshotId` 생략 시 빈 목록은 **200**).
+- **쓰기 없음**: `app_user` 미변경.
+
+#### 2b.6.3 마이그레이션 미리보기 스텁 (비영속)
+
+- **POST** `/api/hr-sync/poc/user-mgmt/actions/migrate-preview`
+- **목적**: UI “마이그레이션 테스트” 동작을 **영향 없이** 연결.
+- **성공 (200)**: `success: true`, **`data`**: `{ "persisted": false, "messageCode": "POC_ACTION_NOT_PERSISTED" }` — `ApiResponse.code`는 성공 시 통상 생략·성공 의미.
+- **규범**: 이 핸들러는 **`app_user`** 및 애플리케이션 권한·프로덕션 Tree에 대해 **INSERT/UPDATE/DELETE를 수행하지 않는다**. 실제 반영을 암시하는 활동 감사도 남기지 않는다(스펙 §4.7).
 
 ---
 
@@ -468,6 +596,24 @@
   - **400** `LAST_SYSTEM_ADMIN_BLOCKED` / `SYSTEM_ADMIN_IMMUTABLE` — 마지막 시스템 관리자 삭제 불가, 대상이 시스템 관리자 등 기존 시스템 관리자 보호 규칙(`docs/contract.md`). HTTP는 §11·구현과 통일(통상 **400**; TC-07).
   - **404** `USER_NOT_FOUND` — 대상 사용자 없음.
   - **409** `USER_DELETE_REFERENCED` — 종속 데이터 등 **FK·참조 무결성**으로 삭제 불가; 부분 삭제 없음 (TC-08). 구현이 **400** + 동일 코드로 통일할 경우 계약·코드 동시 갱신.
+
+### 7.4 User Management v2 — 부서 삭제
+
+**Base path**: `/api/user-management-v2` — 계약·상세는 **`specs/user-management-v2.spec.yaml`** §2·§4.3.
+
+- **DELETE** `/api/user-management-v2/departments/{departmentId}`
+- **Path**: `departmentId` — 레거시 필드명이며 **부서 코드 문자열**(`departmentCode`와 동일 의미); 다른 v2 부서 API와 동일.
+- **Request body** (JSON, **필수**): `changeReason` — trim 후 비어 있지 않음, **최대 500자** 등 v2 mutation 공통 규칙(스펙 표). 본문 생략·공백만·초과 시 **400** `INVALID_INPUT`.
+- **접근·권한**: v2 스펙 §2 — 인증 + 사용자 관리 화면 접근; 변경 API는 `screenFunctions['user-management'].write` 또는 시스템 관리자. **401** / **403** `FORBIDDEN` / **403** `FUNCTION_NOT_ALLOWED` 패턴은 스펙과 동일.
+- **성공**: **200**, `success: true`. **`data`**: 구현이 정한 요약(예: 삭제된 부서 코드) 또는 `null` — DOC-CODE-SYNC.
+- **감사**: 성공 시 **`DEPARTMENT_DELETE`**; `action_detail` **department_admin** (`specs/activity-action-types.spec.yaml` §2.8·§3).
+- **오류 (ApiResponse `code`)**:
+  - **404** `DEPARTMENT_NOT_FOUND`
+  - **409** `DEPARTMENT_HAS_CHILDREN` — 하위 부서 존재
+  - **409** `DEPARTMENT_HAS_ACTIVE_USERS` — 해당 부서를 쓰는 사용자 존재
+  - **409** `DEPARTMENT_ORG_LINK_REFERENCES` — `department_org_link` 등 조직 연계 참조 존재  
+  (HTTP는 스펙·구현 정합; 통상 위와 같이 404/409.)
+
 ---
 
 ## 8. 사용자 활동 이력 (Activity Log)
@@ -486,7 +632,8 @@
   - **`ASSIGN_USER_TO_PERMISSION_GROUP` / `UNASSIGN_USER_FROM_PERMISSION_GROUP`**: persisted **`permissionGroupAuditV1`** MUST populate **`before`** and **`after`** per **`specs/activity-permission-group-audit.spec.yaml`** §3.5 and requirement **`docs/requirements/20260407-permission-group-assign-unassign-audit-before-after.md`** — **assign:** `before` = previous group snapshot or **`null`** if no prior membership, `after` = new group snapshot; **unassign:** `before` = group being left, `after` = **`null`**. When `allowedScreens` is incomplete or omitted for size/policy, set **`allowedScreensTruncated`** per spec §3.2.  
   - **Denylist**: 부모 요건 `20260330-activity-types-user-mgmt-permission-group` §2.1 Security 및 동일 스펙 §6 — `password`, `token`, `refreshToken`, 원시 요청 본문 등 **금지**.  
   - **`changeReason` (잠정)**: `PERMISSION_GROUP_UPDATE`에서 클라이언트가 보낸 사유는 **`permissionGroupAuditV1.changeReason`**으로 영속할 때 **최대 500자**; 제품이 생략 정책으로 바꾸면 계약·스펙 우선 수정.  
-  - **사용자 생명주기 (`USER_CREATE`, `USER_DELETE`)** (req `20260407-user-management-consistency-delete-reason-activity-audit`): 외부 직원 **프로비저닝 성공** 시 **`USER_CREATE`**(또는 제품 확정 동일 의미 코드); **사용자 삭제 성공** 시 **`USER_DELETE`**. `action_detail`는 **`changeReason`**, **`targetUserId`**(number, `app_user.id`), 선택 **`employeeNumber`**, **`username`** 및 스펙 §3 **user_admin** / denylist 준수(비밀번호·토큰·원시 요청 본문 금지). 단일 기준 코드·라벨: `specs/activity-action-types.spec.yaml` §2.4·§3, **`GET /api/activity-log/action-types`**에 포함(TC-11).
+  - **사용자 생명주기 (`USER_CREATE`, `USER_DELETE`)** (req `20260407-user-management-consistency-delete-reason-activity-audit`, `20260408-user-management-v2-activity-audit-detail-in-activity-log`): 외부 직원 **프로비저닝 성공** 시 **`USER_CREATE`**; **User Management v2 직접 등록** 성공 시에도 **`USER_CREATE`**(별도 `USER_CREATE_DIRECT` 코드는 계약에 두지 않음 — 구분은 `action_detail`). **사용자 삭제 성공** 시 **`USER_DELETE`**. `action_detail`는 **`changeReason`**, **`targetUserId`**(number, `app_user.id`), 선택 **`employeeNumber`**, **`username`**, v2 직접 등록 시 선택 **`name`**, **`departmentId`**(대상 부서 코드), **`rank`**, **`permissionGroupId`**, 그리고 **`USER_CREATE`**용 **`registrationSource`**: **`EXTERNAL_PROVISIONING`** \| **`USER_MANAGEMENT_V2_DIRECT`**(신규 기록은 구분값 설정 권장). 스펙 §3 **user_admin** / denylist 준수. 단일 기준: `specs/activity-action-types.spec.yaml` §2.4·§2.8·§3, **`GET /api/activity-log/action-types`**(TC-11).
+  - **부서 트리 v2 (`DEPARTMENT_CREATE_ROOT` / `DEPARTMENT_CREATE_CHILD` / 계약 시 `DEPARTMENT_UPDATE`·`DEPARTMENT_DELETE`)**: 수동 부서 **생성·수정·삭제**는 **전용 `action_type`**으로 기록한다. **`USER_UPDATE`로 부서 변경을 대체하지 않는다**(스펙 §2.4·§2.8). `action_detail` 요약: **`changeReason`**, **`departmentCode`**, **`parentDepartmentCode`**(루트 생성 시 null), 선택 **`name`**, **`sortOrder`**, 수정 시 허용 키만의 **`before`/`after`** — §3 **department_admin**.
   - **상세 API 일관성**: 아래 `GET /api/activity-log/{id}` 응답의 `action_detail`은 DB에 저장된 JSON과 동일 계열이며, **검색(`POST /api/activity-log/search`)에서 볼 수 있는 행만** 상세 조회 가능해야 한다(요건 §2.1 AC-S2; MF-02는 백엔드 검증).
 
 ### 8.0.1 활동 유형 필터 옵션(선택 API)
@@ -528,7 +675,8 @@
 - **마스킹 (요건 `20260330-audit-evidence-activity-log-conservative`)**: 응답의 **`action_detail`** 및 필요 시 **`ip_address`** 등 메타필드는 **호출자 역할**에 따라 **마스킹**된다. 비특권 사용자는 **인앱 복사 본문 전체**·민감 키 평문을 받지 않는다(목록에서 조회 가능한 행만 상세 허용 — 기존 MF-02·AC-S2 정신과 동일). 상세 필드 키·마스킹 규칙·복사 하위 구조 요약은 **`specs/activity-log-audit-evidence.spec.yaml`** §3.
 - **Response (data)**: Map (활동 이력 한 건 상세). 일반적으로 목록 검색과 동일한 필드를 포함하며, **`action_detail`** 은 DB JSON을 파싱한 객체이되 **마스킹 뷰**일 수 있다.
   - **권한 그룹 계열 `action_type`**: `action_detail`에 **`permissionGroupAuditV1`** 가 있으면(요건 `20260330-permission-group-activity-detail-audit`; 배정/해제 **`before`/`after`** 의무는 `20260407-permission-group-assign-unassign-audit-before-after`) 감사 증빙은 해당 객체의 `schemaVersion`, `operation`, `before` / `after` (`PermissionGroupSnapshot`, `allowedScreens` = `AllowedScreenItem[]`; **assign/unassign** 시 §3.5 시맨틱 및 **`allowedScreensTruncated`** §3.2), `targetUserId`(배정/해제), 선택적 **`changeReason`**(잠정, 최대 500자)로 해석한다. 전체 규격·예시·denylist는 **`specs/activity-permission-group-audit.spec.yaml`**.
-  - **`USER_CREATE` / `USER_DELETE`**: 평탄(중첩 객체 없이) **`action_detail`** 권장 키: **`changeReason`**(필수·최대 500자), **`targetUserId`**(number), **`employeeNumber`**(string, 선택), **`username`**(string, 선택). §3 denylist 동일 적용.
+  - **`USER_CREATE` / `USER_DELETE`**: 평탄(중첩 객체 없이) **`action_detail`** 권장 키: **`changeReason`**(해당 API에서 필수일 때 영속), **`targetUserId`**(number), **`employeeNumber`**(string, 선택), **`username`**(string, 선택), **`USER_CREATE`**에 **`registrationSource`**: **`EXTERNAL_PROVISIONING`** \| **`USER_MANAGEMENT_V2_DIRECT`**. v2 직접 등록이면 추가로 **`name`**, **`departmentId`**(부서 코드), **`rank`**, **`permissionGroupId`** 등 비민감 식별자만(§3 **user_admin**). §3 denylist 동일 적용.
+  - **부서 v2 (`DEPARTMENT_CREATE_ROOT` 등)**: 평탄 **`action_detail`** — **`changeReason`**, **`departmentCode`**, **`parentDepartmentCode`**(null 허용), 선택 **`name`**, **`sortOrder`**, 수정·삭제 시 **`before`/`after`**(허용 필드만). 상세 키 표: `specs/activity-action-types.spec.yaml` §3 **department_admin**.
   - **인앱 복사·삭제 스냅샷·변경 before/after** 고수준: `action_type` **`IN_APP_COPY`** 등(코드표 `specs/activity-action-types.spec.yaml` §2.7) 및 **`action_detail`** 내 `copyPayload` / `deleteSnapshot` / `before`·`after` — **`specs/activity-log-audit-evidence.spec.yaml`** §3, §4.
   - **DOC-CODE-SYNC**: 구현체는 저장·응답 형태를 위 스펙에 맞춘다; 차이가 있으면 코드와 동시에 계약을 갱신한다(`docs/workflow/DOC-CODE-SYNC.md`).
 
@@ -570,6 +718,7 @@
 - **GET** `/api/statistics/activity/daily`, **GET** `/api/statistics/activity/monthly`, **GET** `/api/statistics/activity/users/all`, **GET** `/api/statistics/activity/export`
 - **Query params** (공통 필터): `startDate`, `endDate` (일별/export), `year`, `month` (월별), `logType`, `userId` (number, `app_user.id`), `department`, `ip`, `username` (또는 `name`, 사용자명 LIKE 필터). (req 20260310)
 - **화면별 범위(scope)**: statistics 화면 scope 적용. scope='self'일 때 user/requester block은 숨기지 않고 visible locked self-context로 유지된다. `department`, `username`, `userId`는 auth/current-user payload의 `selfContext` 기준으로 표시되고 수정할 수 없으며, `userId`는 **numeric** **`app_user.id`**이다. API 처리에서는 userId, username/name, department, ip 등 사용자·부서 관련 파라미터를 무시하고 현재 사용자 데이터만 반환한다. scope=team/all일 때는 전달된 필터 적용.
+- **Decrypt counters (`totalDecrypts`, per-day `totalDecrypts`, user `decryptCount`)** — req `docs/requirements/20260408-activity-statistics-decrypt-unique-rows-per-day.md`, `docs/contract.md`: Counts reflect **`user_activity_log`** with **`action_type = 'DECRYPT'`** only (actual decrypt API audit), **not** decrypt-approval counts or other tables. Values are **distinct logical log rows per calendar day** using the per–log-type dedup key from the requirement (not raw audit row counts). **Daily series / rolled-up `totalDecrypts`**: one per dedup key per day **across all users** in the filtered scope. **Per-user `decryptCount`**: per user, distinct keys per day, summed over the selected range.
 
 ### 8.3.1 공유 부서 필터 옵션 조회
 
@@ -709,7 +858,10 @@
 | LOG_ROW_NOT_FOUND | POST decrypt: imagelog에 해당 guid+status 행 없음 (**404**) |
 | FORBIDDEN_NOT_APPROVER | 승인/반려·대기목록 API: **effective** `screenFunctions` 승인 없음 또는 `is_system_admin`만인 경우 등 (403). `docs/contract.md` 「복호화 승인 자격」 |
 | NOT_APPROVER | 위와 동일 의미. 구현 시 하나로 통일 가능 |
-| DEPARTMENT_NOT_FOUND | 부서 없음 (404) |
+| DEPARTMENT_NOT_FOUND | 부서 없음 (**404**). User Management v2 **`DELETE /api/user-management-v2/departments/{departmentId}`** 등. |
+| DEPARTMENT_HAS_CHILDREN | 부서 삭제 불가: 하위 부서 존재 (**409**). v2 부서 DELETE. |
+| DEPARTMENT_HAS_ACTIVE_USERS | 부서 삭제 불가: 해당 부서를 참조하는 사용자(활성) 존재 (**409**). v2 부서 DELETE. |
+| DEPARTMENT_ORG_LINK_REFERENCES | 부서 삭제 불가: `department_org_link` 등 조직 연계 참조 존재 (**409**). v2 부서 DELETE. |
 | ALREADY_APPROVER | 해당 부서에 이미 결재자로 등록됨 (400) |
 | USER_NOT_IN_DEPARTMENT | 지정한 사용자가 해당 부서 소속이 아님. 부서별 결재자로 추가 불가 (400) |
 | FORBIDDEN | 권한 없음(예: 부서/결재자 API는 관리자 전용) (403) |
@@ -718,6 +870,8 @@
 | AUTH_CONFIGURATION_ERROR | (선택) `auth.login.mode`·`auth.ad.*` misconfiguration — 기동 실패 또는 로그인 거부 시 (docs/contract.md). |
 | DIRECTORY_AUTH_FAILED | AD/LDAP 모드에서 디렉터리 자격 증명 거부(401). 사용자 열거 방지 메시지. |
 | APP_USER_NOT_PROVISIONED | AD 인증은 성공했으나 `app_user` 매핑 없음(401). |
+| INVALID_CREDENTIALS | **local** 로그인: `userId` 없음·해당 행 없음·비밀번호 불일치 등(401). |
+| USER_ACCOUNT_DISABLED | **local** 로그인: `app_user` 행은 있으나 `deleted_at` 이 설정된 비활성(소프트 삭제) 계정(401). |
 | EXTERNAL_IDENTITY_CONFLICT | 동일 외부 키로 이미 등록됨(409). `POST /api/provisioning/users/from-external-employee`. **data**에 `existingUsername`(선택), `existingAppUserId`(있으면) 포함 가능. |
 | INVALID_INPUT | 부서코드/userId 등 입력값 비어 있음 또는 형식 오류 (400) |
 | PERMISSION_GROUP_NOT_FOUND | 해당 ID의 권한 그룹 없음 (404) |
@@ -736,6 +890,12 @@
 | LOG_TYPE_NOT_ALLOWED | 요청한 logType에 해당하는 화면(pb-feplog/java-fw-imagelog) 접근 권한 없음. 로그 검색·상세·복호화 API에서 403 (req 20260318). **`POST /api/logs/db-refactored/pb-fep-log-search`** 에서 **`pb-fep-log-search` / PB FEP 접근 없음 시 동일 계열 (req 20260326). |
 | REVEAL_NOT_ALLOWED | 활동 로그 **특권 공개**(예: 전체 복사 본문) 권한 없음 (403). 요건 `20260330-audit-evidence-activity-log-conservative`. |
 | ACCESS_AUDIT_FORBIDDEN | **접근 감사** 목록·조회 API에 대한 권한 없음 (403). |
+| POC_DISABLED | HR Sync PoC 플래그 off 또는 PoC API 비활성 (통상 **403**). `GET/POST /api/hr-sync/poc/*`. |
+| NOT_FOUND | HR Sync PoC **스냅샷 인력** `GET .../snapshots/{snapshotId}/employees`: 복제 데이터에 해당 스냅샷이 없거나 0건 (**404**). 스펙 `hr-sync-poc.spec.yaml` §4.4. |
+| SYNC_SOURCE_NOT_READY | 업스트림 적재·완료 신호·매니페스트가 준비되지 않았거나 검증 실패; 초기 PoC에서 placeholder와 병행 가능 (**403** 또는 **503** 등 구현 정합). |
+| HR_SYNC_POC_PREVIEW_FAILED | HR Sync PoC **`POST .../preview`** 에서 `classificationCounts` 집계 실패(복제/DB 오류 등); 통상 **503**. 빈 스냅샷의 정상 **200**+전부 0과 구분. 스펙 `hr-sync-poc.spec.yaml` §4.2. |
+| VALIDATION_ERROR | HR Sync PoC preview 요청 본문·식별자 검증 실패 (**400**). |
+| POC_ACTION_NOT_PERSISTED | 오류 코드가 아님. **`POST /api/hr-sync/poc/user-mgmt/actions/migrate-preview`** 성공 **`data.messageCode`** (스텁 비영속 응답). |
 
 ---
 
@@ -765,6 +925,7 @@
 - **PB FEP 와이어프레임 검색 (`pb-fep-log-search`)**: `specs/log-db-pb-fep-log-search.spec.yaml`, 본 문서 §5.1.1.
 - **정의 위치**: 이 문서는 현재 구현 기준. API 추가/변경 시 이 문서와 `specs/*.spec.yaml`을 먼저 갱신할 것.
 - **활동 로그 감사 증빙(마스킹·특권 공개·접근 감사)**: `specs/activity-log-audit-evidence.spec.yaml`, 요건 `docs/requirements/20260330-audit-evidence-activity-log-conservative.md`.
+- **HR Sync PoC (preview-only)**: `specs/hr-sync-poc.spec.yaml`, `docs/contract.md` § HR Sync PoC; 본 문서 §2b.
 
 ---
 

@@ -77,6 +77,14 @@ management:
 
 # 인증 모드 (요건 20260407): local = app_user.id + password_hash | ad = LDAP + app_user_external_identity 매핑
 # 운영 AD: auth.login.mode=ad 및 auth.ad.* 환경변수 필수. 묵시 폴백 없음 (fail-closed).
+# HR Sync PoC (preview-only). Env: HR_SYNC_POC_ENABLED, HR_SYNC_POC_APPLY_ENABLED, HR_SYNC_POC_DEFAULT_MODE
+hr:
+  sync:
+    poc:
+      enabled: ${HR_SYNC_POC_ENABLED:false}
+      apply-enabled: ${HR_SYNC_POC_APPLY_ENABLED:false}
+      default-mode: ${HR_SYNC_POC_DEFAULT_MODE:PREVIEW_ONLY}
+
 auth:
   login:
     mode: ${AUTH_LOGIN_MODE:local}

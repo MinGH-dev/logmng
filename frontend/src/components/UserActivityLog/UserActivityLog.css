@@ -324,28 +324,54 @@
 /* 로딩/빈 상태는 DataTable.css .loading-container, .no-data 사용 */
 /* 페이지네이션: DataTable 내부 .pagination, .page-btn 사용 (grid-and-table.md) */
 
-/* 상세 모달 */
+/* 상세 모달 — req 20260408-activity-log-detail-modal-viewport-centering
+ * Scroll model: Option B — single vertical scroll on .activity-log-detail-body; header/footer stay visible
+ * within max-height. Overlay also scrolls (overflow-y: auto) with margin auto so when the dialog exceeds
+ * the region, top/bottom remain reachable (complements body scroll on very small heights).
+ * Centering: fixed inset matches main column (--app-main-inset-* from App.js; below app bar, right of sidebar). */
 .activity-log-detail-overlay {
   position: fixed;
-  top: 0;
-  left: 0;
+  left: var(--app-main-inset-left, 0px);
   right: 0;
+  top: var(--app-main-inset-top, 0px);
   bottom: 0;
   background: rgba(0, 0, 0, 0.5);
   display: flex;
-  justify-content: center;
+  flex-direction: column;
   align-items: center;
+  justify-content: flex-start;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 16px;
+  box-sizing: border-box;
   z-index: 1300;
+  -webkit-overflow-scrolling: touch;
 }
 
 .activity-log-detail-modal {
   background: white;
   border-radius: 8px;
-  width: 90%;
+  width: min(900px, 100%);
   max-width: 900px;
-  max-height: 90vh;
-  overflow-y: auto;
+  min-width: 0;
+  margin-top: auto;
+  margin-bottom: auto;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  max-height: min(
+    calc(100dvh - var(--app-main-inset-top, 0px) - 48px),
+    calc(100vh - var(--app-main-inset-top, 0px) - 48px)
+  );
+  overflow: hidden;
   box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.activity-log-detail-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
 }
 
 .activity-log-detail-header {
@@ -756,9 +782,8 @@
     overflow-x: scroll;
   }
 
-  .activity-log-detail-modal {
-    width: 95%;
-    max-height: 95vh;
+  .activity-log-detail-overlay {
+    padding: 12px;
   }
 }
 

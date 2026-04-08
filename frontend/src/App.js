@@ -9,10 +9,13 @@ import ActivityLogAccessAuditList from './components/ActivityLogAccessAudit/Acti
 import ActivityStatistics from './components/ActivityStatistics';
 import SearchHistoryList from './components/SearchHistory/SearchHistoryList';
 import UserManagement from './components/UserManagement/UserManagement';
+import UserManagementLegacy from './components/UserManagement/UserManagementLegacy';
+import HrSyncPocPreview from './components/UserManagement/HrSyncPocPreview';
+import UserManagementPoc from './components/UserManagement/UserManagementPoc';
 import PermissionGroupManagement from './components/PermissionGroupManagement/PermissionGroupManagement';
 import PermissionGroupScreenMatrix from './components/PermissionGroupScreenMatrix/PermissionGroupScreenMatrix';
 import PendingApprovals from './components/PendingApprovals/PendingApprovals';
-import AppSidebar from './components/AppSidebar';
+import AppSidebar, { DRAWER_WIDTH_OPEN, DRAWER_WIDTH_COLLAPSED } from './components/AppSidebar';
 import AppBar from './components/AppBar';
 import { ORDERED_SCREEN_IDS } from './constants/menuTree';
 import { useScreenDisplayLabels } from './hooks/useScreenDisplayLabels';
@@ -28,6 +31,7 @@ import {
   hasEffectiveAppAccess,
 } from './utils/security';
 import NoPermissionDialog from './components/NoPermissionDialog';
+import MyPageModal from './components/MyPageModal';
 import logger from './utils/logger';
 import { getApiBaseUrl } from './config/runtimeApi';
 
@@ -48,6 +52,7 @@ function App() {
   const [initialSearchParams, setInitialSearchParams] = useState(null);
   const [initialSearchApprovalId, setInitialSearchApprovalId] = useState(null);
   const [accessAuditInitialTargetId, setAccessAuditInitialTargetId] = useState(null);
+  const [myPageOpen, setMyPageOpen] = useState(false);
 
   const { labelItems, setLabelItems, mergedMenuTree, logTypesByView } = useScreenDisplayLabels(
     isAuthenticated,
@@ -60,6 +65,21 @@ function App() {
     if (!ids || ids.length === 0) return false;
     if (view === 'user-management') {
       return ids.includes('user-management') || ids.includes('user-permission-hierarchy');
+    }
+    if (view === 'hr-sync-poc') {
+      return ids.includes('user-management') || ids.includes('user-permission-hierarchy');
+    }
+    if (view === 'user-management-v2') {
+      return ids.includes('user-management-v2') || ids.includes('user-management') || ids.includes('user-permission-hierarchy');
+    }
+    if (view === 'user-management-v2-poc') {
+      return (
+        ids.includes('user-management-v2-poc') ||
+        ids.includes('hr-sync-poc') ||
+        ids.includes('user-management-v2') ||
+        ids.includes('user-management') ||
+        ids.includes('user-permission-hierarchy')
+      );
     }
     if (view === 'permission-group-management' || view === 'permission-group-screen-matrix') {
       return ids.includes('permission-group-management') || ids.includes('user-permission-hierarchy');
@@ -89,11 +109,50 @@ function App() {
       user?.isSystemAdmin === true ||
       (currentView === 'user-management' || currentView === 'user-permission-hierarchy'
         ? ids.includes('user-management') || ids.includes('user-permission-hierarchy')
+        : currentView === 'hr-sync-poc'
+          ? ids.includes('user-management') || ids.includes('user-permission-hierarchy')
+        : currentView === 'user-management-v2'
+          ? ids.includes('user-management-v2') || ids.includes('user-management') || ids.includes('user-permission-hierarchy')
+        : currentView === 'user-management-v2-poc'
+          ? ids.includes('user-management-v2-poc') ||
+            ids.includes('hr-sync-poc') ||
+            ids.includes('user-management-v2') ||
+            ids.includes('user-management') ||
+            ids.includes('user-permission-hierarchy')
         : currentView === 'permission-group-management' || currentView === 'permission-group-screen-matrix'
           ? ids.includes('permission-group-management') || ids.includes('user-permission-hierarchy')
           : ids.includes(currentView));
     if (!canAccess) setCurrentView(getFirstAllowedScreen(user));
     // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isAuthenticated, user]);
+
+  /** Deep link: /user-management/hr-sync-poc (same permission as user-management). */
+  useEffect(() => {
+    if (!isAuthenticated || !user || !hasEffectiveAppAccess(user)) return;
+    const path = (window.location.pathname || '').replace(/\/$/, '');
+    if (!path.endsWith('/user-management/hr-sync-poc')) return;
+    const ids = getAllowedScreenIds(user) ?? [];
+    const ok =
+      user?.isSystemAdmin === true ||
+      ids.includes('user-management') ||
+      ids.includes('user-permission-hierarchy');
+    if (ok) setCurrentView('hr-sync-poc');
+  }, [isAuthenticated, user]);
+
+  /** Deep link: /user-management/poc-v2 — PoC UM v2 clone (ScreenAccessInterceptor § user-mgmt PoC). */
+  useEffect(() => {
+    if (!isAuthenticated || !user || !hasEffectiveAppAccess(user)) return;
+    const path = (window.location.pathname || '').replace(/\/$/, '');
+    if (!path.endsWith('/user-management/poc-v2')) return;
+    const ids = getAllowedScreenIds(user) ?? [];
+    const ok =
+      user?.isSystemAdmin === true ||
+      ids.includes('user-management-v2-poc') ||
+      ids.includes('hr-sync-poc') ||
+      ids.includes('user-management-v2') ||
+      ids.includes('user-management') ||
+      ids.includes('user-permission-hierarchy');
+    if (ok) setCurrentView('user-management-v2-poc');
   }, [isAuthenticated, user]);
 
   const AUTH_CHECK_TIMEOUT_MS = 5000;
@@ -240,6 +299,16 @@ function App() {
         ids.length > 0 &&
         (currentView === 'user-management' || currentView === 'user-permission-hierarchy'
           ? ids.includes('user-management') || ids.includes('user-permission-hierarchy')
+          : currentView === 'hr-sync-poc'
+            ? ids.includes('user-management') || ids.includes('user-permission-hierarchy')
+          : currentView === 'user-management-v2'
+            ? ids.includes('user-management-v2') || ids.includes('user-management') || ids.includes('user-permission-hierarchy')
+          : currentView === 'user-management-v2-poc'
+            ? ids.includes('user-management-v2-poc') ||
+              ids.includes('hr-sync-poc') ||
+              ids.includes('user-management-v2') ||
+              ids.includes('user-management') ||
+              ids.includes('user-permission-hierarchy')
           : currentView === 'permission-group-management' || currentView === 'permission-group-screen-matrix'
             ? ids.includes('permission-group-management') || ids.includes('user-permission-hierarchy')
             : ids.includes(currentView)));
@@ -252,6 +321,26 @@ function App() {
       return;
     }
     setCurrentView(view);
+    if (view === 'hr-sync-poc') {
+      try {
+        window.history.replaceState(null, '', '/user-management/hr-sync-poc');
+      } catch {
+        /* ignore */
+      }
+    } else if (view === 'user-management-v2-poc') {
+      try {
+        window.history.replaceState(null, '', '/user-management/poc-v2');
+      } catch {
+        /* ignore */
+      }
+    } else {
+      try {
+        const p = window.location.pathname || '';
+        if (p.includes('hr-sync-poc') || p.includes('poc-v2')) window.history.replaceState(null, '', '/');
+      } catch {
+        /* ignore */
+      }
+    }
   };
 
   const handleReSearchFromHistory = (data) => {
@@ -266,6 +355,18 @@ function App() {
     setInitialSearchParams(null);
     setInitialSearchApprovalId(null);
   };
+
+  const horizontalScrollViews = new Set([
+    'pending-approvals',
+    'search-history',
+    'statistics',
+    'user-management',
+    'user-management-v2',
+    'user-permission-hierarchy',
+    'hr-sync-poc',
+    'user-management-v2-poc',
+  ]);
+  const isHorizontalScrollView = horizontalScrollViews.has(currentView);
 
   if (loading) {
     return (
@@ -294,14 +395,17 @@ function App() {
     <ThemeProvider theme={appTheme}>
       <Box
         className="App"
-        sx={{
+        sx={(theme) => ({
           display: 'flex',
           width: '100%',
           maxWidth: '100vw',
           height: '100vh',
           overflow: 'hidden',
           bgcolor: 'background.default',
-        }}
+          /* Main column insets for portals/modals (req 20260408-activity-log-detail-modal-viewport-centering) */
+          '--app-main-inset-left': `${sidebarOpen ? DRAWER_WIDTH_OPEN : DRAWER_WIDTH_COLLAPSED}px`,
+          '--app-main-inset-top': theme.spacing(7),
+        })}
       >
         <AppSidebar
           open={sidebarOpen}
@@ -319,6 +423,8 @@ function App() {
             display: 'flex',
             flexDirection: 'column',
             minWidth: 0,
+            position: 'relative',
+            zIndex: 0,
             overflowX: 'hidden',
             boxSizing: 'border-box',
           }}
@@ -329,18 +435,21 @@ function App() {
             teamName={user?.selfContext?.department ?? ''}
             userName={user?.selfContext?.username ?? user?.username ?? ''}
             onLogout={handleLogout}
+            onOpenMyPage={() => setMyPageOpen(true)}
           />
+          <MyPageModal open={myPageOpen} onClose={() => setMyPageOpen(false)} />
           <Box
             sx={{
               flex: 1,
               p: 2,
               mt: 7,
               overflowY: currentView === 'pb-fep-log-search' ? 'hidden' : 'auto',
-              overflowX: 'hidden',
+              overflowX: isHorizontalScrollView ? 'auto' : 'hidden',
               minHeight: 0,
               display: 'flex',
               flexDirection: 'column',
             }}
+            data-horizontal-scroll-enabled={isHorizontalScrollView ? 'true' : 'false'}
           >
             {currentView === 'activity-log' && (
               <UserActivityLogList
@@ -365,8 +474,25 @@ function App() {
               <SearchHistoryList user={user} onReSearch={handleReSearchFromHistory} />
             )}
             {(currentView === 'user-management' || currentView === 'user-permission-hierarchy') && (
-              <UserManagement user={user} />
+              <UserManagementLegacy user={user} />
             )}
+            {currentView === 'user-management-v2' && <UserManagement user={user} />}
+            {currentView === 'user-management-v2-poc' &&
+              (canAccessView('user-management-v2-poc') ? (
+                <UserManagementPoc user={user} />
+              ) : (
+                <Box component="p" role="status" sx={{ m: 0 }}>
+                  이 화면에 접근할 권한이 없습니다.
+                </Box>
+              ))}
+            {currentView === 'hr-sync-poc' &&
+              (canAccessView('hr-sync-poc') ? (
+                <HrSyncPocPreview />
+              ) : (
+                <Box component="p" role="status" sx={{ m: 0 }}>
+                  이 화면에 접근할 권한이 없습니다.
+                </Box>
+              ))}
             {currentView === 'permission-group-management' && (
               <PermissionGroupManagement user={user} menuTree={mergedMenuTree} />
             )}

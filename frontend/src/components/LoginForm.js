@@ -3,6 +3,7 @@ import './LoginForm.css';
 import logger from '../utils/logger';
 import { getApiBaseUrl } from '../config/runtimeApi';
 import { fetchAuthLoginMode } from '../services/authConfigService';
+import { getLoginFailureMessage } from '../utils/errorMessage';
 
 const LoginForm = ({ onLogin }) => {
   const [formData, setFormData] = useState({
@@ -122,21 +123,7 @@ const LoginForm = ({ onLogin }) => {
           setErrors({ general: '🚨 로그인 응답 오류가 발생했습니다.\n관리자에게 문의하세요.' });
         }
       } else {
-        let errorMessage = result.error || '로그인에 실패했습니다.';
-
-        if (response.status === 403) {
-          errorMessage = '🔒 접근이 제한된 IP 주소입니다.\n시스템 관리자에게 접근 권한을 요청하세요.';
-        } else if (response.status === 401) {
-          errorMessage = '❌ 인증 정보가 올바르지 않습니다.\n사용자명과 비밀번호를 다시 확인해주세요.';
-        } else if (response.status === 400) {
-          errorMessage = '⚠️ 입력 정보가 부족합니다.\n모든 필드를 올바르게 입력해주세요.';
-        } else if (response.status === 500) {
-          errorMessage = '🚨 서버 오류가 발생했습니다.\n잠시 후 다시 시도하거나 관리자에게 문의하세요.';
-        } else if (response.status === 0 || !response.ok) {
-          errorMessage = '🌐 네트워크 연결을 확인해주세요.\n서버에 연결할 수 없습니다.';
-        }
-
-        setErrors({ general: errorMessage });
+        setErrors({ general: getLoginFailureMessage(response.status, result) });
       }
     } catch (error) {
       clearTimeout(timeoutId);

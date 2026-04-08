@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
 import UserActivityLogDetail from './UserActivityLogDetail';
 import { postActivityLogPrivilegedReveal } from '../../services/userActivityLogService';
 
@@ -32,6 +32,18 @@ describe('UserActivityLogDetail', () => {
       success: true,
       data: { copyBodyFull: 'FULL TEXT BODY', revealKind: 'COPY_BODY_FULL' },
     });
+  });
+
+  test('TC-06 layout (req 20260408): dialog role, labeled title, scrollable body wrapper', () => {
+    const log = baseLog({ action_detail: {} });
+    render(<UserActivityLogDetail log={log} onClose={() => {}} actionTypeLabelMap={{}} />);
+
+    const dialog = screen.getByRole('dialog', { name: '활동 이력 상세' });
+    expect(dialog).toHaveClass('activity-log-detail-modal');
+    expect(dialog.querySelector('.activity-log-detail-body')).toBeTruthy();
+    expect(dialog.querySelector('.activity-log-detail-body .activity-log-detail-content')).toBeTruthy();
+    expect(document.querySelector('.activity-log-detail-overlay')).toBeTruthy();
+    expect(screen.getByRole('button', { name: '상세 닫기' })).toBeInTheDocument();
   });
 
   test('TC-06 UX: ASSIGN_USER_TO_PERMISSION_GROUP with before+after shows diff without “no prior group” note', () => {
@@ -197,6 +209,51 @@ describe('UserActivityLogDetail', () => {
     expect(screen.getByText('42')).toBeInTheDocument();
     expect(screen.getByText('20261001')).toBeInTheDocument();
     expect(screen.getByText('leaved')).toBeInTheDocument();
+  });
+
+  test('TC-08 UX: DEPARTMENT_CREATE_ROOT flat action_detail shows labeled 상세 필드', () => {
+    const log = baseLog({
+      action_type: 'DEPARTMENT_CREATE_ROOT',
+      action_detail: {
+        changeReason: '신규 조직',
+        departmentCode: 'ORG01',
+        parentDepartmentCode: null,
+        parentDepartmentId: null,
+        name: '본부',
+        sortOrder: 1,
+      },
+    });
+    render(<UserActivityLogDetail log={log} onClose={() => {}} actionTypeLabelMap={{}} />);
+    const labeled = screen.getByRole('heading', { name: '상세 필드' }).closest(
+      '.activity-log-labeled-action-detail',
+    );
+    expect(labeled).toBeTruthy();
+    const inLabeled = within(/** @type {HTMLElement} */ (labeled));
+    expect(inLabeled.getByRole('row', { name: /변경 사유/ })).toHaveTextContent('신규 조직');
+    expect(inLabeled.getByRole('row', { name: /^부서 코드/ })).toHaveTextContent('ORG01');
+    expect(inLabeled.getByRole('row', { name: /^이름/ })).toHaveTextContent('본부');
+    expect(inLabeled.getByRole('row', { name: /정렬 순서/ })).toHaveTextContent('1');
+  });
+
+  test('department_admin nested block shows 부서·조직 감사 and labeled rows', () => {
+    const log = baseLog({
+      action_type: 'DEPARTMENT_UPDATE',
+      action_detail: {
+        department_admin: {
+          changeReason: '개편',
+          departmentCode: 'D1',
+          name: '팀A',
+        },
+      },
+    });
+    render(<UserActivityLogDetail log={log} onClose={() => {}} actionTypeLabelMap={{}} />);
+    const deptBlock = screen.getByRole('heading', { name: '부서·조직 감사' }).closest(
+      '.activity-log-department-admin-audit',
+    );
+    expect(deptBlock).toBeTruthy();
+    const inDept = within(/** @type {HTMLElement} */ (deptBlock));
+    expect(inDept.getByRole('row', { name: /변경 사유/ })).toHaveTextContent('개편');
+    expect(inDept.getByRole('row', { name: /^부서 코드/ })).toHaveTextContent('D1');
   });
 
   test('TC-15: SEARCH action still shows search summary (regression)', () => {

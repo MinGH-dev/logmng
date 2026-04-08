@@ -1,6 +1,7 @@
 package com.logmng.service;
 
 import com.logmng.config.AuthProperties;
+import com.logmng.dto.request.ChangeMyPasswordRequest;
 import com.logmng.dto.request.LoginRequest;
 import com.logmng.dto.response.LoginResponse;
 import com.logmng.dto.response.ScreenFunctionCapability;
@@ -108,7 +109,7 @@ public class AuthService {
         String passwordHash = null;
         boolean isSystemAdmin = false;
         try (Connection conn = dataSource.getConnection()) {
-            String sql = "SELECT id, username, password_hash, is_system_admin FROM app_user WHERE id = ? AND deleted_at IS NULL";
+            String sql = "SELECT username, password_hash, is_system_admin, deleted_at FROM app_user WHERE id = ?";
             try (PreparedStatement ps = conn.prepareStatement(sql)) {
                 ps.setLong(1, userId);
                 try (ResultSet rs = ps.executeQuery()) {
@@ -117,6 +118,13 @@ public class AuthService {
                         throw CustomException.unauthorized(
                                 "사용자 ID와 비밀번호를 확인해주세요.",
                                 "INVALID_CREDENTIALS"
+                        );
+                    }
+                    if (rs.getTimestamp("deleted_at") != null) {
+                        log.warn("로그인 실패: 비활성(소프트 삭제) 계정 (id={})", userId);
+                        throw CustomException.unauthorized(
+                                "계정이 비활성화되어 로그인할 수 없습니다. 관리자에게 문의하세요.",
+                                "USER_ACCOUNT_DISABLED"
                         );
                     }
                     username = rs.getString("username");
@@ -601,6 +609,128 @@ public class AuthService {
         } catch (Exception e) {
             log.debug("인증 확인 중 오류: {}", e.getMessage());
             return false;
+        }
+    }
+
+    /**
+     * Authenticated user changes own password (local {@code password_hash} only).
+     * AD login mode or directory-linked users cannot use this API (403).
+     */
+    public void changeOwnPassword(HttpServletRequest request, ChangeMyPasswordRequest body) {
+        if (!checkAuth(request)) {
+            throw CustomException.unauthorized("로그인이 필요합니다.", "UNAUTHORIZED");
+        }
+        String mode = authProperties.getLogin().getMode() != null
+                ? authProperties.getLogin().getMode().trim().toLowerCase(Locale.ROOT) : "local";
+        if (!"local".equals(mode)) {
+            throw CustomException.forbidden(
+                    "디렉터리 로그인 환경에서는 이 기능을 사용할 수 없습니다.",
+                    "PASSWORD_CHANGE_NOT_ALLOWED");
+        }
+        if (body == null) {
+            throw CustomException.badRequest("요청 본문이 필요합니다.", "INVALID_INPUT");
+        }
+        String current = body.getCurrentPassword() != null ? body.getCurrentPassword() : "";
+        String next = body.getNewPassword() != null ? body.getNewPassword() : "";
+        String confirm = body.getConfirmNewPassword() != null ? body.getConfirmNewPassword() : "";
+        if (!next.equals(confirm)) {
+            throw CustomException.badRequest("새 비밀번호와 확인 값이 일치하지 않습니다.", "INVALID_INPUT");
+        }
+        if (next.equals(current)) {
+            throw CustomException.badRequest("새 비밀번호는 현재 비밀번호와 달라야 합니다.", "INVALID_INPUT");
+        }
+
+        Long userId = resolveSessionNumericUserId(request);
+        if (userId == null) {
+            throw CustomException.unauthorized("로그인이 필요합니다.", "UNAUTHORIZED");
+        }
+        if (userHasExternalIdentityLink(userId)) {
+            throw CustomException.forbidden(
+                    "외부 계정과 연결된 사용자는 이 API로 비밀번호를 변경할 수 없습니다.",
+                    "PASSWORD_CHANGE_NOT_ALLOWED");
+        }
+
+        String storedHash;
+        try (Connection conn = dataSource.getConnection()) {
+            try (PreparedStatement ps = conn.prepareStatement(
+                    "SELECT password_hash FROM app_user WHERE id = ? AND deleted_at IS NULL")) {
+                ps.setLong(1, userId);
+                try (ResultSet rs = ps.executeQuery()) {
+                    if (!rs.next()) {
+                        throw CustomException.unauthorized("로그인이 필요합니다.", "UNAUTHORIZED");
+                    }
+                    storedHash = rs.getString("password_hash");
+                }
+            }
+        } catch (SQLException e) {
+            log.error("비밀번호 변경 조회 실패: userId={}", userId, e);
+            throw CustomException.internalError("비밀번호 변경 처리 중 오류가 발생했습니다.", "INTERNAL_ERROR");
+        }
+        if (storedHash == null) {
+            throw CustomException.unauthorized("사용자 ID와 비밀번호를 확인해주세요.", "INVALID_CREDENTIALS");
+        }
+        if (!current.equals(storedHash)) {
+            log.info("비밀번호 변경 거부: 현재 비밀번호 불일치 (userId={})", userId);
+            throw CustomException.badRequest("현재 비밀번호가 올바르지 않습니다.", "WRONG_PASSWORD");
+        }
+
+        try (Connection conn = dataSource.getConnection();
+             PreparedStatement ps = conn.prepareStatement(
+                     "UPDATE app_user SET password_hash = ? WHERE id = ? AND deleted_at IS NULL")) {
+            ps.setString(1, next);
+            ps.setLong(2, userId);
+            int updated = ps.executeUpdate();
+            if (updated != 1) {
+                throw CustomException.internalError("비밀번호 변경 처리 중 오류가 발생했습니다.", "INTERNAL_ERROR");
+            }
+        } catch (SQLException e) {
+            log.error("비밀번호 변경 저장 실패: userId={}", userId, e);
+            throw CustomException.internalError("비밀번호 변경 처리 중 오류가 발생했습니다.", "INTERNAL_ERROR");
+        }
+        log.info("비밀번호 변경 완료 (local, self-service): userId={}", userId);
+    }
+
+    private Long resolveSessionNumericUserId(HttpServletRequest request) {
+        jakarta.servlet.http.HttpSession session = request.getSession(false);
+        if (session == null) {
+            return null;
+        }
+        Object sid = session.getAttribute("userId");
+        if (sid instanceof Long) {
+            return (Long) sid;
+        }
+        if (sid instanceof Number) {
+            return ((Number) sid).longValue();
+        }
+        if (sid != null && !sid.toString().trim().isEmpty()) {
+            try {
+                return Long.parseLong(sid.toString().trim());
+            } catch (NumberFormatException e) {
+                log.trace("Session userId not numeric: {}", sid);
+            }
+        }
+        Object username = session.getAttribute("username");
+        if (username != null && !username.toString().isBlank()) {
+            LoginResponse.SelfContext ctx = resolveSelfContext(username.toString().trim());
+            if (ctx != null && ctx.getUserId() != null) {
+                return ctx.getUserId();
+            }
+            return appUserResolver.getIdByUsername(username.toString().trim());
+        }
+        return null;
+    }
+
+    private boolean userHasExternalIdentityLink(long userId) {
+        try (Connection conn = dataSource.getConnection();
+             PreparedStatement ps = conn.prepareStatement(
+                     "SELECT 1 FROM app_user_external_identity WHERE app_user_id = ? LIMIT 1")) {
+            ps.setLong(1, userId);
+            try (ResultSet rs = ps.executeQuery()) {
+                return rs.next();
+            }
+        } catch (SQLException e) {
+            log.warn("외부 계정 연결 여부 확인 실패: userId={}", userId, e);
+            return true;
         }
     }
 }

@@ -462,6 +462,41 @@ class SearchHistoryControllerTest {
                 .andExpect(jsonPath("$.code").value("FUNCTION_NOT_ALLOWED"));
     }
 
+    /** TC-05: non-approver direct API call to reject must be denied with 403 FUNCTION_NOT_ALLOWED. */
+    @Test
+    void reject_whenReadOnly_returns403() throws Exception {
+        AuthService readOnlyAuth = new AuthService(null, null, null, null, null, new com.logmng.config.AuthProperties(), null, null) {
+            @Override
+            public LoginResponse getCurrentUserInfo(jakarta.servlet.http.HttpServletRequest request) {
+                LoginResponse r = new LoginResponse();
+                r.setUserId(20260001L);
+                r.setUsername("u1");
+                r.setIsSystemAdmin(false);
+                Map<String, ScreenFunctionCapability> sf = new HashMap<>();
+                sf.put(ScreenConstants.PENDING_APPROVALS, new ScreenFunctionCapability(true, null, false));
+                r.setScreenFunctions(sf);
+                return r;
+            }
+        };
+        SearchHistoryController ctrl = new SearchHistoryController(
+                stubService,
+                new StubDecryptApproverService(),
+                readOnlyAuth,
+                new StubDataSource(),
+                new StubAppUserResolver(new StubDataSource()),
+                false);
+        MockMvc mvc = MockMvcBuilders.standaloneSetup(ctrl)
+                .setControllerAdvice(new com.logmng.exception.GlobalExceptionHandler())
+                .build();
+        mvc.perform(post("/api/search-history/1/reject")
+                        .contentType("application/json")
+                        .content("{\"rejectionReason\":\"nope\"}")
+                        .sessionAttr("userId", 20260001L)
+                        .sessionAttr("isSystemAdmin", false))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.code").value("FUNCTION_NOT_ALLOWED"));
+    }
+
     /** TC-01: user1 (approver) approves user2's PENDING request; user1 allowed → HTTP 200 */
     @Test
     void approve_whenAllowed_returns200() throws Exception {
@@ -520,6 +555,35 @@ class SearchHistoryControllerTest {
                 .andExpect(status().isForbidden())
                 .andExpect(jsonPath("$.success").value(false))
                 .andExpect(jsonPath("$.error").exists());
+    }
+
+    /** TC-06: out-of-scope/cross-department reject attempt should remain 403 with denial code boundary. */
+    @Test
+    void reject_whenServiceThrowsCustomExceptionForbidden_returns403() throws Exception {
+        SearchHistoryService forbiddenService = new SearchHistoryService(new StubDataSource(), null, new StubDecryptApproverService()) {
+            @Override
+            public java.util.Map<String, Object> reject(Long id, Long userId, String reason) {
+                throw CustomException.forbidden("해당 기능에 대한 권한이 없습니다.", "FUNCTION_NOT_ALLOWED");
+            }
+        };
+        SearchHistoryController ctrl = new SearchHistoryController(
+                forbiddenService,
+                new StubDecryptApproverService(),
+                new NoopAuthService(),
+                new StubDataSource(),
+                new StubAppUserResolver(new StubDataSource()),
+                false);
+        MockMvc mvc = MockMvcBuilders.standaloneSetup(ctrl)
+                .setControllerAdvice(new com.logmng.exception.GlobalExceptionHandler())
+                .build();
+        mvc.perform(post("/api/search-history/2/reject")
+                        .contentType("application/json")
+                        .content("{\"rejectionReason\":\"cross-dept\"}")
+                        .sessionAttr("userId", 20260001L)
+                        .sessionAttr("isSystemAdmin", true))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.code").value("FUNCTION_NOT_ALLOWED"));
     }
 
     /** TC-03: Cross-user approve → response is 200 or 4xx, never 500 */

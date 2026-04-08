@@ -11,6 +11,7 @@ metadata:
   requirement_ids:
     - "20260407-external-dept-employee-ad-login"
     - "20260407-user-management-consistency-delete-reason-activity-audit"
+    - "20260408-my-page-local-password-and-profile"
   status: "draft"
   base_path: "/api"
 
@@ -190,6 +191,7 @@ When `isSystemAdmin === false` **and** `allowedScreenIds` is empty or absent:
 - **Allowed endpoints** (for modal + logout flow):
   - `GET /api/auth/check`
   - `GET /api/auth/me`
+  - **`POST /api/auth/me/password`** — **local mode only** for successful password update; in **`auth.login.mode=ad`** → **403** `PASSWORD_CHANGE_NOT_ALLOWED` (normative detail: **`specs/my-page-password.spec.yaml`**)
   - `POST /api/auth/logout`
 
 **401** is for **missing/invalid session**, not for “no permissions.”

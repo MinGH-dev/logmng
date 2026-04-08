@@ -6,8 +6,8 @@
 ---
 metadata:
   title: "Permission group CRUD, user-group assignment, user-permission hierarchy, screen access"
-  version: "1.9"
-  requirement: "20250227-user-permission-hierarchy-group, 20250227-permission-group-screen-menu-access, 20250303-activity-statistics-self-only-scope, 20250303-screen-function-availability, explicit-read-write-approve-per-screen, 20260323-approver-eligibility-from-permission-group-only, 20260330-activity-types-user-mgmt-permission-group, 20260330-permission-group-activity-detail-audit, 20260406-permission-group-invalid-screen-id-screen-display-labels, 20260407-pending-approvals-history-search-readonly-requester"
+  version: "1.10"
+  requirement: "20250227-user-permission-hierarchy-group, 20250227-permission-group-screen-menu-access, 20250303-activity-statistics-self-only-scope, 20250303-screen-function-availability, explicit-read-write-approve-per-screen, 20260323-approver-eligibility-from-permission-group-only, 20260330-activity-types-user-mgmt-permission-group, 20260330-permission-group-activity-detail-audit, 20260406-permission-group-invalid-screen-id-screen-display-labels, 20260407-pending-approvals-history-search-readonly-requester, 20260408-poc-user-management-v2-isolated-clone"
   status: "draft"
 
 ---
@@ -76,6 +76,9 @@ On POST/PUT permission-groups, validate each `allowedScreens` item against per-s
 | statistics | ✓ | — | — | — | read only |
 | pending-approvals | ✓ | — | ✓ | — | read required; approve optional. write/decrypt must be false or omitted. **read** = screen access + list/search history (see §4.3 `listContext`); **approve** = decrypt approve/reject APIs only (req `20260407-pending-approvals-history-search-readonly-requester`) |
 | user-management | ✓ | ✓ | — | — | read required; write optional. approve/decrypt must be false or omitted |
+| user-management-v2 | ✓ | ✓ | — | — | same as user-management (production User Management v2 — `specs/user-management-v2.spec.yaml`) |
+| hr-sync-poc | ✓ | — | — | — | read only; PoC HR Sync preview/config/snapshots UI. write/approve/decrypt must be false or omitted |
+| user-management-v2-poc | ✓ | — | — | — | read only; isolated PoC UM v2 clone + `/api/hr-sync/poc/user-mgmt/*`. write/approve/decrypt must be false or omitted (req `20260408-poc-user-management-v2-isolated-clone`) |
 | department-approvers | ✓ | ✓ | — | — | read required; write optional. approve/decrypt must be false or omitted |
 | user-permission-hierarchy | ✓ | ✓ | — | — | read required; write optional. approve/decrypt must be false or omitted |
 | permission-group-management | ✓ | ✓ | — | — | same as user-permission-hierarchy |
@@ -277,6 +280,9 @@ Existing: USER_NOT_FOUND, FORBIDDEN, INVALID_INPUT, SELF_DEMOTION_BLOCKED, LAST_
 | statistics | 활동로그 통계 |
 | pending-approvals | 복호화 승인 관리 (승인 대기 → 라벨 변경) |
 | user-management | 사용자 관리 |
+| user-management-v2 | 사용자 관리 v2 (production) |
+| hr-sync-poc | HR Sync PoC (preview / snapshot UI) |
+| user-management-v2-poc | PoC User Management v2 (replica-only; `user-management-v2` 권한과 독립) |
 | department-approvers | 부서별 결재자 |
 | user-permission-hierarchy | 사용자 권한 계층 |
 | permission-group-management | 권한 그룹 관리 (same as user-permission-hierarchy) |
@@ -323,6 +329,9 @@ APIs that correspond to screens must validate: user has is_system_admin=true **o
 | activity-log | /api/activity-log/*, **GET** `/api/activity-log/action-types` (optional; activity-type filter options), /api/filter-options/departments?screen=activity-log | Use scope: self → override `userId`, ignore or safely override `username`, `department`, `departmentCode`, `ipAddress`, and equivalent "all" inputs so the result remains current-user-only, and show visible locked self-context from auth/current-user `selfContext`; shared filter-options endpoint is not the source of those locked values and may return `[]`; team → same department and shared filter-options endpoint returns only the current user's own department option; all → pass params as-is. Canonical **`action_type`** codes for `user_activity_log` and optional `action-types` response: `specs/activity-action-types.spec.yaml`. |
 | statistics | /api/statistics/*, /api/filter-options/departments?screen=statistics | Use scope: self → override userId, ignore dept/ip, and show visible locked self-context from auth/current-user `selfContext`; shared filter-options endpoint is not the source of those locked values and may return `[]`; team → same department and shared filter-options endpoint returns only the current user's own department option; all → pass params as-is |
 | user-management | /api/users, /api/users/approvers, /api/users/approvers/{userId} | — |
+| user-management-v2 | /api/user-management-v2/** (production v2 — `specs/user-management-v2.spec.yaml`) | — |
+| hr-sync-poc | /api/hr-sync/poc/config, /api/hr-sync/poc/preview, /api/hr-sync/poc/snapshots, /api/hr-sync/poc/snapshots/{snapshotId}/employees (`specs/hr-sync-poc.spec.yaml` §4.1–4.4) | — |
+| user-management-v2-poc | /api/hr-sync/poc/user-mgmt/replica-departments/tree, /api/hr-sync/poc/user-mgmt/replica-users, /api/hr-sync/poc/user-mgmt/actions/migrate-preview (`specs/hr-sync-poc.spec.yaml` §4.5–4.7) | — |
 | department-approvers | /api/departments, /api/departments/{code}/approvers, /api/departments/{code}/members, /api/departments/{code}/approvers/default | — |
 | user-permission-hierarchy | /api/permission-groups/*, /api/departments/user-permission-hierarchy | — |
 | permission-group-management | Same as user-permission-hierarchy | — |
@@ -376,6 +385,9 @@ screenFunctions: Record<screenId, ScreenFunctionCapability>
 | statistics | ✓ | — | — | — | read only | scope from screenScopes |
 | pending-approvals | ✓ | — | ✓ | — | read + approve optional | same as search-history row |
 | user-management | ✓ | ✓ | — | — | read + write optional | write from group or derived |
+| user-management-v2 | ✓ | ✓ | — | — | read + write optional | write from group or derived |
+| hr-sync-poc | ✓ | — | — | — | read only | `{ read: true }` when in allowedScreenIds |
+| user-management-v2-poc | ✓ | — | — | — | read only | `{ read: true }` when in allowedScreenIds |
 | department-approvers | ✓ | ✓ | — | — | read + write optional | write from group or derived |
 | user-permission-hierarchy | ✓ | ✓ | — | — | read + write optional | write from group or derived |
 | permission-group-management | ✓ | ✓ | — | — | same as user-permission-hierarchy | same |

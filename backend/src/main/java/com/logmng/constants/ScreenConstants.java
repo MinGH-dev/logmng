@@ -40,6 +40,12 @@ public final class ScreenConstants {
             Arrays.asList(SEARCH_HISTORY, ACTIVITY_LOG, STATISTICS, PENDING_APPROVALS).stream().collect(Collectors.toSet())
     );
     public static final String USER_MANAGEMENT = "user-management";
+    /** User Management v2 (production). */
+    public static final String USER_MANAGEMENT_V2 = "user-management-v2";
+    /** HR Sync PoC preview screen (sidebar). */
+    public static final String HR_SYNC_POC = "hr-sync-poc";
+    /** PoC-only UM v2 clone; APIs under {@code /api/hr-sync/poc/user-mgmt/*}. Req: 20260408-poc-user-management-v2-isolated-clone. */
+    public static final String USER_MANAGEMENT_V2_POC = "user-management-v2-poc";
     public static final String DEPARTMENT_APPROVERS = "department-approvers";
     public static final String USER_PERMISSION_HIERARCHY = "user-permission-hierarchy";
     public static final String PERMISSION_GROUP_MANAGEMENT = "permission-group-management";
@@ -59,7 +65,8 @@ public final class ScreenConstants {
             Arrays.asList(
                     MAIN, PB_FEPLOG, PB_FEP_LOG_SEARCH, JAVA_FW_IMAGELOG, SEARCH_HISTORY, ACTIVITY_LOG,
                     ACTIVITY_LOG_DETAIL, ACTIVITY_LOG_ACCESS_AUDIT, STATISTICS,
-                    PENDING_APPROVALS, USER_MANAGEMENT, DEPARTMENT_APPROVERS,
+                    PENDING_APPROVALS, USER_MANAGEMENT, USER_MANAGEMENT_V2, HR_SYNC_POC, USER_MANAGEMENT_V2_POC,
+                    DEPARTMENT_APPROVERS,
                     USER_PERMISSION_HIERARCHY, PERMISSION_GROUP_MANAGEMENT, PERMISSION_GROUP_SCREEN_MATRIX,
                     SCREEN_DISPLAY_LABELS
             ).stream().collect(Collectors.toSet())

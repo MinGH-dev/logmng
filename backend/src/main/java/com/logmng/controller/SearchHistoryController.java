@@ -148,19 +148,52 @@ public class SearchHistoryController {
         }
     }
 
+    private void logApprovalAuthzDecision(HttpServletRequest request,
+                                          Long searchHistoryId,
+                                          String action,
+                                          Long actorUserId,
+                                          String actorUsername,
+                                          boolean isSystemAdmin,
+                                          boolean canApprove,
+                                          String decision,
+                                          String denialCode) {
+        String scope = ScopeHelper.resolveScope(ScreenConstants.PENDING_APPROVALS, isSystemAdmin, getScreenScopes(request));
+        String detail = String.format(
+                "path=%s method=%s actorUserId=%s actorUsername=%s isSystemAdmin=%s canApprove=%s screenId=%s effectiveScope=%s action=%s decision=%s denialCode=%s",
+                request != null ? request.getRequestURI() : "",
+                request != null ? request.getMethod() : "",
+                actorUserId != null ? actorUserId : "",
+                actorUsername != null ? actorUsername : "",
+                isSystemAdmin,
+                canApprove,
+                ScreenConstants.PENDING_APPROVALS,
+                scope != null ? scope : "",
+                action != null ? action : "",
+                decision,
+                denialCode != null ? denialCode : "");
+        ApprovalFlowDiagnosticLog.debug(diagnosticApprovalFlow, searchHistoryId != null ? searchHistoryId : -1L, "AUTHZ_DECISION", detail);
+    }
+
     /** Requires (isAdmin or isApprover) AND (isAdmin or screenFunctions.approve for search-history/pending-approvals). Per spec §4.4. Req 20260316: isApprover by Long. */
-    private void requireApproverOrAdmin(HttpServletRequest request) {
+    private void requireApproverOrAdmin(HttpServletRequest request, Long searchHistoryId, String action) {
         Long userId = getCurrentUserId(request);
+        String username = getCurrentUsername(request);
+        boolean sysAdmin = isSystemAdmin(request);
+        boolean isAdmin = decryptApproverService.isAdmin(sysAdmin);
         if (userId == null) {
+            logApprovalAuthzDecision(request, searchHistoryId, action, null, username, sysAdmin, false, "DENY", "UNAUTHORIZED");
             throw CustomException.unauthorized("로그인이 필요합니다.", "UNAUTHORIZED");
         }
-        boolean isAdmin = decryptApproverService.isAdmin(isSystemAdmin(request));
+        boolean canApprove = isAdmin || authService.hasApproveForSearchHistory(request);
         if (!isAdmin && !decryptApproverService.isApprover(userId)) {
+            logApprovalAuthzDecision(request, searchHistoryId, action, userId, username, sysAdmin, canApprove, "DENY", "FUNCTION_NOT_ALLOWED");
             throw CustomException.forbidden("해당 기능에 대한 권한이 없습니다.", "FUNCTION_NOT_ALLOWED");
         }
-        if (!isAdmin && !authService.hasApproveForSearchHistory(request)) {
+        if (!canApprove) {
+            logApprovalAuthzDecision(request, searchHistoryId, action, userId, username, sysAdmin, false, "DENY", "FUNCTION_NOT_ALLOWED");
             throw CustomException.forbidden("해당 기능에 대한 권한이 없습니다.", "FUNCTION_NOT_ALLOWED");
         }
+        logApprovalAuthzDecision(request, searchHistoryId, action, userId, username, sysAdmin, canApprove, "ALLOW", null);
     }
 
     /**
@@ -192,7 +225,7 @@ public class SearchHistoryController {
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "20") int pageSize,
             HttpServletRequest httpRequest) {
-        requireApproverOrAdmin(httpRequest);
+        requireApproverOrAdmin(httpRequest, null, "listPending");
         Long approverUserId = getCurrentUserId(httpRequest);
         if (approverUserId == null) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
@@ -370,7 +403,7 @@ public class SearchHistoryController {
             HttpServletRequest httpRequest) {
         Long userId;
         try {
-            requireApproverOrAdmin(httpRequest);
+            requireApproverOrAdmin(httpRequest, id, "approve");
             userId = getCurrentUserId(httpRequest);
         } catch (CustomException e) {
             throw e;
@@ -404,7 +437,7 @@ public class SearchHistoryController {
             @PathVariable Long id,
             @RequestBody(required = false) RejectRequest body,
             HttpServletRequest httpRequest) {
-        requireApproverOrAdmin(httpRequest);
+        requireApproverOrAdmin(httpRequest, id, "reject");
         Long userId = getCurrentUserId(httpRequest);
         if (userId == null) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED)

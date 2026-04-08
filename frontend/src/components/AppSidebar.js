@@ -1,7 +1,9 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { Sidebar, Menu, MenuItem, SubMenu } from 'react-pro-sidebar';
 import { useTheme } from '@mui/material/styles';
 import { MENU_TREE, SECOND_ICONS } from '../constants/menuTree';
+import { isHrSyncPocMenuEnabled } from '../config/hrSyncPocUi';
+import logger from '../utils/logger';
 
 /** §2.1: Submenu indent (24px–32px); use 28px to match 8px grid */
 const SUBMENU_INDENT_PX = 28;
@@ -18,6 +20,7 @@ function AppSidebar({
   menuTree = MENU_TREE,
 }) {
   const theme = useTheme();
+  const sidebarHostRef = useRef(null);
 
   const isActive = (item) => currentView === item.view;
 
@@ -26,8 +29,25 @@ function AppSidebar({
     /** Show child when user has access. user-management and permission-group-management also accept user-permission-hierarchy. */
     const canShowChild = (c) => {
       if (c.systemAdminOnly === true && !isAdmin) return false;
+      if (c.view === 'hr-sync-poc' && !isHrSyncPocMenuEnabled()) return false;
+      if (c.view === 'user-management-v2-poc' && !isHrSyncPocMenuEnabled()) return false;
       if (!c?.view || !ids?.length) return false;
       if (c.view === 'user-management') return ids.includes('user-management') || ids.includes('user-permission-hierarchy');
+      if (c.view === 'hr-sync-poc') {
+        return ids.includes('user-management') || ids.includes('user-permission-hierarchy');
+      }
+      if (c.view === 'user-management-v2') {
+        return ids.includes('user-management-v2') || ids.includes('user-management') || ids.includes('user-permission-hierarchy');
+      }
+      if (c.view === 'user-management-v2-poc') {
+        return (
+          ids.includes('user-management-v2-poc') ||
+          ids.includes('hr-sync-poc') ||
+          ids.includes('user-management-v2') ||
+          ids.includes('user-management') ||
+          ids.includes('user-permission-hierarchy')
+        );
+      }
       if (c.view === 'permission-group-management' || c.view === 'permission-group-screen-matrix') {
         return ids.includes('permission-group-management') || ids.includes('user-permission-hierarchy');
       }
@@ -43,10 +63,20 @@ function AppSidebar({
       const hasAnyAllowedChild = node.children.some((c) => canShowChild(c));
       return hasAnyAllowedChild;
     }).map((node) => {
-      if (isAdmin) return node;
+      const stripHrSyncWhenMenuOff = (children) =>
+        (children || []).filter(
+          (c) =>
+            !(
+              (c.view === 'hr-sync-poc' || c.view === 'user-management-v2-poc') &&
+              !isHrSyncPocMenuEnabled()
+            )
+        );
+      if (isAdmin) {
+        return { ...node, children: stripHrSyncWhenMenuOff(node.children) };
+      }
       return {
         ...node,
-        children: node.children.filter((c) => canShowChild(c)),
+        children: stripHrSyncWhenMenuOff(node.children.filter((c) => canShowChild(c))),
       };
     });
   }, [isAdmin, allowedScreenIds, menuTree]);
@@ -58,6 +88,47 @@ function AppSidebar({
   const setSubMenuOpen = (nodeId, open) =>
     setOpenMenus((prev) => ({ ...prev, [nodeId]: open }));
 
+  useEffect(() => {
+    const hasOpenSubmenu =
+      Object.values(openMenus).some(Boolean) ||
+      filteredTree.some((node) =>
+        openMenus[node.id] !== undefined
+          ? openMenus[node.id]
+          : node.children.some((child) => currentView === child.view)
+      );
+    if (open || !hasOpenSubmenu) return;
+    const host = sidebarHostRef.current;
+    const sidebarRoot = host?.querySelector('.ps-sidebar-root');
+    const submenuContent = host?.querySelector('.ps-submenu-content');
+    const appMain = document.querySelector('main');
+    if (!sidebarRoot || !appMain) return;
+    const sidebarStyles = window.getComputedStyle(sidebarRoot);
+    const mainStyles = window.getComputedStyle(appMain);
+    const submenuStyles = submenuContent ? window.getComputedStyle(submenuContent) : null;
+    logger.debug('Sidebar collapsed submenu layer diagnostic', {
+      collapsed: !open,
+      hasOpenSubmenu,
+      sidebar: {
+        overflow: sidebarStyles.overflow,
+        overflowX: sidebarStyles.overflowX,
+        overflowY: sidebarStyles.overflowY,
+        zIndex: sidebarStyles.zIndex,
+        position: sidebarStyles.position,
+      },
+      submenu: submenuStyles
+        ? {
+            zIndex: submenuStyles.zIndex,
+            position: submenuStyles.position,
+          }
+        : null,
+      main: {
+        overflowX: mainStyles.overflowX,
+        zIndex: mainStyles.zIndex,
+        position: mainStyles.position,
+      },
+    });
+  }, [open, openMenus, filteredTree, currentView]);
+
   const handleChildClick = (child) => {
     onNavigate(child.view);
   };
@@ -65,6 +136,8 @@ function AppSidebar({
   const menuItemStyles = useMemo(
     () => {
       const topLevelPadding = 12;
+      const isCollapsed = !open;
+      const collapsedChildPadding = 0;
       return {
         root: {
           fontFamily: theme.typography.fontFamily,
@@ -92,8 +165,16 @@ function AppSidebar({
               paddingRight: topLevelPadding,
             };
           }
-          /** §2.1: Child indent 24px–32px; same as "이력·승인" children */
+          /** Expanded mode keeps child indent. Collapsed mode removes extra left gap in popout submenu. */
           const indentPx = 20 + SUBMENU_INDENT_PX;
+          if (isCollapsed) {
+            return {
+              ...base,
+              ...activeStyle,
+              paddingLeft: collapsedChildPadding,
+              paddingRight: collapsedChildPadding,
+            };
+          }
           return {
             ...base,
             ...activeStyle,
@@ -103,32 +184,35 @@ function AppSidebar({
         label: {
           fontFamily: theme.typography.fontFamily,
         },
-        /** §2.1: Submenu content indent so "PB FEP v1.0.0"/"검색 이력" align with "활동 이력"/"복호화 승인 관리" */
+        /** Expanded uses indent; collapsed popout removes left whitespace for submenu items. */
         subMenuContent: {
-          paddingLeft: SUBMENU_INDENT_PX,
+          paddingLeft: isCollapsed ? 0 : SUBMENU_INDENT_PX,
         },
       };
     },
-    [theme]
+    [theme, open]
   );
 
   return (
-    <Sidebar
-      collapsed={!open}
-      width={`${DRAWER_WIDTH_OPEN}px`}
-      collapsedWidth={`${DRAWER_WIDTH_COLLAPSED}px`}
-      backgroundColor={theme.palette.background.paper}
-      rootStyles={{
-        borderRight: `1px solid ${theme.palette.divider}`,
-        height: '100vh',
-        overflow: 'hidden',
-        position: 'relative',
-        display: 'flex',
-        flexDirection: 'column',
-      }}
-      transitionDuration={theme.transitions.duration.enteringScreen}
-      aria-label="사이드바 메뉴"
-    >
+    <div ref={sidebarHostRef}>
+      <Sidebar
+        collapsed={!open}
+        width={`${DRAWER_WIDTH_OPEN}px`}
+        collapsedWidth={`${DRAWER_WIDTH_COLLAPSED}px`}
+        backgroundColor={theme.palette.background.paper}
+        rootStyles={{
+          borderRight: `1px solid ${theme.palette.divider}`,
+          height: '100vh',
+          overflow: 'visible',
+          position: 'relative',
+          zIndex: theme.zIndex.drawer,
+          flexShrink: 0,
+          display: 'flex',
+          flexDirection: 'column',
+        }}
+        transitionDuration={theme.transitions.duration.enteringScreen}
+        aria-label="사이드바 메뉴"
+      >
       {/* §6.2: Explicit maxHeight so scroll works regardless of parent flex chain (react-pro-sidebar container height:100% may not get a containing block) */}
       <div
         style={{
@@ -179,7 +263,8 @@ function AppSidebar({
         })}
       </Menu>
       </div>
-    </Sidebar>
+      </Sidebar>
+    </div>
   );
 }
 

@@ -80,6 +80,116 @@ class ScreenAccessInterceptorTest {
     }
 
     @Test
+    void getHrSyncPocConfig_deniedWithoutUserManagementOrHierarchyScreen() throws Exception {
+        LoginResponse user = new LoginResponse();
+        user.setUsername("u1");
+        user.setIsSystemAdmin(false);
+        user.setAllowedScreenIds(List.of(ScreenConstants.SEARCH_HISTORY));
+        auth.setUser(user);
+
+        MockHttpServletRequest req = new MockHttpServletRequest("GET", "/api/hr-sync/poc/config");
+        MockHttpServletResponse res = new MockHttpServletResponse();
+        assertThat(interceptor.preHandle(req, res, null)).isFalse();
+        assertThat(res.getStatus()).isEqualTo(403);
+    }
+
+    @Test
+    void getHrSyncPocConfig_allowedWithUserManagementScreen() throws Exception {
+        LoginResponse user = new LoginResponse();
+        user.setUsername("u1");
+        user.setIsSystemAdmin(false);
+        user.setAllowedScreenIds(List.of(ScreenConstants.USER_MANAGEMENT));
+        auth.setUser(user);
+
+        MockHttpServletRequest req = new MockHttpServletRequest("GET", "/api/hr-sync/poc/config");
+        MockHttpServletResponse res = new MockHttpServletResponse();
+        assertThat(interceptor.preHandle(req, res, null)).isTrue();
+    }
+
+    @Test
+    void getHrSyncPocConfig_allowedWithUserPermissionHierarchyScreen() throws Exception {
+        LoginResponse user = new LoginResponse();
+        user.setUsername("u1");
+        user.setIsSystemAdmin(false);
+        user.setAllowedScreenIds(List.of(ScreenConstants.USER_PERMISSION_HIERARCHY));
+        auth.setUser(user);
+
+        MockHttpServletRequest req = new MockHttpServletRequest("GET", "/api/hr-sync/poc/config");
+        MockHttpServletResponse res = new MockHttpServletResponse();
+        assertThat(interceptor.preHandle(req, res, null)).isTrue();
+    }
+
+    @Test
+    void getHrSyncPocSnapshots_allowedWithSameScreensAsConfig() throws Exception {
+        LoginResponse user = new LoginResponse();
+        user.setUsername("u1");
+        user.setIsSystemAdmin(false);
+        user.setAllowedScreenIds(List.of(ScreenConstants.USER_MANAGEMENT));
+        auth.setUser(user);
+
+        MockHttpServletRequest req = new MockHttpServletRequest("GET", "/api/hr-sync/poc/snapshots");
+        MockHttpServletResponse res = new MockHttpServletResponse();
+        assertThat(interceptor.preHandle(req, res, null)).isTrue();
+    }
+
+    @Test
+    void getHrSyncPocSnapshotEmployees_allowedWithUserPermissionHierarchyScreen() throws Exception {
+        LoginResponse user = new LoginResponse();
+        user.setUsername("u1");
+        user.setIsSystemAdmin(false);
+        user.setAllowedScreenIds(List.of(ScreenConstants.USER_PERMISSION_HIERARCHY));
+        auth.setUser(user);
+
+        MockHttpServletRequest req = new MockHttpServletRequest(
+                "GET", "/api/hr-sync/poc/snapshots/poc-snap-20260408-A/employees");
+        MockHttpServletResponse res = new MockHttpServletResponse();
+        assertThat(interceptor.preHandle(req, res, null)).isTrue();
+    }
+
+    @Test
+    void getPocUserMgmtReplicaTree_deniedWithSearchHistoryOnly() throws Exception {
+        LoginResponse user = new LoginResponse();
+        user.setUsername("u1");
+        user.setIsSystemAdmin(false);
+        user.setAllowedScreenIds(List.of(ScreenConstants.SEARCH_HISTORY));
+        auth.setUser(user);
+
+        MockHttpServletRequest req =
+                new MockHttpServletRequest("GET", "/api/hr-sync/poc/user-mgmt/replica-departments/tree");
+        MockHttpServletResponse res = new MockHttpServletResponse();
+        assertThat(interceptor.preHandle(req, res, null)).isFalse();
+        assertThat(res.getStatus()).isEqualTo(403);
+    }
+
+    @Test
+    void getPocUserMgmtReplicaTree_allowedWithUserManagementV2PocScreen() throws Exception {
+        LoginResponse user = new LoginResponse();
+        user.setUsername("u1");
+        user.setIsSystemAdmin(false);
+        user.setAllowedScreenIds(List.of(ScreenConstants.USER_MANAGEMENT_V2_POC));
+        auth.setUser(user);
+
+        MockHttpServletRequest req =
+                new MockHttpServletRequest("GET", "/api/hr-sync/poc/user-mgmt/replica-departments/tree");
+        MockHttpServletResponse res = new MockHttpServletResponse();
+        assertThat(interceptor.preHandle(req, res, null)).isTrue();
+    }
+
+    @Test
+    void getPocUserMgmtReplicaTree_allowedWithHrSyncPocScreen() throws Exception {
+        LoginResponse user = new LoginResponse();
+        user.setUsername("u1");
+        user.setIsSystemAdmin(false);
+        user.setAllowedScreenIds(List.of(ScreenConstants.HR_SYNC_POC));
+        auth.setUser(user);
+
+        MockHttpServletRequest req =
+                new MockHttpServletRequest("GET", "/api/hr-sync/poc/user-mgmt/replica-users");
+        MockHttpServletResponse res = new MockHttpServletResponse();
+        assertThat(interceptor.preHandle(req, res, null)).isTrue();
+    }
+
+    @Test
     void getSearchHistoryDetail_numericId_allowedWithPendingApprovals() throws Exception {
         LoginResponse user = new LoginResponse();
         user.setUsername("u1");

@@ -54,6 +54,10 @@ const SCOPE_HINT_LABELS = {
 };
 
 const PA_APPROVAL_DROPDOWN_ID = 'pending-approvals-approval-dropdown-panel';
+function shouldLogPendingApprovalVisibilityDiagnostics() {
+  return process.env.NODE_ENV !== 'production'
+    && process.env.REACT_APP_PA_DEBUG_VISIBILITY === 'true';
+}
 
 function getApprovalSummary(selected) {
   if (!Array.isArray(selected) || selected.length === 0) return '전체';
@@ -62,6 +66,30 @@ function getApprovalSummary(selected) {
     .map((v) => PA_APPROVAL_STATUS_OPTIONS.find((o) => o.value === v)?.label)
     .filter(Boolean)
     .join(', ');
+}
+
+function logPendingApprovalVisibilityDecision({
+  rowId,
+  canApprove,
+  rawStatus,
+  normalizedStatus,
+  pendingRow,
+}) {
+  if (!shouldLogPendingApprovalVisibilityDiagnostics()) return;
+  logger.debug('[pending-approvals][visibility]', {
+    rowId,
+    canApprove,
+    rawStatus,
+    normalizedStatus,
+    pendingRow,
+    showActions: canApprove && pendingRow,
+  });
+}
+
+function normalizeApprovalStatus(status) {
+  if (status == null) return '';
+  const normalized = String(status).trim().toUpperCase();
+  return normalized;
 }
 
 /** 동작 구분 multi-select (검색 이력과 동일 패턴; 라벨은 §1 승인대기/승인/반려/만료) */
@@ -637,9 +665,17 @@ const PendingApprovals = ({ user }) => {
         ) : (
           list.map((row) => {
             const { department, requesterUsername, requesterDisplayName } = getRequesterCellValues(row);
-            const statusKey = row.approvalStatus ?? row.approval_status;
+            const rawStatus = row.approvalStatus ?? row.approval_status;
+            const statusKey = normalizeApprovalStatus(rawStatus);
             const statusLabel = PA_STATUS_LABEL[statusKey] || statusKey || '—';
             const pendingRow = statusKey === 'PENDING';
+            logPendingApprovalVisibilityDecision({
+              rowId: row.id,
+              canApprove,
+              rawStatus,
+              normalizedStatus: statusKey,
+              pendingRow,
+            });
             return (
               <tr key={row.id}>
                 <td>{row.seq}</td>

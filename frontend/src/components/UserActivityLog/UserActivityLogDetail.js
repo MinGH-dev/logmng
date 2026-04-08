@@ -17,6 +17,56 @@ const LEGACY_PG_ENRICHER_KEYS = new Set([
 ]);
 
 /**
+ * `action_detail` keys handled elsewhere (dedicated sections / mutation summaries / blobs).
+ * @type {Set<string>}
+ */
+const ACTION_DETAIL_STRUCTURAL_KEYS = new Set([
+  'permissionGroupAuditV1',
+  'department_admin',
+  'searchSummary',
+  'requestParams',
+  'copyPayload',
+  'before',
+  'after',
+  'deleteSnapshot',
+  'deletedSnapshot',
+  'snapshotBeforeDelete',
+  'insertPayload',
+]);
+
+/**
+ * Human-readable labels for `action_detail` fields (User Management v2 / `department_admin` / common audit).
+ * Keys include snake_case variants for older payloads.
+ * @type {Record<string, string>}
+ */
+const ACTION_DETAIL_FIELD_LABELS = {
+  changeReason: '변경 사유',
+  change_reason: '변경 사유',
+  departmentCode: '부서 코드',
+  department_code: '부서 코드',
+  parentDepartmentId: '상위 부서 ID',
+  parent_department_id: '상위 부서 ID',
+  parentDepartmentCode: '상위 부서 코드',
+  parent_department_code: '상위 부서 코드',
+  targetUserId: '대상 사용자 ID (앱)',
+  target_user_id: '대상 사용자 ID (앱)',
+  userId: '사용자 ID (상세)',
+  user_id: '사용자 ID (상세)',
+  employeeNumber: '사번',
+  employee_number: '사번',
+  username: '로그인 사용자명',
+  name: '이름',
+  sortOrder: '정렬 순서',
+  sort_order: '정렬 순서',
+  operation: '작업 구분',
+  source: '출처',
+  registrationSource: '등록 출처',
+  registration_source: '등록 출처',
+  schemaVersion: '스키마 버전',
+  schema_version: '스키마 버전',
+};
+
+/**
  * @param {unknown} raw
  * @returns {Record<string, unknown>}
  */
@@ -156,6 +206,26 @@ function isUserLifecycleActionType(actionType) {
   if (!actionType || typeof actionType !== 'string') return false;
   const u = actionType.trim().toUpperCase();
   return u === 'USER_CREATE' || u === 'USER_DELETE';
+}
+
+/** @param {string|undefined} actionType */
+function getUserLifecycleDetailExcludedKeys(actionType) {
+  if (!isUserLifecycleActionType(actionType)) return new Set();
+  return new Set([
+    'changeReason',
+    'change_reason',
+    'targetUserId',
+    'target_user_id',
+    'employeeNumber',
+    'employee_number',
+    'username',
+    'departmentCode',
+    'department_code',
+    'name',
+    'source',
+    'registrationSource',
+    'registration_source',
+  ]);
 }
 
 /**
@@ -422,9 +492,13 @@ const UserActivityLogDetail = ({
               b && Object.prototype.hasOwnProperty.call(b, field) ? b[field] : undefined;
             const afterVal =
               a && Object.prototype.hasOwnProperty.call(a, field) ? a[field] : undefined;
+            const fieldHeader =
+              ACTION_DETAIL_FIELD_LABELS[field] != null
+                ? ACTION_DETAIL_FIELD_LABELS[field]
+                : field;
             return (
               <tr key={field}>
-                <th scope="row">{field}</th>
+                <th scope="row">{fieldHeader}</th>
                 <td>{renderDiffCell(beforeVal)}</td>
                 <td>{renderDiffCell(afterVal)}</td>
               </tr>
@@ -455,7 +529,9 @@ const UserActivityLogDetail = ({
             <tbody>
               {keys.map((k) => (
                 <tr key={k}>
-                  <th scope="row">{k}</th>
+                  <th scope="row">
+                    {ACTION_DETAIL_FIELD_LABELS[k] != null ? ACTION_DETAIL_FIELD_LABELS[k] : k}
+                  </th>
                   <td>{renderDiffCell(parsed[k])}</td>
                 </tr>
               ))}
@@ -473,6 +549,71 @@ const UserActivityLogDetail = ({
         {headingText && <h5 className="pg-audit-subheading">{headingText}</h5>}
         <pre className="json-content json-pretty">{formatJSON(parsed)}</pre>
       </>
+    );
+  };
+
+  const renderDepartmentAdminAudit = () => {
+    const da = actionDetail.department_admin;
+    if (!isPlainObject(da)) return null;
+    const { before: b, after: a, ...rest } = da;
+    const sortedRestKeys = Object.keys(rest).sort((x, y) => x.localeCompare(y));
+    const rows = [];
+    const remainder = {};
+    for (const key of sortedRestKeys) {
+      const label = ACTION_DETAIL_FIELD_LABELS[key];
+      const val = rest[key];
+      if (label) {
+        rows.push({ key, label, val });
+      } else {
+        remainder[key] = val;
+      }
+    }
+    const bObj = isPlainObject(b);
+    const aObj = isPlainObject(a);
+    const showDiff = bObj && aObj;
+    const showPartial =
+      !showDiff &&
+      ((b != null && b !== '') || (a != null && a !== ''));
+    const hasFlat = rows.length > 0 || Object.keys(remainder).length > 0;
+    if (!showDiff && !showPartial && !hasFlat) {
+      return null;
+    }
+    return (
+      <div className="activity-log-department-admin-audit">
+        <h4>부서·조직 감사</h4>
+        {showDiff && (
+          <>
+            <h5 className="pg-audit-subheading">수정 — 필드별 비교</h5>
+            {renderObjectDiffTable(b, a, {
+              tableAriaLabel: '부서 메타데이터 필드별 변경 전후',
+            })}
+          </>
+        )}
+        {showPartial && (
+          <>
+            {b != null && b !== '' && renderSnapshotPayloadBlock(b, '변경 전')}
+            {a != null && a !== '' && renderSnapshotPayloadBlock(a, '변경 후')}
+          </>
+        )}
+        {rows.length > 0 && (
+          <table className="summary-table activity-log-labeled-detail-table">
+            <tbody>
+              {rows.map(({ key, label, val }) => (
+                <tr key={key}>
+                  <th scope="row">{label}</th>
+                  <td>{renderDiffCell(val)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+        {Object.keys(remainder).length > 0 && (
+          <div className="action-detail-unknown-keys">
+            <h5 className="pg-audit-subheading">기타 필드 (JSON)</h5>
+            <pre className="json-content json-pretty">{formatJSON(remainder)}</pre>
+          </div>
+        )}
+      </div>
     );
   };
 
@@ -501,11 +642,20 @@ const UserActivityLogDetail = ({
     const targetUserId = actionDetail.targetUserId ?? actionDetail.target_user_id;
     const employeeNumber = actionDetail.employeeNumber ?? actionDetail.employee_number;
     const username = actionDetail.username;
+    const departmentCode = actionDetail.departmentCode ?? actionDetail.department_code;
+    const displayName = actionDetail.name;
+    const source = actionDetail.source;
+    const registrationSource =
+      actionDetail.registrationSource ?? actionDetail.registration_source;
     const hasAny =
       (changeReason != null && String(changeReason).trim() !== '') ||
       targetUserId != null ||
       (employeeNumber != null && String(employeeNumber).trim() !== '') ||
-      (username != null && String(username).trim() !== '');
+      (username != null && String(username).trim() !== '') ||
+      (departmentCode != null && String(departmentCode).trim() !== '') ||
+      (displayName != null && String(displayName).trim() !== '') ||
+      (source != null && String(source).trim() !== '') ||
+      (registrationSource != null && String(registrationSource).trim() !== '');
     if (!hasAny) return null;
     return (
       <div className="activity-log-user-lifecycle-audit">
@@ -525,6 +675,22 @@ const UserActivityLogDetail = ({
               <td>{targetUserId != null ? plainText(targetUserId) : '-'}</td>
             </tr>
             <tr>
+              <th scope="row">부서 코드</th>
+              <td>
+                {departmentCode != null && String(departmentCode).trim() !== ''
+                  ? plainText(departmentCode)
+                  : '-'}
+              </td>
+            </tr>
+            <tr>
+              <th scope="row">이름</th>
+              <td>
+                {displayName != null && String(displayName).trim() !== ''
+                  ? plainText(displayName)
+                  : '-'}
+              </td>
+            </tr>
+            <tr>
               <th scope="row">사용자 ID (인사)</th>
               <td>
                 {employeeNumber != null && String(employeeNumber).trim() !== ''
@@ -533,14 +699,74 @@ const UserActivityLogDetail = ({
               </td>
             </tr>
             <tr>
-              <th scope="row">사용자명</th>
+              <th scope="row">로그인 사용자명</th>
               <td>
                 {username != null && String(username).trim() !== '' ? plainText(username) : '-'}
+              </td>
+            </tr>
+            <tr>
+              <th scope="row">출처</th>
+              <td>
+                {source != null && String(source).trim() !== '' ? plainText(source) : '-'}
+              </td>
+            </tr>
+            <tr>
+              <th scope="row">등록 출처</th>
+              <td>
+                {registrationSource != null && String(registrationSource).trim() !== ''
+                  ? plainText(registrationSource)
+                  : '-'}
               </td>
             </tr>
           </tbody>
         </table>
       </div>
+    );
+  };
+
+  const renderLabeledFlatActionDetail = () => {
+    if (isPgFamily) return null;
+    const excludeLifecycle = getUserLifecycleDetailExcludedKeys(log?.action_type);
+    const rows = [];
+    const remainder = {};
+    const keys = Object.keys(actionDetail).sort((x, y) => x.localeCompare(y));
+    for (const key of keys) {
+      if (ACTION_DETAIL_STRUCTURAL_KEYS.has(key)) continue;
+      if (excludeLifecycle.has(key)) continue;
+      if (LEGACY_PG_ENRICHER_KEYS.has(key)) continue;
+      const val = actionDetail[key];
+      const label = ACTION_DETAIL_FIELD_LABELS[key];
+      if (label) {
+        rows.push({ key, label, val });
+      } else {
+        remainder[key] = val;
+      }
+    }
+    if (rows.length === 0 && Object.keys(remainder).length === 0) return null;
+    return (
+      <>
+        {rows.length > 0 && (
+          <div className="activity-log-labeled-action-detail">
+            <h4>상세 필드</h4>
+            <table className="summary-table activity-log-labeled-detail-table">
+              <tbody>
+                {rows.map(({ key, label, val }) => (
+                  <tr key={key}>
+                    <th scope="row">{label}</th>
+                    <td>{renderDiffCell(val)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+        {Object.keys(remainder).length > 0 && (
+          <div className="action-detail-unknown-keys">
+            <h4>기타 키 (JSON)</h4>
+            <pre className="json-content json-pretty">{formatJSON(remainder)}</pre>
+          </div>
+        )}
+      </>
     );
   };
 
@@ -694,14 +920,21 @@ const UserActivityLogDetail = ({
 
   return (
     <div className="activity-log-detail-overlay" onClick={onClose}>
-      <div className="activity-log-detail-modal" onClick={(e) => e.stopPropagation()}>
+      <div
+        className="activity-log-detail-modal"
+        onClick={(e) => e.stopPropagation()}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="activity-log-detail-title"
+      >
         <div className="activity-log-detail-header">
-          <h2>활동 이력 상세</h2>
-          <button type="button" className="close-button" onClick={onClose}>
+          <h2 id="activity-log-detail-title">활동 이력 상세</h2>
+          <button type="button" className="close-button" onClick={onClose} aria-label="상세 닫기">
             ×
           </button>
         </div>
-        <div className="activity-log-detail-content">
+        <div className="activity-log-detail-body">
+          <div className="activity-log-detail-content">
           {loading && (
             <div className="activity-log-detail-loading" role="status" aria-live="polite">
               상세를 불러오는 중…
@@ -791,7 +1024,9 @@ const UserActivityLogDetail = ({
             <div className="detail-section">
               <h3>액션 상세</h3>
               {renderGenericMutationSummary()}
+              {renderDepartmentAdminAudit()}
               {renderUserLifecycleAudit()}
+              {renderLabeledFlatActionDetail()}
               {actionDetail.searchSummary && (
                 <div className="search-summary">
                   <h4>검색 결과 요약</h4>
@@ -1065,6 +1300,7 @@ const UserActivityLogDetail = ({
           )}
             </>
           )}
+          </div>
         </div>
         <div className="activity-log-detail-footer">
           {canOpenAccessAudit && onNavigateToAccessAudit && log?.id != null && (

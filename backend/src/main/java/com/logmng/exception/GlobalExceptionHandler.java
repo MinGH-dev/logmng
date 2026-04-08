@@ -6,6 +6,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.FieldError;
+import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
@@ -64,6 +65,18 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
     }
     
+    /**
+     * JSON 본문 역직렬화 실패 (타입 불일치 등). 400 {@code VALIDATION_ERROR}.
+     */
+    @ExceptionHandler(HttpMessageNotReadableException.class)
+    public ResponseEntity<ApiResponse<Object>> handleNotReadable(HttpMessageNotReadableException e) {
+        log.warn("요청 본문을 파싱할 수 없습니다: {}", e.getMessage());
+        ApiResponse<Object> response = ApiResponse.failure(
+                "요청 본문 형식이 올바르지 않습니다.",
+                "VALIDATION_ERROR");
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
+    }
+
     /**
      * 잘못된 입력값 (e.g. search-history requestedAtFrom/To format). 400 반환.
      */

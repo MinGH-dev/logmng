@@ -1,5 +1,6 @@
 package com.logmng.service;
 
+import com.logmng.service.statistics.ActivityDecryptDedupKeyParser;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -34,7 +35,9 @@ public class ActivityStatisticsService {
 
     /**
      * 일별 통계 조회
-     * action_type: LOGIN -> totalLogins, SEARCH/ADVANCED_SEARCH/STATS_VIEW -> totalSearches, DECRYPT -> totalDecrypts
+     * action_type: LOGIN -> totalLogins, SEARCH/ADVANCED_SEARCH/STATS_VIEW -> totalSearches,
+     * DECRYPT -> totalDecrypts (per calendar day, distinct logical row keys from {@code user_activity_log} only;
+     * req 20260408-activity-statistics-decrypt-unique-rows-per-day).
      * 로그타입이 비어 있으면 '전체'로 간주하고, 각 로그타입별 집계를 합산하여 반환(전체 = 합계 정합성 유지).
      * <p>OP-02 (req 20260330): New admin-only {@code action_type} values (e.g. {@code PERMISSION_GROUP_*}) are
      * <strong>not</strong> included in the FILTER clauses below — they do not inflate LOGIN/SEARCH/DECRYPT KPIs.
@@ -101,66 +104,46 @@ public class ActivityStatisticsService {
 
     private DailyStatisticsRaw getDailyStatisticsRaw(String startDate, String endDate,
                                                      String logType, String userId, List<String> allowedUserIds, String department, String ip, String username) {
-        List<Map<String, Object>> dailyStats = new ArrayList<>();
-        long totalSearches = 0, totalDecrypts = 0, totalLogins = 0;
-        Set<String> uniqueUsers = new HashSet<>();
+        String where = buildDailyMonthlyWhere(startDate, endDate, logType, userId, allowedUserIds, department, ip, username);
+        boolean decryptQueryApplicable = logType == null || logType.isEmpty() || !"LOGIN".equalsIgnoreCase(logType);
+        String whereDecrypt = where + " AND action_type = 'DECRYPT' ";
 
-        String sql = buildDailyMonthlyWhere(startDate, endDate, logType, userId, allowedUserIds, department, ip, username);
-
-        String query =
-                "SELECT DATE(created_at) AS dt, " +
+        String queryMain =
+                "SELECT CAST(created_at AS date) AS dt, " +
                 "  COUNT(*) FILTER (WHERE action_type IN ('SEARCH','ADVANCED_SEARCH','STATS_VIEW')) AS searches, " +
-                "  COUNT(*) FILTER (WHERE action_type = 'DECRYPT') AS decrypts, " +
                 "  COUNT(*) FILTER (WHERE action_type = 'LOGIN') AS logins, " +
                 "  array_agg(DISTINCT user_id) AS users " +
-                "FROM user_activity_log " + sql +
-                "GROUP BY DATE(created_at) ORDER BY dt";
+                "FROM user_activity_log " + where +
+                "GROUP BY CAST(created_at AS date) ORDER BY dt";
+
+        String queryDecryptRows =
+                "SELECT CAST(created_at AS date) AS dt, action_detail " +
+                "FROM user_activity_log " + whereDecrypt +
+                "ORDER BY dt";
+
+        Map<LocalDate, Integer> searchesByDay = new LinkedHashMap<>();
+        Map<LocalDate, Integer> loginsByDay = new LinkedHashMap<>();
+        Map<LocalDate, Set<String>> uniqueUsersByDay = new LinkedHashMap<>();
+        Set<String> uniqueUsers = new HashSet<>();
 
         try (Connection conn = dataSource.getConnection();
-             PreparedStatement ps = conn.prepareStatement(query)) {
-            int idx = 1;
-            if (startDate != null && !startDate.isEmpty()) {
-                ps.setObject(idx++, java.sql.Date.valueOf(LocalDate.parse(startDate)));
-            }
-            if (endDate != null && !endDate.isEmpty()) {
-                ps.setObject(idx++, java.sql.Date.valueOf(LocalDate.parse(endDate)));
-            }
-            if (logType != null && !logType.isEmpty()) {
-                if ("LOGIN".equalsIgnoreCase(logType)) {
-                    ps.setString(idx++, "LOGIN");
-                } else {
-                    ps.setString(idx++, "%\"logType\":\"" + logType + "\"%");
-                }
-            }
-            if (allowedUserIds != null && !allowedUserIds.isEmpty()) {
-                for (String uid : allowedUserIds) ps.setString(idx++, uid);
-            } else if (userId != null && !userId.isEmpty()) {
-                ps.setString(idx++, userId);
-            }
-            if (ip != null && !ip.isEmpty()) ps.setString(idx++, ip);
-            if (username != null && !username.isEmpty()) ps.setString(idx++, "%" + username + "%");
-
+             PreparedStatement ps = conn.prepareStatement(queryMain)) {
+            bindDailyMonthlyParams(ps, 1, startDate, endDate, logType, userId, allowedUserIds, ip, username);
             try (ResultSet rs = ps.executeQuery()) {
                 while (rs.next()) {
-                    String date = rs.getDate("dt").toLocalDate().format(DATE_FORMAT);
+                    LocalDate day = rs.getDate("dt").toLocalDate();
                     int searches = rs.getInt("searches");
-                    int decrypts = rs.getInt("decrypts");
                     int logins = rs.getInt("logins");
+                    searchesByDay.put(day, searches);
+                    loginsByDay.put(day, logins);
                     Array arr = rs.getArray("users");
                     if (arr != null) {
-                        String[] users = (String[]) arr.getArray();
-                        if (users != null) uniqueUsers.addAll(Arrays.asList(users));
+                        Set<String> dayUsers = arrayAggToStringSet(arr);
+                        if (!dayUsers.isEmpty()) {
+                            uniqueUsersByDay.put(day, dayUsers);
+                            uniqueUsers.addAll(dayUsers);
+                        }
                     }
-                    totalSearches += searches;
-                    totalDecrypts += decrypts;
-                    totalLogins += logins;
-
-                    Map<String, Object> row = new LinkedHashMap<>();
-                    row.put("date", date);
-                    row.put("totalSearches", searches);
-                    row.put("totalDecrypts", decrypts);
-                    row.put("totalLogins", logins);
-                    dailyStats.add(row);
                 }
             }
         } catch (SQLException e) {
@@ -168,7 +151,121 @@ public class ActivityStatisticsService {
             throw new RuntimeException("일별 통계 조회 중 오류가 발생했습니다: " + e.getMessage(), e);
         }
 
+        Map<LocalDate, Set<String>> decryptKeysByDay = new LinkedHashMap<>();
+        long decryptRowsSkippedDiagnostic = 0;
+        if (decryptQueryApplicable) {
+            try (Connection conn = dataSource.getConnection();
+                 PreparedStatement ps = conn.prepareStatement(queryDecryptRows)) {
+                bindDailyMonthlyParams(ps, 1, startDate, endDate, logType, userId, allowedUserIds, ip, username);
+                try (ResultSet rs = ps.executeQuery()) {
+                    while (rs.next()) {
+                        LocalDate day = rs.getDate("dt").toLocalDate();
+                        String detail = rs.getString("action_detail");
+                        Optional<String> key = ActivityDecryptDedupKeyParser.tryDedupKey(logType, detail);
+                        if (key.isEmpty()) {
+                            if (log.isDebugEnabled() && logType != null && "java_fw_imglog".equalsIgnoreCase(logType)) {
+                                decryptRowsSkippedDiagnostic++;
+                            }
+                            continue;
+                        }
+                        decryptKeysByDay.computeIfAbsent(day, d -> new LinkedHashSet<>()).add(key.get());
+                    }
+                }
+            } catch (SQLException e) {
+                log.error("일별 복호화 통계 조회 실패: startDate={}, endDate={}, logType={}", startDate, endDate, logType, e);
+                throw new RuntimeException("일별 통계 조회 중 오류가 발생했습니다: " + e.getMessage(), e);
+            }
+            if (log.isDebugEnabled() && logType != null && "java_fw_imglog".equalsIgnoreCase(logType) && decryptRowsSkippedDiagnostic > 0) {
+                log.debug("activity statistics: decrypt rows excluded from dedup KPI (missing key or unparseable): count={}", decryptRowsSkippedDiagnostic);
+            }
+        }
+
+        Set<LocalDate> allDays = new TreeSet<>();
+        allDays.addAll(searchesByDay.keySet());
+        allDays.addAll(loginsByDay.keySet());
+        allDays.addAll(uniqueUsersByDay.keySet());
+        allDays.addAll(decryptKeysByDay.keySet());
+
+        List<Map<String, Object>> dailyStats = new ArrayList<>();
+        long totalSearches = 0, totalDecrypts = 0, totalLogins = 0;
+        for (LocalDate day : allDays) {
+            int searches = searchesByDay.getOrDefault(day, 0);
+            int logins = loginsByDay.getOrDefault(day, 0);
+            int decrypts = decryptKeysByDay.getOrDefault(day, Collections.emptySet()).size();
+            totalSearches += searches;
+            totalDecrypts += decrypts;
+            totalLogins += logins;
+
+            Map<String, Object> row = new LinkedHashMap<>();
+            row.put("date", day.format(DATE_FORMAT));
+            row.put("totalSearches", searches);
+            row.put("totalDecrypts", decrypts);
+            row.put("totalLogins", logins);
+            dailyStats.add(row);
+        }
+
         return new DailyStatisticsRaw(dailyStats, totalSearches, totalDecrypts, totalLogins, uniqueUsers);
+    }
+
+    /** Normalizes JDBC {@link Array} from {@code array_agg(distinct user_id)} for PostgreSQL and H2. */
+    private static Set<String> arrayAggToStringSet(Array arr) throws SQLException {
+        if (arr == null) {
+            return Collections.emptySet();
+        }
+        Object raw = arr.getArray();
+        Set<String> out = new LinkedHashSet<>();
+        if (raw instanceof String[] sa) {
+            for (String s : sa) {
+                if (s != null) {
+                    out.add(s);
+                }
+            }
+        } else if (raw instanceof Object[] oa) {
+            for (Object o : oa) {
+                if (o != null) {
+                    out.add(o.toString());
+                }
+            }
+        }
+        return out;
+    }
+
+    private void bindDailyMonthlyParams(PreparedStatement ps, int startIdx,
+                                        String startDate, String endDate, String logType, String userId,
+                                        List<String> allowedUserIds, String ip, String username) throws SQLException {
+        int idx = startIdx;
+        if (startDate != null && !startDate.isEmpty()) {
+            ps.setObject(idx++, java.sql.Date.valueOf(LocalDate.parse(startDate)));
+        }
+        if (endDate != null && !endDate.isEmpty()) {
+            ps.setObject(idx++, java.sql.Date.valueOf(LocalDate.parse(endDate)));
+        }
+        if (logType != null && !logType.isEmpty()) {
+            if ("LOGIN".equalsIgnoreCase(logType)) {
+                ps.setString(idx++, "LOGIN");
+            } else {
+                ps.setString(idx++, buildActionDetailLikeCanonicalLogType(logType));
+                ps.setString(idx++, logType);
+            }
+        }
+        if (allowedUserIds != null && !allowedUserIds.isEmpty()) {
+            for (String uid : allowedUserIds) {
+                ps.setString(idx++, uid);
+            }
+        } else if (userId != null && !userId.isEmpty()) {
+            ps.setString(idx++, userId);
+        }
+        if (ip != null && !ip.isEmpty()) {
+            ps.setString(idx++, ip);
+        }
+        if (username != null && !username.isEmpty()) {
+            ps.setString(idx++, "%" + username + "%");
+        }
+    }
+
+    /** Matches JSON substring {@code "logType":"<id>"} in {@code action_detail}. */
+    private static String buildActionDetailLikeCanonicalLogType(String logTypeId) {
+        return "%\"logType\":\"" + logTypeId + "\"%";
     }
 
     private Map<String, Object> buildDailyResponse(List<Map<String, Object>> dailyStats,
@@ -249,41 +346,79 @@ public class ActivityStatisticsService {
     private List<Map<String, Object>> getOneLogTypeUserStatistics(String startDate, String endDate,
                                                                     String logType, String userId, List<String> allowedUserIds, String department, String ip, String username) {
         String where = buildDailyMonthlyWhere(startDate, endDate, logType, userId, allowedUserIds, department, ip, username, "u.");
+        boolean decryptQueryApplicable = logType == null || logType.isEmpty() || !"LOGIN".equalsIgnoreCase(logType);
+        String whereDecrypt = where + " AND u.action_type = 'DECRYPT' ";
 
         String query =
                 "SELECT a.id AS \"userId\", COALESCE(a.name, u.username) AS \"userName\", " +
                 "  COUNT(*) AS \"totalCount\", " +
                 "  COUNT(*) FILTER (WHERE u.action_type = 'LOGIN') AS \"loginCount\", " +
-                "  COUNT(*) FILTER (WHERE u.action_type IN ('SEARCH','ADVANCED_SEARCH','STATS_VIEW')) AS \"searchCount\", " +
-                "  COUNT(*) FILTER (WHERE u.action_type = 'DECRYPT') AS \"decryptCount\" " +
+                "  COUNT(*) FILTER (WHERE u.action_type IN ('SEARCH','ADVANCED_SEARCH','STATS_VIEW')) AS \"searchCount\" " +
                 "FROM user_activity_log u INNER JOIN app_user a ON u.user_id = a.username " + where +
                 "GROUP BY a.id, a.name, u.username ORDER BY \"totalCount\" DESC";
+
+        String queryDecrypt =
+                "SELECT CAST(u.created_at AS date) AS dt, a.id AS app_user_id, u.action_detail " +
+                "FROM user_activity_log u INNER JOIN app_user a ON u.user_id = a.username " + whereDecrypt +
+                "ORDER BY dt, app_user_id";
+
+        Map<Long, Map<LocalDate, Set<String>>> decryptKeysByUserAndDay = new HashMap<>();
+        long decryptRowsSkippedDiagnostic = 0;
+        if (decryptQueryApplicable) {
+            try (Connection conn = dataSource.getConnection();
+                 PreparedStatement ps = conn.prepareStatement(queryDecrypt)) {
+                bindDailyMonthlyParams(ps, 1, startDate, endDate, logType, userId, allowedUserIds, ip, username);
+                try (ResultSet rs = ps.executeQuery()) {
+                    while (rs.next()) {
+                        long appUserId = rs.getLong("app_user_id");
+                        LocalDate day = rs.getDate("dt").toLocalDate();
+                        String detail = rs.getString("action_detail");
+                        Optional<String> key = ActivityDecryptDedupKeyParser.tryDedupKey(logType, detail);
+                        if (key.isEmpty()) {
+                            if (log.isDebugEnabled() && logType != null && "java_fw_imglog".equalsIgnoreCase(logType)) {
+                                decryptRowsSkippedDiagnostic++;
+                            }
+                            continue;
+                        }
+                        decryptKeysByUserAndDay
+                                .computeIfAbsent(appUserId, id -> new HashMap<>())
+                                .computeIfAbsent(day, d -> new LinkedHashSet<>())
+                                .add(key.get());
+                    }
+                }
+            } catch (SQLException e) {
+                log.error("사용자별 복호화 통계 조회 실패: startDate={}, endDate={}, logType={}", startDate, endDate, logType, e);
+                throw new RuntimeException("사용자별 통계 조회 중 오류가 발생했습니다: " + e.getMessage(), e);
+            }
+            if (log.isDebugEnabled() && logType != null && "java_fw_imglog".equalsIgnoreCase(logType) && decryptRowsSkippedDiagnostic > 0) {
+                log.debug("activity statistics (per-user): decrypt rows excluded from dedup KPI: count={}", decryptRowsSkippedDiagnostic);
+            }
+        }
+
+        Map<Long, Long> decryptCountByUser = new HashMap<>();
+        for (Map.Entry<Long, Map<LocalDate, Set<String>>> e : decryptKeysByUserAndDay.entrySet()) {
+            long sum = 0;
+            for (Set<String> dayKeys : e.getValue().values()) {
+                sum += dayKeys.size();
+            }
+            decryptCountByUser.put(e.getKey(), sum);
+        }
 
         List<Map<String, Object>> list = new ArrayList<>();
         try (Connection conn = dataSource.getConnection();
              PreparedStatement ps = conn.prepareStatement(query)) {
-            int idx = 1;
-            if (startDate != null && !startDate.isEmpty()) ps.setObject(idx++, java.sql.Date.valueOf(LocalDate.parse(startDate)));
-            if (endDate != null && !endDate.isEmpty()) ps.setObject(idx++, java.sql.Date.valueOf(LocalDate.parse(endDate)));
-            if (logType != null && !logType.isEmpty()) {
-                if ("LOGIN".equalsIgnoreCase(logType)) ps.setString(idx++, "LOGIN");
-                else ps.setString(idx++, "%\"logType\":\"" + logType + "\"%");
-            }
-            if (allowedUserIds != null && !allowedUserIds.isEmpty()) {
-                for (String uid : allowedUserIds) ps.setString(idx++, uid);
-            } else if (userId != null && !userId.isEmpty()) ps.setString(idx++, userId);
-            if (ip != null && !ip.isEmpty()) ps.setString(idx++, ip);
-            if (username != null && !username.isEmpty()) ps.setString(idx++, "%" + username + "%");
-
+            bindDailyMonthlyParams(ps, 1, startDate, endDate, logType, userId, allowedUserIds, ip, username);
             try (ResultSet rs = ps.executeQuery()) {
                 while (rs.next()) {
+                    Long uidObj = rs.getObject("userId", Long.class);
                     Map<String, Object> row = new LinkedHashMap<>();
-                    row.put("userId", rs.getObject("userId", Long.class));
+                    row.put("userId", uidObj);
                     row.put("userName", rs.getString("userName"));
                     row.put("totalCount", rs.getLong("totalCount"));
                     row.put("loginCount", rs.getLong("loginCount"));
                     row.put("searchCount", rs.getLong("searchCount"));
-                    row.put("decryptCount", rs.getLong("decryptCount"));
+                    long uidKey = uidObj != null ? uidObj : -1L;
+                    row.put("decryptCount", decryptCountByUser.getOrDefault(uidKey, 0L));
                     list.add(row);
                 }
             }
@@ -488,13 +623,21 @@ public class ActivityStatisticsService {
             sb.append(" AND ").append(tablePrefix).append("created_at >= ?::date ");
         }
         if (endDate != null && !endDate.isEmpty()) {
-            sb.append(" AND ").append(tablePrefix).append("created_at <= ?::date + INTERVAL '1 day' ");
+            /* Inclusive end calendar day for timestamps; PostgreSQL and H2: date + 1 day */
+            sb.append(" AND ").append(tablePrefix).append("created_at < (?::date + 1) ");
         }
         if (logType != null && !logType.isEmpty()) {
             if ("LOGIN".equalsIgnoreCase(logType)) {
                 sb.append(" AND ").append(tablePrefix).append("action_type = ? ");
             } else {
-                sb.append(" AND ").append(tablePrefix).append("action_detail::text LIKE ? ");
+                /*
+                 * Canonical: "logType":"java_fw_imglog".
+                 * Legacy: JSON stores backslash-escaped quotes in the scalar (\\"id\\"). CHR builds the needle; ESCAPE '#' so H2
+                 * does not treat backslashes in the pattern as LIKE escapes (PostgreSQL: same clause is valid).
+                 */
+                sb.append(" AND (").append(tablePrefix).append("action_detail::text LIKE ? OR (")
+                        .append(tablePrefix).append("action_detail::text LIKE '%\"logType\":%' AND ")
+                        .append(tablePrefix).append("action_detail::text LIKE ('%' || CHR(92) || CHR(34) || ? || CHR(92) || CHR(34) || CHR(34) || '%') ESCAPE '#') ) ");
             }
         }
         if (allowedUserIds != null && !allowedUserIds.isEmpty()) {

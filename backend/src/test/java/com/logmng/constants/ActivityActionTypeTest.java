@@ -31,4 +31,26 @@ class ActivityActionTypeTest {
         List<String> codes = opts.stream().map(m -> m.get("code")).collect(Collectors.toList());
         assertThat(codes).contains("USER_CREATE", "USER_DELETE");
     }
+
+    /** User Management v2 department creates; req 20260408. */
+    @Test
+    void filterDropdownOptions_includesDepartmentCreateRootAndChild() {
+        List<Map<String, String>> opts = ActivityActionType.filterDropdownOptions();
+        List<String> codes = opts.stream().map(m -> m.get("code")).collect(Collectors.toList());
+        assertThat(codes).contains("DEPARTMENT_CREATE_ROOT", "DEPARTMENT_CREATE_CHILD");
+    }
+
+    @Test
+    void filterDropdownOptions_includesDepartmentDelete() {
+        List<Map<String, String>> opts = ActivityActionType.filterDropdownOptions();
+        List<String> codes = opts.stream().map(m -> m.get("code")).collect(Collectors.toList());
+        assertThat(codes).contains("DEPARTMENT_DELETE");
+    }
+
+    @Test
+    void filterDropdownOptions_includesPasswordSelfChange() {
+        List<Map<String, String>> opts = ActivityActionType.filterDropdownOptions();
+        List<String> codes = opts.stream().map(m -> m.get("code")).collect(Collectors.toList());
+        assertThat(codes).contains("PASSWORD_SELF_CHANGE");
+    }
 }

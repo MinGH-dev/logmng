@@ -1,7 +1,10 @@
 .user-management {
   padding: 1rem;
-  max-width: 1400px;
-  margin: 0 auto;
+  box-sizing: border-box;
+  /* Exception (req 20260408-user-management-v2-grid-tree-search-expand): use full work-area width; previous max-width + auto margin centered content and reduced usable tree/table space */
+  max-width: none;
+  width: 100%;
+  margin: 0;
 }
 
 .user-management .system-admin-badge {
@@ -123,5 +126,333 @@
 /* Single-panel layout: tree section uses full width (no right-side permission group panel) */
 .user-management .user-permission-hierarchy-tree-section {
   flex: 1;
+  /* Exception (req 20260408-user-management-v2-grid-tree-search-expand): wider default tree column than shared 280px legacy min-width */
+  min-width: min(400px, 100%);
+}
+
+/* ----- Search / filter (sf-compact-panel): layout + width-by-role only; control sizing from search-filter-standard.css ----- */
+
+.user-management-v2-search-panel {
+  margin-bottom: var(--sf-block-gap);
+}
+
+.user-management-v2-filter-form {
+  margin: 0;
+}
+
+.user-management-v2-user-block-fieldset {
+  border: none;
+  margin: 0 0 var(--sf-block-gap) 0;
+  padding: 0;
+}
+
+.user-management-v2-user-block-legend {
+  font-size: 14px;
+  font-weight: 600;
+  color: #333;
+  margin-bottom: var(--sf-row-gap);
+  padding: 0;
+}
+
+/* Single toolbar row: three user-context fields + 검색 + 검색 초기화 (TC-15); nowrap at desktop widths */
+.user-management-v2-filter-toolbar-row {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: flex-end;
+  gap: var(--sf-row-gap);
+  width: 100%;
   min-width: 0;
+}
+
+.user-management-v2-user-block-fields {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--sf-row-gap);
+  flex: 1 1 auto;
+  min-width: 0;
+  max-width: var(--sf-field-user-block-max);
+}
+
+.user-management-v2-user-block-fields .form-group {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.user-management-v2-user-block-fields .form-group label {
+  font-size: 14px;
+  font-weight: 500;
+  margin-bottom: 4px;
+  color: #333;
+}
+
+.user-management-v2-user-block-fields .form-control {
+  width: 100%;
+  box-sizing: border-box;
+  min-width: 0;
+}
+
+.user-management-v2-filter-actions {
+  display: flex;
+  flex-wrap: nowrap;
+  flex: 0 0 auto;
+  align-items: flex-end;
+  gap: var(--sf-row-gap);
+}
+
+/* Tree panel top strip (TC-16, TC-18): bulk expand/collapse — not on the filter toolbar row */
+.user-management-v2-tree-bulk-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sf-row-gap);
+  margin: 0 0 0.5rem 0;
+  padding: 0 0 0.5rem 0;
+  border-bottom: 1px solid #e2e5e9;
+}
+
+@media (max-width: 720px) {
+  .user-management-v2-filter-toolbar-row {
+    flex-wrap: wrap;
+  }
+
+  .user-management-v2-filter-actions {
+    flex-basis: 100%;
+    justify-content: flex-start;
+  }
+}
+
+/* Exception (TC-16, TC-19): compact secondary tree utilities — slimmer than filter row; ~36px aligns with buttons.md default height; text buttons remain focus-visible via MUI */
+.user-management .user-management-v2-tree-bulk-btn.MuiButton-root {
+  font-size: 0.8125rem;
+  line-height: 1.2;
+  min-height: 36px;
+  padding: 4px 12px;
+  text-transform: none;
+}
+
+/* Button colors only; sizing from .sf-compact-panel .sf-btn */
+.user-management .user-management-v2-search-panel .btn {
+  border: none;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.user-management .user-management-v2-search-panel .btn:focus {
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.35);
+}
+
+.user-management .user-management-v2-search-panel .btn-primary {
+  background-color: #007bff;
+  color: #fff;
+}
+
+.user-management .user-management-v2-search-panel .btn-primary:hover:not(:disabled) {
+  background-color: #0056b3;
+}
+
+.user-management .user-management-v2-search-panel .btn-primary:disabled {
+  background-color: #6c757d;
+  cursor: not-allowed;
+}
+
+.user-management .user-management-v2-search-panel .btn-secondary {
+  background-color: #6c757d;
+  color: #fff;
+}
+
+.user-management .user-management-v2-search-panel .btn-secondary:hover:not(:disabled) {
+  background-color: #5a6268;
+}
+
+.user-management .user-management-v2-search-panel .btn-secondary:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+}
+
+.user-management-v2-filter-empty,
+.user-management-v2-tree-empty {
+  color: #555;
+  margin: 0.5rem 0;
+}
+
+/* Exception (req 20260408 narrow viewport / §2.5): scroll owner = .hierarchy-node-users; table min-width floor so columns do not shrink into misleading ellipsis (TC-20, TC-21). Aligns with docs/design/grid-and-table.md (% + min-width, wrapper overflow). */
+.user-management .hierarchy-node-users {
+  overflow-x: auto;
+  overflow-y: auto;
+  max-width: 100%;
+  min-width: 0;
+}
+
+/* Exception (req 20260408-user-management-v2-grid-tree-search-expand): tighter per-column sizing; narrow viewports use horizontal scroll not data ellipsis */
+.user-management .hierarchy-users-table {
+  table-layout: auto;
+  width: max-content;
+  /* At least full scrollport; intrinsic width from column min-widths + content can exceed → overflow-x on .hierarchy-node-users */
+  min-width: max(100%, 35rem);
+}
+
+.user-management .hierarchy-users-table th,
+.user-management .hierarchy-users-table td {
+  padding: 0.28rem 0.45rem;
+  vertical-align: top;
+  /* §2.5: data-bearing columns — no ellipsis; full text via horizontal scroll */
+  overflow: visible;
+  text-overflow: clip;
+  white-space: nowrap;
+  word-break: normal;
+}
+
+.user-management .hierarchy-users-table th:nth-child(1),
+.user-management .hierarchy-users-table td:nth-child(1) {
+  width: 13%;
+  min-width: 4.5rem;
+}
+
+.user-management .hierarchy-users-table th:nth-child(2),
+.user-management .hierarchy-users-table td:nth-child(2) {
+  width: 11%;
+  min-width: 4.5rem;
+}
+
+.user-management .hierarchy-users-table th:nth-child(3),
+.user-management .hierarchy-users-table td:nth-child(3) {
+  width: 8%;
+  min-width: 3rem;
+}
+
+.user-management .hierarchy-users-table th:nth-child(4),
+.user-management .hierarchy-users-table td:nth-child(4) {
+  width: 8%;
+  min-width: 3rem;
+}
+
+.user-management .hierarchy-users-table th:nth-child(5),
+.user-management .hierarchy-users-table td:nth-child(5) {
+  width: 30%;
+  min-width: 11rem;
+  overflow: visible;
+  text-overflow: clip;
+}
+
+/* TC-17: native select trigger + chevron not clipped by cell overflow; fill column without forcing global UserGroupAssignment min-width */
+.user-management .hierarchy-users-table td:nth-child(5) .user-group-select-wrapper {
+  display: flex;
+  max-width: 100%;
+  min-width: 0;
+}
+
+.user-management .hierarchy-users-table td:nth-child(5) .user-group-select {
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+.user-management .hierarchy-users-table th:nth-child(6),
+.user-management .hierarchy-users-table td:nth-child(6) {
+  width: 9%;
+  min-width: 4rem;
+}
+
+.user-management .hierarchy-users-table th:nth-child(7),
+.user-management .hierarchy-users-table td:nth-child(7) {
+  width: 12%;
+  min-width: 4rem;
+}
+
+.user-management-v2-panel {
+  margin-bottom: 1rem;
+  padding: 0.75rem;
+  border: 1px solid #dfe3e8;
+  border-radius: 6px;
+  background: #f8f9fa;
+}
+
+.user-management-v2-panel h3 {
+  margin: 0.2rem 0 0.5rem;
+  font-size: 1rem;
+}
+
+.user-management-v2-selected-dept {
+  margin: 0 0 0.5rem;
+  font-size: 0.9rem;
+}
+
+.user-management-v2-tree-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 0.75rem;
+}
+
+.user-management-v2-node-actions {
+  display: inline-flex;
+  gap: 0.35rem;
+  margin-left: 0.5rem;
+}
+
+.user-management-icon-btn {
+  width: 2rem;
+  height: 2rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid #666;
+  background: #fff;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.95rem;
+  line-height: 1;
+}
+
+.user-management-icon-btn:hover:not(:disabled) {
+  background: #eee;
+}
+
+.user-management-icon-btn.remove {
+  color: #c00;
+  border-color: #c00;
+}
+
+.user-management-v2-tree-controls,
+.user-management-v2-user-form {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 0.5rem 0.75rem;
+  align-items: end;
+}
+
+.user-management-v2-reason {
+  grid-column: 1 / -1;
+}
+
+.user-management-v2-quick-actions {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 0.35rem;
+}
+
+.user-management-v2-success {
+  color: #0b6b2a;
+  background: #edf9ef;
+  border-radius: 4px;
+  padding: 0.5rem;
+  margin-top: 0.5rem;
+}
+
+.dept-tree-label-button {
+  border: 1px solid transparent;
+  background: transparent;
+  padding: 0.15rem 0.35rem;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.dept-tree-label-button.selected {
+  border-color: #2f6db5;
+  background: #eef5ff;
 }

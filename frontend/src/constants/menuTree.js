@@ -17,6 +17,7 @@ import {
   TableChart as TableChartIcon,
   LabelOutlined,
   FactCheck as FactCheckIcon,
+  CloudSync as CloudSyncIcon,
 } from '@mui/icons-material';
 
 /** 허용 화면 ID 목록 (spec §4.1). 로그 검색: pb-feplog, pb-fep-log-search, java-fw-imagelog. */
@@ -30,6 +31,9 @@ export const ALLOWED_SCREEN_IDS = [
   'statistics',
   'pending-approvals',
   'user-management',
+  'user-management-v2',
+  'hr-sync-poc',
+  'user-management-v2-poc',
   'user-permission-hierarchy',
   'permission-group-management',
   'screen-display-labels',
@@ -75,6 +79,9 @@ export const MENU_TREE = [
     adminOnly: true,
     children: [
       { id: 'user-management', label: '사용자 관리', view: 'user-management' },
+      { id: 'user-management-v2', label: '사용자 관리 v2', view: 'user-management-v2' },
+      { id: 'hr-sync-poc', label: 'HR Sync PoC', view: 'hr-sync-poc' },
+      { id: 'user-management-v2-poc', label: '사용자 관리 v2 (PoC)', view: 'user-management-v2-poc' },
       { id: 'permission-group-management', label: '권한 그룹 관리 v1.0.0', view: 'permission-group-management' },
       { id: 'permission-group-screen-matrix', label: '권한 그룹 관리 v2.0.0', view: 'permission-group-screen-matrix' },
       {
@@ -100,6 +107,9 @@ export const SECOND_ICONS = {
   'pending-approvals': PendingIcon,
   'statistics-view': AssessmentIcon,
   'user-management': PeopleIcon,
+  'user-management-v2': PeopleIcon,
+  'hr-sync-poc': CloudSyncIcon,
+  'user-management-v2-poc': PeopleIcon,
   'permission-group-management': GroupWorkIcon,
   'permission-group-screen-matrix': TableChartIcon,
   'screen-display-labels': LabelOutlined,
@@ -120,6 +130,9 @@ export const SCREEN_DISPLAY_LABEL_FORM_IDS = [
   'statistics',
   'pending-approvals',
   'user-management',
+  'user-management-v2',
+  'hr-sync-poc',
+  'user-management-v2-poc',
   'department-approvers',
   'user-permission-hierarchy',
   'permission-group-management',
@@ -178,6 +191,9 @@ export const ORDERED_SCREEN_IDS = [
   'pending-approvals',
   'statistics',
   'user-management',
+  'user-management-v2',
+  'hr-sync-poc',
+  'user-management-v2-poc',
   'user-permission-hierarchy',
   'permission-group-management',
   'screen-display-labels',

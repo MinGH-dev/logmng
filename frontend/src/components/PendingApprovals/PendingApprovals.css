@@ -56,6 +56,21 @@
   color: #c00;
 }
 
+/* Pending approvals action column must not inherit SearchHistory's narrow 9th-column width.
+   This screen has 3 action buttons (상세/승인/반려), so reserve enough width and disable clipping. */
+.pending-approvals.search-history-list .log-table th:nth-child(9),
+.pending-approvals.search-history-list .log-table td:nth-child(9) {
+  width: 1%;
+  min-width: 220px;
+  max-width: none;
+}
+
+.pending-approvals.search-history-list .log-table td:nth-child(9) {
+  overflow: visible;
+  text-overflow: clip;
+  white-space: nowrap;
+}
+
 .pending-approvals-modal-overlay {
   position: fixed;
   inset: 0;

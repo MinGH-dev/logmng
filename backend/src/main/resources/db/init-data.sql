@@ -30,12 +30,12 @@ VALUES
     ('HR_SAMPLE', 'D-RD-001', 'TEAM_RESEARCH_1')
 ON CONFLICT (source_system, external_department_id) DO NOTHING;
 
-INSERT INTO ext_employee (source_system, external_employee_id, employee_number, display_name, job_title, external_department_id, is_active, imported_at)
+INSERT INTO ext_employee (source_system, external_employee_id, employee_number, display_name, job_title, external_department_id, is_active, imported_at, snapshot_id)
 VALUES
-    ('HR_SAMPLE', 'E-10001', '20261001', 'Sample Alpha', 'Developer', 'D-SALES-001', true, CURRENT_TIMESTAMP),
-    ('HR_SAMPLE', 'E-10002', '20261002', 'Sample Beta', 'Analyst', 'D-SALES-001', true, CURRENT_TIMESTAMP),
-    ('HR_SAMPLE', 'E-10003', '20261003', 'Sample Gamma', 'Manager', 'D-RD-001', true, CURRENT_TIMESTAMP),
-    ('HR_SAMPLE', 'E-UNPROV-1', '20261999', 'Unprovisioned User', 'Tester', 'D-RD-001', true, CURRENT_TIMESTAMP)
+    ('HR_SAMPLE', 'E-10001', '20261001', 'Sample Alpha', 'Developer', 'D-SALES-001', true, CURRENT_TIMESTAMP, 'poc-snap-20260408-A'),
+    ('HR_SAMPLE', 'E-10002', '20261002', 'Sample Beta', 'Analyst', 'D-SALES-001', true, CURRENT_TIMESTAMP, 'poc-snap-20260408-A'),
+    ('HR_SAMPLE', 'E-10003', '20261003', 'Sample Gamma', 'Manager', 'D-RD-001', true, CURRENT_TIMESTAMP, 'poc-snap-20260408-B'),
+    ('HR_SAMPLE', 'E-UNPROV-1', '20261999', 'Unprovisioned User', 'Tester', 'D-RD-001', true, CURRENT_TIMESTAMP, 'poc-snap-20260408-B')
 ON CONFLICT (source_system, external_employee_id) DO NOTHING;
 
 -- 앱 사용자 (department_code는 department.code FK; 부서 삽입 후 실행)
@@ -111,8 +111,14 @@ FROM permission_group WHERE code = 'GENERAL_USER'
 ON CONFLICT (permission_group_id, screen_id) DO NOTHING;
 
 -- ADMIN_EXT: 사용자 관리 화면 접근 (요건: 20250303-user-management-permission-group-access). user3 테스트용.
+-- PoC UM v2 클론 화면 (req 20260408-poc-user-management-v2-isolated-clone); hr-sync-poc PoC 메뉴와 병행 부여.
 INSERT INTO permission_group_screen (permission_group_id, screen_id)
-SELECT id, unnest(ARRAY['user-management','user-permission-hierarchy'])
+SELECT id, unnest(ARRAY[
+    'user-management',
+    'user-permission-hierarchy',
+    'user-management-v2',
+    'hr-sync-poc',
+    'user-management-v2-poc'])
 FROM permission_group WHERE code = 'ADMIN_EXT'
 ON CONFLICT (permission_group_id, screen_id) DO NOTHING;
 

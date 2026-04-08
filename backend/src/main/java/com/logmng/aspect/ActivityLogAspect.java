@@ -178,10 +178,7 @@ public class ActivityLogAspect {
                                     
                                     params.put(paramNames[i], searchConditions);
                                 } else {
-                                    // Never serialize values that might contain Servlet (e.g. Map with request key)
-                                    Object toSerialize = deepSanitizeForSerialization(args[i]);
-                                    String json = objectMapper.writeValueAsString(toSerialize);
-                                    params.put(paramNames[i], maskSensitiveData(json));
+                                    putRequestParamForActivityDetail(params, paramNames[i], args[i]);
                                 }
                             }
                         } catch (Exception e) {
@@ -223,17 +220,15 @@ public class ActivityLogAspect {
                                     params.put(paramNames[i], searchConditions);
                                 } catch (Exception e2) {
                                     log.error("LogDbSearchRequest 파싱 재시도 실패: {}", e2.getMessage());
-                                    Object sanitized = deepSanitizeForSerialization(args[i]);
                                     try {
-                                        params.put(paramNames[i], objectMapper.writeValueAsString(sanitized));
+                                        putRequestParamForActivityDetail(params, paramNames[i], args[i]);
                                     } catch (Exception e3) {
                                         params.put(paramNames[i], null);
                                     }
                                 }
                             } else {
-                                Object sanitized = deepSanitizeForSerialization(args[i]);
                                 try {
-                                    params.put(paramNames[i], objectMapper.writeValueAsString(sanitized));
+                                    putRequestParamForActivityDetail(params, paramNames[i], args[i]);
                                 } catch (Exception e2) {
                                     params.put(paramNames[i], null);
                                 }
@@ -646,6 +641,30 @@ public class ActivityLogAspect {
             out.put(e.getKey(), v);
         }
         return out;
+    }
+
+    /**
+     * One entry in {@code requestParams} for {@link #logActivityInternal}.
+     * String / Number / Boolean / Character are stored as JSON scalars so the outer {@code action_detail}
+     * serialization contains {@code "logType":"java_fw_imglog"} (not double-encoded string values).
+     * Other types: deep-sanitize, JSON-stringify, then {@link #maskSensitiveData(String)} on that JSON text.
+     */
+    private void putRequestParamForActivityDetail(Map<String, Object> params, String paramName, Object arg)
+            throws Exception {
+        if (arg == null) {
+            return;
+        }
+        if (arg instanceof String) {
+            params.put(paramName, maskSensitiveData((String) arg));
+            return;
+        }
+        if (arg instanceof Number || arg instanceof Boolean || arg instanceof Character) {
+            params.put(paramName, arg);
+            return;
+        }
+        Object toSerialize = deepSanitizeForSerialization(arg);
+        String json = objectMapper.writeValueAsString(toSerialize);
+        params.put(paramName, maskSensitiveData(json));
     }
 
     /**

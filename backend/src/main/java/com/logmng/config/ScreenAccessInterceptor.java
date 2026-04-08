@@ -53,6 +53,16 @@ public class ScreenAccessInterceptor implements HandlerInterceptor {
                     List.of(ScreenConstants.ACTIVITY_LOG, ScreenConstants.ACTIVITY_LOG_ACCESS_AUDIT)),
             new PathScreenRule("^/api/activity-log.*", List.of(ScreenConstants.ACTIVITY_LOG)),
             new PathScreenRule("^/api/statistics.*", List.of(ScreenConstants.STATISTICS)),
+            // PoC UM clone: dedicated screen; also allow same family as other PoC HR paths (spec / contract).
+            new PathScreenRule(
+                    "^/api/hr-sync/poc/user-mgmt/.*",
+                    List.of(
+                            ScreenConstants.USER_MANAGEMENT_V2_POC,
+                            ScreenConstants.HR_SYNC_POC,
+                            ScreenConstants.USER_MANAGEMENT,
+                            ScreenConstants.USER_PERMISSION_HIERARCHY)),
+            // PoC: /config, /preview, /snapshots, /snapshots/{id}/employees (single pattern).
+            new PathScreenRule("^/api/hr-sync/poc.*", List.of(ScreenConstants.USER_MANAGEMENT, ScreenConstants.USER_PERMISSION_HIERARCHY)),
             new PathScreenRule("^/api/users.*", List.of(ScreenConstants.USER_MANAGEMENT)),
             new PathScreenRule("^/api/provisioning.*", List.of(ScreenConstants.USER_MANAGEMENT, ScreenConstants.USER_PERMISSION_HIERARCHY)),
             new PathScreenRule("^/api/logs/db-refactored.*", List.of(ScreenConstants.PB_FEPLOG, ScreenConstants.PB_FEP_LOG_SEARCH, ScreenConstants.JAVA_FW_IMAGELOG)),
@@ -66,7 +76,11 @@ public class ScreenAccessInterceptor implements HandlerInterceptor {
     @Value("${app.diagnostic.permission-group-screen:false}")
     private boolean diagnosticPermissionGroupScreen;
 
+    @Value("${app.diagnostic.approval-flow:false}")
+    private boolean diagnosticApprovalFlow;
+
     private static final Pattern PERMISSION_GROUPS_API = Pattern.compile("^/api/permission-groups.*");
+    private static final Pattern APPROVAL_ACTION_API = Pattern.compile("^/api/search-history/[^/]+/(approve|reject).*$");
 
     public ScreenAccessInterceptor(AuthService authService, ObjectMapper objectMapper) {
         this.authService = authService;
@@ -111,6 +125,7 @@ public class ScreenAccessInterceptor implements HandlerInterceptor {
         List<String> allowed = allowedScreenIds;
         boolean hasAccess = requiredScreens.stream().anyMatch(allowed::contains);
         if (hasAccess) {
+            logApprovalActionDecision(request, userInfo, "ALLOW", null);
             return true;
         }
         if (PERMISSION_GROUPS_API.matcher(path).matches()) {
@@ -122,8 +137,31 @@ public class ScreenAccessInterceptor implements HandlerInterceptor {
                     "missing_required_screen_in_session");
         }
         log.warn("Screen access denied: path={} requiredScreens={} user={}", path, requiredScreens, userInfo.getUsername());
+        logApprovalActionDecision(request, userInfo, "DENY", "FORBIDDEN");
         sendForbidden(response);
         return false;
+    }
+
+    private void logApprovalActionDecision(HttpServletRequest request, LoginResponse userInfo, String decision, String denialCode) {
+        if (!diagnosticApprovalFlow || !APPROVAL_ACTION_API.matcher(request.getRequestURI()).matches() || !log.isDebugEnabled()) {
+            return;
+        }
+        boolean canApprove = authService.hasApproveForSearchHistory(request);
+        String scope = null;
+        if (userInfo.getScreenScopes() != null) {
+            scope = userInfo.getScreenScopes().get(ScreenConstants.PENDING_APPROVALS);
+        }
+        log.debug("[diag-approval-authz] path={} method={} actorUserId={} actorUsername={} isSystemAdmin={} canApprove={} screenId={} effectiveScope={} decision={} denialCode={}",
+                request.getRequestURI(),
+                request.getMethod(),
+                userInfo.getUserId(),
+                userInfo.getUsername(),
+                Boolean.TRUE.equals(userInfo.getIsSystemAdmin()),
+                canApprove,
+                ScreenConstants.PENDING_APPROVALS,
+                scope != null ? scope : "",
+                decision,
+                denialCode != null ? denialCode : "");
     }
 
     private static boolean isSearchHistoryReadGet(String method, String path) {

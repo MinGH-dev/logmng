@@ -156,6 +156,10 @@ echo "   ✅ migrate-app-user-soft-delete-20260407.sql 적용(또는 신규 스�
 echo "4-ext-2. HR_SAMPLE ext_employee.employee_number → 8자리 사용자 ID 형식 (20260407)..."
 run_sql_file_sp "$DB_A_NAME" "${SCHEMA_SYS}, ${SCHEMA_PB}, public" "$SCRIPT_DIR/migrate-hr-sample-employee-number-userid-format-20260407.sql"
 echo "   ✅ migrate-hr-sample-employee-number-userid-format-20260407.sql 적용(구 시드만 갱신, 재실행 no-op)"
+echo "4-ext-3. HR Sync PoC ext_employee.snapshot_id + index + HR_SAMPLE snapshot 백필 (req 20260408)..."
+echo "   순서: ext_employee 존재 후 · init-data(5단계) 전에 실행 — 신규 컬럼·시드 정합."
+run_sql_file_sp "$DB_A_NAME" "${SCHEMA_SYS}, ${SCHEMA_PB}, public" "$SCRIPT_DIR/migrate-hr-sync-poc-ext-employee-snapshot-id-20260408.sql"
+echo "   ✅ migrate-hr-sync-poc-ext-employee-snapshot-id-20260408.sql 적용(재실행 idempotent)"
 run_sql_file_sp "$DB_A_NAME" "${SCHEMA_SYS}, ${SCHEMA_PB}, public" "$SCRIPT_DIR/schema_user_activity_log.sql"
 
 echo "4a-user-activity-access-audit. user_activity_access_audit (append-only access audit, req 20260330 audit evidence)..."
@@ -238,9 +242,21 @@ else
   echo "   ✅ 초기 데이터 삽입 완료"
 fi
 
+echo "5-emp-display. app_user.employee_number 백필 (사용자 관리 트리 사번 표시, 20260409)..."
+run_sql_file_sp "$DB_A_NAME" "$SP_APP" "$SCRIPT_DIR/migrate-app-user-employee-number-display-backfill-20260409.sql"
+echo "   ✅ migrate-app-user-employee-number-display-backfill-20260409.sql (idempotent)"
+
+echo "5-poc-um-v2-screen. ADMIN_EXT → hr-sync-poc / user-management-v2-poc (init-data 미재실행 DB, 20260408)..."
+run_sql_file_sp "$DB_A_NAME" "$SP_APP" "$SCRIPT_DIR/migrate-poc-user-mgmt-v2-screen-grant-20260408.sql"
+echo "   ✅ migrate-poc-user-mgmt-v2-screen-grant-20260408.sql (idempotent)"
+
 echo "5-pb-fep. PB FEP pagination / bmsg 샘플 (migrate-pb-fep-pagination-bmsg-sample-20260330)..."
 run_sql_file_sp "$DB_A_NAME" "$SP_APP" "$SCRIPT_DIR/migrate-pb-fep-pagination-bmsg-sample-20260330.sql"
 echo "   ✅ PB FEP pagination/bmsg 샘플 적용(재실행 시 seed 행만 삭제 후 재삽입)"
+
+echo "5-pb-fep-partition. PB FEP(pb_send/pb_recv) 파티셔닝 전환(데이터 보존형, 20260408)..."
+run_sql_file_sp "$DB_A_NAME" "$SP_APP" "$SCRIPT_DIR/migrate-pb-send-recv-partitioning-20260408.sql"
+echo "   ✅ PB FEP 파티셔닝 마이그레이션 적용(이미 파티셔닝이면 no-op)"
 
 echo "5a. permission_group_screen main → pb-feplog/java-fw-imagelog 마이그레이션 적용 중..."
 run_sql_file_sp "$DB_A_NAME" "$SP_APP" "$SCRIPT_DIR/migrate-main-to-pb-feplog-java-fw-imagelog.sql"

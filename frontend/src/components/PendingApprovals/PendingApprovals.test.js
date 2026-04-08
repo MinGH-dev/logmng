@@ -140,6 +140,44 @@ describe('PendingApprovals', () => {
     expect(screen.getByRole('button', { name: '반려, 요청 ID 101' })).toBeInTheDocument();
   });
 
+  test('TC-03: status mapping edge case (snake/lowercase) still shows 승인/반려 for approver', async () => {
+    const originalFlag = process.env.REACT_APP_PA_DEBUG_VISIBILITY;
+    process.env.REACT_APP_PA_DEBUG_VISIBILITY = 'true';
+    getSearchHistoryList.mockResolvedValueOnce({
+      success: true,
+      data: {
+        data: [{ ...sampleRow, approvalStatus: undefined, approval_status: 'pending' }],
+        pagination: { currentPage: 1, totalPages: 1, totalCount: 1 },
+      },
+    });
+
+    render(<PendingApprovals user={baseUser} />);
+
+    await waitFor(() => expect(getSearchHistoryList).toHaveBeenCalled());
+    await screen.findByText('승인대기');
+    expect(screen.getByRole('button', { name: '승인, 요청 ID 101' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: '반려, 요청 ID 101' })).toBeInTheDocument();
+
+    process.env.REACT_APP_PA_DEBUG_VISIBILITY = originalFlag;
+  });
+
+  test('TC-03-2: status mapping trims whitespace and keeps action eligibility', async () => {
+    getSearchHistoryList.mockResolvedValueOnce({
+      success: true,
+      data: {
+        data: [{ ...sampleRow, approvalStatus: ' pending ' }],
+        pagination: { currentPage: 1, totalPages: 1, totalCount: 1 },
+      },
+    });
+
+    render(<PendingApprovals user={baseUser} />);
+
+    await waitFor(() => expect(getSearchHistoryList).toHaveBeenCalled());
+    await screen.findByText('승인대기');
+    expect(screen.getByRole('button', { name: '승인, 요청 ID 101' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: '반려, 요청 ID 101' })).toBeInTheDocument();
+  });
+
   test('TC-FE-03: after approve, list is refreshed', async () => {
     render(<PendingApprovals user={baseUser} />);
 

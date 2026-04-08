@@ -1,6 +1,7 @@
 package com.logmng.service;
 
 import com.logmng.config.AuthProperties;
+import com.logmng.dto.request.ChangeMyPasswordRequest;
 import com.logmng.dto.request.LoginRequest;
 import com.logmng.dto.response.LoginResponse;
 import com.logmng.util.IpUtil;
@@ -12,9 +13,11 @@ import org.springframework.mock.web.MockHttpSession;
 import javax.sql.DataSource;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
+import java.sql.ResultSet;
 import java.sql.Statement;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class AuthServiceTest {
 
@@ -52,6 +55,8 @@ class AuthServiceTest {
                     "user_id VARCHAR(100), department_code VARCHAR(50))");
             stmt.execute("CREATE TABLE IF NOT EXISTS department (" +
                     "code VARCHAR(50) PRIMARY KEY, parent_code VARCHAR(50), name VARCHAR(100), sort_order INT)");
+            stmt.execute("CREATE TABLE IF NOT EXISTS app_user_external_identity (" +
+                    "app_user_id BIGINT NOT NULL, source_system VARCHAR(50), external_employee_id VARCHAR(100))");
         }
         org.h2.jdbcx.JdbcDataSource ds = new org.h2.jdbcx.JdbcDataSource();
         ds.setURL(H2_URL);
@@ -64,6 +69,7 @@ class AuthServiceTest {
             stmt.execute("DELETE FROM app_user_permission_group");
             stmt.execute("DELETE FROM permission_group_screen");
             stmt.execute("DELETE FROM decrypt_approver");
+            stmt.execute("DELETE FROM app_user_external_identity");
             stmt.execute("DELETE FROM app_user");
             stmt.execute("DELETE FROM department");
         }
@@ -90,6 +96,59 @@ class AuthServiceTest {
             ps.setString(6, name);
             ps.executeUpdate();
         }
+    }
+
+    private void softDeleteUser(long id) throws Exception {
+        try (Connection conn = dataSource.getConnection();
+             PreparedStatement ps = conn.prepareStatement(
+                     "UPDATE app_user SET deleted_at = CURRENT_TIMESTAMP WHERE id = ?")) {
+            ps.setLong(1, id);
+            ps.executeUpdate();
+        }
+    }
+
+    private void insertExternalIdentity(long appUserId, String sourceSystem, String externalEmployeeId) throws Exception {
+        try (Connection conn = dataSource.getConnection();
+             PreparedStatement ps = conn.prepareStatement(
+                     "INSERT INTO app_user_external_identity (app_user_id, source_system, external_employee_id) VALUES (?, ?, ?)")) {
+            ps.setLong(1, appUserId);
+            ps.setString(2, sourceSystem);
+            ps.setString(3, externalEmployeeId);
+            ps.executeUpdate();
+        }
+    }
+
+    private String selectPasswordHash(long userId) throws Exception {
+        try (Connection conn = dataSource.getConnection();
+             PreparedStatement ps = conn.prepareStatement("SELECT password_hash FROM app_user WHERE id = ?")) {
+            ps.setLong(1, userId);
+            try (ResultSet rs = ps.executeQuery()) {
+                assertThat(rs.next()).isTrue();
+                return rs.getString(1);
+            }
+        }
+    }
+
+    private AuthService authServiceWithLoginMode(String mode) {
+        AuthProperties props = new AuthProperties();
+        props.getLogin().setMode(mode);
+        return new AuthService(
+                new IpUtil(),
+                dataSource,
+                new PermissionGroupService(dataSource, new AppUserResolver(dataSource)),
+                new DecryptApproverService(dataSource, new DepartmentService(dataSource), null),
+                new AppUserResolver(dataSource),
+                props,
+                new ExternalIdentityService(dataSource, props),
+                null);
+    }
+
+    private static MockHttpServletRequest requestWithSessionUserId(long userId) {
+        MockHttpServletRequest request = new MockHttpServletRequest();
+        MockHttpSession session = new MockHttpSession();
+        session.setAttribute("userId", userId);
+        request.setSession(session);
+        return request;
     }
 
     @Test
@@ -184,5 +243,118 @@ class AuthServiceTest {
                 com.logmng.exception.CustomException.class,
                 () -> authService.login(new LoginRequest(20260001L, "wrong"), request));
         assertThat(ex.getErrorCode()).isEqualTo("INVALID_CREDENTIALS");
+    }
+
+    @Test
+    void login_whenSoftDeleted_throwsUserAccountDisabled() throws Exception {
+        insertUser(20260005L, "deleted-user", "pw", false, "D01", null);
+        softDeleteUser(20260005L);
+
+        MockHttpServletRequest request = new MockHttpServletRequest();
+        request.setRemoteAddr("127.0.0.1");
+
+        com.logmng.exception.CustomException ex = org.junit.jupiter.api.Assertions.assertThrows(
+                com.logmng.exception.CustomException.class,
+                () -> authService.login(new LoginRequest(20260005L, "pw"), request));
+        assertThat(ex.getErrorCode()).isEqualTo("USER_ACCOUNT_DISABLED");
+    }
+
+    @Test
+    void login_activeUser_succeeds_deletedAtFilterDoesNotExclude() throws Exception {
+        insertUser(20260006L, "active-user", "secret", false, "D02", null);
+
+        MockHttpServletRequest request = new MockHttpServletRequest();
+        request.setRemoteAddr("127.0.0.1");
+
+        LoginResponse response = authService.login(new LoginRequest(20260006L, "secret"), request);
+        assertThat(response.getUsername()).isEqualTo("active-user");
+        assertThat(response.getUserId()).isEqualTo(20260006L);
+        assertThat(response.getSelfContext()).isNotNull();
+        assertThat(response.getSelfContext().getUserId()).isEqualTo(20260006L);
+    }
+
+    @Test
+    void changeOwnPassword_success_updatesStoredHash() throws Exception {
+        insertUser(20260010L, "pwd-user", "old-secret", false, "D01", null);
+        ChangeMyPasswordRequest req = new ChangeMyPasswordRequest();
+        req.setCurrentPassword("old-secret");
+        req.setNewPassword("new-secret");
+        req.setConfirmNewPassword("new-secret");
+        authService.changeOwnPassword(requestWithSessionUserId(20260010L), req);
+        assertThat(selectPasswordHash(20260010L)).isEqualTo("new-secret");
+    }
+
+    @Test
+    void changeOwnPassword_wrongCurrent_throwsWrongPassword() throws Exception {
+        insertUser(20260011L, "u-pwd-1", "secret", false, "D01", null);
+        ChangeMyPasswordRequest req = new ChangeMyPasswordRequest();
+        req.setCurrentPassword("wrong");
+        req.setNewPassword("new-secret");
+        req.setConfirmNewPassword("new-secret");
+        assertThatThrownBy(() -> authService.changeOwnPassword(requestWithSessionUserId(20260011L), req))
+                .isInstanceOf(com.logmng.exception.CustomException.class)
+                .satisfies(ex -> assertThat(((com.logmng.exception.CustomException) ex).getErrorCode()).isEqualTo("WRONG_PASSWORD"));
+    }
+
+    @Test
+    void changeOwnPassword_whenUnauthenticated_throwsUnauthorized() {
+        ChangeMyPasswordRequest req = new ChangeMyPasswordRequest();
+        req.setCurrentPassword("a");
+        req.setNewPassword("newpass1");
+        req.setConfirmNewPassword("newpass1");
+        MockHttpServletRequest request = new MockHttpServletRequest();
+        assertThatThrownBy(() -> authService.changeOwnPassword(request, req))
+                .isInstanceOf(com.logmng.exception.CustomException.class)
+                .satisfies(ex -> assertThat(((com.logmng.exception.CustomException) ex).getErrorCode()).isEqualTo("UNAUTHORIZED"));
+    }
+
+    @Test
+    void changeOwnPassword_confirmMismatch_throwsInvalidInput() throws Exception {
+        insertUser(20260012L, "u-pwd-2", "secret", false, "D01", null);
+        ChangeMyPasswordRequest req = new ChangeMyPasswordRequest();
+        req.setCurrentPassword("secret");
+        req.setNewPassword("new-secret");
+        req.setConfirmNewPassword("other");
+        assertThatThrownBy(() -> authService.changeOwnPassword(requestWithSessionUserId(20260012L), req))
+                .isInstanceOf(com.logmng.exception.CustomException.class)
+                .satisfies(ex -> assertThat(((com.logmng.exception.CustomException) ex).getErrorCode()).isEqualTo("INVALID_INPUT"));
+    }
+
+    @Test
+    void changeOwnPassword_sameAsCurrent_throwsInvalidInput() throws Exception {
+        insertUser(20260013L, "u-pwd-3", "same", false, "D01", null);
+        ChangeMyPasswordRequest req = new ChangeMyPasswordRequest();
+        req.setCurrentPassword("same");
+        req.setNewPassword("same");
+        req.setConfirmNewPassword("same");
+        assertThatThrownBy(() -> authService.changeOwnPassword(requestWithSessionUserId(20260013L), req))
+                .isInstanceOf(com.logmng.exception.CustomException.class)
+                .satisfies(ex -> assertThat(((com.logmng.exception.CustomException) ex).getErrorCode()).isEqualTo("INVALID_INPUT"));
+    }
+
+    @Test
+    void changeOwnPassword_whenAdMode_throwsForbidden() throws Exception {
+        insertUser(20260014L, "u-pwd-4", "secret", false, "D01", null);
+        AuthService adAuth = authServiceWithLoginMode("ad");
+        ChangeMyPasswordRequest req = new ChangeMyPasswordRequest();
+        req.setCurrentPassword("secret");
+        req.setNewPassword("new-secret");
+        req.setConfirmNewPassword("new-secret");
+        assertThatThrownBy(() -> adAuth.changeOwnPassword(requestWithSessionUserId(20260014L), req))
+                .isInstanceOf(com.logmng.exception.CustomException.class)
+                .satisfies(ex -> assertThat(((com.logmng.exception.CustomException) ex).getErrorCode()).isEqualTo("PASSWORD_CHANGE_NOT_ALLOWED"));
+    }
+
+    @Test
+    void changeOwnPassword_whenExternalIdentityLinked_throwsForbidden() throws Exception {
+        insertUser(20260015L, "u-pwd-5", "secret", false, "D01", null);
+        insertExternalIdentity(20260015L, "HR", "EXT-1");
+        ChangeMyPasswordRequest req = new ChangeMyPasswordRequest();
+        req.setCurrentPassword("secret");
+        req.setNewPassword("new-secret");
+        req.setConfirmNewPassword("new-secret");
+        assertThatThrownBy(() -> authService.changeOwnPassword(requestWithSessionUserId(20260015L), req))
+                .isInstanceOf(com.logmng.exception.CustomException.class)
+                .satisfies(ex -> assertThat(((com.logmng.exception.CustomException) ex).getErrorCode()).isEqualTo("PASSWORD_CHANGE_NOT_ALLOWED"));
     }
 }

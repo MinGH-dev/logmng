@@ -25,11 +25,13 @@ CREATE TABLE IF NOT EXISTS ext_employee (
     email                   VARCHAR(320) NULL,
     is_active               BOOLEAN NOT NULL DEFAULT true,
     imported_at             TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    snapshot_id             VARCHAR(128) NULL,
     CONSTRAINT uq_ext_employee_source_ext UNIQUE (source_system, external_employee_id)
 );
 CREATE INDEX IF NOT EXISTS idx_ext_employee_source_empnum ON ext_employee (source_system, employee_number);
 CREATE INDEX IF NOT EXISTS idx_ext_employee_display_name ON ext_employee (display_name);
 CREATE INDEX IF NOT EXISTS idx_ext_employee_source_extdept ON ext_employee (source_system, external_department_id);
+CREATE INDEX IF NOT EXISTS idx_ext_employee_source_snapshot ON ext_employee (source_system, snapshot_id);
 
 CREATE TABLE IF NOT EXISTS app_user_external_identity (
     id                      BIGSERIAL PRIMARY KEY,
