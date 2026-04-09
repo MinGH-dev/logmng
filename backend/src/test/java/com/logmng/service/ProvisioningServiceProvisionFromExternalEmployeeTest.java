@@ -245,7 +245,77 @@ class ProvisioningServiceProvisionFromExternalEmployeeTest {
     }
 
     @Test
-    @DisplayName("TC-05: missing changeReason → INVALID_INPUT")
+    @DisplayName("TC-02: active user with same trimmed employee_number → USER_EMPLOYEE_NUMBER_DUPLICATED, no second user")
+    void provisionFailsWhenAnotherActiveUserHasSameEmployeeNumber() throws Exception {
+        try (Connection conn = dataSource.getConnection();
+             Statement stmt = conn.createStatement()) {
+            stmt.execute("INSERT INTO app_user (username, password_hash, role, is_system_admin, employee_number) "
+                    + "VALUES ('existing_emp_dup', 'x', 'USER', false, '20260001')");
+            stmt.execute("INSERT INTO ext_employee (source_system, external_employee_id, employee_number, "
+                    + "display_name, job_title, external_department_id) "
+                    + "VALUES ('AD', 'E_DUP_EMP', ' 20260001 ', '중복사번신규', 'STF', NULL)");
+        }
+
+        ProvisionFromExternalEmployeeRequest req = new ProvisionFromExternalEmployeeRequest();
+        req.setExternalEmployeeId("E_DUP_EMP");
+        req.setSourceSystem("AD");
+        req.setDepartmentCode("DEPT_FROM_REQ");
+        req.setChangeReason("사번 충돌 시나리오");
+
+        CustomException ex = assertThrows(CustomException.class,
+                () -> provisioningService.provisionFromExternalEmployee(req, "admin", "127.0.0.1", "JUnit"));
+        assertThat(ex.getErrorCode()).isEqualTo("USER_EMPLOYEE_NUMBER_DUPLICATED");
+
+        try (Connection conn = dataSource.getConnection();
+             PreparedStatement ps = conn.prepareStatement(
+                     "SELECT COUNT(*) FROM app_user WHERE employee_number = '20260001' AND deleted_at IS NULL")) {
+            try (ResultSet rs = ps.executeQuery()) {
+                assertThat(rs.next()).isTrue();
+                assertThat(rs.getLong(1)).isEqualTo(1L);
+            }
+        }
+    }
+
+    @Test
+    @DisplayName("TC-05: only soft-deleted user has same employee_number → provisioning succeeds")
+    void provisionSucceedsWhenOnlySoftDeletedUserHasSameEmployeeNumber() throws Exception {
+        try (Connection conn = dataSource.getConnection();
+             Statement stmt = conn.createStatement()) {
+            stmt.execute("INSERT INTO app_user (username, password_hash, role, is_system_admin, employee_number, deleted_at) "
+                    + "VALUES ('soft_deleted_emp', 'x', 'USER', false, '20265001', CURRENT_TIMESTAMP)");
+            stmt.execute("INSERT INTO ext_employee (source_system, external_employee_id, employee_number, "
+                    + "display_name, job_title, external_department_id) "
+                    + "VALUES ('AD', 'E_AFTER_SOFT', '20265001', '소프트삭제후신규', 'STF', NULL)");
+        }
+
+        ProvisionFromExternalEmployeeRequest req = new ProvisionFromExternalEmployeeRequest();
+        req.setExternalEmployeeId("E_AFTER_SOFT");
+        req.setSourceSystem("AD");
+        req.setDepartmentCode("DEPT_FROM_REQ");
+        req.setChangeReason("소프트삭제 사번 재사용");
+
+        provisioningService.provisionFromExternalEmployee(req, "admin", "127.0.0.1", "JUnit");
+
+        try (Connection conn = dataSource.getConnection();
+             PreparedStatement ps = conn.prepareStatement(
+                     "SELECT COUNT(*) FROM app_user WHERE employee_number = '20265001' AND deleted_at IS NULL")) {
+            try (ResultSet rs = ps.executeQuery()) {
+                assertThat(rs.next()).isTrue();
+                assertThat(rs.getLong(1)).isEqualTo(1L);
+            }
+        }
+        try (Connection conn = dataSource.getConnection();
+             PreparedStatement ps = conn.prepareStatement(
+                     "SELECT username FROM app_user WHERE name = '소프트삭제후신규' AND deleted_at IS NULL")) {
+            try (ResultSet rs = ps.executeQuery()) {
+                assertThat(rs.next()).isTrue();
+                assertThat(rs.getString("username")).isNotBlank();
+            }
+        }
+    }
+
+    @Test
+    @DisplayName("missing changeReason → INVALID_INPUT")
     void provisionWithoutChangeReason_returnsInvalidInput() {
         ProvisionFromExternalEmployeeRequest req = new ProvisionFromExternalEmployeeRequest();
         req.setExternalEmployeeId("E_NOMAP");

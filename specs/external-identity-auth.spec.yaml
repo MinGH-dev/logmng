@@ -12,6 +12,7 @@ metadata:
     - "20260407-external-dept-employee-ad-login"
     - "20260407-user-management-consistency-delete-reason-activity-audit"
     - "20260408-my-page-local-password-and-profile"
+    - "20260409-employee-number-uniqueness-provisioning"
   status: "draft"
   base_path: "/api"
 
@@ -181,6 +182,7 @@ Create or link **`app_user`** from one external employee row. **Auditable mutati
 | 401 | UNAUTHORIZED | No session |
 | 403 | FORBIDDEN | Not admin-class user |
 | 409 | EXTERNAL_IDENTITY_CONFLICT | `app_user` already linked to this external key |
+| 409 | USER_EMPLOYEE_NUMBER_DUPLICATED | Another **active** `app_user` (`deleted_at IS NULL`) already has the same **trimmed** non-null `employee_number` as would be stored (same semantics as User Management v2 direct create — `specs/user-management-v2.spec.yaml` §4.4 `409 USER_EMPLOYEE_NUMBER_DUPLICATED`). Rows with `deleted_at` set do not block reuse. |
 | 404 | EXT_EMPLOYEE_NOT_FOUND | External row not found (optional) |
 
 # 5. Zero-permission authenticated session

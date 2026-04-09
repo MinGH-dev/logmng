@@ -80,6 +80,8 @@
 **외부 조직 복제 테이블(요약)**
 
 - 읽기 전용 복제 **`ext_department`**, **`ext_employee`**(또는 DBA가 확정한 동등 이름)는 애플리케이션 런타임 역할에 **SELECT-only** 등 스키마/그랜트로 제한(요건 §2 DB). **사용자 등록(프로비저닝)** API는 이 테이블을 검색·선택해 **`app_user`** 생성 및 외부 키 연동을 수행한다 — API는 아래 스펙.
+- **`POST /api/provisioning/users/from-external-employee`**: **활성** `app_user`(`deleted_at IS NULL`)끼리 **trim 후 값이 있는(비-null) `employee_number`**가 서로 같으면 안 된다(User Management v2 직접 등록과 동일 비즈니스 규칙). 다른 활성 사용자가 이미 같은 trim된 사번을 쓰면 **HTTP 409**, `ApiResponse.code` **`USER_EMPLOYEE_NUMBER_DUPLICATED`**(`specs/user-management-v2.spec.yaml` 직접 등록과 **동일 코드**). 복제 사번이 공백·없어 저장값이 **NULL**이면 이 중복 검사는 적용하지 않는다(여러 활성 행이 NULL 허용).
+- **운영·DBA**: 레거시로 **활성 행 간 사번 중복**이 남아 있을 수 있다. 향후 PostgreSQL **부분 UNIQUE** 인덱스(예: `employee_number`에 `WHERE deleted_at IS NULL AND employee_number IS NOT NULL`)를 두려면 **환경별 데이터 정리**가 선행될 수 있다. 위 프로비저닝 경로는 애플리케이션에서 이 규칙을 강제하며, DB 제약 도입만으로 과거 중복이 해소된다고 가정하지 않는다.
 
 **대체 로그인 URL**
 

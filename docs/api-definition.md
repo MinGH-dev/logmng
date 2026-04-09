@@ -146,6 +146,7 @@
 - **성공**: 새 **`app_user`** + `app_user_external_identity` 저장(등록). **AD 비밀번호 저장 없음**. **`data`**: `userId`(number, `app_user.id`), `username`(string), **`employeeNumber`**(string \| 생략, `ext_employee.employee_number`와 동일·trim; 복제 행에 사번이 없으면 생략/null) — UI에서는 **사번을 주요 표시 식별자**로 쓰는 것을 권장한다.  
   **감사**: 성공 시 활동 로그에 **`USER_CREATE`**와 `action_detail`에 **`changeReason`**, **`targetUserId`**, **`employeeNumber`**, **`username`**, **`registrationSource`**: **`EXTERNAL_PROVISIONING`**(신규 기록 권장) 등 비민감 식별자만 포함(§8.0, `specs/activity-action-types.spec.yaml` §2.8·§3 **user_admin**).
 - **충돌·중복 외부 키**: **409**, 코드 **`EXTERNAL_IDENTITY_CONFLICT`**. 응답 본문은 공통 `ApiResponse` 형식이며, **`data`**(실패 시에도 사용 가능)에 기존 계정 힌트가 있을 수 있다(매핑 조회 결과가 있을 때만).
+- **사번 중복(활성 사용자 간)**: **409**, 코드 **`USER_EMPLOYEE_NUMBER_DUPLICATED`** — 다른 **활성** `app_user`(`deleted_at IS NULL`)가 이미 **같은 trim된 비-null `employee_number`**를 쓰는 경우(User Management v2 **`POST /api/user-management-v2/users/direct`** 와 동일 코드·메시지 계열; `specs/user-management-v2.spec.yaml` §4.4). 소프트 삭제된 행만 동일 사번이면 재사용 허용.
 - **검증 실패**(필수 필드·**`changeReason`** 누락·공백·길이 초과 등): **400** `INVALID_INPUT`.
   - **`existingUsername`**: string (선택) — 이미 연결된 `app_user.username` (공백이 아닐 때만 포함)
   - **`existingAppUserId`**: number — 이미 연결된 `app_user.id`
@@ -875,6 +876,7 @@
 | INVALID_CREDENTIALS | **local** 로그인: `userId` 없음·해당 행 없음·비밀번호 불일치 등(401). |
 | USER_ACCOUNT_DISABLED | **local** 로그인: `app_user` 행은 있으나 `deleted_at` 이 설정된 비활성(소프트 삭제) 계정(401). |
 | EXTERNAL_IDENTITY_CONFLICT | 동일 외부 키로 이미 등록됨(409). `POST /api/provisioning/users/from-external-employee`. **data**에 `existingUsername`(선택), `existingAppUserId`(있으면) 포함 가능. |
+| USER_EMPLOYEE_NUMBER_DUPLICATED | 활성 `app_user` 간 동일한 trim 후 비-null `employee_number` (**409**). `POST /api/user-management-v2/users/direct` — `specs/user-management-v2.spec.yaml` §4.4; **`POST /api/provisioning/users/from-external-employee`** (외부 프로비저닝, 동일 규칙·코드). |
 | INVALID_INPUT | 부서코드/userId 등 입력값 비어 있음 또는 형식 오류 (400) |
 | PERMISSION_GROUP_NOT_FOUND | 해당 ID의 권한 그룹 없음 (404) |
 | PERMISSION_GROUP_HAS_USERS | 삭제 시 해당 그룹에 사용자 배정 있음 (400) |

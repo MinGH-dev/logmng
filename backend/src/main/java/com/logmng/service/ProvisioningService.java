@@ -290,6 +290,9 @@ public class ProvisioningService {
                 }
 
                 String employeeNumberTrimmed = StringUtils.hasText(employeeNumber) ? employeeNumber.trim() : null;
+                if (employeeNumberTrimmed != null) {
+                    AppUserEmployeeNumberUniqueness.ensureAvailableForActiveUser(conn, employeeNumberTrimmed);
+                }
 
                 String departmentCode = null;
                 if (StringUtils.hasText(req.getDepartmentCode())) {
