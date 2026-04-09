@@ -110,6 +110,7 @@ For **RequirementsPastSearch** token optimization. Read this file first to find 
 - 20260409-user-management-v2-read-scope | User Management v2 configurable read scope (self / team / all); backend enforcement on shared read APIs; permission-group scope UI; aligns ScreenAccessInterceptor and `screenScopes['user-management-v2']`
 - 20260409-user-management-v2-permission-groups-api-access-bugfix | Operators who receive **User Management v2** (`user-management-v2`) through a **permission group oriented to decrypt approvers / team leads** (e.g. 승인자 그룹, `APPROVE_USER`-style groups that historically granted **`pending-approvals`** / **`search-history`** but not legacy **`user-management`** or **`user-permission-hierarchy`**) must be able to **open User Management v2** and load its data when **`user-management-v2`** is explicitly granted to that group.
 - 20260409-employee-number-uniqueness-provisioning | External HR provisioning aligns with V2: **active** `app_user.employee_number` uniqueness (trimmed, non-null); duplicate → **409** `USER_EMPLOYEE_NUMBER_DUPLICATED`; contract/api-definition/external-identity-auth spec + error-codes skill
+- 20260409-employee-number-dedupe-soft-delete-newer | One-time DB cleanup: soft-delete duplicate **active** `app_user` rows sharing the same `BTRIM(employee_number)`; keep oldest (`created_at`, tie `id`); idempotent `migrate-employee-number-dedupe-soft-delete-newer-20260409.sql`
 
 ## decryption | 복호화 | search-history | 검색 이력 | approval
 
