@@ -1,12 +1,16 @@
 package com.logmng.controller;
 
+import com.logmng.service.DepartmentService;
 import com.logmng.service.StubAuthServiceForUserController;
 import com.logmng.service.StubDecryptApproverServiceForRoleUpdate;
+import org.h2.jdbcx.JdbcDataSource;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
+
+import javax.sql.DataSource;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -28,7 +32,10 @@ class UserControllerTest {
         stubService = new StubDecryptApproverServiceForRoleUpdate();
         stubService.setDeleteException(null);
         stubAuthService = new StubAuthServiceForUserController();
-        UserController controller = new UserController(stubService, stubAuthService);
+        JdbcDataSource dataSource = new JdbcDataSource();
+        dataSource.setURL("jdbc:h2:mem:user_controller_test;DB_CLOSE_DELAY=-1");
+        DepartmentService departmentService = new DepartmentService(dataSource);
+        UserController controller = new UserController(stubService, stubAuthService, departmentService, dataSource);
         mockMvc = MockMvcBuilders.standaloneSetup(controller)
                 .setControllerAdvice(new com.logmng.exception.GlobalExceptionHandler())
                 .build();

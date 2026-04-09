@@ -128,11 +128,39 @@ public class DecryptApproverService {
      * app_user 목록 + 각 사용자별 isApprover, position, rank, isSystemAdmin. §7.1. userId = numeric app_user.id (req 20260316).
      */
     public List<UserListItemResponse> listUsers() {
+        return listUsers(null);
+    }
+
+    /**
+     * Same as {@link #listUsers()} with optional id allowlist for User Management v2 read scope (req 20260409).
+     * {@code allowedNumericUserIds} null = no filter; empty = no rows.
+     */
+    public List<UserListItemResponse> listUsers(java.util.List<Long> allowedNumericUserIds) {
         List<UserListItemResponse> list = new ArrayList<>();
         try (Connection conn = dataSource.getConnection()) {
-            String sql = "SELECT id, username, role, department_code, position, rank, is_system_admin, employee_number "
-                    + "FROM app_user WHERE deleted_at IS NULL ORDER BY username";
-            try (PreparedStatement ps = conn.prepareStatement(sql)) {
+            StringBuilder sql = new StringBuilder(
+                    "SELECT id, username, role, department_code, position, rank, is_system_admin, employee_number "
+                            + "FROM app_user WHERE deleted_at IS NULL ");
+            if (allowedNumericUserIds != null) {
+                if (allowedNumericUserIds.isEmpty()) {
+                    sql.append("AND 1=0 ");
+                } else {
+                    sql.append("AND id IN (");
+                    for (int i = 0; i < allowedNumericUserIds.size(); i++) {
+                        if (i > 0) sql.append(',');
+                        sql.append('?');
+                    }
+                    sql.append(") ");
+                }
+            }
+            sql.append("ORDER BY username");
+            try (PreparedStatement ps = conn.prepareStatement(sql.toString())) {
+                if (allowedNumericUserIds != null && !allowedNumericUserIds.isEmpty()) {
+                    int idx = 1;
+                    for (Long id : allowedNumericUserIds) {
+                        ps.setLong(idx++, id);
+                    }
+                }
                 try (ResultSet rs = ps.executeQuery()) {
                     while (rs.next()) {
                         Long id = rs.getObject("id", Long.class);

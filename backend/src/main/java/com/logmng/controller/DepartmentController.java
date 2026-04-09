@@ -3,17 +3,23 @@ package com.logmng.controller;
 import com.logmng.dto.response.ApiResponse;
 import com.logmng.dto.response.DepartmentNodeResponse;
 import com.logmng.dto.response.DepartmentNodeWithUsersResponse;
+import com.logmng.dto.response.LoginResponse;
 import com.logmng.exception.CustomException;
 import com.logmng.service.AuthService;
 import com.logmng.service.DecryptApproverService;
 import com.logmng.service.DepartmentService;
 import com.logmng.service.UserPermissionHierarchyService;
+import com.logmng.util.UserManagementReadScopeContext;
+import com.logmng.util.UserManagementReadScopeResolver;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import jakarta.servlet.http.HttpServletRequest;
+
+import javax.sql.DataSource;
+
 import java.util.List;
 import java.util.Map;
 
@@ -31,14 +37,17 @@ public class DepartmentController {
     private final DecryptApproverService decryptApproverService;
     private final UserPermissionHierarchyService userPermissionHierarchyService;
     private final AuthService authService;
+    private final DataSource dataSource;
 
     public DepartmentController(DepartmentService departmentService, DecryptApproverService decryptApproverService,
                                 UserPermissionHierarchyService userPermissionHierarchyService,
-                                AuthService authService) {
+                                AuthService authService,
+                                DataSource dataSource) {
         this.departmentService = departmentService;
         this.decryptApproverService = decryptApproverService;
         this.userPermissionHierarchyService = userPermissionHierarchyService;
         this.authService = authService;
+        this.dataSource = dataSource;
     }
 
     private static boolean hasControlOrHighChars(String s) {
@@ -107,11 +116,13 @@ public class DepartmentController {
             @RequestParam(defaultValue = "tree") String format,
             HttpServletRequest request) {
         requireUserManagementAccess(request);  // user-management or user-permission-hierarchy
+        LoginResponse current = authService.getCurrentUserInfo(request);
+        UserManagementReadScopeContext ctx = UserManagementReadScopeResolver.resolve(request, current, dataSource, departmentService);
         if ("flat".equalsIgnoreCase(format)) {
-            List<DepartmentNodeWithUsersResponse> data = userPermissionHierarchyService.getHierarchyFlat();
+            List<DepartmentNodeWithUsersResponse> data = userPermissionHierarchyService.getHierarchyFlat(ctx);
             return ResponseEntity.ok(ApiResponse.success(data));
         }
-        List<DepartmentNodeWithUsersResponse> data = userPermissionHierarchyService.getHierarchyTree();
+        List<DepartmentNodeWithUsersResponse> data = userPermissionHierarchyService.getHierarchyTree(ctx);
         return ResponseEntity.ok(ApiResponse.success(data));
     }
 

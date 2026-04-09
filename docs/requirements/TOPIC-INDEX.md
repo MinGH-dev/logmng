@@ -107,6 +107,7 @@ For **RequirementsPastSearch** token optimization. Read this file first to find 
 - 20250303-user-management-permission-group-access-bugfix-2 | Backend: hierarchy/permission-groups API accept user-management OR user-permission-hierarchy
 - 20260407-user-management-consistency-delete-reason-activity-audit | Administrators need a trustworthy User Management experience: identifiers shown when provisioning from the HR directory (`ext_employee`) must match what appears in the User Management list (`app_user`). Operators report a case where external search marks an employee as already registered (`provisioned`) and disables re-registration, but the corresponding user does not appear in the User Management table—undermining trust in provisioning and list data.
 - 20260408-user-management-v2-activity-audit-detail-in-activity-log | User Management v2 mutations (dept tree, direct user create, related user-admin actions) must emit auditable user_activity_log rows with structured action_detail and visible activity-log detail; extend activity-action-types; align spec §5
+- 20260409-user-management-v2-read-scope | User Management v2 configurable read scope (self / team / all); backend enforcement on shared read APIs; permission-group scope UI; aligns ScreenAccessInterceptor and `screenScopes['user-management-v2']`
 
 ## decryption | 복호화 | search-history | 검색 이력 | approval
 
@@ -144,6 +145,7 @@ For **RequirementsPastSearch** token optimization. Read this file first to find 
 
 ## image-log | imagelog | datastring
 
+- 20260409-advanced-search-field-name-picker-and-caret | Java FW Image Log advanced search: show searchable field list on focus; insert canonical fragment; caret in value position (`AdvancedSearchForm`)
 - 20260330-imagelog-dup-guid-sample-data | Seed data: two imagelog rows share guid `GUID-DUP-PRETTY-20260330` with different status (input/output) for Pretty/decrypt manual and integration testing; aligns with parent req 20260330-image-log-pretty-decrypt-row-key
 - 20260320-imagelog-guid-status-composite-key | Java FW Image Log row identity is (guid + status); APIs, decryption-allowed store, approval snapshot, search-history detail, DB constraints, and UI must use the composite end-to-end
 - 20260206-image-log-datastring-search | Image Log datastring 검색 기능 개선

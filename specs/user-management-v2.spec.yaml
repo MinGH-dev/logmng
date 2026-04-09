@@ -6,10 +6,11 @@
 ---
 metadata:
   title: "User Management v2 API contract (manual tree + quick entry)"
-  version: "1.1"
+  version: "1.2"
   requirement_ids:
     - "20260408-user-management-v2-manual-department-tree-and-quick-user-entry"
     - "20260408-user-management-v2-activity-audit-detail-in-activity-log"
+    - "20260409-user-management-v2-read-scope"
   status: "draft"
   base_path: "/api/user-management-v2"
 
@@ -25,18 +26,56 @@ metadata:
 
 # 2. Authorization model
 
-- **Screen access**: caller must be authenticated and have user-management-class screen access:
-  - `is_system_admin = true`, or
-  - `allowedScreenIds` contains `user-management` (or an equivalent user-management view key used by implementation).
-- **Mutation APIs** (`POST`, `DELETE` in this spec): require write function:
-  - `is_system_admin = true`, or
-  - `screenFunctions['user-management'].write = true`.
-- **Read API** (`GET /quick-entry/options`): same screen access; write permission is not required.
+## 2.1 Screen access and functions
 
-Errors:
+- **Screen id**: **`user-management-v2`** (production). Contract for **`AllowedScreenItem.scope`**, **`screenScopes`**, and interceptor mapping: **`specs/permission-group-hierarchy.spec.yaml`** §1.1, §4.3. Requirement: **`docs/requirements/20260409-user-management-v2-read-scope.md`**.
+- **Screen access** (authenticated): caller must have user-management-class access for APIs used by this screen:
+  - `is_system_admin = true`, or
+  - `allowedScreenIds` contains **`user-management-v2`** and/or legacy keys (**`user-management`**, **`user-permission-hierarchy`**) as implemented for **`canAccessUserManagementView`** / **`ScreenAccessInterceptor`** — **v2-only** operators must be able to load shared reads (req 20260409 §1).
+- **Read function**: **`screenFunctions['user-management-v2'].read`** effective true (or system admin). Applies to all **GET** paths in this spec and to **shared read APIs** (§2.2).
+- **Mutation APIs** (`POST`, `DELETE` under `/api/user-management-v2/**`): require **write** on the v2 screen:
+  - `is_system_admin = true`, or
+  - **`screenFunctions['user-management-v2'].write = true`** (preferred; aligns with **`permission-group-hierarchy`** §4.4). Implementations that still mirror legacy **`user-management`** for write must document DOC-CODE-SYNC.
+- **Legacy user delete** (`DELETE /api/users/{userId}`) when used from UM v2: same **write** + **scope** rules as other v2 mutations (§2.3).
+- **Read API** (`GET /quick-entry/options`): screen access + read; write not required.
+
+## 2.2 Read scope (`self` | `team` | `all`) and shared APIs
+
+Non–system-admin operators have a **list/read scope** for this screen from **`screenScopes['user-management-v2']`**: **`self`**, **`team`**, or **`all`**. **Default** when permission row omits or null: **`team`** (same as activity-log / statistics — req `20250304-team-scope-default`). **`is_system_admin = true`**: effective read scope is always **`all`**; do not apply permission-group scope to admins.
+
+**Semantics** (align with **`specs/permission-group-hierarchy.spec.yaml`** §1.1, §4.3 — same API values and UI labels **본인 / 부서 / 전체**):
+
+| Scope | User list (`GET /api/users`) | Department hierarchy (`GET /api/departments/user-permission-hierarchy`) | Quick-entry (`GET /api/user-management-v2/quick-entry/options`) |
+|-------|------------------------------|------------------------------------------------------------------------|---------------------------------------------------------------------|
+| `self` | Only the **current** `app_user` row | Redacted tree: no unrelated departments/users beyond minimal context for the operator (implementation-defined; must not leak peers). | Only values tied to the **current operator** (no other users' history). |
+| `team` | Users with **same `department_code`** as the operator | Department nodes on paths relevant to that department (default product: subtree rooted at operator department — DOC-CODE-SYNC). Edge: blank operator `department_code` — same policy as statistics **`team`** / `DepartmentScopeHelper`. | Must not expose other users' quick-entry data. |
+| `all` | Full list subject to screen access | Full tree subject to screen access | Full operator-relevant options subject to screen access |
+
+**Shared read APIs** (must enforce scope **server-side**; no client-trusted widening):
+
+- **`GET /api/users`**
+- **`GET /api/departments/user-permission-hierarchy`** (query `format` as today)
+- **`GET /api/user-management-v2/quick-entry/options`**
+
+Scope is resolved only from **server-side** permission groups + **`is_system_admin`**, never from request body alone.
+
+**`self` UI**: Where applicable, follow **visible locked self-context** for the user block (**`department` → `username` → `userId`**) per **`.cursor/skills/search-consistency-domain/SKILL.md`** and **`selfContext`** on auth payloads.
+
+## 2.3 Mutations and out-of-scope targets
+
+Mutations must not affect entities **outside** the operator's **effective read scope** (§2.2), except where product explicitly documents otherwise.
+
+**Denial behavior** (implement one consistent policy; document in backend):
+
+- **`403`** **`FUNCTION_NOT_ALLOWED`** — generic denial when the user has read access but must not perform the action on that target.
+- **`403`** **`FORBIDDEN`** — alternative when aligning with existing management API patterns.
+- **`404`** **`USER_NOT_FOUND`** or **`DEPARTMENT_NOT_FOUND`** — allowed when the product chooses **existence hiding** for out-of-scope IDs (avoid IDOR-style enumeration).
+
+**Errors** (cumulative with §2.1):
+
 - `401 UNAUTHORIZED`: no valid session.
-- `403 FORBIDDEN`: screen access denied.
-- `403 FUNCTION_NOT_ALLOWED`: screen visible but write function denied for mutation API (including `DELETE`).
+- `403 FORBIDDEN`: screen access denied (including missing **`user-management-v2`** for v2-only flows where contract requires it).
+- `403 FUNCTION_NOT_ALLOWED`: write denied, or mutation target **out of effective read scope**, or legacy write flag mismatch per §2.1.
 
 # 3. Domain identifiers and field rules
 
@@ -224,7 +263,7 @@ Directly register a user under a selected department (no HR provisioning depende
 
 ## 4.5 GET /api/user-management-v2/quick-entry/options
 
-Return quick-entry values for FE form acceleration. Scope is per authenticated operator.
+Return quick-entry values for FE form acceleration. **Per-operator** storage; responses must respect **`screenScopes['user-management-v2']`** (§2.2): e.g. **`self`** → no other users' recent/previous values; **`team`**/**`all`** per server enforcement.
 
 **Query**
 - `fields` (optional, csv): subset of `employeeNumber,name,rank,permissionGroupId`.
@@ -282,3 +321,4 @@ Contract notes:
 - `docs/api-definition.md`
 - `specs/permission-group-hierarchy.spec.yaml`
 - `specs/activity-action-types.spec.yaml`
+- `docs/requirements/20260409-user-management-v2-read-scope.md`

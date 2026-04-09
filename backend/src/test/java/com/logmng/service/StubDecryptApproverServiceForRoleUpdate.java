@@ -56,6 +56,11 @@ public class StubDecryptApproverServiceForRoleUpdate extends DecryptApproverServ
     }
 
     @Override
+    public List<UserListItemResponse> listUsers(List<Long> allowedNumericUserIds) {
+        return Collections.emptyList();
+    }
+
+    @Override
     public UserListItemResponse updateUserRole(String callerUserId, String targetUserId, String role) {
         RuntimeException ex = updateException.get();
         if (ex != null) {

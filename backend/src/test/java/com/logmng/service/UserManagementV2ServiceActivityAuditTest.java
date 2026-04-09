@@ -8,6 +8,7 @@ import com.logmng.dto.request.UserManagementV2CreateDepartmentRequest;
 import com.logmng.dto.request.UserManagementV2DirectUserCreateRequest;
 import com.logmng.exception.CustomException;
 import com.logmng.repository.UserActivityAccessAuditRepository;
+import com.logmng.util.UserManagementReadScopeContext;
 import org.h2.jdbcx.JdbcDataSource;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -58,7 +59,7 @@ class UserManagementV2ServiceActivityAuditTest {
                 lastRequestParams.set(requestParams);
             }
         };
-        service = new UserManagementV2Service(dataSource, capture);
+        service = new UserManagementV2Service(dataSource, new DepartmentService(dataSource), capture);
     }
 
     @Test
@@ -70,7 +71,7 @@ class UserManagementV2ServiceActivityAuditTest {
         req.setChangeReason("조직 신설");
 
         String path = "/api/user-management-v2/departments/root";
-        service.createRootDepartment(req, "admin1", "127.0.0.1", "junit", path);
+        service.createRootDepartment(req, "admin1", "127.0.0.1", "junit", path, UserManagementReadScopeContext.unrestricted());
 
         assertThat(saveCount.get()).isEqualTo(1);
         assertThat(lastActionType.get()).isEqualTo(ActivityActionType.DEPARTMENT_CREATE_ROOT.getCode());
@@ -100,7 +101,7 @@ class UserManagementV2ServiceActivityAuditTest {
         rootReq.setCode("P1");
         rootReq.setSortOrder(1);
         rootReq.setChangeReason("루트");
-        service.createRootDepartment(rootReq, "admin1", "127.0.0.1", "junit", "/api/user-management-v2/departments/root");
+        service.createRootDepartment(rootReq, "admin1", "127.0.0.1", "junit", "/api/user-management-v2/departments/root", UserManagementReadScopeContext.unrestricted());
         saveCount.set(0);
 
         UserManagementV2CreateDepartmentRequest childReq = new UserManagementV2CreateDepartmentRequest();
@@ -109,7 +110,7 @@ class UserManagementV2ServiceActivityAuditTest {
         childReq.setSortOrder(2);
         childReq.setChangeReason("하위 추가");
         String childPath = "/api/user-management-v2/departments/children";
-        service.createChildDepartment("P1", childReq, "admin1", "127.0.0.1", "junit", childPath);
+        service.createChildDepartment("P1", childReq, "admin1", "127.0.0.1", "junit", childPath, UserManagementReadScopeContext.unrestricted());
 
         assertThat(saveCount.get()).isEqualTo(1);
         assertThat(lastActionType.get()).isEqualTo(ActivityActionType.DEPARTMENT_CREATE_CHILD.getCode());
@@ -142,7 +143,7 @@ class UserManagementV2ServiceActivityAuditTest {
         req.setPermissionGroupId(1L);
         req.setChangeReason("신규 입사");
         String path = "/api/user-management-v2/users/direct";
-        service.createDirectUser(req, "admin1", "127.0.0.1", "junit", path);
+        service.createDirectUser(req, "admin1", "127.0.0.1", "junit", path, UserManagementReadScopeContext.unrestricted());
 
         assertThat(saveCount.get()).isEqualTo(1);
         assertThat(lastActionType.get()).isEqualTo(ActivityActionType.USER_CREATE.getCode());
@@ -170,7 +171,7 @@ class UserManagementV2ServiceActivityAuditTest {
         req.setCode("R1");
         req.setChangeReason("   ");
 
-        assertThatThrownBy(() -> service.createRootDepartment(req, "admin1", "127.0.0.1", "junit", "/api/x"))
+        assertThatThrownBy(() -> service.createRootDepartment(req, "admin1", "127.0.0.1", "junit", "/api/x", UserManagementReadScopeContext.unrestricted()))
                 .isInstanceOf(CustomException.class);
         assertThat(saveCount.get()).isZero();
     }
@@ -185,7 +186,7 @@ class UserManagementV2ServiceActivityAuditTest {
         UserDeleteRequest req = new UserDeleteRequest();
         req.setChangeReason("폐지");
         String path = "/api/user-management-v2/departments/LEAF";
-        service.deleteDepartment("LEAF", req, "admin1", "127.0.0.1", "junit", path);
+        service.deleteDepartment("LEAF", req, "admin1", "127.0.0.1", "junit", path, UserManagementReadScopeContext.unrestricted());
 
         assertThat(saveCount.get()).isEqualTo(1);
         assertThat(lastActionType.get()).isEqualTo(ActivityActionType.DEPARTMENT_DELETE.getCode());

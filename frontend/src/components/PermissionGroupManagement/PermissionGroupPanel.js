@@ -140,20 +140,29 @@ const PermissionGroupPanel = ({ user, onRefreshHierarchy, menuTree = MENU_TREE }
     return s;
   };
 
+  /** Default scope when API omits scope for a scope-supporting screen (req 20250304 team default; req 20260409 UM v2 = team). */
+  const defaultScopeWhenMissing = (screenId) => (screenId === 'user-management-v2' ? 'team' : 'self');
+
   /** Normalize allowedScreens to [{ screenId, scope?, read?, write?, approve?, decrypt? }]. API may return string[] or object array.
    * Preserves explicit false for write/approve/decrypt when API returns partial data. When approve=true for approval-fixed screens, scope is set to 'team'. req 20250303, 20260306, 20260306-search-screen-decrypt-permission */
   const normalizeAllowedScreens = (arr) => {
-    const scopeScreens = ['activity-log', 'statistics', 'search-history', 'pending-approvals'];
+    const scopeScreens = [
+      'activity-log',
+      'statistics',
+      'search-history',
+      'pending-approvals',
+      'user-management-v2',
+    ];
     const decryptScreens = ['pb-feplog', 'pb-fep-log-search', 'java-fw-imagelog'];
     if (!Array.isArray(arr)) return [];
     return arr.map((s) => {
       const rawId = typeof s === 'string' ? s : s.screenId;
       const screenId = normalizeScreenId(rawId);
       const base = typeof s === 'string'
-        ? { screenId, scope: scopeScreens.includes(screenId) ? 'self' : undefined }
+        ? { screenId, scope: scopeScreens.includes(screenId) ? defaultScopeWhenMissing(screenId) : undefined }
         : {
             screenId,
-            scope: s.scope || (scopeScreens.includes(screenId) ? 'self' : undefined),
+            scope: s.scope || (scopeScreens.includes(screenId) ? defaultScopeWhenMissing(screenId) : undefined),
             read: s.read,
             write: s.write,
             approve: s.approve,
@@ -164,7 +173,7 @@ const PermissionGroupPanel = ({ user, onRefreshHierarchy, menuTree = MENU_TREE }
       const hasDecrypt = decryptScreens.includes(base.screenId);
       const approved = base.approve ?? (hasApprove ? false : undefined);
       const decryptVal = base.decrypt ?? (hasDecrypt ? false : undefined);
-      let scope = base.scope ?? (scopeScreens.includes(base.screenId) ? 'self' : undefined);
+      let scope = base.scope ?? (scopeScreens.includes(base.screenId) ? defaultScopeWhenMissing(base.screenId) : undefined);
       if (approved === true && APPROVAL_SCOPE_FIXED_SCREENS.includes(base.screenId)) {
         scope = 'team';
       }

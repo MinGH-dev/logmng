@@ -7,7 +7,9 @@ import com.logmng.dto.response.ApiResponse;
 import com.logmng.dto.response.LoginResponse;
 import com.logmng.exception.CustomException;
 import com.logmng.service.AuthService;
+import com.logmng.service.DepartmentService;
 import com.logmng.service.UserManagementV2Service;
+import com.logmng.util.UserManagementReadScopeResolver;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
@@ -22,6 +24,9 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import jakarta.servlet.http.HttpServletRequest;
+
+import javax.sql.DataSource;
+
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
@@ -34,10 +39,15 @@ public class UserManagementV2Controller {
 
     private final AuthService authService;
     private final UserManagementV2Service userManagementV2Service;
+    private final DataSource dataSource;
+    private final DepartmentService departmentService;
 
-    public UserManagementV2Controller(AuthService authService, UserManagementV2Service userManagementV2Service) {
+    public UserManagementV2Controller(AuthService authService, UserManagementV2Service userManagementV2Service,
+                                      DataSource dataSource, DepartmentService departmentService) {
         this.authService = authService;
         this.userManagementV2Service = userManagementV2Service;
+        this.dataSource = dataSource;
+        this.departmentService = departmentService;
     }
 
     private LoginResponse requireUserManagementView(HttpServletRequest request) {
@@ -68,9 +78,10 @@ public class UserManagementV2Controller {
             @RequestBody UserManagementV2CreateDepartmentRequest body,
             HttpServletRequest request) {
         LoginResponse current = requireUserManagementWrite(request);
+        var scopeCtx = UserManagementReadScopeResolver.resolve(request, current, dataSource, departmentService);
         Map<String, Object> data = userManagementV2Service.createRootDepartment(
                 body, current.getUsername().trim(), request.getRemoteAddr(), request.getHeader("User-Agent"),
-                request.getRequestURI());
+                request.getRequestURI(), scopeCtx);
         return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.success(data));
     }
 
@@ -84,9 +95,10 @@ public class UserManagementV2Controller {
             @RequestBody UserManagementV2CreateDepartmentRequest body,
             HttpServletRequest request) {
         LoginResponse current = requireUserManagementWrite(request);
+        var scopeCtx = UserManagementReadScopeResolver.resolve(request, current, dataSource, departmentService);
         Map<String, Object> data = userManagementV2Service.createChildDepartment(
                 parentDepartmentId, body, current.getUsername().trim(), request.getRemoteAddr(), request.getHeader("User-Agent"),
-                request.getRequestURI());
+                request.getRequestURI(), scopeCtx);
         return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.success(data));
     }
 
@@ -99,6 +111,7 @@ public class UserManagementV2Controller {
             @RequestBody UserManagementV2CreateDepartmentRequest body,
             HttpServletRequest request) {
         LoginResponse current = requireUserManagementWrite(request);
+        var scopeCtx = UserManagementReadScopeResolver.resolve(request, current, dataSource, departmentService);
         String parentTrim = body != null && body.getParentDepartmentId() != null
                 ? body.getParentDepartmentId().trim()
                 : "";
@@ -107,7 +120,7 @@ public class UserManagementV2Controller {
         }
         Map<String, Object> data = userManagementV2Service.createChildDepartment(
                 parentTrim, body, current.getUsername().trim(), request.getRemoteAddr(), request.getHeader("User-Agent"),
-                request.getRequestURI());
+                request.getRequestURI(), scopeCtx);
         return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.success(data));
     }
 
@@ -116,9 +129,10 @@ public class UserManagementV2Controller {
             @RequestBody UserManagementV2DirectUserCreateRequest body,
             HttpServletRequest request) {
         LoginResponse current = requireUserManagementWrite(request);
+        var scopeCtx = UserManagementReadScopeResolver.resolve(request, current, dataSource, departmentService);
         Map<String, Object> data = userManagementV2Service.createDirectUser(
                 body, current.getUsername().trim(), request.getRemoteAddr(), request.getHeader("User-Agent"),
-                request.getRequestURI());
+                request.getRequestURI(), scopeCtx);
         return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.success(data));
     }
 
@@ -132,13 +146,15 @@ public class UserManagementV2Controller {
             @RequestBody UserDeleteRequest body,
             HttpServletRequest request) {
         LoginResponse current = requireUserManagementWrite(request);
+        var scopeCtx = UserManagementReadScopeResolver.resolve(request, current, dataSource, departmentService);
         Map<String, Object> data = userManagementV2Service.deleteDepartment(
                 departmentId,
                 body,
                 current.getUsername().trim(),
                 request.getRemoteAddr(),
                 request.getHeader("User-Agent"),
-                request.getRequestURI());
+                request.getRequestURI(),
+                scopeCtx);
         return ResponseEntity.ok(ApiResponse.success(data));
     }
 
@@ -155,7 +171,8 @@ public class UserManagementV2Controller {
                     .filter(s -> !s.isEmpty())
                     .toList();
         }
-        Map<String, Object> data = userManagementV2Service.getQuickEntryOptions(current.getUsername().trim(), parsedFields, limit);
+        var scopeCtx = UserManagementReadScopeResolver.resolve(request, current, dataSource, departmentService);
+        Map<String, Object> data = userManagementV2Service.getQuickEntryOptions(current.getUsername().trim(), parsedFields, limit, scopeCtx);
         return ResponseEntity.ok(ApiResponse.success(data));
     }
 }

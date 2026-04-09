@@ -119,6 +119,24 @@ describe('ScreenSelectionTree — scope for pending-approvals (req 20260305)', (
   });
 });
 
+describe('ScreenSelectionTree — user-management-v2 scope (req 20260409)', () => {
+  test('TC-11: 사용자 관리 v2 선택 시 조회 범위 콤보박스가 보이고 값이 onChange에 포함된다', () => {
+    const handleChange = jest.fn();
+    const selected = [{ screenId: 'user-management-v2', scope: 'team', write: true }];
+    render(<ScreenSelectionTree selectedScreens={selected} onChange={handleChange} />);
+
+    const scopeSelect = screen.getByRole('combobox', { name: /사용자 관리 v2 조회 범위/ });
+    expect(scopeSelect).toBeInTheDocument();
+    expect(scopeSelect).toHaveValue('team');
+
+    userEvent.selectOptions(scopeSelect, 'self');
+    expect(handleChange).toHaveBeenCalled();
+    const payload = handleChange.mock.calls[0][0];
+    const item = payload.find((s) => s.screenId === 'user-management-v2');
+    expect(item?.scope).toBe('self');
+  });
+});
+
 describe('ScreenSelectionTree — approval scope fixed to department (req 20260306)', () => {
   const noop = () => {};
 

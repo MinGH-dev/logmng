@@ -555,6 +555,55 @@ describe('UserManagement', () => {
     });
   });
 
+  describe('req 20260409 UM v2 access & scope (TC-12, TC-13)', () => {
+    test('TC-12: allowedScreenIds에 user-management-v2만 있어도 계층·퀵엔트리 API를 호출해 데이터를 로드한다', async () => {
+      getUserPermissionHierarchy.mockResolvedValue({
+        data: [{ code: 'D1', name: '팀', children: [], users: [] }],
+      });
+      const v2OnlyUser = {
+        isSystemAdmin: false,
+        allowedScreenIds: ['user-management-v2'],
+        screenFunctions: { 'user-management-v2': { read: true, write: false } },
+        screenScopes: { 'user-management-v2': 'team' },
+      };
+
+      await renderUserManagement(v2OnlyUser);
+
+      await waitFor(() => {
+        expect(getUserPermissionHierarchy).toHaveBeenCalled();
+        expect(getUsers).toHaveBeenCalled();
+        expect(listPermissionGroups).toHaveBeenCalled();
+      });
+      expect(screen.queryByText('관리자만 접근할 수 있습니다.')).not.toBeInTheDocument();
+      await waitFor(() => expect(screen.getByText('팀')).toBeInTheDocument());
+    });
+
+    test('TC-13: screenScopes[self]이면 본인 고정 블록이 selfContext 값으로 표시된다', async () => {
+      getUserPermissionHierarchy.mockResolvedValue({
+        data: [{ code: 'D1', name: '팀', children: [], users: [] }],
+      });
+      const selfScopeUser = {
+        isSystemAdmin: false,
+        allowedScreenIds: ['user-management-v2'],
+        screenFunctions: { 'user-management-v2': { read: true, write: false } },
+        screenScopes: { 'user-management-v2': 'self' },
+        selfContext: {
+          department: '개발팀',
+          username: 'selfuser',
+          userId: 90001,
+        },
+      };
+
+      await renderUserManagement(selfScopeUser);
+
+      await waitFor(() => expect(screen.getByTestId('um-v2-locked-self-block')).toBeInTheDocument());
+      expect(screen.getByLabelText('부서명 (본인 고정)')).toHaveValue('개발팀');
+      expect(screen.getByLabelText('사용자명 (본인 고정)')).toHaveValue('selfuser');
+      expect(screen.getByLabelText('사용자 ID (본인 고정, app_user.id)')).toHaveValue('90001');
+      expect(screen.queryByRole('button', { name: '검색' })).not.toBeInTheDocument();
+    });
+  });
+
   describe('TC-11: read-only 권한', () => {
     test('쓰기 권한이 없으면 트리/사용자 변경 액션이 차단된다', async () => {
       const readOnlyUser = {

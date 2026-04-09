@@ -38,7 +38,9 @@ public class ScreenAccessInterceptor implements HandlerInterceptor {
 
     /** Path pattern (regex) -> required screen_id(s). Order: more specific first. */
     private static final List<PathScreenRule> PATH_SCREEN_RULES = List.of(
-            new PathScreenRule("^/api/departments/user-permission-hierarchy$", List.of(ScreenConstants.USER_MANAGEMENT, ScreenConstants.USER_PERMISSION_HIERARCHY)),
+            new PathScreenRule("^/api/user-management-v2/.*", List.of(ScreenConstants.USER_MANAGEMENT_V2)),
+            new PathScreenRule("^/api/departments/user-permission-hierarchy$",
+                    List.of(ScreenConstants.USER_MANAGEMENT, ScreenConstants.USER_PERMISSION_HIERARCHY, ScreenConstants.USER_MANAGEMENT_V2)),
             new PathScreenRule("^/api/departments.*", List.of(ScreenConstants.DEPARTMENT_APPROVERS, ScreenConstants.USER_PERMISSION_HIERARCHY)),
             new PathScreenRule("^/api/permission-groups.*", List.of(ScreenConstants.USER_MANAGEMENT, ScreenConstants.USER_PERMISSION_HIERARCHY)),
             new PathScreenRule("^/api/search-history/pending.*", List.of(ScreenConstants.PENDING_APPROVALS)),
@@ -63,7 +65,8 @@ public class ScreenAccessInterceptor implements HandlerInterceptor {
                             ScreenConstants.USER_PERMISSION_HIERARCHY)),
             // PoC: /config, /preview, /snapshots, /snapshots/{id}/employees (single pattern).
             new PathScreenRule("^/api/hr-sync/poc.*", List.of(ScreenConstants.USER_MANAGEMENT, ScreenConstants.USER_PERMISSION_HIERARCHY)),
-            new PathScreenRule("^/api/users.*", List.of(ScreenConstants.USER_MANAGEMENT)),
+            new PathScreenRule("^/api/users.*",
+                    List.of(ScreenConstants.USER_MANAGEMENT, ScreenConstants.USER_MANAGEMENT_V2)),
             new PathScreenRule("^/api/provisioning.*", List.of(ScreenConstants.USER_MANAGEMENT, ScreenConstants.USER_PERMISSION_HIERARCHY)),
             new PathScreenRule("^/api/logs/db-refactored.*", List.of(ScreenConstants.PB_FEPLOG, ScreenConstants.PB_FEP_LOG_SEARCH, ScreenConstants.JAVA_FW_IMAGELOG)),
             new PathScreenRule("^/api/logs/decrypt.*", List.of(ScreenConstants.PB_FEPLOG, ScreenConstants.PB_FEP_LOG_SEARCH, ScreenConstants.JAVA_FW_IMAGELOG)),

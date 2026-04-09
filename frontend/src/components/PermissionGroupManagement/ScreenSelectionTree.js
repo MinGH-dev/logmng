@@ -21,8 +21,14 @@ import './ScreenSelectionTree.css';
 /** Read label when screen is selected: read is always on. UX: clarify "조회 ✓" so it's clear read is always on. */
 const READ_LABEL_DISPLAY = '조회 ✓';
 
-/** Screens that support scope (self | team | all). req 20250304-team-scope-default-and-approval; req 20260305 pending-approvals scope */
-const SCOPE_SUPPORTING_SCREENS = ['activity-log', 'statistics', 'search-history', 'pending-approvals'];
+/** Screens that support scope (self | team | all). req 20250304-team-scope-default-and-approval; req 20260305 pending-approvals scope; req 20260409 user-management-v2 */
+const SCOPE_SUPPORTING_SCREENS = [
+  'activity-log',
+  'statistics',
+  'search-history',
+  'pending-approvals',
+  'user-management-v2',
+];
 
 const SCOPE_OPTIONS = [
   { value: 'self', label: '본인' },

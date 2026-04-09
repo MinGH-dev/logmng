@@ -35,13 +35,13 @@ public final class ScreenConstants {
     public static final String STATISTICS = "statistics";
 
     public static final String PENDING_APPROVALS = "pending-approvals";
-    /** Screens that support scope ('self'|'team'|'all'). Per req 20250303, 20250304, 20260305-pending-approvals-scope. */
-    private static final Set<String> SCREENS_WITH_SCOPE = Collections.unmodifiableSet(
-            Arrays.asList(SEARCH_HISTORY, ACTIVITY_LOG, STATISTICS, PENDING_APPROVALS).stream().collect(Collectors.toSet())
-    );
     public static final String USER_MANAGEMENT = "user-management";
     /** User Management v2 (production). */
     public static final String USER_MANAGEMENT_V2 = "user-management-v2";
+    /** Screens that support scope ('self'|'team'|'all'). Per req 20250303, 20250304, 20260305-pending-approvals-scope, 20260409 UM v2 read scope. */
+    private static final Set<String> SCREENS_WITH_SCOPE = Collections.unmodifiableSet(
+            Arrays.asList(SEARCH_HISTORY, ACTIVITY_LOG, STATISTICS, PENDING_APPROVALS, USER_MANAGEMENT_V2).stream().collect(Collectors.toSet())
+    );
     /** HR Sync PoC preview screen (sidebar). */
     public static final String HR_SYNC_POC = "hr-sync-poc";
     /** PoC-only UM v2 clone; APIs under {@code /api/hr-sync/poc/user-mgmt/*}. Req: 20260408-poc-user-management-v2-isolated-clone. */
@@ -72,9 +72,9 @@ public final class ScreenConstants {
             ).stream().collect(Collectors.toSet())
     );
 
-    /** Screens that support write (create/update/delete). Per spec §4.4. */
+    /** Screens that support write (create/update/delete). Per spec §4.4; user-management-v2 req 20260409. */
     private static final Set<String> SCREENS_WITH_WRITE = Collections.unmodifiableSet(
-            Arrays.asList(USER_MANAGEMENT, DEPARTMENT_APPROVERS, USER_PERMISSION_HIERARCHY, PERMISSION_GROUP_MANAGEMENT,
+            Arrays.asList(USER_MANAGEMENT, USER_MANAGEMENT_V2, DEPARTMENT_APPROVERS, USER_PERMISSION_HIERARCHY, PERMISSION_GROUP_MANAGEMENT,
                     PERMISSION_GROUP_SCREEN_MATRIX).stream().collect(Collectors.toSet())
     );
 
@@ -153,7 +153,7 @@ public final class ScreenConstants {
         return screenId != null && !screenId.isBlank() && ALL_ALLOWED_SCREENS.contains(screenId.trim());
     }
 
-    /** Returns true if the screen supports scope (activity-log, statistics, search-history). */
+    /** Returns true if the screen supports scope (activity-log, statistics, search-history, pending-approvals, user-management-v2). */
     public static boolean supportsScope(String screenId) {
         return screenId != null && SCREENS_WITH_SCOPE.contains(screenId.trim());
     }

@@ -8,6 +8,7 @@ import com.logmng.dto.request.UserManagementV2DirectUserCreateRequest;
 import com.logmng.exception.CustomException;
 import com.logmng.util.ChangeReasonValidator;
 import com.logmng.util.LocalUserInitialPassword;
+import com.logmng.util.UserManagementReadScopeContext;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -42,13 +43,16 @@ public class UserManagementV2Service {
     private static final Pattern SAFE_CODE_PATTERN = Pattern.compile("[^A-Z0-9_\\-]");
 
     private final DataSource dataSource;
+    private final DepartmentService departmentService;
     private final UserActivityLogService userActivityLogService;
     private final ObjectMapper activityAuditObjectMapper = new ObjectMapper();
     private final ConcurrentMap<String, QuickEntryHistory> quickEntryByActor = new ConcurrentHashMap<>();
 
     public UserManagementV2Service(DataSource dataSource,
+                                   DepartmentService departmentService,
                                    @Autowired(required = false) UserActivityLogService userActivityLogService) {
         this.dataSource = dataSource;
+        this.departmentService = departmentService;
         this.userActivityLogService = userActivityLogService;
     }
 
@@ -56,7 +60,9 @@ public class UserManagementV2Service {
                                                     String actorUsername,
                                                     String clientIp,
                                                     String userAgent,
-                                                    String requestPath) {
+                                                    String requestPath,
+                                                    UserManagementReadScopeContext scopeCtx) {
+        requireMutationInScope(scopeCtx, actorUsername, null, true);
         String reason = ChangeReasonValidator.requireValidChangeReason(body != null ? body.getChangeReason() : null);
         String name = requireTrimmed(body != null ? body.getName() : null, "name", MAX_DEPARTMENT_NAME_LENGTH);
         Integer sortOrder = body != null && body.getSortOrder() != null ? body.getSortOrder() : 0;
@@ -93,10 +99,11 @@ public class UserManagementV2Service {
                                                      String actorUsername,
                                                      String clientIp,
                                                      String userAgent,
-                                                     String requestPath) {
-        String reason = ChangeReasonValidator.requireValidChangeReason(body != null ? body.getChangeReason() : null);
+                                                     String requestPath,
+                                                     UserManagementReadScopeContext scopeCtx) {
         String parentCode = requireTrimmed(parentDepartmentId, "parentDepartmentId", MAX_DEPARTMENT_CODE_LENGTH);
         ensureParentIsPersistedDepartment(parentCode, "하위 부서");
+        String reason = ChangeReasonValidator.requireValidChangeReason(body != null ? body.getChangeReason() : null);
         String name = requireTrimmed(body != null ? body.getName() : null, "name", MAX_DEPARTMENT_NAME_LENGTH);
         Integer sortOrder = body != null && body.getSortOrder() != null ? body.getSortOrder() : 0;
         String requestedCode = normalizeOptionalCode(body != null ? body.getCode() : null);
@@ -105,6 +112,7 @@ public class UserManagementV2Service {
             conn.setAutoCommit(false);
             try {
                 String resolvedParent = requirePersistedDepartmentCode(conn, parentCode);
+                requireMutationInScope(scopeCtx, actorUsername, resolvedParent, false);
                 String code = allocateDepartmentCode(conn, requestedCode, name);
                 insertDepartment(conn, code, resolvedParent, name, sortOrder);
                 conn.commit();
@@ -134,11 +142,12 @@ public class UserManagementV2Service {
                                                 String actorUsername,
                                                 String clientIp,
                                                 String userAgent,
-                                                String requestPath) {
-        String reason = ChangeReasonValidator.requireValidChangeReason(body != null ? body.getChangeReason() : null);
+                                                String requestPath,
+                                                UserManagementReadScopeContext scopeCtx) {
         String departmentCode = requireTrimmed(body != null ? body.getDepartmentId() : null,
                 "departmentId", MAX_DEPARTMENT_CODE_LENGTH);
         ensureParentIsPersistedDepartment(departmentCode, "사용자 등록");
+        String reason = ChangeReasonValidator.requireValidChangeReason(body != null ? body.getChangeReason() : null);
         String employeeNumber = requireTrimmed(body != null ? body.getEmployeeNumber() : null,
                 "employeeNumber", MAX_EMPLOYEE_NUMBER_LENGTH);
         String name = requireTrimmed(body != null ? body.getName() : null, "name", MAX_USER_NAME_LENGTH);
@@ -152,6 +161,7 @@ public class UserManagementV2Service {
             conn.setAutoCommit(false);
             try {
                 String resolvedDept = requirePersistedDepartmentCode(conn, departmentCode);
+                requireMutationInScope(scopeCtx, actorUsername, resolvedDept, false);
                 ensurePermissionGroupExists(conn, permissionGroupId);
                 ensureEmployeeNumberAvailable(conn, employeeNumber);
 
@@ -225,8 +235,8 @@ public class UserManagementV2Service {
                                                 String actorUsername,
                                                 String clientIp,
                                                 String userAgent,
-                                                String requestPath) {
-        String reason = ChangeReasonValidator.requireValidChangeReason(body != null ? body.getChangeReason() : null);
+                                                String requestPath,
+                                                UserManagementReadScopeContext scopeCtx) {
         String idTrim = requireTrimmed(departmentIdRaw, "departmentId", MAX_DEPARTMENT_CODE_LENGTH);
         ensureParentIsPersistedDepartment(idTrim, "부서 삭제");
 
@@ -234,6 +244,8 @@ public class UserManagementV2Service {
             conn.setAutoCommit(false);
             try {
                 String code = requirePersistedDepartmentCode(conn, idTrim);
+                requireMutationInScope(scopeCtx, actorUsername, code, false);
+                String reason = ChangeReasonValidator.requireValidChangeReason(body != null ? body.getChangeReason() : null);
                 Map<String, Object> beforeSnap = loadDepartmentSnapshot(conn, code);
                 if (beforeSnap == null) {
                     throw CustomException.notFound("부서를 찾을 수 없습니다.", "DEPARTMENT_NOT_FOUND");
@@ -284,7 +296,61 @@ public class UserManagementV2Service {
         }
     }
 
-    public Map<String, Object> getQuickEntryOptions(String actorUsername, List<String> fields, Integer limit) {
+    /**
+     * Out-of-scope mutations for UM v2 read scope (req 20260409): 403 FUNCTION_NOT_ALLOWED.
+     */
+    private void requireMutationInScope(UserManagementReadScopeContext ctx, String actorUsername,
+                                        String targetDepartmentCode, boolean creatingRoot) {
+        if (ctx == null || !ctx.appliesUmV2Screen() || !ctx.isNarrowRead()) {
+            return;
+        }
+        if (creatingRoot) {
+            throw CustomException.forbidden("해당 기능에 대한 권한이 없습니다.", "FUNCTION_NOT_ALLOWED");
+        }
+        String scope = ctx.getEffectiveScope();
+        String actorDept = loadDepartmentCodeForUsername(actorUsername);
+        if (targetDepartmentCode == null || targetDepartmentCode.isBlank()) {
+            throw CustomException.forbidden("해당 기능에 대한 권한이 없습니다.", "FUNCTION_NOT_ALLOWED");
+        }
+        String t = targetDepartmentCode.trim();
+        if ("self".equalsIgnoreCase(scope)) {
+            if (actorDept == null || !actorDept.trim().equalsIgnoreCase(t)) {
+                throw CustomException.forbidden("해당 기능에 대한 권한이 없습니다.", "FUNCTION_NOT_ALLOWED");
+            }
+            return;
+        }
+        if ("team".equalsIgnoreCase(scope)) {
+            if (actorDept == null || !departmentService.isSameOrDescendantDepartment(actorDept.trim(), t)) {
+                throw CustomException.forbidden("해당 기능에 대한 권한이 없습니다.", "FUNCTION_NOT_ALLOWED");
+            }
+        }
+    }
+
+    private String loadDepartmentCodeForUsername(String actorUsername) {
+        if (actorUsername == null || actorUsername.isBlank()) {
+            return null;
+        }
+        try (Connection conn = dataSource.getConnection()) {
+            String sql = "SELECT department_code FROM app_user WHERE username = ? AND deleted_at IS NULL LIMIT 1";
+            try (PreparedStatement ps = conn.prepareStatement(sql)) {
+                ps.setString(1, actorUsername.trim());
+                try (ResultSet rs = ps.executeQuery()) {
+                    if (rs.next()) {
+                        return rs.getString("department_code");
+                    }
+                }
+            }
+        } catch (SQLException e) {
+            return null;
+        }
+        return null;
+    }
+
+    public Map<String, Object> getQuickEntryOptions(String actorUsername, List<String> fields, Integer limit,
+                                                    UserManagementReadScopeContext scopeCtx) {
+        if (scopeCtx != null && scopeCtx.isNarrowRead()) {
+            // History is keyed by actor only; narrow UM v2 read scope does not merge other principals' values.
+        }
         int effectiveLimit = (limit == null) ? MAX_RECENT : limit;
         if (effectiveLimit <= 0 || effectiveLimit > 20) {
             throw CustomException.badRequest("limit은 1 이상 20 이하여야 합니다.", "INVALID_INPUT");

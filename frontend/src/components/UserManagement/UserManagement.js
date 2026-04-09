@@ -19,7 +19,7 @@ import {
 } from '../../services/userService';
 import { getUserPermissionHierarchy, listPermissionGroups } from '../../services/permissionGroupService';
 import { getErrorMessage } from '../../utils/errorMessage';
-import { getAllowedScreenIds, getScreenFunctions } from '../../utils/security';
+import { getAllowedScreenIds, getScreenFunctions, getSelfContextForDisplay } from '../../utils/security';
 import logger from '../../utils/logger';
 import UserGroupAssignment from '../UserGroupAssignment/UserGroupAssignment';
 import '../UserPermissionHierarchy/UserPermissionHierarchy.css';
@@ -377,11 +377,25 @@ const UserManagement = ({ user }) => {
 
   const ids = getAllowedScreenIds(user);
   const screenFunctions = getScreenFunctions(user);
+  const selfContext = useMemo(() => getSelfContextForDisplay(user), [user]);
+  /** Effective read scope for UM v2 (API default team when omitted). System admin: all. */
+  const effectiveUmV2Scope = useMemo(() => {
+    if (user?.isSystemAdmin === true) return 'all';
+    const raw =
+      user?.screenScopes?.['user-management-v2'] ?? user?.screen_scopes?.['user-management-v2'];
+    if (raw === 'self' || raw === 'team' || raw === 'all') return raw;
+    return 'team';
+  }, [user]);
+  const isSelfScope = !user?.isSystemAdmin && effectiveUmV2Scope === 'self';
+
   const canAccessUserManagement =
     user?.isSystemAdmin === true ||
     (Array.isArray(ids) &&
-      (ids.includes('user-management') || ids.includes('user-permission-hierarchy')));
+      (ids.includes('user-management') ||
+        ids.includes('user-permission-hierarchy') ||
+        ids.includes('user-management-v2')));
   const canWrite =
+    screenFunctions?.['user-management-v2']?.write === true ||
     screenFunctions?.['user-management']?.write === true ||
     screenFunctions?.['user-permission-hierarchy']?.write === true;
 
@@ -452,6 +466,13 @@ const UserManagement = ({ user }) => {
     loadQuickEntry();
   }, [loadQuickEntry]);
 
+  useEffect(() => {
+    if (isSelfScope) {
+      setAppliedFilter(null);
+      setFilterDraft({ departmentName: '', userName: '', employeeNumber: '' });
+    }
+  }, [isSelfScope]);
+
   const nodeByCode = useMemo(() => {
     const map = new Map();
     const walk = (nodes) => {
@@ -472,6 +493,7 @@ const UserManagement = ({ user }) => {
   }, [tree, appliedFilter]);
 
   const treeFilterDisabled = loading || tree.length === 0;
+  const filterActionsDisabled = treeFilterDisabled || isSelfScope;
 
   const handleFilterSearch = useCallback(
     (e) => {
@@ -906,76 +928,139 @@ const UserManagement = ({ user }) => {
             aria-disabled={treeFilterDisabled}
           >
             <legend className="user-management-v2-user-block-legend">사용자</legend>
-            <div className="user-management-v2-filter-toolbar-row">
+            {isSelfScope ? (
               <div
-                className="user-management-v2-user-block-fields"
-                role="group"
-                aria-label="사용자 필터 필드"
+                className="user-management-v2-filter-toolbar-row"
+                data-testid="um-v2-locked-self-block"
               >
-                <div className="form-group">
-                  <label htmlFor="um-filter-dept-name">부서명</label>
-                  <input
-                    id="um-filter-dept-name"
-                    type="text"
-                    className="form-control"
-                    value={filterDraft.departmentName}
-                    onChange={(ev) =>
-                      setFilterDraft((p) => ({ ...p, departmentName: ev.target.value }))
-                    }
-                    placeholder="부서명 일부"
-                    autoComplete="off"
-                    aria-label="부서명 필터"
-                  />
-                </div>
-                <div className="form-group">
-                  <label htmlFor="um-filter-user-name">사용자명</label>
-                  <input
-                    id="um-filter-user-name"
-                    type="text"
-                    className="form-control"
-                    value={filterDraft.userName}
-                    onChange={(ev) =>
-                      setFilterDraft((p) => ({ ...p, userName: ev.target.value }))
-                    }
-                    placeholder="사용자명"
-                    autoComplete="off"
-                    aria-label="사용자명 필터"
-                  />
-                </div>
-                <div className="form-group">
-                  <label htmlFor="um-filter-emp">사번</label>
-                  <input
-                    id="um-filter-emp"
-                    type="text"
-                    className="form-control"
-                    value={filterDraft.employeeNumber}
-                    onChange={(ev) =>
-                      setFilterDraft((p) => ({ ...p, employeeNumber: ev.target.value }))
-                    }
-                    placeholder="사번"
-                    autoComplete="off"
-                    aria-label="사번 필터"
-                  />
+                <div
+                  className="user-management-v2-user-block-fields"
+                  role="group"
+                  aria-label="본인 조회 범위 고정 필드"
+                >
+                  <p className="user-permission-hierarchy-hint" id="um-v2-self-scope-hint">
+                    조회 범위가 본인으로 고정되어 있습니다. 다른 사용자로 범위를 넓힐 수 없습니다.
+                  </p>
+                  <div className="form-group">
+                    <label htmlFor="um-filter-dept-name-locked">부서명</label>
+                    <input
+                      id="um-filter-dept-name-locked"
+                      type="text"
+                      className="form-control"
+                      readOnly
+                      tabIndex={0}
+                      value={selfContext?.department ?? ''}
+                      aria-readonly="true"
+                      aria-describedby="um-v2-self-scope-hint"
+                      aria-label="부서명 (본인 고정)"
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label htmlFor="um-filter-user-name-locked">사용자명</label>
+                    <input
+                      id="um-filter-user-name-locked"
+                      type="text"
+                      className="form-control"
+                      readOnly
+                      tabIndex={0}
+                      value={selfContext?.username ?? ''}
+                      aria-readonly="true"
+                      aria-describedby="um-v2-self-scope-hint"
+                      aria-label="사용자명 (본인 고정)"
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label htmlFor="um-filter-userid-locked">사용자 ID</label>
+                    <input
+                      id="um-filter-userid-locked"
+                      type="text"
+                      className="form-control"
+                      readOnly
+                      tabIndex={0}
+                      value={
+                        selfContext?.userId !== '' && selfContext?.userId != null
+                          ? String(selfContext.userId)
+                          : ''
+                      }
+                      aria-readonly="true"
+                      aria-describedby="um-v2-self-scope-hint"
+                      aria-label="사용자 ID (본인 고정, app_user.id)"
+                    />
+                  </div>
                 </div>
               </div>
-              <div className="user-management-v2-filter-actions">
-                <button
-                  type="submit"
-                  className="btn btn-primary sf-btn"
-                  disabled={treeFilterDisabled}
+            ) : (
+              <div className="user-management-v2-filter-toolbar-row">
+                <div
+                  className="user-management-v2-user-block-fields"
+                  role="group"
+                  aria-label="사용자 필터 필드"
                 >
-                  검색
-                </button>
-                <button
-                  type="button"
-                  className="btn btn-secondary sf-btn"
-                  disabled={treeFilterDisabled}
-                  onClick={handleFilterReset}
-                >
-                  검색 초기화
-                </button>
+                  <div className="form-group">
+                    <label htmlFor="um-filter-dept-name">부서명</label>
+                    <input
+                      id="um-filter-dept-name"
+                      type="text"
+                      className="form-control"
+                      value={filterDraft.departmentName}
+                      onChange={(ev) =>
+                        setFilterDraft((p) => ({ ...p, departmentName: ev.target.value }))
+                      }
+                      placeholder="부서명 일부"
+                      autoComplete="off"
+                      aria-label="부서명 필터"
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label htmlFor="um-filter-user-name">사용자명</label>
+                    <input
+                      id="um-filter-user-name"
+                      type="text"
+                      className="form-control"
+                      value={filterDraft.userName}
+                      onChange={(ev) =>
+                        setFilterDraft((p) => ({ ...p, userName: ev.target.value }))
+                      }
+                      placeholder="사용자명"
+                      autoComplete="off"
+                      aria-label="사용자명 필터"
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label htmlFor="um-filter-emp">사번</label>
+                    <input
+                      id="um-filter-emp"
+                      type="text"
+                      className="form-control"
+                      value={filterDraft.employeeNumber}
+                      onChange={(ev) =>
+                        setFilterDraft((p) => ({ ...p, employeeNumber: ev.target.value }))
+                      }
+                      placeholder="사번"
+                      autoComplete="off"
+                      aria-label="사번 필터"
+                    />
+                  </div>
+                </div>
+                <div className="user-management-v2-filter-actions">
+                  <button
+                    type="submit"
+                    className="btn btn-primary sf-btn"
+                    disabled={filterActionsDisabled}
+                  >
+                    검색
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn-secondary sf-btn"
+                    disabled={filterActionsDisabled}
+                    onClick={handleFilterReset}
+                  >
+                    검색 초기화
+                  </button>
+                </div>
               </div>
-            </div>
+            )}
           </fieldset>
         </form>
       </div>

@@ -12,7 +12,13 @@ import {
 export const APPROVAL_SCOPE_FIXED_SCREENS = ['search-history', 'pending-approvals'];
 
 /** Scope dropdown applies to these screens (same as ScreenSelectionTree). */
-export const SCOPE_SUPPORTING_SCREENS = ['activity-log', 'statistics', 'search-history', 'pending-approvals'];
+export const SCOPE_SUPPORTING_SCREENS = [
+  'activity-log',
+  'statistics',
+  'search-history',
+  'pending-approvals',
+  'user-management-v2',
+];
 
 /** Default scope when enabling a screen in the matrix (matches ScreenSelectionTree toggle). */
 export const DEFAULT_SCOPE_ON_ADD = 'team';
@@ -27,22 +33,31 @@ export const normalizeScreenId = (id) => {
   return s;
 };
 
+/** Default scope when API omits scope (align PermissionGroupPanel; UM v2 default team). */
+const defaultScopeWhenMissing = (screenId) => (screenId === 'user-management-v2' ? 'team' : 'self');
+
 /**
  * Normalize allowedScreens to [{ screenId, scope?, read?, write?, approve?, decrypt? }].
  * Same rules as PermissionGroupPanel.normalizeAllowedScreens.
  */
 export const normalizeAllowedScreens = (arr) => {
-  const scopeScreens = ['activity-log', 'statistics', 'search-history', 'pending-approvals'];
+  const scopeScreens = [
+    'activity-log',
+    'statistics',
+    'search-history',
+    'pending-approvals',
+    'user-management-v2',
+  ];
   const decryptScreens = SCREENS_WITH_DECRYPT;
   if (!Array.isArray(arr)) return [];
   return arr.map((s) => {
     const rawId = typeof s === 'string' ? s : s.screenId;
     const screenId = normalizeScreenId(rawId);
     const base = typeof s === 'string'
-      ? { screenId, scope: scopeScreens.includes(screenId) ? 'self' : undefined }
+      ? { screenId, scope: scopeScreens.includes(screenId) ? defaultScopeWhenMissing(screenId) : undefined }
       : {
           screenId,
-          scope: s.scope || (scopeScreens.includes(screenId) ? 'self' : undefined),
+          scope: s.scope || (scopeScreens.includes(screenId) ? defaultScopeWhenMissing(screenId) : undefined),
           read: s.read,
           write: s.write,
           approve: s.approve,
@@ -53,7 +68,7 @@ export const normalizeAllowedScreens = (arr) => {
     const hasDecrypt = decryptScreens.includes(base.screenId);
     const approved = base.approve ?? (hasApprove ? false : undefined);
     const decryptVal = base.decrypt ?? (hasDecrypt ? false : undefined);
-    let scope = base.scope ?? (scopeScreens.includes(base.screenId) ? 'self' : undefined);
+    let scope = base.scope ?? (scopeScreens.includes(base.screenId) ? defaultScopeWhenMissing(base.screenId) : undefined);
     if (approved === true && APPROVAL_SCOPE_FIXED_SCREENS.includes(base.screenId)) {
       scope = 'team';
     }

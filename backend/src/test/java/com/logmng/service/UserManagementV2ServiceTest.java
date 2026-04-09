@@ -5,6 +5,7 @@ import com.logmng.dto.request.UserManagementV2CreateDepartmentRequest;
 import com.logmng.dto.request.UserManagementV2DirectUserCreateRequest;
 import com.logmng.exception.CustomException;
 import com.logmng.util.LocalUserInitialPassword;
+import com.logmng.util.UserManagementReadScopeContext;
 import org.h2.jdbcx.JdbcDataSource;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -29,14 +30,14 @@ class UserManagementV2ServiceTest {
     @BeforeEach
     void setUp() throws Exception {
         dataSource = createH2DataSource();
-        service = new UserManagementV2Service(dataSource, null);
+        service = new UserManagementV2Service(dataSource, new DepartmentService(dataSource), null);
     }
 
     @Test
     void createRootDepartment_andCreateChildDepartment_success() throws Exception {
         UserManagementV2CreateDepartmentRequest rootReq = validDepartmentRequest("본부", "ROOT_V2", 10);
         Map<String, Object> root = service.createRootDepartment(rootReq, "admin1", "127.0.0.1", "junit",
-                "/api/user-management-v2/departments/root");
+                "/api/user-management-v2/departments/root", UserManagementReadScopeContext.unrestricted());
 
         assertThat(root.get("departmentId")).isEqualTo("ROOT_V2");
         assertThat(root.get("code")).isEqualTo("ROOT_V2");
@@ -46,7 +47,7 @@ class UserManagementV2ServiceTest {
 
         UserManagementV2CreateDepartmentRequest childReq = validDepartmentRequest("개발팀", "DEV_TEAM", 20);
         Map<String, Object> child = service.createChildDepartment("ROOT_V2", childReq, "admin1", "127.0.0.1", "junit",
-                "/api/user-management-v2/departments/ROOT_V2/children");
+                "/api/user-management-v2/departments/ROOT_V2/children", UserManagementReadScopeContext.unrestricted());
 
         assertThat(child.get("departmentId")).isEqualTo("DEV_TEAM");
         assertThat(child.get("code")).isEqualTo("DEV_TEAM");
@@ -61,11 +62,11 @@ class UserManagementV2ServiceTest {
     @Test
     void createChildDepartment_resolvesParentPathCaseInsensitively() throws Exception {
         UserManagementV2CreateDepartmentRequest rootReq = validDepartmentRequest("본부", "PAR_V2", 1);
-        service.createRootDepartment(rootReq, "admin1", "127.0.0.1", "junit", "/api/user-management-v2/departments/root");
+        service.createRootDepartment(rootReq, "admin1", "127.0.0.1", "junit", "/api/user-management-v2/departments/root", UserManagementReadScopeContext.unrestricted());
 
         UserManagementV2CreateDepartmentRequest childReq = validDepartmentRequest("팀", "CHILD_V2", 2);
         Map<String, Object> child = service.createChildDepartment("par_v2", childReq, "admin1", "127.0.0.1", "junit",
-                "/api/user-management-v2/departments/par_v2/children");
+                "/api/user-management-v2/departments/par_v2/children", UserManagementReadScopeContext.unrestricted());
 
         assertThat(child.get("parentDepartmentId")).isEqualTo("PAR_V2");
         assertThat(countRows("SELECT COUNT(*) FROM department WHERE code = 'CHILD_V2' AND parent_code = 'PAR_V2'")).isEqualTo(1);
@@ -76,7 +77,7 @@ class UserManagementV2ServiceTest {
         insertDepartment("ORG/ROOT", null, "루트");
         UserManagementV2CreateDepartmentRequest childReq = validDepartmentRequest("하위", "ORG_SUB", 1);
         Map<String, Object> child = service.createChildDepartment("ORG/ROOT", childReq, "admin1", "127.0.0.1", "junit",
-                "/api/user-management-v2/departments/children");
+                "/api/user-management-v2/departments/children", UserManagementReadScopeContext.unrestricted());
         assertThat(child.get("parentDepartmentId")).isEqualTo("ORG/ROOT");
         assertThat(countRows("SELECT COUNT(*) FROM department WHERE code = 'ORG_SUB' AND parent_code = 'ORG/ROOT'")).isEqualTo(1);
     }
@@ -89,7 +90,7 @@ class UserManagementV2ServiceTest {
         req.setDepartmentId("root");
         req.setEmployeeNumber("20269999");
         Map<String, Object> created = service.createDirectUser(req, "admin1", "127.0.0.1", "junit",
-                "/api/user-management-v2/users/direct");
+                "/api/user-management-v2/users/direct", UserManagementReadScopeContext.unrestricted());
         assertThat(created.get("departmentId")).isEqualTo("ROOT");
         assertThat(countRows(
                 "SELECT COUNT(*) FROM app_user WHERE employee_number = '20269999' AND department_code = 'ROOT' AND deleted_at IS NULL"))
@@ -107,7 +108,7 @@ class UserManagementV2ServiceTest {
         req.setRank("과장");
 
         Map<String, Object> created = service.createDirectUser(req, "admin1", "127.0.0.1", "junit",
-                "/api/user-management-v2/users/direct");
+                "/api/user-management-v2/users/direct", UserManagementReadScopeContext.unrestricted());
 
         assertThat(created.get("userId")).isInstanceOf(Number.class);
         assertThat(created.get("employeeNumber")).isEqualTo("20260001");
@@ -136,10 +137,10 @@ class UserManagementV2ServiceTest {
             req.setEmployeeNumber("2026100" + i);
             req.setName("테스터" + i);
             req.setRank("R" + i);
-            service.createDirectUser(req, "admin1", "127.0.0.1", "junit", "/api/user-management-v2/users/direct");
+            service.createDirectUser(req, "admin1", "127.0.0.1", "junit", "/api/user-management-v2/users/direct", UserManagementReadScopeContext.unrestricted());
         }
 
-        Map<String, Object> defaults = service.getQuickEntryOptions("admin1", null, null);
+        Map<String, Object> defaults = service.getQuickEntryOptions("admin1", null, null, UserManagementReadScopeContext.unrestricted());
         assertThat(defaults).containsKeys("employeeNumber", "name", "rank", "permissionGroupId");
 
         Map<String, Object> defaultEmployee = (Map<String, Object>) defaults.get("employeeNumber");
@@ -147,7 +148,7 @@ class UserManagementV2ServiceTest {
         assertThat((List<String>) defaultEmployee.get("recent"))
                 .containsExactly("20261003", "20261002", "20261001");
 
-        Map<String, Object> limited = service.getQuickEntryOptions("admin1", List.of("employeeNumber"), 2);
+        Map<String, Object> limited = service.getQuickEntryOptions("admin1", List.of("employeeNumber"), 2, UserManagementReadScopeContext.unrestricted());
         Map<String, Object> limitedEmployee = (Map<String, Object>) limited.get("employeeNumber");
         assertThat((List<String>) limitedEmployee.get("recent")).containsExactly("20261003", "20261002");
     }
@@ -158,7 +159,7 @@ class UserManagementV2ServiceTest {
         req.setDepartmentId("MISSING_DEPT");
 
         assertThatThrownBy(() -> service.createDirectUser(req, "admin1", "127.0.0.1", "junit",
-                        "/api/user-management-v2/users/direct"))
+                        "/api/user-management-v2/users/direct", UserManagementReadScopeContext.unrestricted()))
                 .isInstanceOf(CustomException.class)
                 .satisfies(ex -> {
                     CustomException ce = (CustomException) ex;
@@ -172,7 +173,7 @@ class UserManagementV2ServiceTest {
 
         assertThatThrownBy(() -> service.createChildDepartment(
                 UserPermissionHierarchyService.UNASSIGNED_DEPARTMENT_CODE, childReq, "admin1", "127.0.0.1", "junit",
-                "/api/user-management-v2/departments/children"))
+                "/api/user-management-v2/departments/children", UserManagementReadScopeContext.unrestricted()))
                 .isInstanceOf(CustomException.class)
                 .satisfies(ex -> {
                     CustomException ce = (CustomException) ex;
@@ -186,7 +187,7 @@ class UserManagementV2ServiceTest {
         req.setDepartmentId(UserPermissionHierarchyService.UNASSIGNED_DEPARTMENT_CODE);
 
         assertThatThrownBy(() -> service.createDirectUser(req, "admin1", "127.0.0.1", "junit",
-                        "/api/user-management-v2/users/direct"))
+                        "/api/user-management-v2/users/direct", UserManagementReadScopeContext.unrestricted()))
                 .isInstanceOf(CustomException.class)
                 .satisfies(ex -> {
                     CustomException ce = (CustomException) ex;
@@ -202,7 +203,7 @@ class UserManagementV2ServiceTest {
         req.setPermissionGroupId(9999L);
 
         assertThatThrownBy(() -> service.createDirectUser(req, "admin1", "127.0.0.1", "junit",
-                        "/api/user-management-v2/users/direct"))
+                        "/api/user-management-v2/users/direct", UserManagementReadScopeContext.unrestricted()))
                 .isInstanceOf(CustomException.class)
                 .satisfies(ex -> {
                     CustomException ce = (CustomException) ex;
@@ -220,7 +221,7 @@ class UserManagementV2ServiceTest {
         req.setEmployeeNumber("20269999");
 
         assertThatThrownBy(() -> service.createDirectUser(req, "admin1", "127.0.0.1", "junit",
-                        "/api/user-management-v2/users/direct"))
+                        "/api/user-management-v2/users/direct", UserManagementReadScopeContext.unrestricted()))
                 .isInstanceOf(CustomException.class)
                 .satisfies(ex -> {
                     CustomException ce = (CustomException) ex;
@@ -234,7 +235,7 @@ class UserManagementV2ServiceTest {
         req.setDepartmentId("   ");
 
         assertThatThrownBy(() -> service.createDirectUser(req, "admin1", "127.0.0.1", "junit",
-                        "/api/user-management-v2/users/direct"))
+                        "/api/user-management-v2/users/direct", UserManagementReadScopeContext.unrestricted()))
                 .isInstanceOf(CustomException.class)
                 .satisfies(ex -> {
                     CustomException ce = (CustomException) ex;
@@ -248,7 +249,7 @@ class UserManagementV2ServiceTest {
         req.setPermissionGroupId(null);
 
         assertThatThrownBy(() -> service.createDirectUser(req, "admin1", "127.0.0.1", "junit",
-                        "/api/user-management-v2/users/direct"))
+                        "/api/user-management-v2/users/direct", UserManagementReadScopeContext.unrestricted()))
                 .isInstanceOf(CustomException.class)
                 .satisfies(ex -> {
                     CustomException ce = (CustomException) ex;
@@ -262,7 +263,7 @@ class UserManagementV2ServiceTest {
         UserDeleteRequest req = new UserDeleteRequest();
         req.setChangeReason("조직 폐지");
         Map<String, Object> out = service.deleteDepartment("LEAF", req, "admin1", "127.0.0.1", "junit",
-                "/api/user-management-v2/departments/LEAF");
+                "/api/user-management-v2/departments/LEAF", UserManagementReadScopeContext.unrestricted());
         assertThat(out.get("departmentId")).isEqualTo("LEAF");
         assertThat(countRows("SELECT COUNT(*) FROM department WHERE code = 'LEAF'")).isZero();
     }
@@ -272,7 +273,7 @@ class UserManagementV2ServiceTest {
         insertDepartment("PAR_V2", null, "본부");
         UserDeleteRequest req = new UserDeleteRequest();
         req.setChangeReason("정리");
-        service.deleteDepartment("par_v2", req, "admin1", "127.0.0.1", "junit", "/api/x");
+        service.deleteDepartment("par_v2", req, "admin1", "127.0.0.1", "junit", "/api/x", UserManagementReadScopeContext.unrestricted());
         assertThat(countRows("SELECT COUNT(*) FROM department WHERE code = 'PAR_V2'")).isZero();
     }
 
@@ -280,7 +281,7 @@ class UserManagementV2ServiceTest {
     void deleteDepartment_whenMissing_returns404() {
         UserDeleteRequest req = new UserDeleteRequest();
         req.setChangeReason("정리");
-        assertThatThrownBy(() -> service.deleteDepartment("NONE", req, "a", "127.0.0.1", "j", "/x"))
+        assertThatThrownBy(() -> service.deleteDepartment("NONE", req, "a", "127.0.0.1", "j", "/x", UserManagementReadScopeContext.unrestricted()))
                 .isInstanceOf(CustomException.class)
                 .satisfies(ex -> assertThat(((CustomException) ex).getErrorCode()).isEqualTo("DEPARTMENT_NOT_FOUND"));
     }
@@ -291,7 +292,7 @@ class UserManagementV2ServiceTest {
         insertDepartment("C", "P", "하위");
         UserDeleteRequest req = new UserDeleteRequest();
         req.setChangeReason("정리");
-        assertThatThrownBy(() -> service.deleteDepartment("P", req, "a", "127.0.0.1", "j", "/x"))
+        assertThatThrownBy(() -> service.deleteDepartment("P", req, "a", "127.0.0.1", "j", "/x", UserManagementReadScopeContext.unrestricted()))
                 .isInstanceOf(CustomException.class)
                 .satisfies(ex -> assertThat(((CustomException) ex).getErrorCode()).isEqualTo("DEPARTMENT_HAS_CHILDREN"));
     }
@@ -302,7 +303,7 @@ class UserManagementV2ServiceTest {
         insertUserWithDepartment("u1", "e1", "D");
         UserDeleteRequest req = new UserDeleteRequest();
         req.setChangeReason("정리");
-        assertThatThrownBy(() -> service.deleteDepartment("D", req, "a", "127.0.0.1", "j", "/x"))
+        assertThatThrownBy(() -> service.deleteDepartment("D", req, "a", "127.0.0.1", "j", "/x", UserManagementReadScopeContext.unrestricted()))
                 .isInstanceOf(CustomException.class)
                 .satisfies(ex -> assertThat(((CustomException) ex).getErrorCode()).isEqualTo("DEPARTMENT_HAS_ACTIVE_USERS"));
     }
@@ -313,7 +314,7 @@ class UserManagementV2ServiceTest {
         insertDepartmentOrgLink("HR", "ext-1", "D");
         UserDeleteRequest req = new UserDeleteRequest();
         req.setChangeReason("정리");
-        assertThatThrownBy(() -> service.deleteDepartment("D", req, "a", "127.0.0.1", "j", "/x"))
+        assertThatThrownBy(() -> service.deleteDepartment("D", req, "a", "127.0.0.1", "j", "/x", UserManagementReadScopeContext.unrestricted()))
                 .isInstanceOf(CustomException.class)
                 .satisfies(ex -> assertThat(((CustomException) ex).getErrorCode()).isEqualTo("DEPARTMENT_ORG_LINK_REFERENCES"));
     }

@@ -274,6 +274,7 @@ public class AuthService {
             all.put(ScreenConstants.ACTIVITY_LOG, "all");
             all.put(ScreenConstants.STATISTICS, "all");
             all.put(ScreenConstants.SEARCH_HISTORY, "all");
+            all.put(ScreenConstants.USER_MANAGEMENT_V2, "all");
             return all;
         }
         return permissionGroupService.getScreenScopesForUser(username);
@@ -482,7 +483,8 @@ public class AuthService {
         if (Boolean.TRUE.equals(user.getIsSystemAdmin())) return true;
         List<String> allowed = user.getAllowedScreenIds();
         return allowed != null && (allowed.contains(ScreenConstants.USER_MANAGEMENT)
-                || allowed.contains(ScreenConstants.USER_PERMISSION_HIERARCHY));
+                || allowed.contains(ScreenConstants.USER_PERMISSION_HIERARCHY)
+                || allowed.contains(ScreenConstants.USER_MANAGEMENT_V2));
     }
 
     /**
@@ -496,8 +498,10 @@ public class AuthService {
         Map<String, ScreenFunctionCapability> sf = user.getScreenFunctions();
         if (sf == null) return false;
         ScreenFunctionCapability um = sf.get(ScreenConstants.USER_MANAGEMENT);
+        ScreenFunctionCapability umv2 = sf.get(ScreenConstants.USER_MANAGEMENT_V2);
         ScreenFunctionCapability uph = sf.get(ScreenConstants.USER_PERMISSION_HIERARCHY);
         return (um != null && Boolean.TRUE.equals(um.getWrite()))
+                || (umv2 != null && Boolean.TRUE.equals(umv2.getWrite()))
                 || (uph != null && Boolean.TRUE.equals(uph.getWrite()));
     }
 

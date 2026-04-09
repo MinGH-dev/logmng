@@ -41,8 +41,14 @@ export const ACTION_DISABLED_TOOLTIPS = {
   decrypt: '복호화 권한이 없습니다',
 };
 
-/** Screens that support write (user-management, department-approvers, user-permission-hierarchy, permission-group-management) */
-export const SCREENS_WITH_WRITE = ['user-management', 'department-approvers', 'user-permission-hierarchy', 'permission-group-management'];
+/** Screens that support write (user-management v1/v2, department-approvers, user-permission-hierarchy, permission-group-management) */
+export const SCREENS_WITH_WRITE = [
+  'user-management',
+  'user-management-v2',
+  'department-approvers',
+  'user-permission-hierarchy',
+  'permission-group-management',
+];
 
 /** Screens that support approve (search-history, pending-approvals) */
 export const SCREENS_WITH_APPROVE = ['search-history', 'pending-approvals'];

@@ -4,8 +4,11 @@ import com.logmng.dto.response.LoginResponse;
 import com.logmng.dto.request.UserManagementV2CreateDepartmentRequest;
 import com.logmng.exception.CustomException;
 import com.logmng.service.StubAuthServiceForUserController;
+import com.logmng.service.DepartmentService;
 import com.logmng.service.StubUserManagementV2Service;
 import com.logmng.service.UserManagementV2Service;
+import com.logmng.util.UserManagementReadScopeContext;
+import org.h2.jdbcx.JdbcDataSource;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.MediaType;
@@ -29,7 +32,10 @@ class UserManagementV2ControllerTest {
     void setUp() {
         authService = new StubAuthServiceForUserManagementV2();
         StubUserManagementV2Service service = new StubUserManagementV2Service();
-        UserManagementV2Controller controller = new UserManagementV2Controller(authService, service);
+        JdbcDataSource dataSource = new JdbcDataSource();
+        dataSource.setURL("jdbc:h2:mem:umv2_controller_test;DB_CLOSE_DELAY=-1");
+        DepartmentService departmentService = new DepartmentService(dataSource);
+        UserManagementV2Controller controller = new UserManagementV2Controller(authService, service, dataSource, departmentService);
         mockMvc = MockMvcBuilders.standaloneSetup(controller)
                 .setControllerAdvice(new com.logmng.exception.GlobalExceptionHandler())
                 .build();
@@ -120,7 +126,7 @@ class UserManagementV2ControllerTest {
         authService.setCheckAuth(true);
         authService.setCanAccessUserManagementView(true);
         authService.setHasWriteForManagementScreens(true);
-        UserManagementV2Service svc = new UserManagementV2Service(null, null) {
+        UserManagementV2Service svc = new UserManagementV2Service(null, null, null) {
             @Override
             public Map<String, Object> createChildDepartment(
                     String parentDepartmentId,
@@ -128,11 +134,14 @@ class UserManagementV2ControllerTest {
                     String actorUsername,
                     String clientIp,
                     String userAgent,
-                    String requestPath) {
+                    String requestPath,
+                    UserManagementReadScopeContext scopeCtx) {
                 throw CustomException.notFound("부서를 찾을 수 없습니다.", "DEPARTMENT_NOT_FOUND");
             }
         };
-        UserManagementV2Controller controller = new UserManagementV2Controller(authService, svc);
+        JdbcDataSource ds = new JdbcDataSource();
+        ds.setURL("jdbc:h2:mem:umv2_controller_test_nf;DB_CLOSE_DELAY=-1");
+        UserManagementV2Controller controller = new UserManagementV2Controller(authService, svc, ds, new DepartmentService(ds));
         MockMvc mvc = MockMvcBuilders.standaloneSetup(controller)
                 .setControllerAdvice(new com.logmng.exception.GlobalExceptionHandler())
                 .build();

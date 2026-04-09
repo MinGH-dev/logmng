@@ -385,7 +385,8 @@ public class PermissionGroupService {
         try (Connection conn = dataSource.getConnection()) {
             String sql = "SELECT pgs.screen_id, pgs.scope FROM permission_group_screen pgs " +
                     "INNER JOIN app_user_permission_group aupg ON pgs.permission_group_id = aupg.permission_group_id " +
-                    "WHERE aupg.user_id = ? AND pgs.screen_id IN ('activity-log', 'statistics', 'search-history', 'pending-approvals')";
+                    "WHERE aupg.user_id = ? AND pgs.screen_id IN ('activity-log', 'statistics', 'search-history', 'pending-approvals', 'user-management-v2') "
+                    + "ORDER BY aupg.permission_group_id ASC, pgs.screen_id ASC";
             try (PreparedStatement ps = conn.prepareStatement(sql)) {
                 ps.setString(1, userId.trim());
                 try (ResultSet rs = ps.executeQuery()) {

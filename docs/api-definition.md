@@ -68,7 +68,7 @@
   - `user.clientIP`: string
   - `user.isSystemAdmin`: boolean — 시스템 관리자 여부 (req 20250303). true면 전체 화면 접근.
   - `user.allowedScreenIds`: string[] (요건 20250227-permission-group-screen-menu-access) — 사용자 권한 그룹들의 접근 가능 화면 합집합.
-  - `user.screenScopes`: Record<string, 'self'|'team'|'all'> (요건 20250303, 20260305) — 화면별 **조회(목록) 범위**. key=screen_id (activity-log, statistics, search-history, pending-approvals), value='self'(본인)|'team'(부서)|'all'(전체). is_system_admin=true이면 생략 가능(프론트는 전체로 처리). **용도**: 목록/조회에만 적용; scope=self → 본인; scope=team → 동일 부서; scope=all → 전체. **승인 범위는 부서로 고정**이며 변경 불가(권한 설정에서 선택하는 scope는 조회 범위만 해당).
+  - `user.screenScopes`: Record<string, 'self'|'team'|'all'> (요건 20250303, 20260305) — 화면별 **조회(목록) 범위**. key=screen_id (activity-log, statistics, search-history, pending-approvals, **user-management-v2**), value='self'(본인)|'team'(부서)|'all'(전체). is_system_admin=true이면 생략 가능(프론트는 전체로 처리). **용도**: 목록/조회에만 적용; scope=self → 본인; scope=team → 동일 부서; scope=all → 전체. **`user-management-v2`**: 요건 **`docs/requirements/20260409-user-management-v2-read-scope.md`**, **`specs/user-management-v2.spec.yaml`** §2.2. **승인 범위는 부서로 고정**이며 변경 불가(권한 설정에서 선택하는 scope는 조회 범위만 해당).
   - `user.screenFunctions`: Record<string, { read: boolean, write?: boolean, approve?: boolean, decrypt?: boolean }> (요건 20250303, 20260318) — 화면별 기능 가능 여부. key=screen_id (pb-feplog, java-fw-imagelog, search-history, pending-approvals 등), value=read(필수), write(수정 지원 화면만), approve(search-history·pending-approvals만), decrypt(로그 검색 화면 pb-feplog·java-fw-imagelog 전용, 복호화 요청 권한). pb-feplog·java-fw-imagelog는 read + optional decrypt; decrypt는 권한관리에서 부여/해제. **`pending-approvals`**: **`read`** = 화면 접근 + `GET /api/search-history` 등 목록·상세 **조회**(요건 `20260407-pending-approvals-history-search-readonly-requester`); **`approve`** = 승인/반려 **액션만** (`POST .../approve`, `POST .../reject`). **용도**: 버튼/액션 enable·disable, 비활성 시 툴팁 표시.
   - `user.selfContext`: `{ department: string | null, username: string, userId: number }` — self-scoped user/requester block의 **visible locked self-context** 표시값. `scope=self` 화면에서 Department, Username, User ID를 고정 표시할 때 사용하는 권위 소스다. **`userId`**는 **numeric** **`app_user.id`**(JSON number, 예: 20269999, 20260001)이다. **`username`**은 **표시 이름(사용자명)**: `app_user.name`이 존재하고 비어 있지 않으면 그 값, 그렇지 않으면 `app_user.username`을 사용한다.
 
@@ -88,7 +88,7 @@
 
 ### 2.4 현재 사용자 정보 (GET /api/auth/me, 선택)
 
-- **GET** `/api/auth/me` — 로그인 사용자 정보 반환. `isSystemAdmin: boolean`, `allowedScreenIds: string[]`, `screenScopes: Record<string, 'self'|'team'|'all'>`, `screenFunctions: Record<string, { read, write?, approve?, decrypt? }>`, `selfContext: { department: string | null, username: string, userId: number }` 포함 (req 20250303, 20260305, 20260313). screenScopes는 조회(목록) 범위(본인/부서/전체) 결정용. 승인 범위는 부서 고정·변경 불가. screenFunctions는 화면별 read/write/approve/decrypt 가능 여부로 버튼·액션 enable·disable용. **`pending-approvals`의 `read` vs `approve`**: `read`는 복호화 승인 관리 화면의 목록·검색 조회; `approve`는 승인/반려만(요건 `20260407-pending-approvals-history-search-readonly-requester`). **`search-history`·`pending-approvals`의 `approve`**: `docs/contract.md` **「복호화 승인 자격」** — 권한 그룹 `permission_group_screen.approve`를 먼저 반영한 뒤 **`is_system_admin=true`이면 해당 화면 `approve`는 유효하지 않음(false)**; `ADMIN_EXT` 등 **`is_system_admin=false`인 사용자는 그룹 설정만** 따름. **`selfContext`**는 applicable shared-pattern 화면에서 `scope=self`일 때 보이는 잠금 self-context 표시값의 권위 소스다. **`selfContext.userId`**는 **numeric** **`app_user.id`**(JSON number). **`username`**은 **표시 이름(사용자명)**: `app_user.name`이 존재하고 비어 있지 않으면 그 값, 그렇지 않으면 `app_user.username`을 사용한다.
+- **GET** `/api/auth/me` — 로그인 사용자 정보 반환. `isSystemAdmin: boolean`, `allowedScreenIds: string[]`, `screenScopes: Record<string, 'self'|'team'|'all'>`, `screenFunctions: Record<string, { read, write?, approve?, decrypt? }>`, `selfContext: { department: string | null, username: string, userId: number }` 포함 (req 20250303, 20260305, 20260313). screenScopes는 조회(목록) 범위(본인/부서/전체) 결정용. **`screenScopes['user-management-v2']`** 는 User Management v2 읽기 경로에 사용(요건 **`20260409-user-management-v2-read-scope`**). 승인 범위는 부서 고정·변경 불가. screenFunctions는 화면별 read/write/approve/decrypt 가능 여부로 버튼·액션 enable·disable용. **`pending-approvals`의 `read` vs `approve`**: `read`는 복호화 승인 관리 화면의 목록·검색 조회; `approve`는 승인/반려만(요건 `20260407-pending-approvals-history-search-readonly-requester`). **`search-history`·`pending-approvals`의 `approve`**: `docs/contract.md` **「복호화 승인 자격」** — 권한 그룹 `permission_group_screen.approve`를 먼저 반영한 뒤 **`is_system_admin=true`이면 해당 화면 `approve`는 유효하지 않음(false)**; `ADMIN_EXT` 등 **`is_system_admin=false`인 사용자는 그룹 설정만** 따름. **`selfContext`**는 applicable shared-pattern 화면에서 `scope=self`일 때 보이는 잠금 self-context 표시값의 권위 소스다. **`selfContext.userId`**는 **numeric** **`app_user.id`**(JSON number). **`username`**은 **표시 이름(사용자명)**: `app_user.name`이 존재하고 비어 있지 않으면 그 값, 그렇지 않으면 `app_user.username`을 사용한다.
 
 ### 2.4.1 자가 비밀번호 변경 (POST /api/auth/me/password)
 
@@ -119,7 +119,7 @@
 
 **Base path**: `/api/provisioning`  
 **요건**: `docs/requirements/20260407-external-dept-employee-ad-login.md`  
-**권한**: **사용자 관리 접근**과 동일 계열 — `is_system_admin=true` **또는** `allowedScreenIds`에 **`user-management`** 또는 **`user-permission-hierarchy`** 포함(`AuthService.canAccessUserManagementView`와 정합). 그 외 **403** `FORBIDDEN`. 비인증 **401**.
+**권한**: **사용자 관리 접근**과 동일 계열 — `is_system_admin=true` **또는** `allowedScreenIds`에 **`user-management`**, **`user-permission-hierarchy`**, **`user-management-v2`** 중 하나 이상 포함(`AuthService.canAccessUserManagementView`와 정합; 요건 **`20260409-user-management-v2-read-scope`**). 그 외 **403** `FORBIDDEN`. 비인증 **401**.
 
 ### 2a.1 외부 직원(`ext_employee`) 검색 (통합 검색)
 
@@ -554,11 +554,12 @@
 
 **Base path**: `/api/users`
 
-모든 API는 **관리자(is_system_admin=true)** 만 호출 가능. 그 외 403. (req 20250303)
+**접근**: 시스템 관리자 **`is_system_admin=true`** 또는 사용자 관리 계열 화면 권한(**`user-management`**, **`user-permission-hierarchy`**, **`user-management-v2`** 등 — `specs/permission-group-hierarchy.spec.yaml` §4.3, `AuthService.canAccessUserManagementView` 정합). 단순히 “관리자”라고 해서 **시스템 관리자만** 의미하지 않음; 권한 그룹으로 부여된 운영자도 해당 화면이 있으면 호출 가능. 그 외 **403**. (req 20250303, 20260409)
 
 ### 7.1 사용자 목록 조회
 
 - **GET** `/api/users`
+- **조회 범위(scope)**: 호출자가 **`user-management-v2`** 로 이 목록을 사용하는 경우(세션에 해당 화면이 있고 공유 API를 통해 로드하는 경우), 비시스템 관리자에게는 **`screenScopes['user-management-v2']`** (`self`|`team`|`all`, 기본 `team`)에 따라 사용자 행이 **서버 측 필터**된다. **`is_system_admin=true`** 는 전체 목록(기존과 동일). 클라이언트 쿼리로 범위를 넓히는 것은 불가(요건 **`20260409-user-management-v2-read-scope`**, **`specs/user-management-v2.spec.yaml`** §2.2). 레거시 **`user-management`** 만 있는 경우의 목록 동작은 구현·DOC-CODE-SYNC로 기존과 정합.
 - **Response (data)**: 배열. 각 항목:
   - `userId`: number — numeric `app_user.id` (사용자 ID)
   - `employeeNumber`: string (선택) — `app_user.employee_number`, HR 사번과 동일; 없으면 생략
@@ -582,7 +583,8 @@
 
 - **DELETE** `/api/users/{userId}`
 - **Path**: `userId` — number — numeric `app_user.id` (요청 URL 경로; JSON 타입은 number와 호환되는 정수 표기).
-- **접근·권한**: **`GET /api/users`와 동일** — `is_system_admin=true` **또는** 사용자 관리 화면 접근(`user-management` / `user-permission-hierarchy` 등 `AuthService.canAccessUserManagementView`와 정합). 비인증 **401**; 접근 불가 **403** `FORBIDDEN` 등.
+- **접근·권한**: **`GET /api/users`와 동일** — `is_system_admin=true` **또는** 사용자 관리 화면 접근(`user-management` / `user-permission-hierarchy` / **`user-management-v2`** 등 `AuthService.canAccessUserManagementView`와 정합). 비인증 **401**; 접근 불가 **403** `FORBIDDEN` 등.
+- **조회 범위 밖 삭제 시도**: **`screenScopes['user-management-v2']`** 기준 대상이 스코프 밖이면 **`403`** **`FUNCTION_NOT_ALLOWED`** 또는 **`404`** **`USER_NOT_FOUND`** 등 — `specs/user-management-v2.spec.yaml` §2.3, `specs/permission-group-hierarchy.spec.yaml` §4.3.
 - **Request body** (JSON, **필수** — 본문 없는 DELETE는 계약상 거부):  
 
 | 필드 | 타입 | 필수 | 설명 |
@@ -604,7 +606,7 @@
 - **DELETE** `/api/user-management-v2/departments/{departmentId}`
 - **Path**: `departmentId` — 레거시 필드명이며 **부서 코드 문자열**(`departmentCode`와 동일 의미); 다른 v2 부서 API와 동일.
 - **Request body** (JSON, **필수**): `changeReason` — trim 후 비어 있지 않음, **최대 500자** 등 v2 mutation 공통 규칙(스펙 표). 본문 생략·공백만·초과 시 **400** `INVALID_INPUT`.
-- **접근·권한**: v2 스펙 §2 — 인증 + 사용자 관리 화면 접근; 변경 API는 `screenFunctions['user-management'].write` 또는 시스템 관리자. **401** / **403** `FORBIDDEN` / **403** `FUNCTION_NOT_ALLOWED` 패턴은 스펙과 동일.
+- **접근·권한**: v2 스펙 §2 — 인증 + 사용자 관리 화면 접근; 변경 API는 **`screenFunctions['user-management-v2'].write`** (권장) 또는 레거시와 정합된 `user-management` write 또는 시스템 관리자. **401** / **403** `FORBIDDEN` / **403** `FUNCTION_NOT_ALLOWED` 패턴은 스펙과 동일. **유효 조회 범위 밖** 대상에 대한 변경은 §2.3·동일 문서 §7.1 scope 설명 참고.
 - **성공**: **200**, `success: true`. **`data`**: 구현이 정한 요약(예: 삭제된 부서 코드) 또는 `null` — DOC-CODE-SYNC.
 - **감사**: 성공 시 **`DEPARTMENT_DELETE`**; `action_detail` **department_admin** (`specs/activity-action-types.spec.yaml` §2.8·§3).
 - **오류 (ApiResponse `code`)**:
@@ -938,12 +940,12 @@
 **권한 그룹 `allowedScreens.screenId` 허용 목록**에 **`screen-display-labels`**(화면 표시 이름)가 포함되며, 그룹 설정상 **읽기만** 허용(`specs/permission-group-hierarchy.spec.yaml` §1.1.1); **`PUT /api/screen-display-labels`** 본문 저장은 **`is_system_admin=true`**만(표시용 **GET**은 모든 인증 사용자 — 본 문서 **§8.4**, `docs/contract.md`).  
 모든 API는 **관리자(is_system_admin=true)** 만 호출 가능. 그 외 403, `code: "FORBIDDEN"`.  
 **화면 기반 접근**: 화면에 대응하는 API는 사용자가 해당 화면을 권한 그룹으로 허용받았거나 is_system_admin=true이어야 함. 그 외 403. 화면↔API 매핑: `specs/permission-group-hierarchy.spec.yaml` §4.3.  
-**화면별 범위(scope)**: activity-log, statistics, search-history, pending-approvals 화면은 권한 그룹에서 화면별 scope('self'|'team'|'all') 설정 가능. scope='self' → 본인 데이터만(또는 본인 요청만)이며 applicable shared-pattern 화면에서는 user/requester block을 숨기지 않고 `department -> username -> userId`의 visible locked self-context를 표시한다. 이 표시값의 권위 소스는 auth/current-user payload의 `selfContext`이고, **`userId`**는 **numeric** **`app_user.id`**이다. search-history requester filter는 `scope=self`에서 무시된다. **`GET /api/search-history`·`GET /api/search-history/{id}`**는 **`listContext`**로 `search-history` vs `pending-approvals` 중 어느 `screenScopes`를 적용할지 선택한다(§6.1.2). scope='team' → 동일 부서 범위; scope='all' → 전체. is_system_admin=false일 때만 적용. 상세: `specs/permission-group-hierarchy.spec.yaml` §4.2, §4.3.
+**화면별 범위(scope)**: activity-log, statistics, search-history, pending-approvals, **`user-management-v2`** 화면은 권한 그룹에서 화면별 scope('self'|'team'|'all') 설정 가능(기본 `team`). **`user-management-v2`** 는 **`GET /api/users`**, **`GET /api/departments/user-permission-hierarchy`**, v2 읽기 API에 적용 — 요건 **`docs/requirements/20260409-user-management-v2-read-scope.md`**. scope='self' → 본인 데이터만(또는 본인 요청만)이며 applicable shared-pattern 화면에서는 user/requester block을 숨기지 않고 `department -> username -> userId`의 visible locked self-context를 표시한다. 이 표시값의 권위 소스는 auth/current-user payload의 `selfContext`이고, **`userId`**는 **numeric** **`app_user.id`**이다. search-history requester filter는 `scope=self`에서 무시된다. **`GET /api/search-history`·`GET /api/search-history/{id}`**는 **`listContext`**로 `search-history` vs `pending-approvals` 중 어느 `screenScopes`를 적용할지 선택한다(§6.1.2). scope='team' → 동일 부서 범위; scope='all' → 전체. is_system_admin=false일 때만 적용. 상세: `specs/permission-group-hierarchy.spec.yaml` §4.2, §4.3.
 
 ### 14.1 권한 그룹 목록 조회
 
 - **GET** `/api/permission-groups`
-- **Response (data)**: 배열. 각 항목: `id` (number), `code` (string), `name` (string), `description` (string | null), `sortOrder` (number, 선택), `allowedScreens` (배열: `AllowedScreenItem[]`). `AllowedScreenItem`: `{ screenId, scope?, read?, write?, approve?, decrypt? }`. scope는 activity-log, statistics, search-history, pending-approvals에만 적용; read/write/approve/decrypt는 화면별 명시적 체크박스다. main은 read-only이며 optional `decrypt`만 허용한다. 검증 실패 시 400 `INVALID_SCREEN_FUNCTION`. 상세: `specs/permission-group-hierarchy.spec.yaml` §1.1, §1.1.1.
+- **Response (data)**: 배열. 각 항목: `id` (number), `code` (string), `name` (string), `description` (string | null), `sortOrder` (number, 선택), `allowedScreens` (배열: `AllowedScreenItem[]`). `AllowedScreenItem`: `{ screenId, scope?, read?, write?, approve?, decrypt? }`. scope는 activity-log, statistics, search-history, pending-approvals, **user-management-v2** 에 적용(기본 `team`); read/write/approve/decrypt는 화면별 명시적 체크박스다. main은 read-only이며 optional `decrypt`만 허용한다. 검증 실패 시 400 `INVALID_SCREEN_FUNCTION`. 상세: `specs/permission-group-hierarchy.spec.yaml` §1.1, §1.1.1.
 - **에러**: 401, 403
 
 ### 14.2 권한 그룹 생성
@@ -1003,6 +1005,7 @@
 ### 14.9 사용자 권한 계층 조회
 
 - **GET** `/api/departments/user-permission-hierarchy`
+- **조회 범위(scope)**: 호출자가 User Management v2 데이터 로드에 이 API를 쓰는 경우, 비시스템 관리자에게는 **`screenScopes['user-management-v2']`** 에 따라 부서 트리·사용자 목록이 **서버 측으로** 축소·마스킹된다(`specs/permission-group-hierarchy.spec.yaml` §4.3, `specs/user-management-v2.spec.yaml` §2.2). **`is_system_admin=true`** 는 전체 트리. 화면 접근은 **`user-management-v2`** 가 **`user-management`** / **`user-permission-hierarchy`** 와 동일 계열로 허용되어야 한다(요건 **`20260409-user-management-v2-read-scope`**).
 - **Query**: `format` — "tree"(기본) | "flat"
 - **Response (data)**:
   - **tree**: 루트 노드 배열. 각 노드: `code`, `parentCode`, `name`, `sortOrder`, `children` (재귀), `users` (배열). `users` 각 항목: **`userId`** (number, `app_user.id`, 사용자 ID), **`userName`** (string, 사용자명: `app_user.name`이 존재하고 비어 있지 않으면 그 값, 그렇지 않으면 `app_user.username`), **`employeeNumber`** (string, 선택, `app_user.employee_number`), `isSystemAdmin` (boolean, 시스템 관리자 여부), `position` (직책), `rank` (직급), `permissionGroups` (배열: `{ id, code, name }`). role 제외 (req 20250303).
