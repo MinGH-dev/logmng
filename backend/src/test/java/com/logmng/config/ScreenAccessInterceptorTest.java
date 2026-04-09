@@ -190,6 +190,33 @@ class ScreenAccessInterceptorTest {
     }
 
     @Test
+    void getPermissionGroups_allowedWithUserManagementV2Only() throws Exception {
+        LoginResponse user = new LoginResponse();
+        user.setUsername("umv2only");
+        user.setIsSystemAdmin(false);
+        user.setAllowedScreenIds(List.of(ScreenConstants.USER_MANAGEMENT_V2));
+        auth.setUser(user);
+
+        MockHttpServletRequest req = new MockHttpServletRequest("GET", "/api/permission-groups");
+        MockHttpServletResponse res = new MockHttpServletResponse();
+        assertThat(interceptor.preHandle(req, res, null)).isTrue();
+    }
+
+    @Test
+    void getPermissionGroups_deniedWithoutManagementFamilyScreens() throws Exception {
+        LoginResponse user = new LoginResponse();
+        user.setUsername("searchonly");
+        user.setIsSystemAdmin(false);
+        user.setAllowedScreenIds(List.of(ScreenConstants.SEARCH_HISTORY));
+        auth.setUser(user);
+
+        MockHttpServletRequest req = new MockHttpServletRequest("GET", "/api/permission-groups");
+        MockHttpServletResponse res = new MockHttpServletResponse();
+        assertThat(interceptor.preHandle(req, res, null)).isFalse();
+        assertThat(res.getStatus()).isEqualTo(403);
+    }
+
+    @Test
     void getSearchHistoryDetail_numericId_allowedWithPendingApprovals() throws Exception {
         LoginResponse user = new LoginResponse();
         user.setUsername("u1");
