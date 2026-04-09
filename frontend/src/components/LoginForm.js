@@ -7,7 +7,7 @@ import { getLoginFailureMessage } from '../utils/errorMessage';
 
 const LoginForm = ({ onLogin }) => {
   const [formData, setFormData] = useState({
-    userId: '',
+    employeeNumber: '',
     principal: '',
     password: '',
   });
@@ -55,15 +55,8 @@ const LoginForm = ({ onLogin }) => {
     const mode = authMode || 'local';
 
     if (mode === 'local') {
-      const userIdTrimmed = (formData.userId || '').trim();
-      if (!userIdTrimmed) {
-        newErrors.userId = '사용자 ID를 입력해주세요.';
-      } else {
-        const userIdNum = Number(userIdTrimmed);
-        if (Number.isNaN(userIdNum) || !Number.isInteger(userIdNum) || userIdNum < 0) {
-          newErrors.userId = '사용자 ID는 숫자여야 합니다.';
-        }
-      }
+      const employeeNumber = (formData.employeeNumber || '').trim();
+      if (!employeeNumber) newErrors.employeeNumber = '사용자 ID(사번)를 입력해주세요.';
     } else {
       const p = (formData.principal || '').trim();
       if (!p) {
@@ -89,7 +82,7 @@ const LoginForm = ({ onLogin }) => {
     const requestBody =
       mode === 'local'
         ? {
-            userId: Number(formData.userId),
+            employeeNumber: (formData.employeeNumber || '').trim(),
             password: formData.password,
           }
         : {
@@ -202,22 +195,21 @@ const LoginForm = ({ onLogin }) => {
             </div>
           ) : (
             <div className="form-group">
-              <label htmlFor="userId">
-                사용자 ID <span className="required">*</span>
+              <label htmlFor="employeeNumber">
+                사용자 ID (사번) <span className="required">*</span>
               </label>
               <input
-                type="number"
-                id="userId"
-                name="userId"
-                value={formData.userId}
+                type="text"
+                id="employeeNumber"
+                name="employeeNumber"
+                value={formData.employeeNumber}
                 onChange={handleInputChange}
-                className={errors.userId ? 'error' : ''}
-                placeholder="사용자 ID를 입력하세요 (예: 20260001)"
+                className={errors.employeeNumber ? 'error' : ''}
+                placeholder="사번을 입력하세요 (예: EMP-2026-0001)"
                 disabled={loading}
-                inputMode="numeric"
-                step="1"
+                autoComplete="username"
               />
-              {errors.userId && <span className="error-message">{errors.userId}</span>}
+              {errors.employeeNumber && <span className="error-message">{errors.employeeNumber}</span>}
             </div>
           )}
 

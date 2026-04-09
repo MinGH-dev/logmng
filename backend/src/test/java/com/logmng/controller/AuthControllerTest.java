@@ -39,7 +39,8 @@ class AuthControllerTest {
                 .andExpect(jsonPath("$.success").value(true))
                 .andExpect(jsonPath("$.data.user.selfContext.department").value("D01"))
                 .andExpect(jsonPath("$.data.user.selfContext.username").value("self-user"))
-                .andExpect(jsonPath("$.data.user.selfContext.userId").value(20260001));
+                .andExpect(jsonPath("$.data.user.selfContext.userId").value(20260001))
+                .andExpect(jsonPath("$.data.user.selfContext.employeeNumber").value("EMP-0001"));
     }
 
     /** TC-01: GET /api/auth/check with valid session returns 200 and authenticated true with user data */
@@ -51,7 +52,8 @@ class AuthControllerTest {
                 .andExpect(jsonPath("$.data.authenticated").value(true))
                 .andExpect(jsonPath("$.data.selfContext.department").value("D01"))
                 .andExpect(jsonPath("$.data.selfContext.username").value("self-user"))
-                .andExpect(jsonPath("$.data.selfContext.userId").value(20260001));
+                .andExpect(jsonPath("$.data.selfContext.userId").value(20260001))
+                .andExpect(jsonPath("$.data.selfContext.employeeNumber").value("EMP-0001"));
     }
 
     /** TC-02: GET /api/auth/check with no/invalid session returns 200 and authenticated false */
@@ -75,7 +77,8 @@ class AuthControllerTest {
                 .andExpect(jsonPath("$.success").value(true))
                 .andExpect(jsonPath("$.data.user.selfContext.department").value("D01"))
                 .andExpect(jsonPath("$.data.user.selfContext.username").value("self-user"))
-                .andExpect(jsonPath("$.data.user.selfContext.userId").value(20260001));
+                .andExpect(jsonPath("$.data.user.selfContext.userId").value(20260001))
+                .andExpect(jsonPath("$.data.user.selfContext.employeeNumber").value("EMP-0001"));
     }
 
     @Test
@@ -132,7 +135,7 @@ class AuthControllerTest {
             response.setLoginTime(LocalDateTime.of(2026, 3, 13, 12, 0, 0));
             response.setClientIP("127.0.0.1");
             response.setIsSystemAdmin(false);
-            response.setSelfContext(new LoginResponse.SelfContext("D01", "self-user", 20260001L));
+            response.setSelfContext(new LoginResponse.SelfContext("D01", "self-user", 20260001L, "EMP-0001"));
             return response;
         }
     }

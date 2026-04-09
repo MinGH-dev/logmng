@@ -59,7 +59,7 @@ Non–system-admin operators have a **list/read scope** for this screen from **`
 
 Scope is resolved only from **server-side** permission groups + **`is_system_admin`**, never from request body alone.
 
-**`self` UI**: Where applicable, follow **visible locked self-context** for the user block (**`department` → `username` → `userId`**) per **`.cursor/skills/search-consistency-domain/SKILL.md`** and **`selfContext`** on auth payloads.
+**`self` UI**: Where applicable, follow **visible locked self-context** for the user block (**`department` → `username` → `userId`**) per **`.cursor/skills/search-consistency-domain/SKILL.md`** and **`selfContext`** on auth payloads. Here, display semantics are: `selfContext.employeeNumber` = human-facing user identifier, `selfContext.userId` = technical id.
 
 ## 2.3 Mutations and out-of-scope targets
 

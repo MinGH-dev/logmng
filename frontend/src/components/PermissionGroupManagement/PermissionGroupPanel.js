@@ -35,6 +35,7 @@ const GROUP_COLUMNS = [
   { key: 'description', label: '설명', sortable: false },
   { key: 'actions', label: '동작', sortable: false },
 ];
+const EMPLOYEE_NUMBER_FALLBACK_TEXT = '사번 미등록';
 
 const PermissionGroupPanel = ({ user, onRefreshHierarchy, menuTree = MENU_TREE }) => {
   const [groups, setGroups] = useState([]);
@@ -427,6 +428,13 @@ const PermissionGroupPanel = ({ user, onRefreshHierarchy, menuTree = MENU_TREE }
     return id != null && id !== '' && !alreadyInGroup(id);
   });
 
+  const getDisplayEmployeeNumber = (userLike) => {
+    const employeeNumber = userLike?.employeeNumber ?? userLike?.employee_number;
+    if (employeeNumber == null) return EMPLOYEE_NUMBER_FALLBACK_TEXT;
+    const normalized = String(employeeNumber).trim();
+    return normalized || EMPLOYEE_NUMBER_FALLBACK_TEXT;
+  };
+
   return (
     <>
       {error && (
@@ -692,7 +700,7 @@ const PermissionGroupPanel = ({ user, onRefreshHierarchy, menuTree = MENU_TREE }
                     const id = u.userId ?? u.username;
                     return (
                       <option key={id} value={String(id)}>
-                        {id} {u.departmentCode ? `(${u.departmentCode})` : ''}
+                        {getDisplayEmployeeNumber(u)} / {u.username || u.userName || id} {u.departmentCode ? `(${u.departmentCode})` : ''}
                       </option>
                     );
                   })}
@@ -727,7 +735,7 @@ const PermissionGroupPanel = ({ user, onRefreshHierarchy, menuTree = MENU_TREE }
                             const uid = u.userId ?? u.username;
                             return (
                               <tr key={uid}>
-                                <td>{uid}</td>
+                                <td>{getDisplayEmployeeNumber(u)}</td>
                                 <td>
                                   <button type="button" className="user-management-btn remove" onClick={() => handleRemoveUserFromGroup(uid)} disabled={usersDialogActionId === String(uid)} aria-label={`제거, ${uid}`}>
                                     {usersDialogActionId === String(uid) ? '처리 중...' : '제거'}

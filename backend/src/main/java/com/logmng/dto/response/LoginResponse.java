@@ -138,14 +138,17 @@ public class LoginResponse {
         private String username;
         /** Numeric app_user.id; JSON serializes as number. */
         private Long userId;
+        /** Human-facing user identifier = app_user.employee_number (nullable during transition). */
+        private String employeeNumber;
 
         public SelfContext() {
         }
 
-        public SelfContext(String department, String username, Long userId) {
+        public SelfContext(String department, String username, Long userId, String employeeNumber) {
             this.department = department;
             this.username = username;
             this.userId = userId;
+            this.employeeNumber = employeeNumber;
         }
 
         public String getDepartment() {
@@ -170,6 +173,14 @@ public class LoginResponse {
 
         public void setUserId(Long userId) {
             this.userId = userId;
+        }
+
+        public String getEmployeeNumber() {
+            return employeeNumber;
+        }
+
+        public void setEmployeeNumber(String employeeNumber) {
+            this.employeeNumber = employeeNumber;
         }
     }
 }

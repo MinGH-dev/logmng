@@ -9,11 +9,11 @@ import {
   FILTER_OPTION_SCREEN_IDS,
   getDepartmentFilterOptions,
 } from '../services/filterOptionsService';
-import { getSelfContextForDisplay } from '../utils/security';
+import { getEmployeeNumberDisplay, getSelfContextForDisplay } from '../utils/security';
 import './ActivityStatistics.css';
 
 const getLockedSelfFilters = (selfContext) => ({
-  userId: selfContext?.userId || '',
+  userId: getEmployeeNumberDisplay(selfContext),
   username: selfContext?.username || '',
   department: selfContext?.department || '',
 });

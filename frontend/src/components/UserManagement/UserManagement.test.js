@@ -73,7 +73,7 @@ describe('UserManagement', () => {
   });
 
   describe('Table columns', () => {
-    test('table includes "사용자명" column and shows userName or userId per row', async () => {
+    test('table includes "사용자명" column and shows employee number fallback text when missing', async () => {
       getUserPermissionHierarchy.mockResolvedValue({
         data: [
           {
@@ -103,8 +103,7 @@ describe('UserManagement', () => {
       });
 
       expect(screen.getAllByText('홍길동').length).toBeGreaterThanOrEqual(1);
-      expect(screen.getByText('20260001')).toBeInTheDocument();
-      expect(screen.getAllByText('20260002').length).toBeGreaterThanOrEqual(1);
+      expect(screen.getAllByText('사번 미등록').length).toBeGreaterThanOrEqual(1);
     });
   });
 
@@ -578,7 +577,7 @@ describe('UserManagement', () => {
       await waitFor(() => expect(screen.getByText('팀')).toBeInTheDocument());
     });
 
-    test('TC-13: screenScopes[self]이면 본인 고정 블록이 selfContext 값으로 표시된다', async () => {
+    test('TC-13: screenScopes[self]이면 본인 고정 블록이 selfContext 사번 값으로 표시된다', async () => {
       getUserPermissionHierarchy.mockResolvedValue({
         data: [{ code: 'D1', name: '팀', children: [], users: [] }],
       });
@@ -591,6 +590,7 @@ describe('UserManagement', () => {
           department: '개발팀',
           username: 'selfuser',
           userId: 90001,
+          employeeNumber: 'EMP-90001',
         },
       };
 
@@ -599,7 +599,7 @@ describe('UserManagement', () => {
       await waitFor(() => expect(screen.getByTestId('um-v2-locked-self-block')).toBeInTheDocument());
       expect(screen.getByLabelText('부서명 (본인 고정)')).toHaveValue('개발팀');
       expect(screen.getByLabelText('사용자명 (본인 고정)')).toHaveValue('selfuser');
-      expect(screen.getByLabelText('사용자 ID (본인 고정, app_user.id)')).toHaveValue('90001');
+      expect(screen.getByLabelText('사용자 ID (사번, 본인 고정)')).toHaveValue('EMP-90001');
       expect(screen.queryByRole('button', { name: '검색' })).not.toBeInTheDocument();
     });
   });

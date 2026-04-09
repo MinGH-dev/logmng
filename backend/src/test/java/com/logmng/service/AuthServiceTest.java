@@ -46,7 +46,7 @@ class AuthServiceTest {
         try (Connection conn = java.sql.DriverManager.getConnection(H2_URL);
              Statement stmt = conn.createStatement()) {
             stmt.execute("CREATE TABLE IF NOT EXISTS app_user (" +
-                    "id BIGINT, username VARCHAR(100) PRIMARY KEY, password_hash VARCHAR(255), is_system_admin BOOLEAN, department_code VARCHAR(50), name VARCHAR(200), deleted_at TIMESTAMP NULL)");
+                    "id BIGINT, username VARCHAR(100) PRIMARY KEY, password_hash VARCHAR(255), is_system_admin BOOLEAN, department_code VARCHAR(50), name VARCHAR(200), employee_number VARCHAR(100), deleted_at TIMESTAMP NULL)");
             stmt.execute("CREATE TABLE IF NOT EXISTS permission_group_screen (" +
                     "permission_group_id BIGINT, screen_id VARCHAR(100), scope VARCHAR(20), read BOOLEAN, write BOOLEAN, approve BOOLEAN, decrypt BOOLEAN)");
             stmt.execute("CREATE TABLE IF NOT EXISTS app_user_permission_group (" +
@@ -76,24 +76,30 @@ class AuthServiceTest {
     }
 
     private void insertUser(String username, String passwordHash, boolean isSystemAdmin, String departmentCode) throws Exception {
-        insertUser(username, passwordHash, isSystemAdmin, departmentCode, null);
+        long id = "admin".equalsIgnoreCase(username) ? 20269999L : 20260001L;
+        insertUser(id, username, passwordHash, isSystemAdmin, departmentCode, null, null);
     }
 
     private void insertUser(String username, String passwordHash, boolean isSystemAdmin, String departmentCode, String name) throws Exception {
         long id = "admin".equalsIgnoreCase(username) ? 20269999L : 20260001L;
-        insertUser(id, username, passwordHash, isSystemAdmin, departmentCode, name);
+        insertUser(id, username, passwordHash, isSystemAdmin, departmentCode, name, null);
     }
 
     private void insertUser(long id, String username, String passwordHash, boolean isSystemAdmin, String departmentCode, String name) throws Exception {
+        insertUser(id, username, passwordHash, isSystemAdmin, departmentCode, name, null);
+    }
+
+    private void insertUser(long id, String username, String passwordHash, boolean isSystemAdmin, String departmentCode, String name, String employeeNumber) throws Exception {
         try (Connection conn = dataSource.getConnection();
              PreparedStatement ps = conn.prepareStatement(
-                     "INSERT INTO app_user (id, username, password_hash, is_system_admin, department_code, name) VALUES (?, ?, ?, ?, ?, ?)")) {
+                     "INSERT INTO app_user (id, username, password_hash, is_system_admin, department_code, name, employee_number) VALUES (?, ?, ?, ?, ?, ?, ?)")) {
             ps.setLong(1, id);
             ps.setString(2, username);
             ps.setString(3, passwordHash);
             ps.setBoolean(4, isSystemAdmin);
             ps.setString(5, departmentCode);
             ps.setString(6, name);
+            ps.setString(7, employeeNumber);
             ps.executeUpdate();
         }
     }
@@ -153,7 +159,7 @@ class AuthServiceTest {
 
     @Test
     void login_populatesAuthoritativeSelfContext() throws Exception {
-        insertUser(20260001L, "self-user", "pw", false, "D01", null);
+        insertUser(20260001L, "self-user", "pw", false, "D01", null, "E-0001");
 
         MockHttpServletRequest request = new MockHttpServletRequest();
         request.setRemoteAddr("127.0.0.1");
@@ -164,11 +170,12 @@ class AuthServiceTest {
         assertThat(response.getSelfContext().getDepartment()).isEqualTo("D01");
         assertThat(response.getSelfContext().getUsername()).isEqualTo("self-user");
         assertThat(response.getSelfContext().getUserId()).isEqualTo(20260001L);
+        assertThat(response.getSelfContext().getEmployeeNumber()).isEqualTo("E-0001");
     }
 
     @Test
     void login_whenAppUserNameSet_selfContextUsernameIsDisplayName() throws Exception {
-        insertUser(20260002L, "display-user", "pw", false, "D01", "홍길동");
+        insertUser(20260002L, "display-user", "pw", false, "D01", "홍길동", "E-0002");
 
         MockHttpServletRequest request = new MockHttpServletRequest();
         request.setRemoteAddr("127.0.0.1");
@@ -179,11 +186,12 @@ class AuthServiceTest {
         assertThat(response.getSelfContext().getUserId()).isEqualTo(20260002L);
         assertThat(response.getSelfContext().getUsername()).isEqualTo("홍길동");
         assertThat(response.getSelfContext().getDepartment()).isEqualTo("D01");
+        assertThat(response.getSelfContext().getEmployeeNumber()).isEqualTo("E-0002");
     }
 
     @Test
     void getCurrentUserInfo_populatesSelfContextFromSessionIdentity() throws Exception {
-        insertUser(20260003L, "session-user", "pw", false, "OPS", null);
+        insertUser(20260003L, "session-user", "pw", false, "OPS", null, "E-0003");
 
         MockHttpServletRequest request = new MockHttpServletRequest();
         MockHttpSession session = new MockHttpSession();
@@ -199,11 +207,12 @@ class AuthServiceTest {
         assertThat(response.getSelfContext().getDepartment()).isEqualTo("OPS");
         assertThat(response.getSelfContext().getUsername()).isEqualTo("session-user");
         assertThat(response.getSelfContext().getUserId()).isEqualTo(20260003L);
+        assertThat(response.getSelfContext().getEmployeeNumber()).isEqualTo("E-0003");
     }
 
     @Test
     void getCurrentUserInfo_whenAppUserNameSet_returnsDisplayNameInSelfContext() throws Exception {
-        insertUser(20260004L, "me-user", "pw", false, "OPS", "Display Name");
+        insertUser(20260004L, "me-user", "pw", false, "OPS", "Display Name", "E-0004");
 
         MockHttpServletRequest request = new MockHttpServletRequest();
         MockHttpSession session = new MockHttpSession();
@@ -217,11 +226,12 @@ class AuthServiceTest {
         assertThat(response.getSelfContext()).isNotNull();
         assertThat(response.getSelfContext().getUserId()).isEqualTo(20260004L);
         assertThat(response.getSelfContext().getUsername()).isEqualTo("Display Name");
+        assertThat(response.getSelfContext().getEmployeeNumber()).isEqualTo("E-0004");
     }
 
     @Test
     void login_withWrongUserId_throwsInvalidCredentials() throws Exception {
-        insertUser(20260001L, "self-user", "pw", false, "D01", null);
+        insertUser(20260001L, "self-user", "pw", false, "D01", null, "E-0001");
 
         MockHttpServletRequest request = new MockHttpServletRequest();
         request.setRemoteAddr("127.0.0.1");
@@ -234,7 +244,7 @@ class AuthServiceTest {
 
     @Test
     void login_withWrongPassword_throwsInvalidCredentials() throws Exception {
-        insertUser(20260001L, "self-user", "pw", false, "D01", null);
+        insertUser(20260001L, "self-user", "pw", false, "D01", null, "E-0001");
 
         MockHttpServletRequest request = new MockHttpServletRequest();
         request.setRemoteAddr("127.0.0.1");
@@ -247,7 +257,7 @@ class AuthServiceTest {
 
     @Test
     void login_whenSoftDeleted_throwsUserAccountDisabled() throws Exception {
-        insertUser(20260005L, "deleted-user", "pw", false, "D01", null);
+        insertUser(20260005L, "deleted-user", "pw", false, "D01", null, "E-0005");
         softDeleteUser(20260005L);
 
         MockHttpServletRequest request = new MockHttpServletRequest();
@@ -261,7 +271,7 @@ class AuthServiceTest {
 
     @Test
     void login_activeUser_succeeds_deletedAtFilterDoesNotExclude() throws Exception {
-        insertUser(20260006L, "active-user", "secret", false, "D02", null);
+        insertUser(20260006L, "active-user", "secret", false, "D02", null, "E-0006");
 
         MockHttpServletRequest request = new MockHttpServletRequest();
         request.setRemoteAddr("127.0.0.1");
@@ -271,6 +281,85 @@ class AuthServiceTest {
         assertThat(response.getUserId()).isEqualTo(20260006L);
         assertThat(response.getSelfContext()).isNotNull();
         assertThat(response.getSelfContext().getUserId()).isEqualTo(20260006L);
+        assertThat(response.getSelfContext().getEmployeeNumber()).isEqualTo("E-0006");
+    }
+
+    @Test
+    void login_withEmployeeNumber_primaryPath_succeeds() throws Exception {
+        insertUser(20260020L, "emp-user", "pw", false, "D01", null, " EMP-020 ");
+
+        MockHttpServletRequest request = new MockHttpServletRequest();
+        request.setRemoteAddr("127.0.0.1");
+
+        LoginResponse response = authService.login(new LoginRequest("EMP-020", "pw"), request);
+
+        assertThat(response.getUserId()).isEqualTo(20260020L);
+        assertThat(response.getUsername()).isEqualTo("emp-user");
+        assertThat(response.getSelfContext()).isNotNull();
+        assertThat(response.getSelfContext().getEmployeeNumber()).isEqualTo("EMP-020");
+    }
+
+    @Test
+    void login_withBothEmployeeNumberAndUserId_throwsInvalidInput() throws Exception {
+        insertUser(20260021L, "both-user", "pw", false, "D01", null, "EMP-021");
+
+        MockHttpServletRequest request = new MockHttpServletRequest();
+        request.setRemoteAddr("127.0.0.1");
+        LoginRequest body = new LoginRequest(20260021L, "pw");
+        body.setEmployeeNumber("EMP-021");
+
+        com.logmng.exception.CustomException ex = org.junit.jupiter.api.Assertions.assertThrows(
+                com.logmng.exception.CustomException.class,
+                () -> authService.login(body, request));
+        assertThat(ex.getErrorCode()).isEqualTo("INVALID_INPUT");
+    }
+
+    @Test
+    void login_withNeitherEmployeeNumberNorUserId_throwsInvalidInput() {
+        MockHttpServletRequest request = new MockHttpServletRequest();
+        request.setRemoteAddr("127.0.0.1");
+        LoginRequest body = new LoginRequest();
+        body.setPassword("pw");
+
+        com.logmng.exception.CustomException ex = org.junit.jupiter.api.Assertions.assertThrows(
+                com.logmng.exception.CustomException.class,
+                () -> authService.login(body, request));
+        assertThat(ex.getErrorCode()).isEqualTo("INVALID_INPUT");
+    }
+
+    @Test
+    void login_withDuplicatedActiveEmployeeNumber_throwsDuplicatedCode() throws Exception {
+        insertUser(20260022L, "dup-user-1", "pw", false, "D01", null, "EMP-DUP");
+        insertUser(20260023L, "dup-user-2", "pw", false, "D01", null, " EMP-DUP ");
+
+        MockHttpServletRequest request = new MockHttpServletRequest();
+        request.setRemoteAddr("127.0.0.1");
+
+        com.logmng.exception.CustomException ex = org.junit.jupiter.api.Assertions.assertThrows(
+                com.logmng.exception.CustomException.class,
+                () -> authService.login(new LoginRequest("EMP-DUP", "pw"), request));
+        assertThat(ex.getErrorCode()).isEqualTo("USER_EMPLOYEE_NUMBER_DUPLICATED");
+    }
+
+    @Test
+    void login_adMode_withEmployeeNumberOrUserId_rejectedAsInvalidInput() throws Exception {
+        AuthService adAuth = authServiceWithLoginMode("ad");
+        MockHttpServletRequest request = new MockHttpServletRequest();
+        request.setRemoteAddr("127.0.0.1");
+
+        LoginRequest withEmployeeNumber = new LoginRequest("EMP-030", "pw");
+        withEmployeeNumber.setPrincipal("principal");
+        com.logmng.exception.CustomException ex1 = org.junit.jupiter.api.Assertions.assertThrows(
+                com.logmng.exception.CustomException.class,
+                () -> adAuth.login(withEmployeeNumber, request));
+        assertThat(ex1.getErrorCode()).isEqualTo("INVALID_INPUT");
+
+        LoginRequest withUserId = new LoginRequest(20260030L, "pw");
+        withUserId.setPrincipal("principal");
+        com.logmng.exception.CustomException ex2 = org.junit.jupiter.api.Assertions.assertThrows(
+                com.logmng.exception.CustomException.class,
+                () -> adAuth.login(withUserId, request));
+        assertThat(ex2.getErrorCode()).isEqualTo("INVALID_INPUT");
     }
 
     @Test

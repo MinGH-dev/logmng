@@ -43,6 +43,7 @@ describe('UserActivityLogList', () => {
       department: '개발부',
       username: '홍길동',
       userId: 20260001,
+      employeeNumber: 'EMP-20260001',
     },
   });
 
@@ -117,7 +118,7 @@ describe('UserActivityLogList', () => {
     expect(getDepartmentFilterOptions).not.toHaveBeenCalled();
     expect(screen.getByDisplayValue('개발부')).toHaveAttribute('readonly');
     expect(screen.getByDisplayValue('홍길동')).toHaveAttribute('readonly');
-    expect(screen.getByDisplayValue('20260001')).toHaveAttribute('readonly');
+    expect(screen.getByDisplayValue('EMP-20260001')).toHaveAttribute('readonly');
     // req 20260316: 기타 조건(액션 타입, IP 주소) visible when scope=self
     expect(screen.getByLabelText('액션 타입')).toBeInTheDocument();
     expect(screen.getByLabelText('IP 주소')).toBeInTheDocument();
@@ -270,7 +271,7 @@ describe('UserActivityLogList', () => {
     await waitFor(() => {
       expect(screen.getByDisplayValue('개발부')).toHaveAttribute('readonly');
       expect(screen.getByDisplayValue('홍길동')).toHaveAttribute('readonly');
-      expect(screen.getByDisplayValue('20260001')).toHaveAttribute('readonly');
+      expect(screen.getByDisplayValue('EMP-20260001')).toHaveAttribute('readonly');
       // req 20260316: 기타 조건 visible when scope=self
       expect(screen.getByLabelText('IP 주소')).toBeInTheDocument();
     });

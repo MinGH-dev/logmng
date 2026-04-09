@@ -77,9 +77,12 @@ Nested under **`auth.ad`**. End-user auth uses **JNDI `InitialDirContext` simple
 
 | Field | Type | Required |
 |-------|------|----------|
-| userId | number | Yes — `app_user.id` |
+| employeeNumber | string | Conditional — recommended login identifier (`app_user.employee_number`) |
+| userId | number | Conditional — deprecated legacy identifier (`app_user.id`) |
 | password | string | Yes |
 
+- **Exactly one identifier**: `employeeNumber` xor `userId` MUST be provided. If both are present, or both are absent, return **400** `INVALID_INPUT`.
+- **Normalization**: `employeeNumber` is compared after trim. Empty-after-trim is invalid input.
 - **Success**: Session cookie; same **`LoginResponse`** family as `docs/api-definition.md` §2.1 (user payload unchanged).
 - **Failure**: Invalid credentials → **401** with project error wrapper; code e.g. `UNAUTHORIZED` or existing login failure code (do not user-enumerate).
 
@@ -90,7 +93,7 @@ Nested under **`auth.ad`**. End-user auth uses **JNDI `InitialDirContext` simple
 | principal | string | Yes — non-blank directory identifier |
 | password | string | Yes |
 
-- **Wrong shape** (e.g. `userId` sent instead of `principal`) → **400** `INVALID_INPUT`.
+- **Wrong shape** (e.g. `employeeNumber`/`userId` sent instead of `principal`) → **400** `INVALID_INPUT`.
 - **Directory authentication fails** → **401** `DIRECTORY_AUTH_FAILED` (or unified `UNAUTHORIZED`; implementation picks one per release and documents in `docs/api-definition.md`).
 - **Directory OK but no `app_user` row** for mapped external identity → **401** `APP_USER_NOT_PROVISIONED` (policy: login only after provisioning).
 - **Success**: Same session + `LoginResponse` as local mode; **`app_user`** resolved from mapping table / columns per DB schema (DBA).
@@ -210,3 +213,11 @@ When `isSystemAdmin === false` **and** `allowedScreenIds` is empty or absent:
 
 - **`ext_department`**, **`ext_employee`**: replicated; app runtime **SELECT-only** for app DB role.
 - **`app_user`** linkage: `external_employee_id`, `external_source_system` and/or mapping table — **DBA** schema is authoritative; this spec references names from `docs/requirements/20260407-external-dept-employee-ad-login.md` §2 DB.
+
+# 9. Identifier semantics and transition policy
+
+- **Technical identifier (`userId`)** remains numeric `app_user.id` for path/query/API join semantics.
+- **Human-facing identifier** is `employeeNumber` (`app_user.employee_number`) for login labels and post-login self-context display.
+- **Auth response selfContext** MUST include `employeeNumber: string | null` in addition to `userId: number`.
+- **Null `employee_number` transition**: NULL is allowed for legacy rows during transition; for such users, auth still succeeds according to mode, but clients must not reinterpret technical `userId` as human-facing identifier.
+- **Deprecation**: Local-login `userId` input is backward-compatible and deprecated. Client migration target is `employeeNumber`.

@@ -198,7 +198,7 @@ class DecryptControllerTest {
             com.logmng.dto.response.LoginResponse r = new com.logmng.dto.response.LoginResponse();
             r.setUsername(currentUsername);
             r.setUserId(currentUserId);
-            r.setSelfContext(new com.logmng.dto.response.LoginResponse.SelfContext(null, currentUsername, currentUserId));
+            r.setSelfContext(new com.logmng.dto.response.LoginResponse.SelfContext(null, currentUsername, currentUserId, "EMP-TEST"));
             return r;
         }
 

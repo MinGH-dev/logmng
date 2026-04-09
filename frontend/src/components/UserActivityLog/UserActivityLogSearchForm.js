@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import UserContextFilterBlock from '../common/UserContextFilterBlock';
+import { getEmployeeNumberDisplay } from '../../utils/security';
 import './UserActivityLog.css';
 
 /**
@@ -49,7 +50,8 @@ const toDateTimeLocal = (dateStr) => {
 };
 
 const getLockedSelfValues = (selfContext) => ({
-  userId: selfContext?.userId || '',
+  userId: getEmployeeNumberDisplay(selfContext),
+  employeeNumber: selfContext?.employeeNumber || '',
   username: selfContext?.username || '',
   department: selfContext?.department || '',
 });

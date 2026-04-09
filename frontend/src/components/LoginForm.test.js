@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import LoginForm from './LoginForm';
 
@@ -27,44 +27,33 @@ describe('LoginForm', () => {
     mockFetchConfig404();
   });
 
-  describe('TC-04: Login form label, placeholder, validation refer to user ID', () => {
-    test('first field label is "사용자 ID"', async () => {
+  describe('TC-04: Login form label, placeholder, validation refer to employee number', () => {
+    test('first field label is "사용자 ID (사번)"', async () => {
       render(<LoginForm onLogin={onLogin} />);
       await waitFor(() => {
-        expect(screen.getByLabelText(/사용자 ID/)).toBeInTheDocument();
+        expect(screen.getByLabelText(/사용자 ID \(사번\)/)).toBeInTheDocument();
       });
     });
 
-    test('userId input has placeholder and name userId', async () => {
+    test('employeeNumber input has placeholder and name employeeNumber', async () => {
       render(<LoginForm onLogin={onLogin} />);
-      const input = await screen.findByPlaceholderText('사용자 ID를 입력하세요 (예: 20260001)');
+      const input = await screen.findByPlaceholderText('사번을 입력하세요 (예: EMP-2026-0001)');
       expect(input).toBeInTheDocument();
-      expect(input).toHaveAttribute('name', 'userId');
-      expect(input).toHaveAttribute('type', 'number');
+      expect(input).toHaveAttribute('name', 'employeeNumber');
+      expect(input).toHaveAttribute('type', 'text');
     });
 
-    test('validation error refers to user ID when userId is empty', async () => {
+    test('validation error refers to employee number when empty', async () => {
       render(<LoginForm onLogin={onLogin} />);
       const submit = await screen.findByRole('button', { name: '로그인' });
       await userEvent.click(submit);
-      await screen.findByText('사용자 ID를 입력해주세요.');
-      expect(screen.getByText('사용자 ID를 입력해주세요.')).toBeInTheDocument();
-    });
-
-    test('validation error when userId is not an integer', async () => {
-      render(<LoginForm onLogin={onLogin} />);
-      const userIdInput = await screen.findByLabelText(/사용자 ID/);
-      // Use decimal so validation rejects (userId must be integer); type="number" accepts "20.5" in jsdom
-      fireEvent.change(userIdInput, { target: { name: 'userId', value: '20.5' } });
-      const passwordInput = screen.getByLabelText(/비밀번호/);
-      await userEvent.type(passwordInput, 'pass');
-      await userEvent.click(screen.getByRole('button', { name: '로그인' }));
-      expect(await screen.findByText(/사용자 ID는 숫자여야 합니다/)).toBeInTheDocument();
+      await screen.findByText('사용자 ID(사번)를 입력해주세요.');
+      expect(screen.getByText('사용자 ID(사번)를 입력해주세요.')).toBeInTheDocument();
     });
   });
 
   describe('Login request body', () => {
-    test('submit sends body with userId (number) and password, no username', async () => {
+    test('submit sends body with employeeNumber (string) and password', async () => {
       let capturedBody;
       global.fetch = jest.fn((url, options) => {
         if (String(url).includes('/auth/config')) {
@@ -82,7 +71,7 @@ describe('LoginForm', () => {
       });
 
       render(<LoginForm onLogin={onLogin} />);
-      await userEvent.type(await screen.findByLabelText(/사용자 ID/), '20260001');
+      await userEvent.type(await screen.findByLabelText(/사용자 ID \(사번\)/), 'EMP-2026-0001');
       await userEvent.type(screen.getByPlaceholderText(/비밀번호/), 'mypass');
       await userEvent.click(screen.getByRole('button', { name: '로그인' }));
 
@@ -93,8 +82,8 @@ describe('LoginForm', () => {
           headers: { 'Content-Type': 'application/json' },
         })
       );
-      expect(capturedBody).toEqual({ userId: 20260001, password: 'mypass' });
-      expect(capturedBody).not.toHaveProperty('username');
+      expect(capturedBody).toEqual({ employeeNumber: 'EMP-2026-0001', password: 'mypass' });
+      expect(capturedBody).not.toHaveProperty('userId');
     });
 
     test('AD mode sends principal and password only', async () => {
@@ -124,14 +113,14 @@ describe('LoginForm', () => {
       await userEvent.click(screen.getByRole('button', { name: '로그인' }));
 
       expect(capturedBody).toEqual({ principal: 'user@corp.local', password: 'secret' });
-      expect(capturedBody).not.toHaveProperty('userId');
+      expect(capturedBody).not.toHaveProperty('employeeNumber');
     });
   });
 
   describe('login API error messages', () => {
     async function submitLocalLogin() {
       render(<LoginForm onLogin={onLogin} />);
-      await userEvent.type(await screen.findByLabelText(/사용자 ID/), '20260001');
+      await userEvent.type(await screen.findByLabelText(/사용자 ID \(사번\)/), 'EMP-2026-0001');
       await userEvent.type(screen.getByLabelText(/^비밀번호/), 'secret');
       await userEvent.click(screen.getByRole('button', { name: '로그인' }));
     }

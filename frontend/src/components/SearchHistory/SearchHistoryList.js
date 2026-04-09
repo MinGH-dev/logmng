@@ -8,7 +8,7 @@ import {
   FILTER_OPTION_SCREEN_IDS,
   getDepartmentFilterOptions,
 } from '../../services/filterOptionsService';
-import { getSelfContext } from '../../utils/security';
+import { getEmployeeNumberDisplay, getSelfContext } from '../../utils/security';
 import DataTable, { EmptyTableBody } from '../DataTable';
 import UserContextFilterBlock from '../common/UserContextFilterBlock';
 import './SearchHistory.css';
@@ -250,7 +250,8 @@ const createEmptyRequesterFilters = () => ({
 const getLockedRequesterFilters = (selfContext) => ({
   department: selfContext?.department || '',
   username: selfContext?.username || '',
-  userId: selfContext?.userId || '',
+  userId: getEmployeeNumberDisplay(selfContext),
+  employeeNumber: selfContext?.employeeNumber || '',
 });
 
 /** Requester column values from row; supports camelCase and snake_case for API compatibility. */

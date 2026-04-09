@@ -209,7 +209,7 @@ class ActivityLogAspectTest {
             LoginResponse r = new LoginResponse();
             r.setUsername("testuser");
             r.setUserId(1000L);
-            r.setSelfContext(new LoginResponse.SelfContext(null, "Test User", 1000L));
+            r.setSelfContext(new LoginResponse.SelfContext(null, "Test User", 1000L, "EMP-1000"));
             return r;
         }
     }

@@ -19,7 +19,7 @@ import {
 } from '../../services/userService';
 import { getUserPermissionHierarchy, listPermissionGroups } from '../../services/permissionGroupService';
 import { getErrorMessage } from '../../utils/errorMessage';
-import { getAllowedScreenIds, getScreenFunctions, getSelfContextForDisplay } from '../../utils/security';
+import { getAllowedScreenIds, getEmployeeNumberDisplay, getScreenFunctions, getSelfContextForDisplay } from '../../utils/security';
 import logger from '../../utils/logger';
 import UserGroupAssignment from '../UserGroupAssignment/UserGroupAssignment';
 import '../UserPermissionHierarchy/UserPermissionHierarchy.css';
@@ -34,6 +34,7 @@ const emptyQuickEntryField = { previous: null, recent: [] };
 
 /** Synthetic bucket for users without department_code; not a row in `department` (see hierarchy API). */
 const UNASSIGNED_DEPARTMENT_CODE = '__UNASSIGNED__';
+const EMPLOYEE_NUMBER_FALLBACK_TEXT = '사번 미등록';
 
 /** User-facing label: department name only; never exposes department code in UI. */
 const departmentUiLabel = (name) => {
@@ -48,7 +49,7 @@ const normalizeMatch = (s) => {
 
 const userMatchesNameAndEmp = (u, nameQ, empQ) => {
   const uname = normalizeMatch(u.userName ?? u.username ?? '');
-  const empRaw = u.employeeNumber ?? u.employee_number ?? u.userId ?? u.username ?? '';
+  const empRaw = u.employeeNumber ?? u.employee_number ?? '';
   const emp = normalizeMatch(String(empRaw));
   return (!nameQ || uname.includes(nameQ)) && (!empQ || emp.includes(empQ));
 };
@@ -550,7 +551,7 @@ const UserManagement = ({ user }) => {
 
   const openDeleteDialog = (u) => {
     const rowUserId = u.userId ?? u.username;
-    const displayUserId = u.employeeNumber ?? u.employee_number ?? rowUserId;
+    const displayUserId = (u.employeeNumber ?? u.employee_number ?? '').toString().trim() || EMPLOYEE_NUMBER_FALLBACK_TEXT;
     const displayName = u.userName ?? rowUserId;
     setDeleteTarget({
       userId: rowUserId,
@@ -595,7 +596,7 @@ const UserManagement = ({ user }) => {
 
   const renderUserRow = (u, isApprover, allGroups, onRefresh) => {
     const userId = u.userId ?? u.username;
-    const displayUserId = u.employeeNumber ?? u.employee_number ?? userId;
+    const displayUserId = (u.employeeNumber ?? u.employee_number ?? '').toString().trim() || EMPLOYEE_NUMBER_FALLBACK_TEXT;
     const displayName = u.userName ?? userId;
     const rank = u.rank ?? '-';
     const position = u.position ?? '-';
@@ -970,21 +971,17 @@ const UserManagement = ({ user }) => {
                     />
                   </div>
                   <div className="form-group">
-                    <label htmlFor="um-filter-userid-locked">사용자 ID</label>
+                    <label htmlFor="um-filter-userid-locked">사용자 ID (사번)</label>
                     <input
                       id="um-filter-userid-locked"
                       type="text"
                       className="form-control"
                       readOnly
                       tabIndex={0}
-                      value={
-                        selfContext?.userId !== '' && selfContext?.userId != null
-                          ? String(selfContext.userId)
-                          : ''
-                      }
+                      value={getEmployeeNumberDisplay(selfContext)}
                       aria-readonly="true"
                       aria-describedby="um-v2-self-scope-hint"
-                      aria-label="사용자 ID (본인 고정, app_user.id)"
+                      aria-label="사용자 ID (사번, 본인 고정)"
                     />
                   </div>
                 </div>

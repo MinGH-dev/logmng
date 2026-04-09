@@ -45,7 +45,7 @@
 
 | 속성 | 설명 |
 |------|------|
-| **`auth.login.mode`** | **필수(제품 규칙)**. 허용 값: **`local`** \| **`ad`** 만. **런타임에 정확히 하나**의 구현 경로만 활성. **`local`**: 기존 **`app_user.id`(숫자) + `password`** 를 **`password_hash`** 와 비교하는 테이블 기반 로그인. **`ad`**: 기업 디렉터리(LDAP/LDAPS 바인드 등 구현 세부는 백엔드)로 자격 증명 검증 후 **`app_user`** 매핑. |
+| **`auth.login.mode`** | **필수(제품 규칙)**. 허용 값: **`local`** \| **`ad`** 만. **런타임에 정확히 하나**의 구현 경로만 활성. **`local`**: 기본 로그인 식별자는 **`employeeNumber` (`app_user.employee_number`) + `password`** 이고, 레거시 호환으로 **`userId`(`app_user.id`, 숫자) + `password`** 를 제한적으로 허용한다(아래 "사용자 식별자 의미" 및 deprecated 정책). **`ad`**: 기업 디렉터리(LDAP/LDAPS 바인드 등 구현 세부는 백엔드)로 자격 증명 검증 후 **`app_user`** 매핑. |
 | **`auth.login.allow-local-in-production`** | 선택. 기본 **`false`**. **`true`**일 때만 **프로덕션으로 분류되는 활성 프로필**에서 `auth.login.mode=local` 허용(의도적 로컬/브레이크글래스). **`false`**이고 프로덕션 프로필인데 `mode=local`이면 **fail-closed**(기동 실패 등 — 구현과 동일하게 유지). 개발 프로필에서는 제품 기본 완화 가능. |
 
 **로컬 프로비저닝·온보딩 (비밀번호 정책 요약)** — 요건 `docs/requirements/20260408-my-page-local-password-and-profile.md`:
@@ -72,9 +72,18 @@
 - `mode=ad` 인데 **`auth.ad.*` 필수 항목 누락·빈 값** → 동일하게 fail-closed.
 - 구체적 HTTP/기동 오류 코드는 **`specs/external-identity-auth.spec.yaml`** 및 `docs/api-definition.md` 와 맞춘다.
 
+**사용자 식별자 의미 (normative)**
+
+- **Technical id (`userId`)**: API 경로/쿼리/내부 조인용 **숫자 `app_user.id`**. 기존 경로 파라미터 `{userId}` 및 `search_history.user_id` 등은 이 의미를 유지한다.
+- **Human-facing id (`employeeNumber`)**: 로그인 화면·self-context·관리자 화면에서 사람이 인지하는 "사용자 ID(사번)"는 **`employeeNumber` = `app_user.employee_number`** 이다.
+- **`selfContext` 계약**: `selfContext`는 최소 `{ department, username, userId, employeeNumber }`를 제공한다. 여기서 `userId`는 technical id, `employeeNumber`는 human-facing id다. `employeeNumber`는 `string | null`.
+- **Null 사번 정책(전환기)**: 레거시 데이터 호환을 위해 `employee_number` NULL은 당분간 허용한다. NULL인 경우에도 API는 technical id를 human-facing "사용자 ID"로 승격하지 않는다. UI/문구는 "사번 미등록"(또는 동등한 명시적 fallback)으로 처리한다.
+- **로컬 로그인 요청(전환기)**: `POST /api/auth/login` (`auth.login.mode=local`)은 **`employeeNumber`(권장)** 또는 **deprecated `userId`(숫자)** 중 **정확히 하나**를 허용한다. 둘 다 보내거나 둘 다 누락하면 `400 INVALID_INPUT`.
+- **Deprecated 안내**: local 로그인의 `userId` 요청 필드는 하위호환 목적의 **deprecated** 경로다. 클라이언트는 `employeeNumber`로 이행해야 하며, 제거 시점은 릴리즈 노트/스펙에서 별도 공지한다.
+
 **세션·권한 계약**
 
-- 로그인 성공 후 **세션 쿠키**, **`GET /api/auth/me`**, **`GET /api/auth/check`** 응답 형태( `allowedScreenIds`, `screenFunctions`, `selfContext` 등)는 기존 계약을 유지한다. **AD 모드는 엔드 사용자 AD 비밀번호를 `app_user`·로그·세션에 저장하지 않는다**(요건 §2.1).
+- 로그인 성공 후 **세션 쿠키**, **`GET /api/auth/me`**, **`GET /api/auth/check`** 응답 형태( `allowedScreenIds`, `screenFunctions`, `selfContext` 등)는 기존 계약을 유지한다. 단, `selfContext`에는 human-facing 식별자 필드 **`employeeNumber`**를 포함한다. **AD 모드는 엔드 사용자 AD 비밀번호를 `app_user`·로그·세션에 저장하지 않는다**(요건 §2.1).
 - **인증은 되었으나 유효 화면 권한이 없음**(시스템 관리자 아님 + `allowedScreenIds` 비어 있음): **보호 API**는 **401이 아니라 403** 계열로 거부하는 것이 계약상 권장(세션은 존재). **예외**: **`POST /api/auth/logout`**, **`GET /api/auth/check`**, **`GET /api/auth/me`**, **`POST /api/auth/me/password`**(로컬 모드에서만 실질 동작; AD 모드는 **403** `PASSWORD_CHANGE_NOT_ALLOWED`) — 프론트 모달·라우팅·마이페이지 온보딩 판단용 — 상세는 `specs/external-identity-auth.spec.yaml` §5, **`specs/my-page-password.spec.yaml`**. **비인증** → **401**.
 
 **외부 조직 복제 테이블(요약)**
@@ -278,7 +287,7 @@
   - **“관리자(admin)” 계정의 정의(본 항·승인 정책에 한함)**: **`app_user.is_system_admin = true`인 사용자만** “시스템 관리자 계정”으로 본다. **`ADMIN_EXT` 등 권한 그룹을 통해 넓은 관리 기능을 가진 사용자**이더라도 **`is_system_admin = false`이면** 본 승인 정책에서 관리자로 **분류하지 않는다**. 그들의 승인 가능 여부는 **권한 그룹에 지정된 화면별 `approve`와 아래 동일 부서 규칙만**으로 결정하며, 그룹 배치·운영은 운영자 관리에 맡긴다.
   - **공통 판별(구현 모델)**: 승인 자격은 **먼저** 권한 그룹 기준으로 “해당 화면에 승인 권한을 가진 사용자인지”를 판정한다. **`is_system_admin = true`인 경우에 한해**, 위에서 그룹으로 승인이 부여되어 있더라도 **검색 이력·승인 대기 관련 승인·반려는 불가**로 한다(해당 화면의 유효 승인 권한을 시스템 관리자 플래그가 **상쇄**). “admin이면 무조건 false” 단일 분기로 그룹 검사를 생략하지 않고, **그룹 기반 승인 보유 여부를 계산한 뒤 `is_system_admin`이면 제외**하는 방식이 계약상 권장 모델이다.
   - **요청 단위(동일 부서)**: 특정 요청에 대한 승인·반려는 **승인자의 `department_code`와 요청자의 `department_code`가 동일할 때만** 허용한다(상위 부서 체인 기준 승인은 사용하지 않음).
-- **auth/current-user self-context 계약**: 세션 수립 후 **canonical 사용자 식별자**는 항상 **numeric `app_user.id`**이다. **`auth.login.mode=local`** 일 때만 로그인 요청에 **`userId`(number) + `password`** 를 사용한다. **`auth.login.mode=ad`** 일 때는 로그인 요청에 **`principal`(string) + `password`** 를 사용하고, 성공 후 동일하게 `app_user`를 해석한다(요건 `20260407-external-dept-employee-ad-login`). API/UI에서 노출하는 **canonical "userId"**는 **numeric** **`app_user.id`**(예: 20269999, 20260001)이다. `POST /api/auth/login`의 `user` payload와 `GET /api/auth/me` 응답은 self-scoped 화면 고정 표시용 `selfContext`를 포함해야 한다. 최소 필드는 `department: string | null`, `username: string`, `userId: number`이다. **`selfContext.userId`**는 **numeric** **`app_user.id`**(user ID)이다. **`selfContext.username`**은 현재 사용자의 **표시 이름(display name, 사용자명)**이다: `app_user.name`이 존재하고 비어 있지 않으면 그 값을 사용하고, 그렇지 않으면 `app_user.username`을 사용한다. `scope=self` 화면은 이 값을 화면 표시의 권위 소스로 사용하고, 공유 filter-options 응답이나 사용자가 조작한 필터 입력을 권위 값으로 승격하면 안 된다.
+- **auth/current-user self-context 계약**: 세션 수립 후 **technical/canonical 사용자 식별자**는 항상 **numeric `app_user.id`**다. **`auth.login.mode=local`** 에서는 로그인 요청으로 **`employeeNumber`(string, 권장)** 또는 deprecated **`userId`(number)** 중 하나를 받는다. **`auth.login.mode=ad`** 일 때는 로그인 요청에 **`principal`(string) + `password`** 를 사용하고, 성공 후 동일하게 `app_user`를 해석한다(요건 `20260407-external-dept-employee-ad-login`). `POST /api/auth/login`의 `user` payload와 `GET /api/auth/me` 응답은 self-scoped 화면 고정 표시용 `selfContext`를 포함해야 한다. 최소 필드는 `department: string | null`, `username: string`, `userId: number`, `employeeNumber: string | null`이다. **`selfContext.userId`**는 technical id인 **numeric `app_user.id`**이고, **`selfContext.employeeNumber`**는 human-facing user identifier(사번)다. **`selfContext.username`**은 현재 사용자의 **표시 이름(display name, 사용자명)**이다: `app_user.name`이 존재하고 비어 있지 않으면 그 값을 사용하고, 그렇지 않으면 `app_user.username`을 사용한다. `scope=self` 화면은 이 값을 화면 표시의 권위 소스로 사용하고, 공유 filter-options 응답이나 사용자가 조작한 필터 입력을 권위 값으로 승격하면 안 된다.
 - **screenFunctions** (req 20250303-screen-function-availability): 로그인·GET /api/auth/me 응답에 `screenFunctions: Record<screenId, { read, write?, approve?, decrypt? }>` 포함. 화면별 read/write/approve/decrypt 가능 여부. pb-feplog, java-fw-imagelog는 read + optional decrypt(복호화 요청 권한); decrypt는 권한관리에서 부여/해제 가능(req 20260318). **screenFunctions explicit storage**: permission_group_screen.read/write/approve/decrypt에 명시 저장 시 해당 값 사용; NULL이면 기존 derivation 규칙 적용. 상세: `specs/permission-group-hierarchy.spec.yaml` §4.4. **`search-history`·`pending-approvals`의 `approve`**: 위 **「복호화 승인 자격」** 을 따른다(권한 그룹의 `approve`를 먼저 반영한 뒤 **`is_system_admin`이면 해당 화면 approve를 유효하지 않음**으로 산출). `ADMIN_EXT` 등 비시스템관리자는 그룹 `approve`만으로 판단한다.
 - **`pending-approvals`의 `read` vs `approve` (요건 `20260407-pending-approvals-history-search-readonly-requester`)**: **`read`** — 해당 화면(복호화 승인 관리) 접근, 목록·필터·검색 이력 조회(승인 상태 포함) **읽기 전용** UI. **`approve`** — 복호화 승인·반려 **액션만**(POST `/api/search-history/{id}/approve|reject` 및 비즈니스 규칙 `canApproveForRequester`). 요청자(승인 권한 없음)는 `read=true`, `approve=false`이면 목록·상세 조회는 허용 범위 내에서 가능하고 승인/반려 API는 403 계약 코드로 거부된다.
 - **복호화 승인 관리 목록 API (동일 PR 계약)**: 역사·필터 가능한 목록은 **`GET /api/search-history`** (`docs/api-definition.md` §6.1.2)를 **단일** 목록 엔드포인트로 사용한다. **`search-history` 화면이 없고 `pending-approvals` 읽기만 있는 사용자**도 이 GET을 호출할 수 있도록 화면 접근(인터셉터) 규칙이 **`search-history` 또는 (`pending-approvals` + read)** 를 허용한다(구현은 Step 4). 대안으로 별도 경로만 두고 본문 규칙이 다른 경우 계약·코드가 함께 갱신된다.

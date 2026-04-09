@@ -9,7 +9,7 @@ import {
   FILTER_OPTION_SCREEN_IDS,
   getDepartmentFilterOptions,
 } from '../../services/filterOptionsService';
-import { getScreenFunctions, getSelfContext } from '../../utils/security';
+import { getEmployeeNumberDisplay, getScreenFunctions, getSelfContext } from '../../utils/security';
 import DataTable, { EmptyTableBody } from '../DataTable';
 import UserContextFilterBlock from '../common/UserContextFilterBlock';
 import logger from '../../utils/logger';
@@ -241,7 +241,8 @@ const createEmptyRequesterFilters = () => ({
 const getLockedRequesterFilters = (selfContext) => ({
   department: selfContext?.department || '',
   username: selfContext?.username || '',
-  userId: selfContext?.userId ?? '',
+  userId: getEmployeeNumberDisplay(selfContext),
+  employeeNumber: selfContext?.employeeNumber || '',
 });
 
 function getRequesterCellValues(row) {

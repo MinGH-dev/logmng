@@ -10,7 +10,7 @@ import './UserContextFilterBlock.css';
  * @param {string[]} departmentList - Options for department select
  * @param {Array<{userId: number, ...}>} [userList] - If provided, userId is a select (numeric app_user.id); otherwise text input
  * @param {{ department: string, username: string, userId: number|string }} values
- * @param {{ department: string, username: string, userId: number|string }} [lockedValues]
+ * @param {{ department: string, username: string, userId: number|string, employeeNumber?: string }} [lockedValues]
  * @param {(name: 'department'|'username'|'userId', value: string|number) => void} onChange
  * @param {string} [idPrefix='user-ctx'] - Prefix for input ids (for a11y in same page)
  * @param {boolean} [compact] - When true, reduce margin for single-row inline layout (1–2 row UX)
@@ -27,6 +27,7 @@ const UserContextFilterBlock = ({
   idPrefix = 'user-ctx',
   compact = false,
   usernameMaxLength = 5,
+  lockedUserIdFallbackText = '사번 미등록',
 }) => {
   const isLocked = mode === 'locked';
   const id = (name) => `${idPrefix}-${name}`;
@@ -34,7 +35,10 @@ const UserContextFilterBlock = ({
     ? {
         department: lockedValues.department ?? '',
         username: lockedValues.username ?? '',
-        userId: lockedValues.userId != null && lockedValues.userId !== '' ? lockedValues.userId : '',
+        userId:
+          lockedValues.employeeNumber != null && String(lockedValues.employeeNumber).trim() !== ''
+            ? String(lockedValues.employeeNumber).trim()
+            : lockedUserIdFallbackText,
       }
     : values;
 

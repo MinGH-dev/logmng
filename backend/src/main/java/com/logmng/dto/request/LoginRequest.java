@@ -4,12 +4,16 @@ import jakarta.validation.constraints.NotBlank;
 
 /**
  * 로그인 요청 DTO.
- * Shape depends on {@code auth.login.mode}: {@code local} → numeric {@code userId} + {@code password};
+ * Shape depends on {@code auth.login.mode}: {@code local} → exactly one of
+ * {@code employeeNumber} or legacy numeric {@code userId}, plus {@code password};
  * {@code ad} → {@code principal} + {@code password}. Validated in {@link com.logmng.service.AuthService}.
  */
 public class LoginRequest {
 
-    /** app_user.id — used when auth.login.mode=local */
+    /** app_user.employee_number — primary human-facing identifier for auth.login.mode=local */
+    private String employeeNumber;
+
+    /** app_user.id — deprecated legacy identifier for auth.login.mode=local */
     private Long userId;
 
     /** Directory login id (e.g. sAMAccountName) — used when auth.login.mode=ad */
@@ -24,6 +28,19 @@ public class LoginRequest {
     public LoginRequest(Long userId, String password) {
         this.userId = userId;
         this.password = password;
+    }
+
+    public LoginRequest(String employeeNumber, String password) {
+        this.employeeNumber = employeeNumber;
+        this.password = password;
+    }
+
+    public String getEmployeeNumber() {
+        return employeeNumber;
+    }
+
+    public void setEmployeeNumber(String employeeNumber) {
+        this.employeeNumber = employeeNumber;
     }
 
     public Long getUserId() {

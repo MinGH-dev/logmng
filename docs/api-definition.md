@@ -3,9 +3,9 @@
 현재 백엔드에 구현된 API 목록 및 요청/응답 규격이다.  
 **베이스 URL**: `http://localhost:9200/api` (환경·포트는 `docs/contract.md` 참고).
 
-**User ID (userId)**: 요청/응답/경로/쿼리에서 **`userId`**는 **numeric** **`app_user.id`**(JSON type: number, 예: 20269999, 20260001)이다. 로그인 시 사용자 식별은 **userId (numeric)** 만 사용하며, username(문자열)으로는 로그인할 수 없다. **Breaking change**: 동일 릴리즈부터 클라이언트는 모든 API의 userId를 숫자 타입으로 처리해야 하며, 문자열(username) 기반 userId는 지원하지 않는다.
+**User ID (userId)**: 요청/응답/경로/쿼리에서 **`userId`**는 **technical identifier**인 **numeric** **`app_user.id`**(JSON type: number, 예: 20269999, 20260001)이다. 경로/쿼리 의미는 기존과 동일하며 문자열(username) 기반 userId는 지원하지 않는다.
 
-**사번 (`employeeNumber`, 선택)**: 일부 사용자 응답 객체에 **`employeeNumber`**(string \| null, `app_user.employee_number`)가 포함될 수 있다. HR 복제(`ext_employee.employee_number`)와 동일 문자열이며, 프로비저닝·관리 UI에서 **숫자형 `userId`와 별도로 사번을 표시**하는 데 쓴다. 값이 없으면 필드는 생략되거나 null이다.
+**사번 (`employeeNumber`)**: human-facing 사용자 식별자는 **`employeeNumber`**(string \| null, `app_user.employee_number`)다. 로그인/`selfContext`/관리 UI에서 "사용자 ID" 표시는 `employeeNumber`를 우선 사용한다. 값이 없으면 `null`이며, 이 경우에도 technical `userId`를 human-facing "사용자 ID"로 간주하지 않는다(명시적 fallback 문구 사용).
 
 ---
 
@@ -40,15 +40,17 @@
 
 #### 2.1.1 `auth.login.mode = local` (테이블 `password_hash`)
 
-- 사용자 식별은 **userId (numeric `app_user.id`)** 만 사용한다(문자열 username으로 로그인하지 않음).
+- 사용자 식별은 **`employeeNumber`(권장)** 또는 **deprecated `userId`(numeric `app_user.id`)** 중 하나를 사용한다(문자열 username 로그인은 지원하지 않음).
 - **Request body** (JSON)
 
 | 필드 | 타입 | 필수 | 설명 |
 |------|------|------|------|
-| userId | number | O | **사용자 ID** (numeric `app_user.id`, 예: 20269999, 20260001). |
+| employeeNumber | string | conditional | **권장 로그인 식별자(사번)**. trim 후 비어 있으면 invalid. |
+| userId | number | conditional | **deprecated** 레거시 로그인 식별자. numeric `app_user.id`. |
 | password | string | O | 비밀번호(`password_hash` 검증 경로). |
 
-- **실패(401) — local**: 존재하지 않는 `userId`·비밀번호 불일치 → `INVALID_CREDENTIALS`. **`app_user.deleted_at` 이 설정된(소프트 삭제) 계정** → `USER_ACCOUNT_DISABLED`(자격 증명과 구분하여 운영 확인용).
+- **입력 규칙(local)**: `employeeNumber`와 `userId` 중 **정확히 하나만** 허용. 둘 다 전송 또는 둘 다 누락 시 **400 `INVALID_INPUT`**.
+- **실패(401) — local**: 존재하지 않는 식별자(사번/레거시 userId)·비밀번호 불일치 → `INVALID_CREDENTIALS`. **`app_user.deleted_at` 이 설정된(소프트 삭제) 계정** → `USER_ACCOUNT_DISABLED`(자격 증명과 구분하여 운영 확인용).
 
 #### 2.1.2 `auth.login.mode = ad` (디렉터리/LDAP 바인드 등)
 
@@ -60,7 +62,7 @@
 | password | string | O | 디렉터리 비밀번호. **서버는 이 값을 `app_user`·로그·감사 본문에 저장하지 않는다.** |
 
 - **성공 시**: 디렉터리 검증 후 **`app_user`** 를 **외부 직원 키 매핑**(예: `external_employee_id`, `external_source_system`)으로 조회·결합. 매핑되는 행이 없으면 **401** 및 요건에 따른 코드(미프로비저닝 정책은 스펙 참고).
-- **`local` 모드에서 `principal`만 보내거나, `ad` 모드에서 `userId`만 보내는 경우** → **400** `INVALID_INPUT`(또는 동일 의미 코드).
+- **`local` 모드에서 `principal`만 보내거나, `ad` 모드에서 `employeeNumber`/`userId`를 보내는 경우** → **400** `INVALID_INPUT`(또는 동일 의미 코드).
 
 - **Response (data)**: `{ "user": LoginResponse }`
   - `user.username`: string
@@ -70,7 +72,7 @@
   - `user.allowedScreenIds`: string[] (요건 20250227-permission-group-screen-menu-access) — 사용자 권한 그룹들의 접근 가능 화면 합집합.
   - `user.screenScopes`: Record<string, 'self'|'team'|'all'> (요건 20250303, 20260305) — 화면별 **조회(목록) 범위**. key=screen_id (activity-log, statistics, search-history, pending-approvals, **user-management-v2**), value='self'(본인)|'team'(부서)|'all'(전체). is_system_admin=true이면 생략 가능(프론트는 전체로 처리). **용도**: 목록/조회에만 적용; scope=self → 본인; scope=team → 동일 부서; scope=all → 전체. **`user-management-v2`**: 요건 **`docs/requirements/20260409-user-management-v2-read-scope.md`**, **`specs/user-management-v2.spec.yaml`** §2.2. **승인 범위는 부서로 고정**이며 변경 불가(권한 설정에서 선택하는 scope는 조회 범위만 해당).
   - `user.screenFunctions`: Record<string, { read: boolean, write?: boolean, approve?: boolean, decrypt?: boolean }> (요건 20250303, 20260318) — 화면별 기능 가능 여부. key=screen_id (pb-feplog, java-fw-imagelog, search-history, pending-approvals 등), value=read(필수), write(수정 지원 화면만), approve(search-history·pending-approvals만), decrypt(로그 검색 화면 pb-feplog·java-fw-imagelog 전용, 복호화 요청 권한). pb-feplog·java-fw-imagelog는 read + optional decrypt; decrypt는 권한관리에서 부여/해제. **`pending-approvals`**: **`read`** = 화면 접근 + `GET /api/search-history` 등 목록·상세 **조회**(요건 `20260407-pending-approvals-history-search-readonly-requester`); **`approve`** = 승인/반려 **액션만** (`POST .../approve`, `POST .../reject`). **용도**: 버튼/액션 enable·disable, 비활성 시 툴팁 표시.
-  - `user.selfContext`: `{ department: string | null, username: string, userId: number }` — self-scoped user/requester block의 **visible locked self-context** 표시값. `scope=self` 화면에서 Department, Username, User ID를 고정 표시할 때 사용하는 권위 소스다. **`userId`**는 **numeric** **`app_user.id`**(JSON number, 예: 20269999, 20260001)이다. **`username`**은 **표시 이름(사용자명)**: `app_user.name`이 존재하고 비어 있지 않으면 그 값, 그렇지 않으면 `app_user.username`을 사용한다.
+  - `user.selfContext`: `{ department: string | null, username: string, userId: number, employeeNumber: string | null }` — self-scoped user/requester block의 **visible locked self-context** 표시값. `scope=self` 화면에서 Department, Username, User ID(사번 의미)를 고정 표시할 때 사용하는 권위 소스다. **`userId`**는 technical id인 **numeric** **`app_user.id`**이고, **`employeeNumber`**가 human-facing user identifier(사번)다. **`username`**은 **표시 이름(사용자명)**: `app_user.name`이 존재하고 비어 있지 않으면 그 값, 그렇지 않으면 `app_user.username`을 사용한다.
 
 ### 2.2 로그아웃
 
@@ -88,7 +90,7 @@
 
 ### 2.4 현재 사용자 정보 (GET /api/auth/me, 선택)
 
-- **GET** `/api/auth/me` — 로그인 사용자 정보 반환. `isSystemAdmin: boolean`, `allowedScreenIds: string[]`, `screenScopes: Record<string, 'self'|'team'|'all'>`, `screenFunctions: Record<string, { read, write?, approve?, decrypt? }>`, `selfContext: { department: string | null, username: string, userId: number }` 포함 (req 20250303, 20260305, 20260313). screenScopes는 조회(목록) 범위(본인/부서/전체) 결정용. **`screenScopes['user-management-v2']`** 는 User Management v2 읽기 경로에 사용(요건 **`20260409-user-management-v2-read-scope`**). 승인 범위는 부서 고정·변경 불가. screenFunctions는 화면별 read/write/approve/decrypt 가능 여부로 버튼·액션 enable·disable용. **`pending-approvals`의 `read` vs `approve`**: `read`는 복호화 승인 관리 화면의 목록·검색 조회; `approve`는 승인/반려만(요건 `20260407-pending-approvals-history-search-readonly-requester`). **`search-history`·`pending-approvals`의 `approve`**: `docs/contract.md` **「복호화 승인 자격」** — 권한 그룹 `permission_group_screen.approve`를 먼저 반영한 뒤 **`is_system_admin=true`이면 해당 화면 `approve`는 유효하지 않음(false)**; `ADMIN_EXT` 등 **`is_system_admin=false`인 사용자는 그룹 설정만** 따름. **`selfContext`**는 applicable shared-pattern 화면에서 `scope=self`일 때 보이는 잠금 self-context 표시값의 권위 소스다. **`selfContext.userId`**는 **numeric** **`app_user.id`**(JSON number). **`username`**은 **표시 이름(사용자명)**: `app_user.name`이 존재하고 비어 있지 않으면 그 값, 그렇지 않으면 `app_user.username`을 사용한다.
+- **GET** `/api/auth/me` — 로그인 사용자 정보 반환. `isSystemAdmin: boolean`, `allowedScreenIds: string[]`, `screenScopes: Record<string, 'self'|'team'|'all'>`, `screenFunctions: Record<string, { read, write?, approve?, decrypt? }>`, `selfContext: { department: string | null, username: string, userId: number, employeeNumber: string | null }` 포함 (req 20250303, 20260305, 20260313). screenScopes는 조회(목록) 범위(본인/부서/전체) 결정용. **`screenScopes['user-management-v2']`** 는 User Management v2 읽기 경로에 사용(요건 **`20260409-user-management-v2-read-scope`**). 승인 범위는 부서 고정·변경 불가. screenFunctions는 화면별 read/write/approve/decrypt 가능 여부로 버튼·액션 enable·disable용. **`pending-approvals`의 `read` vs `approve`**: `read`는 복호화 승인 관리 화면의 목록·검색 조회; `approve`는 승인/반려만(요건 `20260407-pending-approvals-history-search-readonly-requester`). **`search-history`·`pending-approvals`의 `approve`**: `docs/contract.md` **「복호화 승인 자격」** — 권한 그룹 `permission_group_screen.approve`를 먼저 반영한 뒤 **`is_system_admin=true`이면 해당 화면 `approve`는 유효하지 않음(false)**; `ADMIN_EXT` 등 **`is_system_admin=false`인 사용자는 그룹 설정만** 따른다. **`selfContext`**는 applicable shared-pattern 화면에서 `scope=self`일 때 보이는 잠금 self-context 표시값의 권위 소스다. **`selfContext.userId`**는 technical id인 **numeric** **`app_user.id`**, **`selfContext.employeeNumber`**는 human-facing ID(사번)다. **`username`**은 **표시 이름(사용자명)**: `app_user.name`이 존재하고 비어 있지 않으면 그 값, 그렇지 않으면 `app_user.username`을 사용한다.
 
 ### 2.4.1 자가 비밀번호 변경 (POST /api/auth/me/password)
 
@@ -873,7 +875,7 @@
 | AUTH_CONFIGURATION_ERROR | (선택) `auth.login.mode`·`auth.ad.*` misconfiguration — 기동 실패 또는 로그인 거부 시 (docs/contract.md). |
 | DIRECTORY_AUTH_FAILED | AD/LDAP 모드에서 디렉터리 자격 증명 거부(401). 사용자 열거 방지 메시지. |
 | APP_USER_NOT_PROVISIONED | AD 인증은 성공했으나 `app_user` 매핑 없음(401). |
-| INVALID_CREDENTIALS | **local** 로그인: `userId` 없음·해당 행 없음·비밀번호 불일치 등(401). |
+| INVALID_CREDENTIALS | **local** 로그인: `employeeNumber`/deprecated `userId` 불일치 또는 비밀번호 불일치 등(401). |
 | USER_ACCOUNT_DISABLED | **local** 로그인: `app_user` 행은 있으나 `deleted_at` 이 설정된 비활성(소프트 삭제) 계정(401). |
 | EXTERNAL_IDENTITY_CONFLICT | 동일 외부 키로 이미 등록됨(409). `POST /api/provisioning/users/from-external-employee`. **data**에 `existingUsername`(선택), `existingAppUserId`(있으면) 포함 가능. |
 | USER_EMPLOYEE_NUMBER_DUPLICATED | 활성 `app_user` 간 동일한 trim 후 비-null `employee_number` (**409**). `POST /api/user-management-v2/users/direct` — `specs/user-management-v2.spec.yaml` §4.4; **`POST /api/provisioning/users/from-external-employee`** (외부 프로비저닝, 동일 규칙·코드). |

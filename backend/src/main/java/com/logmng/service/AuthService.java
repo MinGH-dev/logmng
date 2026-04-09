@@ -84,11 +84,17 @@ public class AuthService {
         if (StringUtils.hasText(request.getPrincipal())) {
             throw CustomException.badRequest("로그인 요청 형식이 올바르지 않습니다.", "INVALID_INPUT");
         }
+        String employeeNumber = request.getEmployeeNumber() != null ? request.getEmployeeNumber().trim() : null;
+        boolean hasEmployeeNumber = StringUtils.hasText(employeeNumber);
+        boolean hasLegacyUserId = request.getUserId() != null;
+        if (hasEmployeeNumber == hasLegacyUserId) {
+            throw CustomException.badRequest("로그인 요청 형식이 올바르지 않습니다.", "INVALID_INPUT");
+        }
         Long userId = request.getUserId();
         String password = request.getPassword();
 
         String clientIP = ipUtil.getClientIP(httpRequest);
-        log.info("로그인 시도 (local) - IP: {}, 사용자 ID: {}", clientIP, userId);
+        log.info("로그인 시도 (local) - IP: {}, 식별자 타입: {}", clientIP, hasEmployeeNumber ? "employeeNumber" : "userId");
 
         if (!ipUtil.isAuthorizedIP(clientIP, authorizedIPs)) {
             log.warn("인가되지 않은 IP에서 로그인 시도: {}", clientIP);
@@ -98,48 +104,72 @@ public class AuthService {
             );
         }
 
-        if (userId == null) {
-            throw CustomException.unauthorized(
-                    "사용자 ID와 비밀번호를 확인해주세요.",
-                    "INVALID_CREDENTIALS"
-            );
-        }
-
         String username = null;
         String passwordHash = null;
         boolean isSystemAdmin = false;
+        Long resolvedUserId = null;
         try (Connection conn = dataSource.getConnection()) {
-            String sql = "SELECT username, password_hash, is_system_admin, deleted_at FROM app_user WHERE id = ?";
-            try (PreparedStatement ps = conn.prepareStatement(sql)) {
-                ps.setLong(1, userId);
-                try (ResultSet rs = ps.executeQuery()) {
-                    if (!rs.next()) {
-                        log.warn("로그인 실패: 사용자 없음 (id={})", userId);
-                        throw CustomException.unauthorized(
-                                "사용자 ID와 비밀번호를 확인해주세요.",
-                                "INVALID_CREDENTIALS"
-                        );
+            if (hasEmployeeNumber) {
+                String sql = "SELECT id, username, password_hash, is_system_admin " +
+                        "FROM app_user WHERE deleted_at IS NULL AND employee_number IS NOT NULL " +
+                        "AND TRIM(employee_number) = ?";
+                try (PreparedStatement ps = conn.prepareStatement(sql)) {
+                    ps.setString(1, employeeNumber);
+                    try (ResultSet rs = ps.executeQuery()) {
+                        if (!rs.next()) {
+                            log.warn("로그인 실패: 사용자 없음 (employeeNumber={})", employeeNumber);
+                            throw CustomException.unauthorized(
+                                    "사용자 ID와 비밀번호를 확인해주세요.",
+                                    "INVALID_CREDENTIALS"
+                            );
+                        }
+                        resolvedUserId = rs.getObject("id", Long.class);
+                        username = rs.getString("username");
+                        passwordHash = rs.getString("password_hash");
+                        isSystemAdmin = Boolean.TRUE.equals(rs.getObject("is_system_admin", Boolean.class));
+
+                        if (rs.next()) {
+                            log.error("로그인 차단: 활성 사용자 간 employee_number 중복 감지 (employeeNumber={})", employeeNumber);
+                            throw CustomException.conflict("이미 등록된 사번입니다.", "USER_EMPLOYEE_NUMBER_DUPLICATED");
+                        }
                     }
-                    if (rs.getTimestamp("deleted_at") != null) {
-                        log.warn("로그인 실패: 비활성(소프트 삭제) 계정 (id={})", userId);
-                        throw CustomException.unauthorized(
-                                "계정이 비활성화되어 로그인할 수 없습니다. 관리자에게 문의하세요.",
-                                "USER_ACCOUNT_DISABLED"
-                        );
+                }
+            } else {
+                String sql = "SELECT username, password_hash, is_system_admin, deleted_at FROM app_user WHERE id = ?";
+                try (PreparedStatement ps = conn.prepareStatement(sql)) {
+                    ps.setLong(1, userId);
+                    try (ResultSet rs = ps.executeQuery()) {
+                        if (!rs.next()) {
+                            log.warn("로그인 실패: 사용자 없음 (id={})", userId);
+                            throw CustomException.unauthorized(
+                                    "사용자 ID와 비밀번호를 확인해주세요.",
+                                    "INVALID_CREDENTIALS"
+                            );
+                        }
+                        if (rs.getTimestamp("deleted_at") != null) {
+                            log.warn("로그인 실패: 비활성(소프트 삭제) 계정 (id={})", userId);
+                            throw CustomException.unauthorized(
+                                    "계정이 비활성화되어 로그인할 수 없습니다. 관리자에게 문의하세요.",
+                                    "USER_ACCOUNT_DISABLED"
+                            );
+                        }
+                        resolvedUserId = userId;
+                        username = rs.getString("username");
+                        passwordHash = rs.getString("password_hash");
+                        isSystemAdmin = Boolean.TRUE.equals(rs.getObject("is_system_admin", Boolean.class));
                     }
-                    username = rs.getString("username");
-                    passwordHash = rs.getString("password_hash");
-                    isSystemAdmin = Boolean.TRUE.equals(rs.getObject("is_system_admin", Boolean.class));
                 }
             }
+        } catch (CustomException e) {
+            throw e;
         } catch (SQLException e) {
-            log.error("로그인 조회 실패: userId={}", userId, e);
+            log.error("로그인 조회 실패: userId={}, employeeNumber={}", userId, employeeNumber, e);
             throw CustomException.unauthorized(
                     "사용자 ID와 비밀번호를 확인해주세요.",
                     "INVALID_CREDENTIALS"
             );
         }
-        if (passwordHash == null || username == null) {
+        if (passwordHash == null || username == null || resolvedUserId == null) {
             throw CustomException.unauthorized(
                     "사용자 ID와 비밀번호를 확인해주세요.",
                     "INVALID_CREDENTIALS"
@@ -147,19 +177,19 @@ public class AuthService {
         }
 
         if (!password.equals(passwordHash)) {
-            log.warn("로그인 실패: 비밀번호 불일치 (id={})", userId);
+            log.warn("로그인 실패: 비밀번호 불일치 (resolvedUserId={})", resolvedUserId);
             throw CustomException.unauthorized(
                     "사용자 ID와 비밀번호를 확인해주세요.",
                     "INVALID_CREDENTIALS"
             );
         }
 
-        log.info("로그인 성공 (local): 사용자 ID: {} isSystemAdmin={} (IP: {})", userId, isSystemAdmin, clientIP);
-        return buildLoginResponse(username, userId, isSystemAdmin, clientIP);
+        log.info("로그인 성공 (local): 사용자 ID: {} isSystemAdmin={} (IP: {})", resolvedUserId, isSystemAdmin, clientIP);
+        return buildLoginResponse(username, resolvedUserId, isSystemAdmin, clientIP);
     }
 
     private LoginResponse loginAd(LoginRequest request, HttpServletRequest httpRequest) {
-        if (request.getUserId() != null) {
+        if (request.getUserId() != null || StringUtils.hasText(request.getEmployeeNumber())) {
             throw CustomException.badRequest("로그인 요청 형식이 올바르지 않습니다.", "INVALID_INPUT");
         }
         if (!StringUtils.hasText(request.getPrincipal())) {
@@ -294,8 +324,9 @@ public class AuthService {
         String department = null;
         String displayName = normalizedUsername;
         Long userId = null;
+        String employeeNumber = null;
         try (Connection conn = dataSource.getConnection()) {
-            String sql = "SELECT u.id, u.department_code, d.name AS department_name, u.name AS user_name " +
+            String sql = "SELECT u.id, u.department_code, d.name AS department_name, u.name AS user_name, u.employee_number " +
                     "FROM app_user u LEFT JOIN department d ON u.department_code = d.code " +
                     "WHERE u.username = ? AND u.deleted_at IS NULL LIMIT 1";
             try (PreparedStatement ps = conn.prepareStatement(sql)) {
@@ -308,6 +339,8 @@ public class AuthService {
                         department = (deptName != null && !deptName.isBlank()) ? deptName : (code != null ? code : "");
                         String appUserName = rs.getString("user_name");
                         displayName = (appUserName != null && !appUserName.isBlank()) ? appUserName : normalizedUsername;
+                        String rawEmployeeNumber = rs.getString("employee_number");
+                        employeeNumber = StringUtils.hasText(rawEmployeeNumber) ? rawEmployeeNumber.trim() : null;
                     }
                 }
             }
@@ -315,7 +348,7 @@ public class AuthService {
             log.warn("selfContext 조회 실패: username={}", normalizedUsername, e);
         }
 
-        return new LoginResponse.SelfContext(department != null ? department : "", displayName, userId);
+        return new LoginResponse.SelfContext(department != null ? department : "", displayName, userId, employeeNumber);
     }
 
     /**

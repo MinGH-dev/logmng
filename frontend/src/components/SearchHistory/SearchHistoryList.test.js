@@ -37,6 +37,7 @@ const baseUser = {
     department: '개발부',
     username: '홍길동',
     userId: 20260001,
+    employeeNumber: 'EMP-20260001',
   },
 };
 
@@ -301,7 +302,7 @@ describe('SearchHistoryList', () => {
     expect(screen.getByText('요청자')).toBeInTheDocument();
     expect(screen.getByDisplayValue('개발부')).toHaveAttribute('readonly');
     expect(screen.getByDisplayValue('홍길동')).toHaveAttribute('readonly');
-    expect(screen.getByDisplayValue('20260001')).toHaveAttribute('readonly');
+    expect(screen.getByDisplayValue('EMP-20260001')).toHaveAttribute('readonly');
     expect(getSearchHistoryList).toHaveBeenLastCalledWith(expect.objectContaining({
       page: 1,
       pageSize: 20,

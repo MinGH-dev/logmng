@@ -722,7 +722,7 @@ class SearchHistoryControllerTest {
             com.logmng.dto.response.LoginResponse r = new com.logmng.dto.response.LoginResponse();
             r.setUsername("currentUser");
             r.setUserId(20260001L);
-            r.setSelfContext(new com.logmng.dto.response.LoginResponse.SelfContext("D01", "currentUser", 20260001L));
+            r.setSelfContext(new com.logmng.dto.response.LoginResponse.SelfContext("D01", "currentUser", 20260001L, "EMP-0001"));
             return r;
         }
 
