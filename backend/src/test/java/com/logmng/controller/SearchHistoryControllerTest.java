@@ -1,13 +1,15 @@
 package com.logmng.controller;
 
+import com.logmng.constants.ScreenConstants;
 import com.logmng.dto.request.SearchHistoryCreateRequest;
 import com.logmng.dto.request.SearchHistoryListRequest;
+import com.logmng.dto.response.LoginResponse;
+import com.logmng.dto.response.ScreenFunctionCapability;
 import com.logmng.dto.response.SearchHistoryListResponse;
 import com.logmng.dto.response.UserActivityLogResponse;
 import com.logmng.exception.CustomException;
 import com.logmng.service.AppUserResolver;
 import com.logmng.service.AuthService;
-import com.logmng.service.DecryptApproverService;
 import com.logmng.service.SearchHistoryService;
 import com.logmng.service.StubAppUserResolver;
 import com.logmng.service.StubDecryptApproverService;
@@ -18,6 +20,8 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
 import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -37,16 +41,15 @@ class SearchHistoryControllerTest {
     void setUp() {
         stubService = new CapturingSearchHistoryService();
         stubService.setApproveThrowable(null);
-        DecryptApproverService decryptApproverService = new StubDecryptApproverService();
         AuthService authService = new NoopAuthService();
         StubAppUserResolver resolver = new StubAppUserResolver(new StubDataSource());
         resolver.map(20260001L, "requester-1");
         SearchHistoryController controller = new SearchHistoryController(
                 stubService,
-                decryptApproverService,
                 authService,
                 new StubDataSource(),
-                resolver);
+                resolver,
+                false);
         mockMvc = MockMvcBuilders.standaloneSetup(controller)
                 .setControllerAdvice(new com.logmng.exception.GlobalExceptionHandler())
                 .build();
@@ -63,6 +66,7 @@ class SearchHistoryControllerTest {
                         .param("pageSize", "10")
                         .param("sortDirection", "asc")
                         .sessionAttr("userId", "currentUser")
+                        .sessionAttr("allowedScreenIds", List.of("search-history"))
                         .sessionAttr("screenScopes", Map.of("search-history", "self")))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success").value(true));
@@ -87,6 +91,7 @@ class SearchHistoryControllerTest {
                         .param("username", " alice ")
                         .param("userId", "20260001")
                         .sessionAttr("userId", 20260001L)
+                        .sessionAttr("allowedScreenIds", List.of("search-history"))
                         .sessionAttr("screenScopes", Map.of("search-history", "all")))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success").value(true));
@@ -114,10 +119,10 @@ class SearchHistoryControllerTest {
         };
         SearchHistoryController controller = new SearchHistoryController(
                 throwingService,
-                new StubDecryptApproverService(),
                 new NoopAuthService(),
                 new StubDataSource(),
-                new StubAppUserResolver(new StubDataSource()));
+                new StubAppUserResolver(new StubDataSource()),
+                false);
         MockMvc mvc = MockMvcBuilders.standaloneSetup(controller)
                 .setControllerAdvice(new com.logmng.exception.GlobalExceptionHandler())
                 .build();
@@ -126,6 +131,7 @@ class SearchHistoryControllerTest {
                         .param("username", "김철수")
                         .param("userId", "20260002")
                         .sessionAttr("userId", 20260001L)
+                        .sessionAttr("allowedScreenIds", List.of("search-history"))
                         .sessionAttr("screenScopes", Map.of("search-history", "all")))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success").value(true))
@@ -141,6 +147,7 @@ class SearchHistoryControllerTest {
                         .param("username", "김철수")
                         .param("userId", "")
                         .sessionAttr("userId", 20260001L)
+                        .sessionAttr("allowedScreenIds", List.of("search-history"))
                         .sessionAttr("screenScopes", Map.of("search-history", "all")))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success").value(true));
@@ -154,6 +161,7 @@ class SearchHistoryControllerTest {
         mockMvc.perform(get("/api/search-history")
                         .param("userId", "not-a-number")
                         .sessionAttr("userId", 20260001L)
+                        .sessionAttr("allowedScreenIds", List.of("search-history"))
                         .sessionAttr("screenScopes", Map.of("search-history", "all")))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success").value(true));
@@ -164,7 +172,7 @@ class SearchHistoryControllerTest {
     /** TC-04: When current user resolution throws (e.g. getCurrentUserInfo throws), list returns 401 not 500 */
     @Test
     void list_whenGetCurrentUserInfoThrows_returns401() throws Exception {
-        AuthService throwingAuthService = new AuthService(null, null, null, null, null) {
+        AuthService throwingAuthService = new AuthService(null, null, null, null, new com.logmng.config.AuthProperties(), null, null) {
             @Override
             public com.logmng.dto.response.LoginResponse getCurrentUserInfo(jakarta.servlet.http.HttpServletRequest request) {
                 throw new RuntimeException("simulated auth failure");
@@ -172,10 +180,10 @@ class SearchHistoryControllerTest {
         };
         SearchHistoryController controller = new SearchHistoryController(
                 stubService,
-                new StubDecryptApproverService(),
                 throwingAuthService,
                 new StubDataSource(),
-                new StubAppUserResolver(new StubDataSource()));
+                new StubAppUserResolver(new StubDataSource()),
+                false);
         MockMvc mvc = MockMvcBuilders.standaloneSetup(controller)
                 .setControllerAdvice(new com.logmng.exception.GlobalExceptionHandler())
                 .build();
@@ -188,7 +196,7 @@ class SearchHistoryControllerTest {
     /** TC-05: When getCurrentUserInfo returns null (no/invalid session), list returns 401 */
     @Test
     void list_whenGetCurrentUserInfoReturnsNull_returns401() throws Exception {
-        AuthService nullUserAuthService = new AuthService(null, null, null, null, null) {
+        AuthService nullUserAuthService = new AuthService(null, null, null, null, new com.logmng.config.AuthProperties(), null, null) {
             @Override
             public com.logmng.dto.response.LoginResponse getCurrentUserInfo(jakarta.servlet.http.HttpServletRequest request) {
                 return null;
@@ -201,10 +209,10 @@ class SearchHistoryControllerTest {
         };
         SearchHistoryController controller = new SearchHistoryController(
                 stubService,
-                new StubDecryptApproverService(),
                 nullUserAuthService,
                 new StubDataSource(),
-                new StubAppUserResolver(new StubDataSource()));
+                new StubAppUserResolver(new StubDataSource()),
+                false);
         MockMvc mvc = MockMvcBuilders.standaloneSetup(controller)
                 .setControllerAdvice(new com.logmng.exception.GlobalExceptionHandler())
                 .build();
@@ -319,6 +327,7 @@ class SearchHistoryControllerTest {
                         .param("approvalStatus", "APPROVED")
                         .param("requestReason", "검색어")
                         .sessionAttr("userId", 20260001L)
+                        .sessionAttr("allowedScreenIds", List.of("search-history"))
                         .sessionAttr("screenScopes", Map.of("search-history", "all")))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success").value(true));
@@ -342,10 +351,10 @@ class SearchHistoryControllerTest {
         };
         SearchHistoryController ctrl = new SearchHistoryController(
                 throwingService,
-                new StubDecryptApproverService(),
                 new NoopAuthService(),
                 new StubDataSource(),
-                new StubAppUserResolver(new StubDataSource()));
+                new StubAppUserResolver(new StubDataSource()),
+                false);
         MockMvc mvc = MockMvcBuilders.standaloneSetup(ctrl)
                 .setControllerAdvice(new com.logmng.exception.GlobalExceptionHandler())
                 .build();
@@ -353,6 +362,7 @@ class SearchHistoryControllerTest {
                         .param("requestedAtFrom", "2026-03-01")
                         .param("requestedAtTo", "2026-03-17 23:59:59")
                         .sessionAttr("userId", 20260001L)
+                        .sessionAttr("allowedScreenIds", List.of("search-history"))
                         .sessionAttr("screenScopes", Map.of("search-history", "all")))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.success").value(false))
@@ -369,6 +379,7 @@ class SearchHistoryControllerTest {
                         .param("username", "김철수")
                         .param("userId", "20260002")
                         .sessionAttr("userId", 20260001L)
+                        .sessionAttr("allowedScreenIds", List.of("search-history"))
                         .sessionAttr("screenScopes", Map.of("search-history", "all")))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success").value(true));
@@ -384,11 +395,97 @@ class SearchHistoryControllerTest {
                         .param("page", "abc")
                         .param("pageSize", "xyz")
                         .sessionAttr("userId", 20260001L)
+                        .sessionAttr("allowedScreenIds", List.of("search-history"))
                         .sessionAttr("screenScopes", Map.of("search-history", "all")))
                 .andExpect(status().isOk());
 
         assertThat(stubService.getLastRequest().getPage()).isEqualTo(1);
         assertThat(stubService.getLastRequest().getPageSize()).isEqualTo(20);
+    }
+
+    /** listContext=pending-approvals uses screenScopes for pending-approvals (TC-BE-03/04). */
+    @Test
+    void list_listContextPendingApprovals_usesPendingApprovalsScope() throws Exception {
+        mockMvc.perform(get("/api/search-history")
+                        .param("listContext", "pending-approvals")
+                        .param("department", "D01")
+                        .param("userId", "20260002")
+                        .sessionAttr("userId", 20260001L)
+                        .sessionAttr("allowedScreenIds", List.of(ScreenConstants.SEARCH_HISTORY, ScreenConstants.PENDING_APPROVALS))
+                        .sessionAttr("screenScopes", Map.of(
+                                "search-history", "all",
+                                "pending-approvals", "self")))
+                .andExpect(status().isOk());
+
+        SearchHistoryListRequest captured = stubService.getLastRequest();
+        assertThat(captured.getUserId()).isEqualTo(20260001L);
+        assertThat(captured.getDepartment()).isNull();
+    }
+
+    /** TC-BE-02: read-only (approve false) → POST approve 403 FUNCTION_NOT_ALLOWED. */
+    @Test
+    void approve_whenReadOnly_returns403() throws Exception {
+        AuthService readOnlyAuth = new AuthService(null, null, null, null, new com.logmng.config.AuthProperties(), null, null) {
+            @Override
+            public LoginResponse getCurrentUserInfo(jakarta.servlet.http.HttpServletRequest request) {
+                LoginResponse r = new LoginResponse();
+                r.setUserId(20260001L);
+                r.setUsername("u1");
+                r.setIsSystemAdmin(false);
+                Map<String, ScreenFunctionCapability> sf = new HashMap<>();
+                sf.put(ScreenConstants.PENDING_APPROVALS, new ScreenFunctionCapability(true, null, false));
+                r.setScreenFunctions(sf);
+                return r;
+            }
+        };
+        SearchHistoryController ctrl = new SearchHistoryController(
+                stubService,
+                readOnlyAuth,
+                new StubDataSource(),
+                new StubAppUserResolver(new StubDataSource()),
+                false);
+        MockMvc mvc = MockMvcBuilders.standaloneSetup(ctrl)
+                .setControllerAdvice(new com.logmng.exception.GlobalExceptionHandler())
+                .build();
+        mvc.perform(post("/api/search-history/1/approve")
+                        .sessionAttr("userId", 20260001L)
+                        .sessionAttr("isSystemAdmin", false))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.code").value("FUNCTION_NOT_ALLOWED"));
+    }
+
+    /** TC-05: non-approver direct API call to reject must be denied with 403 FUNCTION_NOT_ALLOWED. */
+    @Test
+    void reject_whenReadOnly_returns403() throws Exception {
+        AuthService readOnlyAuth = new AuthService(null, null, null, null, new com.logmng.config.AuthProperties(), null, null) {
+            @Override
+            public LoginResponse getCurrentUserInfo(jakarta.servlet.http.HttpServletRequest request) {
+                LoginResponse r = new LoginResponse();
+                r.setUserId(20260001L);
+                r.setUsername("u1");
+                r.setIsSystemAdmin(false);
+                Map<String, ScreenFunctionCapability> sf = new HashMap<>();
+                sf.put(ScreenConstants.PENDING_APPROVALS, new ScreenFunctionCapability(true, null, false));
+                r.setScreenFunctions(sf);
+                return r;
+            }
+        };
+        SearchHistoryController ctrl = new SearchHistoryController(
+                stubService,
+                readOnlyAuth,
+                new StubDataSource(),
+                new StubAppUserResolver(new StubDataSource()),
+                false);
+        MockMvc mvc = MockMvcBuilders.standaloneSetup(ctrl)
+                .setControllerAdvice(new com.logmng.exception.GlobalExceptionHandler())
+                .build();
+        mvc.perform(post("/api/search-history/1/reject")
+                        .contentType("application/json")
+                        .content("{\"rejectionReason\":\"nope\"}")
+                        .sessionAttr("userId", 20260001L)
+                        .sessionAttr("isSystemAdmin", false))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.code").value("FUNCTION_NOT_ALLOWED"));
     }
 
     /** TC-01: user1 (approver) approves user2's PENDING request; user1 allowed → HTTP 200 */
@@ -407,16 +504,16 @@ class SearchHistoryControllerTest {
         };
         SearchHistoryController ctrl = new SearchHistoryController(
                 successOnlyService,
-                new StubDecryptApproverService(),
                 new NoopAuthService(),
                 new StubDataSource(),
-                new StubAppUserResolver(new StubDataSource()));
+                new StubAppUserResolver(new StubDataSource()),
+                false);
         MockMvc mvc = MockMvcBuilders.standaloneSetup(ctrl)
                 .setControllerAdvice(new com.logmng.exception.GlobalExceptionHandler())
                 .build();
         mvc.perform(post("/api/search-history/1/approve")
                         .sessionAttr("userId", 20260001L)
-                        .sessionAttr("isSystemAdmin", true))
+                        .sessionAttr("isSystemAdmin", false))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success").value(true))
                 .andExpect(jsonPath("$.data.approvalStatus").value("APPROVED"))
@@ -434,19 +531,47 @@ class SearchHistoryControllerTest {
         };
         SearchHistoryController ctrl = new SearchHistoryController(
                 forbiddenService,
-                new StubDecryptApproverService(),
                 new NoopAuthService(),
                 new StubDataSource(),
-                new StubAppUserResolver(new StubDataSource()));
+                new StubAppUserResolver(new StubDataSource()),
+                false);
         MockMvc mvc = MockMvcBuilders.standaloneSetup(ctrl)
                 .setControllerAdvice(new com.logmng.exception.GlobalExceptionHandler())
                 .build();
         mvc.perform(post("/api/search-history/1/approve")
                         .sessionAttr("userId", 20260001L)
-                        .sessionAttr("isSystemAdmin", true))
+                        .sessionAttr("isSystemAdmin", false))
                 .andExpect(status().isForbidden())
                 .andExpect(jsonPath("$.success").value(false))
                 .andExpect(jsonPath("$.error").exists());
+    }
+
+    /** TC-06: out-of-scope/cross-department reject attempt should remain 403 with denial code boundary. */
+    @Test
+    void reject_whenServiceThrowsCustomExceptionForbidden_returns403() throws Exception {
+        SearchHistoryService forbiddenService = new SearchHistoryService(new StubDataSource(), null, new StubDecryptApproverService()) {
+            @Override
+            public java.util.Map<String, Object> reject(Long id, Long userId, String reason) {
+                throw CustomException.forbidden("해당 기능에 대한 권한이 없습니다.", "FUNCTION_NOT_ALLOWED");
+            }
+        };
+        SearchHistoryController ctrl = new SearchHistoryController(
+                forbiddenService,
+                new NoopAuthService(),
+                new StubDataSource(),
+                new StubAppUserResolver(new StubDataSource()),
+                false);
+        MockMvc mvc = MockMvcBuilders.standaloneSetup(ctrl)
+                .setControllerAdvice(new com.logmng.exception.GlobalExceptionHandler())
+                .build();
+        mvc.perform(post("/api/search-history/2/reject")
+                        .contentType("application/json")
+                        .content("{\"rejectionReason\":\"cross-dept\"}")
+                        .sessionAttr("userId", 20260001L)
+                        .sessionAttr("isSystemAdmin", false))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.code").value("FUNCTION_NOT_ALLOWED"));
     }
 
     /** TC-03: Cross-user approve → response is 200 or 4xx, never 500 */
@@ -460,16 +585,16 @@ class SearchHistoryControllerTest {
         };
         SearchHistoryController ctrl = new SearchHistoryController(
                 throwingService,
-                new StubDecryptApproverService(),
                 new NoopAuthService(),
                 new StubDataSource(),
-                new StubAppUserResolver(new StubDataSource()));
+                new StubAppUserResolver(new StubDataSource()),
+                false);
         MockMvc mvc = MockMvcBuilders.standaloneSetup(ctrl)
                 .setControllerAdvice(new com.logmng.exception.GlobalExceptionHandler())
                 .build();
         mvc.perform(post("/api/search-history/1/approve")
                         .sessionAttr("userId", 20260001L)
-                        .sessionAttr("isSystemAdmin", true))
+                        .sessionAttr("isSystemAdmin", false))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.success").value(false))
                 .andExpect(jsonPath("$.error").exists());
@@ -477,7 +602,7 @@ class SearchHistoryControllerTest {
 
     @Test
     void approve_whenGetCurrentUserInfoThrows_returns401() throws Exception {
-        AuthService throwingAuthService = new AuthService(null, null, null, null, null) {
+        AuthService throwingAuthService = new AuthService(null, null, null, null, new com.logmng.config.AuthProperties(), null, null) {
             @Override
             public com.logmng.dto.response.LoginResponse getCurrentUserInfo(jakarta.servlet.http.HttpServletRequest request) {
                 throw new RuntimeException("simulated auth failure");
@@ -485,10 +610,10 @@ class SearchHistoryControllerTest {
         };
         SearchHistoryController controller = new SearchHistoryController(
                 stubService,
-                new StubDecryptApproverService(),
                 throwingAuthService,
                 new StubDataSource(),
-                new StubAppUserResolver(new StubDataSource()));
+                new StubAppUserResolver(new StubDataSource()),
+                false);
         MockMvc mvc = MockMvcBuilders.standaloneSetup(controller)
                 .setControllerAdvice(new com.logmng.exception.GlobalExceptionHandler())
                 .build();
@@ -575,7 +700,7 @@ class SearchHistoryControllerTest {
     private static final class NoopAuthService extends AuthService {
 
         private NoopAuthService() {
-            super(null, null, null, null, null);
+            super(null, null, null, null, new com.logmng.config.AuthProperties(), null, null);
         }
 
         @Override
@@ -583,7 +708,15 @@ class SearchHistoryControllerTest {
             com.logmng.dto.response.LoginResponse r = new com.logmng.dto.response.LoginResponse();
             r.setUsername("currentUser");
             r.setUserId(20260001L);
-            r.setSelfContext(new com.logmng.dto.response.LoginResponse.SelfContext("D01", "currentUser", 20260001L));
+            jakarta.servlet.http.HttpSession session = request.getSession(false);
+            boolean sysAdmin = session != null && Boolean.TRUE.equals(session.getAttribute("isSystemAdmin"));
+            r.setIsSystemAdmin(sysAdmin);
+            java.util.Map<String, com.logmng.dto.response.ScreenFunctionCapability> sf = new java.util.HashMap<>();
+            boolean approveEligible = !sysAdmin;
+            sf.put(ScreenConstants.PENDING_APPROVALS, new com.logmng.dto.response.ScreenFunctionCapability(true, null, approveEligible));
+            sf.put(ScreenConstants.SEARCH_HISTORY, new com.logmng.dto.response.ScreenFunctionCapability(true, null, approveEligible));
+            r.setScreenFunctions(sf);
+            r.setSelfContext(new com.logmng.dto.response.LoginResponse.SelfContext("D01", "currentUser", 20260001L, "EMP-0001"));
             return r;
         }
 

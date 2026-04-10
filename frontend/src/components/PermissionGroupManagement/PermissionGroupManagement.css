@@ -34,6 +34,11 @@
   z-index: 1300;
 }
 
+/* Stacked over edit/create dialog (e.g. 저장 사유 입력) */
+.permission-group-dialog-overlay.permission-group-dialog-overlay-nested {
+  z-index: 1400;
+}
+
 /* Explicit pointer-events so dialog content receives clicks (overlay does not block). req 20250303-permission-group-checkbox-not-working-bugfix-1 */
 .permission-group-dialog {
   pointer-events: auto;

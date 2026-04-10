@@ -20,6 +20,7 @@ Chrome 브라우저는 SVG를 **글자(XML)로 먼저 읽습니다.**
 - `primitives/` — 자주 쓰는 조각 (`common-pagination-bar`, `common-list-shell`, `common-linear-loading-bar`, `common-tree-layout`, `common-tree-two-pane-layout`, `common-grid-cell-select`, `common-grid-cell-combobox`, `common-grid-cell-button` 등)
 - `scenes/` — 화면별 와이어프레임
 - 목록형 화면 **활동 이력 / 검색 이력 / 복호화 승인 관리** (`logmng-step-05`, `06`, `08`)은 하단 **공통 페이징 바** 레이아웃과 맞춰 두었습니다.
+- `scenes/req-20260323-02-permission-group-matrix-final.svg` — 권한 그룹 **화면·기능 매트릭스**: 좌측 그룹 목록(상단 **추가·삭제**) + 우측 매트릭스 투 패인, **페이지네이션 없음**. 조회 범위 열은 **한글 2자** 드롭다운용 **좁은 셀**(스타일은 `.grid-select-*`, primitive는 참고용). 루트 `data-group-list-actions="add-delete"`, `data-scope-cell="compact-2char"`.
 
 ## 본문 화면 제목 (공통)
 

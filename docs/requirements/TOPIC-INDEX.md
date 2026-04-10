@@ -9,6 +9,11 @@ For **RequirementsPastSearch** token optimization. Read this file first to find 
 
 ## permission | access-control | 화면 접근 | 권한 그룹 | is_system_admin
 
+- 20260410-screen-access-menu-api-consistency | Single source or generated alignment for screen ids; CI/npm drift check vs ScreenConstants/interceptor; centralized PoC/alias policy; fix permission-group-screen-matrix parity and menuTree allowlists
+- 20260407-permission-group-assign-unassign-audit-before-after | User management assign/unassign: persist permissionGroupAuditV1 before/after snapshots (prior group vs new group; unassign before+null after); pre-mutation capture; spec alignment
+- 20260330-permission-group-activity-detail-audit | Permission group activity rows: audit-grade action_detail (before/after or field diff), detail UI and export path options; Security review for PII and scope
+- 20260330-activity-types-user-mgmt-permission-group | Activity type taxonomy (login, search, admin, decrypt approval); user management and permission group flows emit auditable user_activity_log rows; filterable in activity history API/UI per contract
+- 20260323-approver-eligibility-from-permission-group-only | 계약 `contract.md` 「복호화 승인 자격」: 그룹 `approve` 우선·**`is_system_admin`만 상쇄**; **ADMIN_EXT는 그룹만**+P2-2; `decrypt_approver` DROP; `isApprover` UI 제거. Q&A: `...-PRODUCT-QA.md`
 - 20260317-search-decrypt-permission-ui | 검색하기 화면 복호화 권한 UI: 권한 없을 때 버튼 비활성화 및 "복호화 권한이 없습니다." 표시; 요청 사유는 승인 요청 시 모달에서 입력
 - 20260306-search-screen-decrypt-permission | 검색하기(main) 화면 복호화 권한 부여/해제; 권한관리에서 복호화 체크; 복호화 API는 권한 있는 사용자만 요청 가능
 - 20260306-approval-scope-fixed-department | Approval scope fixed to department (부서); scope selection read-only when approve selected in permission config
@@ -31,9 +36,20 @@ For **RequirementsPastSearch** token optimization. Read this file first to find 
 - 20250303-remove-role-single-admin-bugfix-1 | login/me에 isSystemAdmin; PUT 410; role 응답 제거
 - 20260317-search-decrypt-permission-ui | - **Permission enforcement (UI)**: On the "검색하기" (search) screen, users whose permission group does **not** have the decrypt feature enabled can still trigger decrypt-related actions (e.g. "복호화 승인 요청" button and per-row "복호화" button). This is a permission enforcement bug: the backend correctly returns 403 for the decrypt API when the user lacks `screenFunctions.main.decrypt`, but the UI does not gate these actions.
 - 20260318-permission-group-menu-invalid-screen-id-imagelog | When an administrator opens the permission group management screen and tries to edit menu permissions (allowed screens) for a group, the modal shows the error: **"유효하지 않은 화면 ID입니다: java-fw_imagelog"** (Invalid screen ID: java-fw_imagelog). The backend rejects the screen ID and the save fails with 400 `INVALID_SCREEN_ID`, so the admin cannot complete the permission group update.
+- 20260320-permission-group-screen-entry-error-migration-check | Permission group management screen shows an error on entry; verify root cause via diagnostics and objectively check DB migration applicability (`permission_group_screen` columns vs. `PermissionGroupService` SQL, migrate script inventory vs. `setup.sh`).
+- 20260406-permission-group-invalid-screen-id-screen-display-labels | When a system administrator edits **permission groups** (screen permissions) and saves, the application shows the error **"유효하지 않은 화면 ID입니다: screen-display-labels"** and the save fails with **400** and error code **`INVALID_SCREEN_ID`**. The reported ID **`screen-display-labels`** matches the **menu / view id** used for the **Screen display names** (화면 표시 이름) admin feature.
+- 20260410-screen-access-menu-api-consistency | Screen and menu access is implemented in several places (sidebar filtering, route/view guards, backend path rules, and controller-level checks). Over time this produces **drift**: the UI can hide or show items inconsistently with what the backend allows or denies, and **broad OR conditions** (especially for PoC clones and legacy aliases) can leave menus or deep links reachable after a permission is revoked. The product needs a **sustainable model**: a clear single source of truth (or generated artifacts kept in lockstep), **automated checks** that fail when frontend and backend diverge, and a **central, documented policy** for when one screen id may satisfy access for another (aliases / PoC rules).
 
 ## activity-log | statistics | 활동 로그 | 통계 | scope
 
+- 20260410-activity-log-client-ip-wildcard-pattern-stored | Activity log IP column shows allowlist pattern (e.g. `172.23.111.*`) instead of resolved client IP; validate/unify IP resolution with IpUtil, diagnostic phase before fix
+- 20260408-user-stats-decrypt-count-logtype-json-escape | Activity statistics decrypt count was 0: path `logType` in activity log was JSON double-encoded; fix scalar param handling in ActivityLogAspect so `action_detail` matches statistics LIKE `"logType":"<id>"`
+- 20260408-activity-log-detail-modal-viewport-centering | User Activity Log detail modal: center in main content area on small viewports; full reachability via scroll; frontend CSS/optional JSX only
+- 20260407-permission-group-assign-unassign-audit-before-after | Assign/unassign permission-group activity: non-null before/after in permissionGroupAuditV1; ActivityAuditDetailEnricher + PermissionGroupAuditContext + service pre-capture
+- 20260330-audit-evidence-activity-log-conservative | Resolve audit manual §8 with conservative defaults: uniform mutation envelope, soft delete or mandatory delete snapshot, allowlisted before/after, in-app copy truncation + privileged access audit, retention/crypto/export gates; SVG wireframe specs for list/detail/access-audit/optional policy
+- 20260330-permission-group-activity-detail-audit | Enrich permission-group action_detail and activity-log detail UI for audit evidence; optional export/query; aligns with parent 20260330-activity-types-user-mgmt-permission-group
+- 20260330-activity-types-user-mgmt-permission-group | Activity type taxonomy and audit for permission group / user management; queryable by action type + existing filters; contract/skill touchpoints
+- 20260408-user-management-v2-activity-audit-detail-in-activity-log | User Management v2 mutations (dept tree, direct user create, related user-admin actions) must emit auditable user_activity_log rows with structured action_detail and visible activity-log detail; extend activity-action-types; align spec §5
 - 20260311-activity-log-statistics-design-improvement | 활동 이력·통계 두 화면 디자인 표준 정렬: 그룹 제목·패널 너비·compact·사용자 블록 동일 크기·검색/초기화·폼 시맨틱·row1=날짜 row2=나머지
 - 20260313-activity-log-statistics-design-standards | 활동 이력·통계 두 화면 디자인 표준 정렬: 그룹 제목·패널 너비·compact·검색/초기화·폼 시맨틱·row1=날짜 row2=나머지·필터 접기 제거
 - 20260310-search-consistency-all-screens | All screens rule-compliant search; per-screen table (부서·이름·사용자ID, scope=self 숨김); re-review final doc
@@ -54,9 +70,14 @@ For **RequirementsPastSearch** token optimization. Read this file first to find 
 - 20250303-activity-statistics-self-only-scope-bugfix-1 | scope 적용 미적용 (session/scope resolution)
 - 20250303-activity-statistics-self-only-scope-bugfix-2 | TC-02, TC-06, TC-08 재검증
 - 20260317-activity-statistics-department-approver-error | Fix error when activity statistics is queried by approver group/department (scope=team); align user_id vs user_name to user_id where wrong; implementer must check backend logs for root cause.
+- 20260408-user-stats-decrypt-count-logtype-json-escape | User activity statistics (daily/monthly) must count **decrypt** actions per log type (e.g. `java_fw_imglog`, `pb_feplog`). After a user performs a decrypt, the **today** (and aggregated) decrypt counts must reflect that activity.
+- 20260408-activity-statistics-decrypt-unique-rows-per-day | Decrypt KPI from `user_activity_log` DECRYPT only: **distinct logical rows per calendar day** (`java_fw_imglog`: logType+guid+status); not approval counts; daily aggregate global dedup; per-user dedup within user
 
 ## sidebar | layout | 사이드바 | 레이아웃
 
+- 20260408-activity-log-detail-modal-viewport-centering | Activity Log detail modal positions relative to main content column (not clipped on short/narrow viewports); overlay scroll vs modal-body scroll; z-index vs shell
+- 20260407-screen-menu-parent-order | Extends screen display labels: admin sets **closed-set** top-level `parentGroupId` (`MENU_TREE` groups) and per-leaf `sortOrder` in same admin UI; routing/`currentView` unchanged; MENU_TREE fallback; v1 **out of scope** for group title/order overrides
+- 20260406-menu-display-names-admin | Admin-configurable sidebar and screen display labels (`label_user` / optional `label_admin`); stable `screen_id`/`currentView`; GET for authenticated users, admin-only PUT/PATCH; DB + audit; merge over `menuTree`/`LOG_TYPE_BY_VIEW` with fallback
 - 20260225-sidebar-content-scroll-independent | 사이드바·컨텐츠 스크롤 독립화
 - 20260225-sidebar-library-migration | 사이드바 라이브러리 도입 (펼침·스크롤 안정화)
 - 20260225-sidebar-layout-no-overflow | 사이드바 펼침 시 콘텐츠 영역 가로 탈출 수정
@@ -77,6 +98,8 @@ For **RequirementsPastSearch** token optimization. Read this file first to find 
 
 ## user-management | 사용자 관리 | hierarchy
 
+- 20260408-my-page-local-password-and-profile | Local user create paths must default initial password to `user123` (hashed); profile read-only in My page modal; self-service password change API per Contract
+- 20260330-activity-types-user-mgmt-permission-group | User management and permission group flows must emit typed activity-log events; canonical action_type list and activity-log filter alignment
 - 20260310-search-consistency-all-screens | User-management·permission-group search form (부서·이름·사용자ID) per-screen table
 - 20250227-user-management-hierarchy-permissions | 사용자 관리: 계층 표시, role·권한 그룹 편집
 - 20250227-user-permission-hierarchy-group | 사용자 권한 계층 및 권한 그룹 관리
@@ -85,9 +108,16 @@ For **RequirementsPastSearch** token optimization. Read this file first to find 
 - 20250303-user-management-permission-group-access | 사용자관리: 권한 그룹으로 user-management 허용 시 "관리자만 접근" 오류 수정
 - 20250303-user-management-permission-group-access-bugfix-1 | Frontend: canAccessUserManagement
 - 20250303-user-management-permission-group-access-bugfix-2 | Backend: hierarchy/permission-groups API accept user-management OR user-permission-hierarchy
+- 20260407-user-management-consistency-delete-reason-activity-audit | Administrators need a trustworthy User Management experience: identifiers shown when provisioning from the HR directory (`ext_employee`) must match what appears in the User Management list (`app_user`). Operators report a case where external search marks an employee as already registered (`provisioned`) and disables re-registration, but the corresponding user does not appear in the User Management table—undermining trust in provisioning and list data.
+- 20260408-user-management-v2-activity-audit-detail-in-activity-log | User Management v2 mutations (dept tree, direct user create, related user-admin actions) must emit auditable user_activity_log rows with structured action_detail and visible activity-log detail; extend activity-action-types; align spec §5
+- 20260409-user-management-v2-read-scope | User Management v2 configurable read scope (self / team / all); backend enforcement on shared read APIs; permission-group scope UI; aligns ScreenAccessInterceptor and `screenScopes['user-management-v2']`
+- 20260409-user-management-v2-permission-groups-api-access-bugfix | Operators who receive **User Management v2** (`user-management-v2`) through a **permission group oriented to decrypt approvers / team leads** (e.g. 승인자 그룹, `APPROVE_USER`-style groups that historically granted **`pending-approvals`** / **`search-history`** but not legacy **`user-management`** or **`user-permission-hierarchy`**) must be able to **open User Management v2** and load its data when **`user-management-v2`** is explicitly granted to that group.
+- 20260409-employee-number-uniqueness-provisioning | External HR provisioning aligns with V2: **active** `app_user.employee_number` uniqueness (trimmed, non-null); duplicate → **409** `USER_EMPLOYEE_NUMBER_DUPLICATED`; contract/api-definition/external-identity-auth spec + error-codes skill
+- 20260409-employee-number-dedupe-soft-delete-newer | One-time DB cleanup: soft-delete duplicate **active** `app_user` rows sharing the same `BTRIM(employee_number)`; keep oldest (`created_at`, tie `id`); idempotent `migrate-employee-number-dedupe-soft-delete-newer-20260409.sql`
 
 ## decryption | 복호화 | search-history | 검색 이력 | approval
 
+- 20260407-pending-approvals-history-search-readonly-requester | 복호화 승인 관리: 이력 검색·조회, 요청자 읽기 전용, 승인자 워크플로 유지, 승인/반려 후 행 유지, 로그 검색(LogGrid) 검색/필터 UI 정렬, 계약·인터셉터·스코프 정합
 - 20260318-search-history-create-server-error-bugfix | Bugfix: server error when submitting "복호화 승인 요청" (POST /api/search-history); Backend to identify root cause and fix so create returns 201 and UI shows success.
 - 20260318-search-history-user2-not-showing | user2로 검색이력 화면에서 검색이력 데이터가 표시되지 않는 문제 원인 파악 및 조치
 - 20260310-search-consistency-all-screens | All screens rule-compliant search; search-history·pending-approvals requester filters (부서·이름·사용자ID)
@@ -115,9 +145,15 @@ For **RequirementsPastSearch** token optimization. Read this file first to find 
 - 20260318-decryption-approval-guids-encrypted-only | Decryption-approval GUID management must apply only to GUIDs (row identifiers) that correspond to rows **that have encrypted data**. Today, when an approver approves a search-history request, **all** row IDs from the search result are stored in `search_history_approved_row` (audit) and in `user_decryption_allowed` (authorization), regardless of whether each row contains encrypted content. This requirement restricts both stores so that only rows that actually have encrypted data are included in the snapshot and in the decryption-allowed set.
 - 20260318-search-history-detail-modal-decryption-list | On the Search History (검색 이력) screen, in the action column of search results, the "view details" (자세히 보기) modal currently shows search conditions (로그 타입, 요청 사유, 검색 조건). The user requests that this modal also display: (1) the **list** of applications, service groups, and GUIDs that were requested for decryption (i.e. the rows in the approval snapshot), and (2) the **total count** of those items.
 - 20260318-search-history-counts-display | Search history list: 검색건수 and 암호화건수 must display distinctly (e.g. search 48 / encryption 37); fix sourcing and display so two counts are correct; diagnostic then fix backend create/list and optional client send counts.
+- 20260320-imagelog-guid-status-composite-key | For **Java FW Image Log** (`java_fw_imglog`, table `imagelog`), a single **guid** value is **not** sufficient to identify a row: the business identity is the **pair (guid, status)**. The product must treat this pair as the **canonical row key** everywhere: search-result rows, detail fetch, decryption execution, decryption-approval snapshot, decryption-allowed authorization store, search-history payloads, and all related APIs and UI.
+- 20260408-pending-approvals-missing-reject-button-bugfix | Investigate and fix the bug where an approver user cannot see the **Reject** button on the `pending-approvals` screen while trying to process another user's decryption approval request.
+- 20260408-activity-statistics-decrypt-unique-rows-per-day | Activity statistics decrypt counts: **unique decrypted rows per day** from `user_activity_log` (`DECRYPT` only), dedup key aligned with imagelog composite key; exclude approval-only action types
 
 ## image-log | imagelog | datastring
 
+- 20260409-advanced-search-field-name-picker-and-caret | Java FW Image Log advanced search: show searchable field list on focus; insert canonical fragment; caret in value position (`AdvancedSearchForm`)
+- 20260330-imagelog-dup-guid-sample-data | Seed data: two imagelog rows share guid `GUID-DUP-PRETTY-20260330` with different status (input/output) for Pretty/decrypt manual and integration testing; aligns with parent req 20260330-image-log-pretty-decrypt-row-key
+- 20260320-imagelog-guid-status-composite-key | Java FW Image Log row identity is (guid + status); APIs, decryption-allowed store, approval snapshot, search-history detail, DB constraints, and UI must use the composite end-to-end
 - 20260206-image-log-datastring-search | Image Log datastring 검색 기능 개선
 - 20260206-image-log-decrypt-datastring-display | Image Log 복호화 시 datastring 필드 표시
 - 20260224-image-log-encrypted-highlight-only | Image log 암호화 구간만 encrypted 하이라이트
@@ -141,18 +177,27 @@ For **RequirementsPastSearch** token optimization. Read this file first to find 
 - 20260206-privacy-security-improvement-summary | 개인정보 보호 개선 요약
 - 20260206-privacy-security-improvement-test-results | 개인정보 보호 테스트 결과
 - 20260206-ip-collection-and-decryption-logging | IP 수집 정확도 개선 및 복호화 로깅 강화
+- 20260408-external-hr-user-sync-security-db-design | Design a secure synchronization policy between externally collected HR data and current user management.
+- 20260408-hr-sync-poc-snapshot-list-and-sample-data | HR Sync PoC: sample `ext_*` data for multiple snapshot IDs, read-only snapshot list + personnel APIs, UI selector; zero-impact; PII/minimization in §2.1; DOC-CODE-SYNC `specs/hr-sync-poc.spec.yaml`
 
 ## database | datasource | schema | multi-db
 
+- 20260408-hr-sync-poc-snapshot-list-and-sample-data | Optional `ext_employee.snapshot_id` (or thin `hr_sync_poc_snapshot`) + migration/init seed for ≥2 PoC snapshots; writes limited to `ext_*` / ETL role
 - 20260320-multi-datasource-schema-configuration | Multi-datasource config: system+PB on DB A (`logmng_sys`, `logmng`), Java FW ImageLog on DB B (`public`); setup scripts + Spring Boot configurable URLs/schemas; single-DB dev backward compatible
+- 20260409-employee-number-uniqueness-provisioning | `app_user.employee_number` must not be duplicated across **active** users (`deleted_at IS NULL`) when the value is **non-null**, using the same **trimmed** string semantics as elsewhere. User Management V2 **direct user create** already enforces this via `UserManagementV2Service.ensureEmployeeNumberAvailable` before insert. The **HR / external provisioning** path (`ProvisioningService.provisionFromExternalEmployee`) currently inserts `app_user` **without** an equivalent check, so a new user can be provisioned with the same trimmed `employee_number` as an existing active user. The database schema only has a **non-unique** index on `employee_number` (`schema_sys.sql`, migration `migrate-app-user-employee-number-20260407.sql` documents that legacy duplicate rows prevented a UNIQUE constraint). This requirement closes the **application-layer** gap and aligns API error behavior with direct create.
+- 20260410-install-deploy-three-db-noninteractive | Production and hardened deployments must support **three physically separate PostgreSQL databases** for:
 
 ## log-type | 로그 타입 | dynamic
 
 - 20260208-dynamic-log-type-management | 동적 로그 타입 관리 기능
 - 20260320-pb-feplog-empty-results-media-code-verification | PB FEP Log: verify empty search for media code SAAAA100 from 2023 — true data absence vs API/filter bug; read-only DB count vs POST search evidence
+- 20260326-pb-fep-log-search-screen-wireframe | Screen `pb-fep-log-search` only: SVG v10 authoritative for visual/IA (vs notes v11: e.g. 조회일자+시작/종료시간); dedicated `POST .../pb-fep-log-search`; grid/toolbar/table/stream per SVG; §2.D DB mapping from `schema_pb_fep.sql`; legacy `pb-feplog` keeps `db-refactored/search` only
+- 20260330-pb-fep-expand-all-cross-page | `pb-fep-log-search`: expand/collapse all across all pagination pages; 전체 접기 with opposite chevron; manual row toggles keep global control in sync (none / all / mixed)
 
 ## auth | logout | 로그인 | 로그아웃
 
+- 20260408-my-page-local-password-and-profile | Local (non-AD) provisioning: initial password `user123` (stored hashed); My page modal from top-right user icon; read-only department/name; self password change; AD vs local behavior TBD in Contract
+- 20260407-external-dept-employee-ad-login | External org replica (`ext_department`/`ext_employee`), admin provisioning search/register APIs, `auth.login.mode` local vs AD, zero-permission modal + server 403 on protected APIs; alternate login URL deployment note
 - 20260225-logout-persist-after-refresh | 로그아웃 후 새로고침 시 로그인 상태 유지 버그
 
 ## misc | bugfix | pretty | highlighting
@@ -162,3 +207,4 @@ Auto-managed fallback section for requirement docs whose topic does not clearly 
 - 20260206-pretty-mode-highlighting-fix | Pretty 모드 하이라이팅 표시 문제 수정
 - 20260316-login-id-user-name-display | 1. **Login**: Users must log in using their **user ID** (the canonical identifier, i.e. `app_user.username`). The login UI and documentation must present this as "user ID" rather than "user name".
 - 20260316-user-id-numeric-userid-naming | Define canonical **user ID** values for the sample users and unify the naming of variables and fields that represent user ID across the system.
+- 20260409-employee-number-only-user-identifier | Across the product, end users and administrators must see and use **employee number (`app_user.employee_number`, 사번)** as the **human-facing “user identifier”** wherever the UI or copy refers to “사용자 ID” for login, self-context, or admin screens. The system must **stop presenting the internal numeric primary key (`app_user.id`) as if it were the user’s business identifier**, which currently causes confusion when `id`, `username`, and `employee_number` differ (e.g. logging in with one numeric value while the UI shows another for the same person).

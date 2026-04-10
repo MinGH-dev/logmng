@@ -5,14 +5,27 @@ import './App.css';
 import LoginForm from './components/LoginForm';
 import LogGrid from './components/LogGrid';
 import UserActivityLogList from './components/UserActivityLog/UserActivityLogList';
+import ActivityLogAccessAuditList from './components/ActivityLogAccessAudit/ActivityLogAccessAuditList';
 import ActivityStatistics from './components/ActivityStatistics';
 import SearchHistoryList from './components/SearchHistory/SearchHistoryList';
 import UserManagement from './components/UserManagement/UserManagement';
+import UserManagementLegacy from './components/UserManagement/UserManagementLegacy';
+import HrSyncPocPreview from './components/UserManagement/HrSyncPocPreview';
+import UserManagementPoc from './components/UserManagement/UserManagementPoc';
 import PermissionGroupManagement from './components/PermissionGroupManagement/PermissionGroupManagement';
+import PermissionGroupScreenMatrix from './components/PermissionGroupScreenMatrix/PermissionGroupScreenMatrix';
 import PendingApprovals from './components/PendingApprovals/PendingApprovals';
-import AppSidebar from './components/AppSidebar';
+import AppSidebar, { DRAWER_WIDTH_OPEN, DRAWER_WIDTH_COLLAPSED } from './components/AppSidebar';
 import AppBar from './components/AppBar';
 import { ORDERED_SCREEN_IDS } from './constants/menuTree';
+import {
+  canAccessView as policyCanAccessView,
+  canNonAdminAccessCurrentView,
+  canAccessDeepLinkHrSyncPoc,
+  canAccessDeepLinkUserManagementV2Poc,
+} from './constants/screenAccessPolicy';
+import { useScreenDisplayLabels } from './hooks/useScreenDisplayLabels';
+import ScreenDisplayLabelsSettings from './components/ScreenDisplayLabelsSettings/ScreenDisplayLabelsSettings';
 import {
   saveMinimalUserData,
   getMinimalUserData,
@@ -21,13 +34,19 @@ import {
   getSelfContext,
   deriveScreenFunctionsFromAllowed,
   clearUserData,
+  hasEffectiveAppAccess,
 } from './utils/security';
+import NoPermissionDialog from './components/NoPermissionDialog';
+import MyPageModal from './components/MyPageModal';
 import logger from './utils/logger';
+import { getApiBaseUrl } from './config/runtimeApi';
 
-/** logType objects for log-search screens (req 20260318). */
-const LOG_TYPE_BY_VIEW = {
-  'pb-feplog': { id: 'pb_feplog', name: 'PB FEP Log', description: '' },
-  'java-fw-imagelog': { id: 'java_fw_imglog', name: 'Java FW Image Log', description: '' },
+/** Prefer legacy PB FEP menu when both screens are allowed (검색 이력 재조회 등). */
+const resolvePbFeplogViewForUser = (u) => {
+  const ids = getAllowedScreenIds(u) ?? [];
+  if (ids.includes('pb-feplog')) return 'pb-feplog';
+  if (ids.includes('pb-fep-log-search')) return 'pb-fep-log-search';
+  return 'pb-feplog';
 };
 
 function App() {
@@ -38,19 +57,19 @@ function App() {
   const [currentView, setCurrentView] = useState('pb-feplog'); // 'pb-feplog' | 'java-fw-imagelog' | 'activity-log' | ...
   const [initialSearchParams, setInitialSearchParams] = useState(null);
   const [initialSearchApprovalId, setInitialSearchApprovalId] = useState(null);
+  const [accessAuditInitialTargetId, setAccessAuditInitialTargetId] = useState(null);
+  const [myPageOpen, setMyPageOpen] = useState(false);
 
-  const canAccessView = (view) => {
-    if (user?.isSystemAdmin === true) return true;
-    const ids = getAllowedScreenIds(user);
-    if (!ids || ids.length === 0) return false;
-    if (view === 'user-management') {
-      return ids.includes('user-management') || ids.includes('user-permission-hierarchy');
-    }
-    if (view === 'permission-group-management') {
-      return ids.includes('permission-group-management') || ids.includes('user-permission-hierarchy');
-    }
-    return ids.includes(view);
-  };
+  const { labelItems, setLabelItems, mergedMenuTree, logTypesByView } = useScreenDisplayLabels(
+    isAuthenticated,
+    user
+  );
+
+  const canAccessView = (view) =>
+    policyCanAccessView(view, {
+      allowedScreenIds: getAllowedScreenIds(user),
+      isSystemAdmin: user?.isSystemAdmin === true,
+    });
 
   const getFirstAllowedScreen = (u) => {
     if (u?.isSystemAdmin === true) return ORDERED_SCREEN_IDS[0];
@@ -66,18 +85,40 @@ function App() {
 
   useEffect(() => {
     if (!isAuthenticated || !user) return;
+    if (!hasEffectiveAppAccess(user)) return;
     const ids = getAllowedScreenIds(user);
     const allowed = user?.isSystemAdmin === true || (ids && ids.length > 0);
     if (!allowed) return;
     const canAccess =
-      user?.isSystemAdmin === true ||
-      (currentView === 'user-management' || currentView === 'user-permission-hierarchy'
-        ? ids.includes('user-management') || ids.includes('user-permission-hierarchy')
-        : currentView === 'permission-group-management'
-          ? ids.includes('permission-group-management') || ids.includes('user-permission-hierarchy')
-          : ids.includes(currentView));
+      user?.isSystemAdmin === true || canNonAdminAccessCurrentView(currentView, ids);
     if (!canAccess) setCurrentView(getFirstAllowedScreen(user));
     // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isAuthenticated, user]);
+
+  /** Deep link: /user-management/hr-sync-poc (same permission as user-management). */
+  useEffect(() => {
+    if (!isAuthenticated || !user || !hasEffectiveAppAccess(user)) return;
+    const path = (window.location.pathname || '').replace(/\/$/, '');
+    if (!path.endsWith('/user-management/hr-sync-poc')) return;
+    const ids = getAllowedScreenIds(user) ?? [];
+    const ok = canAccessDeepLinkHrSyncPoc({
+      allowedScreenIds: ids,
+      isSystemAdmin: user?.isSystemAdmin === true,
+    });
+    if (ok) setCurrentView('hr-sync-poc');
+  }, [isAuthenticated, user]);
+
+  /** Deep link: /user-management/poc-v2 — PoC UM v2 clone (ScreenAccessInterceptor § user-mgmt PoC). */
+  useEffect(() => {
+    if (!isAuthenticated || !user || !hasEffectiveAppAccess(user)) return;
+    const path = (window.location.pathname || '').replace(/\/$/, '');
+    if (!path.endsWith('/user-management/poc-v2')) return;
+    const ids = getAllowedScreenIds(user) ?? [];
+    const ok = canAccessDeepLinkUserManagementV2Poc({
+      allowedScreenIds: ids,
+      isSystemAdmin: user?.isSystemAdmin === true,
+    });
+    if (ok) setCurrentView('user-management-v2-poc');
   }, [isAuthenticated, user]);
 
   const AUTH_CHECK_TIMEOUT_MS = 5000;
@@ -86,7 +127,7 @@ function App() {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), AUTH_CHECK_TIMEOUT_MS);
     try {
-      const apiBaseUrl = process.env.REACT_APP_API_BASE_URL || 'http://localhost:9200/api';
+      const apiBaseUrl = getApiBaseUrl();
       const response = await fetch(`${apiBaseUrl}/auth/check`, {
         credentials: 'include',
         signal: controller.signal,
@@ -165,12 +206,23 @@ function App() {
     saveMinimalUserData(minimalUserData);
   };
 
+  const replaceHistoryForLoginView = () => {
+    try {
+      const path = window.location.pathname || '/';
+      const search = window.location.search || '';
+      window.history.replaceState(null, '', path + search);
+    } catch {
+      /* ignore */
+    }
+  };
+
   const handleLogout = async () => {
     try {
-      const apiBaseUrl = process.env.REACT_APP_API_BASE_URL || 'http://localhost:9200/api';
+      const apiBaseUrl = getApiBaseUrl();
       await fetch(`${apiBaseUrl}/auth/logout`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
       });
     } catch (error) {
       logger.debug('로그아웃 요청 실패:', { error: error.message });
@@ -179,22 +231,36 @@ function App() {
       setIsAuthenticated(false);
       clearUserData();
       setCurrentView('pb-feplog');
+      replaceHistoryForLoginView();
+    }
+  };
+
+  const handleNoPermissionConfirm = async () => {
+    try {
+      const apiBaseUrl = getApiBaseUrl();
+      await fetch(`${apiBaseUrl}/auth/logout`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+      });
+    } catch (error) {
+      logger.debug('권한 없음 모달 로그아웃 실패:', { error: error.message });
+    } finally {
+      setUser(null);
+      setIsAuthenticated(false);
+      clearUserData();
+      setCurrentView('pb-feplog');
+      replaceHistoryForLoginView();
     }
   };
 
   useEffect(() => {
     if (!isAuthenticated || !user) return;
+    if (!hasEffectiveAppAccess(user)) return;
     const isAdmin = user?.isSystemAdmin === true;
     const ids = getAllowedScreenIds(user);
     const hasAccess =
-      isAdmin ||
-      (ids &&
-        ids.length > 0 &&
-        (currentView === 'user-management' || currentView === 'user-permission-hierarchy'
-          ? ids.includes('user-management') || ids.includes('user-permission-hierarchy')
-          : currentView === 'permission-group-management'
-            ? ids.includes('permission-group-management') || ids.includes('user-permission-hierarchy')
-            : ids.includes(currentView)));
+      isAdmin || (ids && ids.length > 0 && canNonAdminAccessCurrentView(currentView, ids));
     if (!hasAccess) setCurrentView(getFirstAllowedScreen(user));
   }, [isAuthenticated, user, currentView]);
 
@@ -204,11 +270,31 @@ function App() {
       return;
     }
     setCurrentView(view);
+    if (view === 'hr-sync-poc') {
+      try {
+        window.history.replaceState(null, '', '/user-management/hr-sync-poc');
+      } catch {
+        /* ignore */
+      }
+    } else if (view === 'user-management-v2-poc') {
+      try {
+        window.history.replaceState(null, '', '/user-management/poc-v2');
+      } catch {
+        /* ignore */
+      }
+    } else {
+      try {
+        const p = window.location.pathname || '';
+        if (p.includes('hr-sync-poc') || p.includes('poc-v2')) window.history.replaceState(null, '', '/');
+      } catch {
+        /* ignore */
+      }
+    }
   };
 
   const handleReSearchFromHistory = (data) => {
     if (!data || !data.logType) return;
-    const view = data.logType === 'pb_feplog' ? 'pb-feplog' : 'java-fw-imagelog';
+    const view = data.logType === 'pb_feplog' ? resolvePbFeplogViewForUser(user) : 'java-fw-imagelog';
     setInitialSearchParams(data.searchParams || null);
     setInitialSearchApprovalId(data.id != null ? data.id : null);
     setCurrentView(view);
@@ -218,6 +304,18 @@ function App() {
     setInitialSearchParams(null);
     setInitialSearchApprovalId(null);
   };
+
+  const horizontalScrollViews = new Set([
+    'pending-approvals',
+    'search-history',
+    'statistics',
+    'user-management',
+    'user-management-v2',
+    'user-permission-hierarchy',
+    'hr-sync-poc',
+    'user-management-v2-poc',
+  ]);
+  const isHorizontalScrollView = horizontalScrollViews.has(currentView);
 
   if (loading) {
     return (
@@ -234,18 +332,29 @@ function App() {
     return <LoginForm onLogin={handleLogin} />;
   }
 
+  if (user && !hasEffectiveAppAccess(user)) {
+    return (
+      <ThemeProvider theme={appTheme}>
+        <NoPermissionDialog open onConfirm={handleNoPermissionConfirm} />
+      </ThemeProvider>
+    );
+  }
+
   return (
     <ThemeProvider theme={appTheme}>
       <Box
         className="App"
-        sx={{
+        sx={(theme) => ({
           display: 'flex',
           width: '100%',
           maxWidth: '100vw',
           height: '100vh',
           overflow: 'hidden',
           bgcolor: 'background.default',
-        }}
+          /* Main column insets for portals/modals (req 20260408-activity-log-detail-modal-viewport-centering) */
+          '--app-main-inset-left': `${sidebarOpen ? DRAWER_WIDTH_OPEN : DRAWER_WIDTH_COLLAPSED}px`,
+          '--app-main-inset-top': theme.spacing(7),
+        })}
       >
         <AppSidebar
           open={sidebarOpen}
@@ -253,6 +362,7 @@ function App() {
           allowedScreenIds={getAllowedScreenIds(user) ?? []}
           currentView={currentView}
           onNavigate={handleNavigate}
+          menuTree={mergedMenuTree}
         />
         <Box
           component="main"
@@ -262,6 +372,8 @@ function App() {
             display: 'flex',
             flexDirection: 'column',
             minWidth: 0,
+            position: 'relative',
+            zIndex: 0,
             overflowX: 'hidden',
             boxSizing: 'border-box',
           }}
@@ -272,30 +384,107 @@ function App() {
             teamName={user?.selfContext?.department ?? ''}
             userName={user?.selfContext?.username ?? user?.username ?? ''}
             onLogout={handleLogout}
+            onOpenMyPage={() => setMyPageOpen(true)}
           />
-          <Box sx={{ flex: 1, p: 2, mt: 7, overflowY: 'auto', minHeight: 0 }}>
-            {currentView === 'activity-log' && <UserActivityLogList user={user} />}
+          <MyPageModal open={myPageOpen} onClose={() => setMyPageOpen(false)} />
+          <Box
+            sx={{
+              flex: 1,
+              p: 2,
+              mt: 7,
+              overflowY: currentView === 'pb-fep-log-search' ? 'hidden' : 'auto',
+              overflowX: isHorizontalScrollView ? 'auto' : 'hidden',
+              minHeight: 0,
+              display: 'flex',
+              flexDirection: 'column',
+            }}
+            data-horizontal-scroll-enabled={isHorizontalScrollView ? 'true' : 'false'}
+          >
+            {currentView === 'activity-log' && (
+              <UserActivityLogList
+                user={user}
+                canOpenAccessAudit={canAccessView('activity-log-access-audit')}
+                onNavigateToAccessAudit={(targetLogId) => {
+                  setAccessAuditInitialTargetId(targetLogId);
+                  if (canAccessView('activity-log-access-audit')) {
+                    setCurrentView('activity-log-access-audit');
+                  }
+                }}
+              />
+            )}
+            {currentView === 'activity-log-access-audit' && canAccessView('activity-log-access-audit') && (
+              <ActivityLogAccessAuditList
+                initialTargetActivityLogId={accessAuditInitialTargetId}
+                onConsumedInitialTarget={() => setAccessAuditInitialTargetId(null)}
+              />
+            )}
             {currentView === 'statistics' && <ActivityStatistics user={user} />}
             {currentView === 'search-history' && (
               <SearchHistoryList user={user} onReSearch={handleReSearchFromHistory} />
             )}
             {(currentView === 'user-management' || currentView === 'user-permission-hierarchy') && (
-              <UserManagement user={user} />
+              <UserManagementLegacy user={user} />
             )}
-            {currentView === 'permission-group-management' && <PermissionGroupManagement user={user} />}
+            {currentView === 'user-management-v2' && <UserManagement user={user} />}
+            {currentView === 'user-management-v2-poc' &&
+              (canAccessView('user-management-v2-poc') ? (
+                <UserManagementPoc user={user} />
+              ) : (
+                <Box component="p" role="status" sx={{ m: 0 }}>
+                  이 화면에 접근할 권한이 없습니다.
+                </Box>
+              ))}
+            {currentView === 'hr-sync-poc' &&
+              (canAccessView('hr-sync-poc') ? (
+                <HrSyncPocPreview />
+              ) : (
+                <Box component="p" role="status" sx={{ m: 0 }}>
+                  이 화면에 접근할 권한이 없습니다.
+                </Box>
+              ))}
+            {currentView === 'permission-group-management' && (
+              <PermissionGroupManagement user={user} menuTree={mergedMenuTree} />
+            )}
+            {currentView === 'permission-group-screen-matrix' && (
+              <PermissionGroupScreenMatrix user={user} menuTree={mergedMenuTree} />
+            )}
+            {currentView === 'screen-display-labels' && (
+              <ScreenDisplayLabelsSettings
+                user={user}
+                labelItems={labelItems}
+                onLabelsUpdated={setLabelItems}
+              />
+            )}
             {currentView === 'pending-approvals' && <PendingApprovals user={user} />}
             {currentView === 'pb-feplog' && canAccessView('pb-feplog') && (
-              <LogGrid
-                logType={LOG_TYPE_BY_VIEW['pb-feplog']}
-                initialSearchParams={initialSearchParams}
-                initialSearchApprovalId={initialSearchApprovalId}
-                onInitialSearchDone={handleInitialSearchDone}
-                hasDecryptPermission={user?.isSystemAdmin === true || getScreenFunctions(user)?.['pb-feplog']?.decrypt === true}
-              />
+              <Box sx={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+                <LogGrid
+                  viewId="pb-feplog"
+                  logType={logTypesByView['pb-feplog']}
+                  initialSearchParams={initialSearchParams}
+                  initialSearchApprovalId={initialSearchApprovalId}
+                  onInitialSearchDone={handleInitialSearchDone}
+                  hasDecryptPermission={user?.isSystemAdmin === true || getScreenFunctions(user)?.['pb-feplog']?.decrypt === true}
+                />
+              </Box>
+            )}
+            {currentView === 'pb-fep-log-search' && canAccessView('pb-fep-log-search') && (
+              <Box sx={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+                <LogGrid
+                  viewId="pb-fep-log-search"
+                  logType={logTypesByView['pb-fep-log-search']}
+                  initialSearchParams={initialSearchParams}
+                  initialSearchApprovalId={initialSearchApprovalId}
+                  onInitialSearchDone={handleInitialSearchDone}
+                  hasDecryptPermission={
+                    user?.isSystemAdmin === true || getScreenFunctions(user)?.['pb-fep-log-search']?.decrypt === true
+                  }
+                />
+              </Box>
             )}
             {currentView === 'java-fw-imagelog' && canAccessView('java-fw-imagelog') && (
               <LogGrid
-                logType={LOG_TYPE_BY_VIEW['java-fw-imagelog']}
+                logType={logTypesByView['java-fw-imagelog']}
                 initialSearchParams={initialSearchParams}
                 initialSearchApprovalId={initialSearchApprovalId}
                 onInitialSearchDone={handleInitialSearchDone}

@@ -3,6 +3,7 @@ package com.logmng.constants;
 import java.text.Normalizer;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.Locale;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -15,47 +16,76 @@ public final class ScreenConstants {
 
     /** @deprecated Use PB_FEPLOG or JAVA_FW_IMAGELOG per log type (req 20260318). Kept for migration. */
     public static final String MAIN = "main";
-    /** Log search screen for PB FEP Log. Replaces main for pb_feplog. */
+    /** Log search screen for PB FEP v1.0.0. Replaces main for pb_feplog. */
     public static final String PB_FEPLOG = "pb-feplog";
+    /**
+     * Additional PB FEP log search screen (new UI wireframe, separate permission). Same logType {@code pb_feplog} for APIs.
+     */
+    public static final String PB_FEP_LOG_SEARCH = "pb-fep-log-search";
     /** Log search screen for Java FW Image Log. Replaces main for java_fw_imglog. */
     public static final String JAVA_FW_IMAGELOG = "java-fw-imagelog";
     /** Legacy typo: normalize to JAVA_FW_IMAGELOG (req 20260318-permission-group-menu-invalid-screen-id-imagelog). */
     public static final String JAVA_FW_IMAGELOG_LEGACY = "java-fw_imagelog";
     public static final String SEARCH_HISTORY = "search-history";
     public static final String ACTIVITY_LOG = "activity-log";
+    /** Activity log row detail (modal/drawer); optional separate menu permission per specs/permission-group-hierarchy.spec.yaml §4. */
+    public static final String ACTIVITY_LOG_DETAIL = "activity-log-detail";
+    /** Access audit list — who viewed sensitive activity detail / full copy body (req 20260330-audit-evidence). */
+    public static final String ACTIVITY_LOG_ACCESS_AUDIT = "activity-log-access-audit";
     public static final String STATISTICS = "statistics";
 
     public static final String PENDING_APPROVALS = "pending-approvals";
-    /** Screens that support scope ('self'|'team'|'all'). Per req 20250303, 20250304, 20260305-pending-approvals-scope. */
-    private static final Set<String> SCREENS_WITH_SCOPE = Collections.unmodifiableSet(
-            Arrays.asList(SEARCH_HISTORY, ACTIVITY_LOG, STATISTICS, PENDING_APPROVALS).stream().collect(Collectors.toSet())
-    );
     public static final String USER_MANAGEMENT = "user-management";
+    /** User Management v2 (production). */
+    public static final String USER_MANAGEMENT_V2 = "user-management-v2";
+    /** Screens that support scope ('self'|'team'|'all'). Per req 20250303, 20250304, 20260305-pending-approvals-scope, 20260409 UM v2 read scope. */
+    private static final Set<String> SCREENS_WITH_SCOPE = Collections.unmodifiableSet(
+            Arrays.asList(SEARCH_HISTORY, ACTIVITY_LOG, STATISTICS, PENDING_APPROVALS, USER_MANAGEMENT_V2).stream().collect(Collectors.toSet())
+    );
+    /** HR Sync PoC preview screen (sidebar). */
+    public static final String HR_SYNC_POC = "hr-sync-poc";
+    /** PoC-only UM v2 clone; APIs under {@code /api/hr-sync/poc/user-mgmt/*}. Req: 20260408-poc-user-management-v2-isolated-clone. */
+    public static final String USER_MANAGEMENT_V2_POC = "user-management-v2-poc";
     public static final String DEPARTMENT_APPROVERS = "department-approvers";
     public static final String USER_PERMISSION_HIERARCHY = "user-permission-hierarchy";
     public static final String PERMISSION_GROUP_MANAGEMENT = "permission-group-management";
+    /** 화면–권한 매트릭스 (admin; 권한 데이터 편집). */
+    public static final String PERMISSION_GROUP_SCREEN_MATRIX = "permission-group-screen-matrix";
+    /** 화면 표시 이름 설정 (system-admin-oriented; navigation grant only — PUT /api/screen-display-labels remains server-enforced). */
+    public static final String SCREEN_DISPLAY_LABELS = "screen-display-labels";
+
+    /**
+     * Top-level sidebar group ids aligned with {@code MENU_TREE} in {@code frontend/src/constants/menuTree.js}.
+     * Screen display labels API: {@code parentGroupId} must be one of these when set (specs/menu-display-labels.spec.yaml §2.1).
+     */
+    public static final Set<String> PARENT_GROUP_IDS = Collections.unmodifiableSet(new HashSet<>(Arrays.asList(
+            "log-search", "history", "statistics", "admin")));
 
     private static final Set<String> ALL_ALLOWED_SCREENS = Collections.unmodifiableSet(
             Arrays.asList(
-                    MAIN, PB_FEPLOG, JAVA_FW_IMAGELOG, SEARCH_HISTORY, ACTIVITY_LOG, STATISTICS,
-                    PENDING_APPROVALS, USER_MANAGEMENT, DEPARTMENT_APPROVERS,
-                    USER_PERMISSION_HIERARCHY, PERMISSION_GROUP_MANAGEMENT
+                    MAIN, PB_FEPLOG, PB_FEP_LOG_SEARCH, JAVA_FW_IMAGELOG, SEARCH_HISTORY, ACTIVITY_LOG,
+                    ACTIVITY_LOG_DETAIL, ACTIVITY_LOG_ACCESS_AUDIT, STATISTICS,
+                    PENDING_APPROVALS, USER_MANAGEMENT, USER_MANAGEMENT_V2, HR_SYNC_POC, USER_MANAGEMENT_V2_POC,
+                    DEPARTMENT_APPROVERS,
+                    USER_PERMISSION_HIERARCHY, PERMISSION_GROUP_MANAGEMENT, PERMISSION_GROUP_SCREEN_MATRIX,
+                    SCREEN_DISPLAY_LABELS
             ).stream().collect(Collectors.toSet())
     );
 
-    /** Screens that support write (create/update/delete). Per spec §4.4. */
+    /** Screens that support write (create/update/delete). Per spec §4.4; user-management-v2 req 20260409. */
     private static final Set<String> SCREENS_WITH_WRITE = Collections.unmodifiableSet(
-            Arrays.asList(USER_MANAGEMENT, DEPARTMENT_APPROVERS, USER_PERMISSION_HIERARCHY, PERMISSION_GROUP_MANAGEMENT).stream().collect(Collectors.toSet())
+            Arrays.asList(USER_MANAGEMENT, USER_MANAGEMENT_V2, DEPARTMENT_APPROVERS, USER_PERMISSION_HIERARCHY, PERMISSION_GROUP_MANAGEMENT,
+                    PERMISSION_GROUP_SCREEN_MATRIX).stream().collect(Collectors.toSet())
     );
 
-    /** Screens that support approve (decrypt_approver). Per spec §4.4. */
+    /** Screens that support approve (permission group explicit approve; contract 「복호화 승인 자격」). Per spec §4.4. */
     private static final Set<String> SCREENS_WITH_APPROVE = Collections.unmodifiableSet(
             Arrays.asList(SEARCH_HISTORY, PENDING_APPROVALS).stream().collect(Collectors.toSet())
     );
 
     /** Screens that support decrypt (request decryption). Per spec §4.4, req 20260318: pb-feplog, java-fw-imagelog; main kept for migration. */
     private static final Set<String> SCREENS_WITH_DECRYPT = Collections.unmodifiableSet(
-            Arrays.asList(MAIN, PB_FEPLOG, JAVA_FW_IMAGELOG).stream().collect(Collectors.toSet())
+            Arrays.asList(MAIN, PB_FEPLOG, PB_FEP_LOG_SEARCH, JAVA_FW_IMAGELOG).stream().collect(Collectors.toSet())
     );
 
     private ScreenConstants() {
@@ -123,12 +153,12 @@ public final class ScreenConstants {
         return screenId != null && !screenId.isBlank() && ALL_ALLOWED_SCREENS.contains(screenId.trim());
     }
 
-    /** Returns true if the screen supports scope (activity-log, statistics, search-history). */
+    /** Returns true if the screen supports scope (activity-log, statistics, search-history, pending-approvals, user-management-v2). */
     public static boolean supportsScope(String screenId) {
         return screenId != null && SCREENS_WITH_SCOPE.contains(screenId.trim());
     }
 
-    /** Returns true if the screen supports write (user-management, department-approvers, user-permission-hierarchy, permission-group-management). Per spec §4.4. */
+    /** Returns true if the screen supports write (user-management, department-approvers, user-permission-hierarchy, permission-group-management, permission-group-screen-matrix). Per spec §4.4. */
     public static boolean supportsWrite(String screenId) {
         return screenId != null && SCREENS_WITH_WRITE.contains(screenId.trim());
     }
@@ -146,6 +176,6 @@ public final class ScreenConstants {
     /** Log-type search screens (no main). Used by path rules and logType↔screen enforcement. */
     public static Set<String> getLogSearchScreenIds() {
         return Collections.unmodifiableSet(
-                Arrays.asList(PB_FEPLOG, JAVA_FW_IMAGELOG).stream().collect(Collectors.toSet()));
+                Arrays.asList(PB_FEPLOG, PB_FEP_LOG_SEARCH, JAVA_FW_IMAGELOG).stream().collect(Collectors.toSet()));
     }
 }

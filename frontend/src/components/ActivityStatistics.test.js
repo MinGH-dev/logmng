@@ -87,6 +87,7 @@ describe('ActivityStatistics', () => {
             department: '개발부',
             username: '홍길동',
             userId: 20260001,
+            employeeNumber: 'EMP-20260001',
           },
         }}
       />,
@@ -106,13 +107,13 @@ describe('ActivityStatistics', () => {
       expect(JSON.parse(filters.getAttribute('data-self-context'))).toEqual({
         department: '개발부',
         username: '홍길동',
-        userId: 20260001,
+        userId: 'EMP-20260001',
       });
       expect(JSON.parse(filters.getAttribute('data-filters'))).toEqual({
         logType: '',
         department: '개발부',
         username: '홍길동',
-        userId: 20260001,
+        userId: 'EMP-20260001',
         ip: '',
       });
     });

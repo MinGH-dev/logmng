@@ -13,9 +13,10 @@ Use this skill when the task changes search/filter UI on user-context screens su
 - Keep user-block ordering consistent across aligned screens.
 - Group titles belong above their fields, not inline.
 - When `scope=self` on an applicable user-context or requester-context screen, keep the block visible and use the wording **visible, fixed to current user, not editable**.
-- Preserve locked self ordering as `department -> username -> userId`. In API/UI, userId is numeric `app_user.id` (req 20260316-user-id-numeric-userid-naming).
+- Preserve locked self ordering as `department -> username -> 사용자 ID`(표시 슬롯). The **표시값** is **`selfContext.employeeNumber`** (사번) when present; technical **`selfContext.userId`** remains numeric `app_user.id` for APIs only—not as the human “사용자 ID” (req `20260409-employee-number-only-user-identifier`).
 - Use the authenticated current-user payload or equivalent auth-owned current-user context as the authoritative source for locked self display values.
 - For `activity-log` with `scope=self`, keep frontend request/reset behavior aligned with backend enforcement: visible locked self fields must stay fixed to current-user values, and any client identity values that could widen scope must be cleared, ignored, or normalized consistently with backend enforcement.
+- **User Management v2** (`user-management-v2`): When `screenScopes['user-management-v2'] === 'self'`, the user filter block shows **visible locked self** (department → username → 사번/`employeeNumber` 표시) from auth `selfContext`, read-only; widening search inputs are not used for that scope (backend enforcement remains authoritative).
 - When aligning activity-log and statistics, keep user-block field size visually consistent across screens.
 - For shared `select` fields, document the real authoritative API/domain source in docs and handoffs, not only a prop name such as `departmentList`.
 - Treat the `department` select on activity-log, statistics, and search-history as one shared option contract; the authoritative source is the new shared filter-options API for department options, not `/api/statistics/departments`. Keep source wording, response shape, empty option behavior, and scope rule aligned across those screens.

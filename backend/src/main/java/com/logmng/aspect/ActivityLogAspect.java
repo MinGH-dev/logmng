@@ -1,10 +1,14 @@
 package com.logmng.aspect;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.logmng.activity.ActivityAuditDetailEnricher;
 import com.logmng.annotation.ActivityLog;
+import com.logmng.dto.DecryptionRowKey;
 import com.logmng.dto.response.LoginResponse;
 import com.logmng.service.AuthService;
+import com.logmng.service.PermissionGroupService;
 import com.logmng.service.UserActivityLogService;
+import com.logmng.util.IpUtil;
 import jakarta.servlet.ServletRequest;
 import jakarta.servlet.ServletResponse;
 import jakarta.servlet.http.HttpServletRequest;
@@ -37,11 +41,19 @@ public class ActivityLogAspect {
     
     private final UserActivityLogService userActivityLogService;
     private final AuthService authService;
+    private final PermissionGroupService permissionGroupService;
+    private final IpUtil ipUtil;
     private final ObjectMapper objectMapper;
     
-    public ActivityLogAspect(UserActivityLogService userActivityLogService, AuthService authService) {
+    public ActivityLogAspect(
+            UserActivityLogService userActivityLogService,
+            AuthService authService,
+            PermissionGroupService permissionGroupService,
+            IpUtil ipUtil) {
         this.userActivityLogService = userActivityLogService;
         this.authService = authService;
+        this.permissionGroupService = permissionGroupService;
+        this.ipUtil = ipUtil;
         this.objectMapper = new ObjectMapper();
     }
     
@@ -133,7 +145,10 @@ public class ActivityLogAspect {
                     try {
                             // 객체를 JSON으로 변환 시도
                             if (args[i] != null) {
-                                if (args[i] instanceof com.logmng.dto.request.LogDbSearchRequest) {
+                                if (isJavaFwImglogDecryptRequestMap(paramNames[i], args[i], paramNames, args)) {
+                                    params.put(paramNames[i],
+                                            buildJavaFwImglogDecryptActivityParams((Map<?, ?>) args[i]));
+                                } else if (args[i] instanceof com.logmng.dto.request.LogDbSearchRequest) {
                                     com.logmng.dto.request.LogDbSearchRequest searchRequest = 
                                         (com.logmng.dto.request.LogDbSearchRequest) args[i];
                                     Map<String, Object> searchConditions = new HashMap<>();
@@ -167,10 +182,7 @@ public class ActivityLogAspect {
                                     
                                     params.put(paramNames[i], searchConditions);
                                 } else {
-                                    // Never serialize values that might contain Servlet (e.g. Map with request key)
-                                    Object toSerialize = deepSanitizeForSerialization(args[i]);
-                                    String json = objectMapper.writeValueAsString(toSerialize);
-                                    params.put(paramNames[i], maskSensitiveData(json));
+                                    putRequestParamForActivityDetail(params, paramNames[i], args[i]);
                                 }
                             }
                         } catch (Exception e) {
@@ -212,17 +224,15 @@ public class ActivityLogAspect {
                                     params.put(paramNames[i], searchConditions);
                                 } catch (Exception e2) {
                                     log.error("LogDbSearchRequest 파싱 재시도 실패: {}", e2.getMessage());
-                                    Object sanitized = deepSanitizeForSerialization(args[i]);
                                     try {
-                                        params.put(paramNames[i], objectMapper.writeValueAsString(sanitized));
+                                        putRequestParamForActivityDetail(params, paramNames[i], args[i]);
                                     } catch (Exception e3) {
                                         params.put(paramNames[i], null);
                                     }
                                 }
                             } else {
-                                Object sanitized = deepSanitizeForSerialization(args[i]);
                                 try {
-                                    params.put(paramNames[i], objectMapper.writeValueAsString(sanitized));
+                                    putRequestParamForActivityDetail(params, paramNames[i], args[i]);
                                 } catch (Exception e2) {
                                     params.put(paramNames[i], null);
                                 }
@@ -319,6 +329,15 @@ public class ActivityLogAspect {
                     log.debug("응답 데이터 직렬화 실패: {}", e.getMessage());
                 }
             }
+
+            // Permission group admin: structured action_detail when includeParams=false (req 20260330)
+            ActivityAuditDetailEnricher.enrichPermissionGroup(
+                    signature.getDeclaringType(),
+                    method.getName(),
+                    joinPoint.getArgs(),
+                    methodResult,
+                    actionDetail,
+                    permissionGroupService);
             
             // 요청 파라미터 JSON 문자열 생성 (Servlet 타입은 직렬화 전에 플레이스홀더로 대체)
             String requestParamsJson = null;
@@ -331,8 +350,8 @@ public class ActivityLogAspect {
                 log.debug("요청 파라미터 직렬화 실패: {}", e.getMessage());
             }
             
-            // IP 주소 가져오기
-            String ipAddress = getClientIpAddress(request);
+            // IP 주소 가져오기 (헤더 비리터럴은 저장하지 않음; IpUtil과 동일 체인 + 검증)
+            String ipAddress = resolveClientIpForActivityLog(request);
             
             // User-Agent 가져오기
             String userAgent = request.getHeader("User-Agent");
@@ -402,151 +421,22 @@ public class ActivityLogAspect {
     }
     
     /**
-     * 클라이언트 IP 주소 가져오기 (사설 IP 우선)
+     * Activity log persistence: validated IP literals only (see req 20260410). DEBUG diagnostic traces
+     * header inputs and resolution outcome; disabled at INFO in production by default.
      */
-    private String getClientIpAddress(HttpServletRequest request) {
-        java.util.List<String> ipCandidates = new java.util.ArrayList<>();
-        
-        // 1. X-Forwarded-For 헤더 확인 (프록시 환경)
-        String xForwardedFor = request.getHeader("X-Forwarded-For");
-        if (xForwardedFor != null && !xForwardedFor.isEmpty() && !"unknown".equalsIgnoreCase(xForwardedFor)) {
-            // X-Forwarded-For는 여러 IP가 콤마로 구분될 수 있음 (프록시 체인)
-            String[] ips = xForwardedFor.split(",");
-            for (String ip : ips) {
-                ip = ip.trim();
-                if (!ip.isEmpty() && !"unknown".equalsIgnoreCase(ip)) {
-                    ipCandidates.add(ip);
-                }
-            }
-        }
-        
-        // 2. X-Real-IP 헤더 확인
-        String xRealIp = request.getHeader("X-Real-IP");
-        if (xRealIp != null && !xRealIp.isEmpty() && !"unknown".equalsIgnoreCase(xRealIp)) {
-            if (!ipCandidates.contains(xRealIp.trim())) {
-                ipCandidates.add(xRealIp.trim());
-            }
-        }
-        
-        // 3. RemoteAddr 확인
-        String remoteAddr = request.getRemoteAddr();
-        // IPv6 localhost를 IPv4로 변환
-        if ("0:0:0:0:0:0:0:1".equals(remoteAddr) || "::1".equals(remoteAddr)) {
-            remoteAddr = "127.0.0.1";
-        }
-        if (!ipCandidates.contains(remoteAddr)) {
-            ipCandidates.add(remoteAddr);
-        }
-        
-        // 3-1. localhost인 경우 실제 네트워크 인터페이스 IP 확인
-        if ("127.0.0.1".equals(remoteAddr) || "localhost".equals(remoteAddr)) {
-            try {
-                java.util.Enumeration<java.net.NetworkInterface> networkInterfaces = 
-                    java.net.NetworkInterface.getNetworkInterfaces();
-                while (networkInterfaces.hasMoreElements()) {
-                    java.net.NetworkInterface ni = networkInterfaces.nextElement();
-                    if (ni.isUp() && !ni.isLoopback() && !ni.isVirtual()) {
-                        java.util.Enumeration<java.net.InetAddress> addresses = ni.getInetAddresses();
-                        while (addresses.hasMoreElements()) {
-                            java.net.InetAddress addr = addresses.nextElement();
-                            if (addr instanceof java.net.Inet4Address && !addr.isLoopbackAddress()) {
-                                String interfaceIp = addr.getHostAddress();
-                                if (isPrivateIp(interfaceIp)) {
-                                    if (!ipCandidates.contains(interfaceIp)) {
-                                        ipCandidates.add(interfaceIp);
-                                        log.debug("✅ 네트워크 인터페이스에서 IP 발견: {} (interface: {})", 
-                                                interfaceIp, ni.getName());
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            } catch (Exception e) {
-                log.debug("네트워크 인터페이스 확인 실패: {}", e.getMessage());
-            }
-        }
-        
-        // 4. 사설 IP 우선 선택
-        String selectedIp = null;
-        for (String ip : ipCandidates) {
-            if (isPrivateIp(ip) && !"127.0.0.1".equals(ip)) {
-                selectedIp = ip;
-                log.info("✅ 사설 IP 선택: {} (from candidates: {})", ip, ipCandidates);
-                break;
-            }
-        }
-        
-        // 5. 사설 IP가 없으면 첫 번째 IP 사용 (127.0.0.1 제외)
-        if (selectedIp == null && !ipCandidates.isEmpty()) {
-            for (String ip : ipCandidates) {
-                if (!"127.0.0.1".equals(ip)) {
-                    selectedIp = ip;
-                    log.info("✅ 첫 번째 IP 선택: {} (from candidates: {})", selectedIp, ipCandidates);
-                    break;
-                }
-            }
-        }
-        
-        // 6. 모든 후보가 없거나 모두 127.0.0.1이면 RemoteAddr 사용
-        if (selectedIp == null) {
-            selectedIp = remoteAddr;
-            log.info("✅ RemoteAddr 사용: {} (candidates: {})", selectedIp, ipCandidates);
-        }
-        
-        return selectedIp;
-    }
-    
-    /**
-     * 사설 IP 주소인지 확인
-     */
-    private boolean isPrivateIp(String ip) {
-        if (ip == null || ip.isEmpty()) {
-            return false;
-        }
-        
-        // IPv6 localhost 체크
-        if ("0:0:0:0:0:0:0:1".equals(ip) || "::1".equals(ip)) {
-            return true;
-        }
-        
-        try {
-            // IPv4 주소 파싱
-            String[] parts = ip.split("\\.");
-            if (parts.length != 4) {
-                return false;
-            }
-            
-            int[] octets = new int[4];
-            for (int i = 0; i < 4; i++) {
-                octets[i] = Integer.parseInt(parts[i]);
-            }
-            
-            // 10.0.0.0/8 (10.0.0.0 ~ 10.255.255.255)
-            if (octets[0] == 10) {
-                return true;
-            }
-            
-            // 172.16.0.0/12 (172.16.0.0 ~ 172.31.255.255)
-            if (octets[0] == 172 && octets[1] >= 16 && octets[1] <= 31) {
-                return true;
-            }
-            
-            // 192.168.0.0/16 (192.168.0.0 ~ 192.168.255.255)
-            if (octets[0] == 192 && octets[1] == 168) {
-                return true;
-            }
-            
-            // 127.0.0.0/8 (127.0.0.0 ~ 127.255.255.255) - localhost
-            if (octets[0] == 127) {
-                return true;
-            }
-            
-        } catch (Exception e) {
-            log.debug("IP 주소 파싱 실패: {}", ip);
-        }
-        
-        return false;
+    private String resolveClientIpForActivityLog(HttpServletRequest request) {
+        String xff = request.getHeader("X-Forwarded-For");
+        String xReal = request.getHeader("X-Real-IP");
+        String remoteRaw = request.getRemoteAddr();
+        String remoteNorm = IpUtil.normalizeServletRemoteAddr(remoteRaw);
+        String getClientIp = ipUtil.getClientIP(request);
+        List<String> ordered = ipUtil.collectIpCandidatesInTrustOrder(request);
+        String resolved = ipUtil.getResolvedClientIpForActivityLog(request);
+        log.debug(
+                "activity client IP diagnostic: X-Forwarded-For={}, X-Real-IP={}, remoteAddr(raw)={}, "
+                        + "remoteAddr(normalized)={}, getClientIP(raw)={}, orderedCandidates={}, resolved(validated)={}",
+                xff, xReal, remoteRaw, remoteNorm, getClientIp, ordered, resolved);
+        return resolved;
     }
     
     /**
@@ -624,6 +514,61 @@ public class ActivityLogAspect {
         for (Map.Entry<String, Object> e : params.entrySet()) {
             Object v = deepSanitizeForSerialization(e.getValue());
             out.put(e.getKey(), v);
+        }
+        return out;
+    }
+
+    /**
+     * One entry in {@code requestParams} for {@link #logActivityInternal}.
+     * String / Number / Boolean / Character are stored as JSON scalars so the outer {@code action_detail}
+     * serialization contains {@code "logType":"java_fw_imglog"} (not double-encoded string values).
+     * Other types: deep-sanitize, JSON-stringify, then {@link #maskSensitiveData(String)} on that JSON text.
+     */
+    private void putRequestParamForActivityDetail(Map<String, Object> params, String paramName, Object arg)
+            throws Exception {
+        if (arg == null) {
+            return;
+        }
+        if (arg instanceof String) {
+            params.put(paramName, maskSensitiveData((String) arg));
+            return;
+        }
+        if (arg instanceof Number || arg instanceof Boolean || arg instanceof Character) {
+            params.put(paramName, arg);
+            return;
+        }
+        Object toSerialize = deepSanitizeForSerialization(arg);
+        String json = objectMapper.writeValueAsString(toSerialize);
+        params.put(paramName, maskSensitiveData(json));
+    }
+
+    /**
+     * POST /api/logs/decrypt/java_fw_imglog body: structured audit fields (guid, status, optional searchHistoryId).
+     * Does not log full JSON body or decrypted payload. Req: imagelog composite (guid, status) in activity params.
+     */
+    private static boolean isJavaFwImglogDecryptRequestMap(String paramName, Object arg,
+                                                           String[] paramNames, Object[] args) {
+        if (!"request".equals(paramName) || !(arg instanceof Map)) {
+            return false;
+        }
+        for (int j = 0; j < paramNames.length && j < args.length; j++) {
+            if ("logType".equals(paramNames[j]) && "java_fw_imglog".equals(args[j])) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static Map<String, Object> buildJavaFwImglogDecryptActivityParams(Map<?, ?> body) {
+        Map<String, Object> out = new HashMap<>();
+        Object g = body.get("guid");
+        out.put("guid", g != null ? g.toString().trim() : null);
+        Object s = body.get("status");
+        String st = DecryptionRowKey.normalizeStatus(s != null ? s.toString() : null);
+        out.put("status", st.isEmpty() ? null : st);
+        if (body.containsKey("searchHistoryId")) {
+            Object sh = body.get("searchHistoryId");
+            out.put("searchHistoryId", sh != null ? sh.toString() : null);
         }
         return out;
     }

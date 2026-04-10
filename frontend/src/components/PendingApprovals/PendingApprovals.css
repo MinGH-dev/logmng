@@ -1,11 +1,13 @@
-.pending-approvals {
+/* Layout: 검색 이력·search-filter-standard와 정렬 (요청일시 행 + 요청자 블록 + 동작 구분). 컨트롤 높이/패딩은 .sf-compact-panel + search-filter-standard.css */
+
+.pending-approvals.pending-approvals-list {
   padding: 1rem;
-  max-width: 1100px;
+  max-width: var(--sf-panel-max-width, 1400px);
   margin: 0 auto;
 }
 
-.pending-approvals h2 {
-  margin-bottom: 0.5rem;
+.pending-approvals.pending-approvals-list h2 {
+  margin-bottom: 1rem;
   font-size: 1.25rem;
 }
 
@@ -15,45 +17,12 @@
   color: #555;
 }
 
-.pending-approvals-back {
-  margin-bottom: 1rem;
-}
-
-.pending-approvals-error {
-  color: #c00;
-  margin-bottom: 0.5rem;
-  padding: 0.5rem;
-  background: #fff0f0;
-  border-radius: 4px;
-}
-
 .pending-approvals-message {
   color: #070;
   margin-bottom: 0.5rem;
   padding: 0.5rem;
   background: #f0fff0;
   border-radius: 4px;
-}
-
-.pending-approvals-table {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 0.9rem;
-}
-
-.pending-approvals-table th,
-.pending-approvals-table td {
-  border: 1px solid #ddd;
-  padding: 0.5rem 0.75rem;
-  text-align: left;
-}
-
-.pending-approvals-table thead th {
-  position: sticky;
-  top: 0;
-  z-index: 10;
-  background: #f5f5f5;
-  font-weight: 600;
 }
 
 .pending-approvals-summary {
@@ -85,6 +54,21 @@
 .pending-approvals-btn.reject {
   border-color: #c00;
   color: #c00;
+}
+
+/* Pending approvals action column must not inherit SearchHistory's narrow 9th-column width.
+   This screen has 3 action buttons (상세/승인/반려), so reserve enough width and disable clipping. */
+.pending-approvals.search-history-list .log-table th:nth-child(9),
+.pending-approvals.search-history-list .log-table td:nth-child(9) {
+  width: 1%;
+  min-width: 220px;
+  max-width: none;
+}
+
+.pending-approvals.search-history-list .log-table td:nth-child(9) {
+  overflow: visible;
+  text-overflow: clip;
+  white-space: nowrap;
 }
 
 .pending-approvals-modal-overlay {
@@ -125,4 +109,14 @@
   display: flex;
   gap: 0.5rem;
   justify-content: flex-end;
+}
+
+.pending-approvals-detail-pre {
+  margin: 0;
+  padding: 0.75rem;
+  background: #f8f9fa;
+  border-radius: 4px;
+  font-size: 0.85rem;
+  overflow: auto;
+  max-height: 40vh;
 }

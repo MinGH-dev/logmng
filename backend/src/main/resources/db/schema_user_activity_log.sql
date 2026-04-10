@@ -6,8 +6,13 @@ CREATE TABLE IF NOT EXISTS user_activity_log (
     id BIGSERIAL PRIMARY KEY,
     user_id VARCHAR(100) NOT NULL,
     username VARCHAR(100),
-    action_type VARCHAR(50) NOT NULL,  -- 'LOGIN', 'LOGOUT', 'SEARCH', 'VIEW', 'EXPORT', etc.
-    action_detail TEXT,                -- JSON 형태로 상세 정보 저장
+    -- Longest canonical code in specs/activity-action-types.spec.yaml §2: UNASSIGN_USER_FROM_PERMISSION_GROUP (35). OP-04 20260330: VARCHAR(50) sufficient; extend via migration if future codes exceed 50.
+    action_type VARCHAR(50) NOT NULL,
+    -- JSON payload (e.g. permissionGroupAuditV1 in specs/activity-permission-group-audit.spec.yaml).
+    -- TEXT: no PostgreSQL length limit for audit-sized documents; full before/after allowedScreens[]
+    -- (allowed screen list ~12 items per specs/permission-group-hierarchy.spec.yaml §4.1) stays well below practical limits.
+    -- Use JSONB + migration only if Backend requires server-side JSON operators or expression indexes on this column.
+    action_detail TEXT,
     ip_address VARCHAR(45),            -- IPv6 지원
     user_agent TEXT,
     request_method VARCHAR(10),         -- GET, POST, PUT, DELETE
@@ -42,7 +47,25 @@ CREATE TRIGGER update_user_activity_log_updated_at
 GRANT ALL PRIVILEGES ON TABLE user_activity_log TO logmng;
 GRANT ALL PRIVILEGES ON SEQUENCE user_activity_log_id_seq TO logmng;
 
+-- Append-only access audit (who viewed sensitive activity log detail / full copy body).
+-- Same DDL as migrate-user-activity-access-audit-20260406.sql (keep in sync).
+-- FK notes: target_activity_log_id ON DELETE SET NULL; accessor_user_id ON DELETE RESTRICT — see migration file comments.
+CREATE TABLE IF NOT EXISTS user_activity_access_audit (
+    id BIGSERIAL PRIMARY KEY,
+    accessor_user_id BIGINT NOT NULL REFERENCES app_user(id) ON DELETE RESTRICT,
+    target_activity_log_id BIGINT NULL REFERENCES user_activity_log(id) ON DELETE SET NULL,
+    access_type VARCHAR(64) NOT NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    ip_address VARCHAR(45) NULL,
+    user_agent TEXT NULL
+);
 
+CREATE INDEX IF NOT EXISTS idx_user_activity_access_audit_created_at ON user_activity_access_audit(created_at);
+CREATE INDEX IF NOT EXISTS idx_user_activity_access_audit_accessor_created ON user_activity_access_audit(accessor_user_id, created_at);
+CREATE INDEX IF NOT EXISTS idx_user_activity_access_audit_target_log ON user_activity_access_audit(target_activity_log_id);
+
+GRANT ALL PRIVILEGES ON TABLE user_activity_access_audit TO logmng;
+GRANT ALL PRIVILEGES ON SEQUENCE user_activity_access_audit_id_seq TO logmng;
 
 
 

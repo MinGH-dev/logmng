@@ -854,6 +854,8 @@ const TREEMAP_DATA = {
     "search-filter-form-design.mdc": ".cursor/rules/search-filter-form-design.mdc",
     "security-permissions.mdc": ".cursor/rules/security-permissions.mdc",
     "subagent-invoke.mdc": ".cursor/rules/subagent-invoke.mdc",
+    "svg-chromium.mdc": ".cursor/rules/svg-chromium.mdc",
+    "svg-wireframe-semantics.mdc": ".cursor/rules/svg-wireframe-semantics.mdc",
     "treemap-consistency.mdc": ".cursor/rules/treemap-consistency.mdc",
     "ux-frontend-standard-first.mdc": ".cursor/rules/ux-frontend-standard-first.mdc",
     "workflow-todos.mdc": ".cursor/rules/workflow-todos.mdc",
@@ -2436,6 +2438,27 @@ const TREEMAP_DATA = {
           ]
         },
         {
+          "name": "svg-chromium.mdc",
+          "desc": "SVG 자산은 Chromium(Chrome) 기준으로 저장·검증한다.",
+          "refs": []
+        },
+        {
+          "name": "svg-wireframe-semantics.mdc",
+          "desc": "How to read wireframe SVGs — root data-* policy + XML comments vs visible text (separation of concerns).",
+          "refs": [
+            {
+              "name": "docs/contract.md",
+              "type": "other",
+              "path": "docs/contract.md"
+            },
+            {
+              "name": "*.spec.yaml",
+              "type": "other",
+              "path": "specs/*.spec.yaml"
+            }
+          ]
+        },
+        {
           "name": "treemap-consistency.mdc",
           "desc": "위임·요건문서 ref 일관성: 트리맵 스크립트를 단일 소스로 유지. 에이전트/워크플로 변경 후 generate-treemap.js 실행.",
           "refs": [
@@ -2760,6 +2783,11 @@ const TREEMAP_DATA = {
             "category": "domain",
             "refs": [
               {
+                "name": "activity-permission-group-audit.spec.yaml",
+                "type": "other",
+                "path": "specs/activity-permission-group-audit.spec.yaml"
+              },
+              {
                 "name": "docs/api-definition.md",
                 "type": "other",
                 "path": "docs/api-definition.md"
@@ -2781,6 +2809,26 @@ const TREEMAP_DATA = {
             "desc": "is_system_admin, 권한 그룹, 화면별 접근, scope (self/team/all).",
             "category": "domain",
             "refs": [
+              {
+                "name": "external-identity-auth.spec.yaml",
+                "type": "other",
+                "path": "specs/external-identity-auth.spec.yaml"
+              },
+              {
+                "name": "activity-permission-group-audit.spec.yaml",
+                "type": "other",
+                "path": "specs/activity-permission-group-audit.spec.yaml"
+              },
+              {
+                "name": "docs/requirements/20260410-screen-access-menu-api-consistency.md",
+                "type": "other",
+                "path": "docs/requirements/20260410-screen-access-menu-api-consistency.md"
+              },
+              {
+                "name": "package.json",
+                "type": "other",
+                "path": "frontend/package.json"
+              },
               {
                 "name": "docs/contract.md",
                 "type": "other",
@@ -2837,6 +2885,51 @@ const TREEMAP_DATA = {
                 "name": "schema_imagelog.sql",
                 "type": "other",
                 "path": "schema_imagelog.sql"
+              },
+              {
+                "name": "migrate-imagelog-guid-status-unique-20260320.sql",
+                "type": "other",
+                "path": "migrate-imagelog-guid-status-unique-20260320.sql"
+              },
+              {
+                "name": "migrate-sys-decryption-composite-pk-20260320.sql",
+                "type": "other",
+                "path": "migrate-sys-decryption-composite-pk-20260320.sql"
+              },
+              {
+                "name": "migrate-imagelog-composite-decrypt-20260320.sql",
+                "type": "other",
+                "path": "migrate-imagelog-composite-decrypt-20260320.sql"
+              },
+              {
+                "name": "setup.sh",
+                "type": "other",
+                "path": "setup.sh"
+              },
+              {
+                "name": "migrate-permission-group-screen-scope.sql",
+                "type": "other",
+                "path": "migrate-permission-group-screen-scope.sql"
+              },
+              {
+                "name": "migrate-permission-group-screen-functions.sql",
+                "type": "other",
+                "path": "migrate-permission-group-screen-functions.sql"
+              },
+              {
+                "name": "migrate-permission-group-screen-decrypt.sql",
+                "type": "other",
+                "path": "migrate-permission-group-screen-decrypt.sql"
+              },
+              {
+                "name": "migrate-permission-group-screen-scope-team.sql",
+                "type": "other",
+                "path": "migrate-permission-group-screen-scope-team.sql"
+              },
+              {
+                "name": "check-db.sh",
+                "type": "other",
+                "path": "check-db.sh"
               },
               {
                 "name": "DB_*.md",
@@ -2952,6 +3045,11 @@ const TREEMAP_DATA = {
                 "name": "docs/requirements/20260318-decryption-approval-guids-encrypted-only.md",
                 "type": "other",
                 "path": "docs/requirements/20260318-decryption-approval-guids-encrypted-only.md"
+              },
+              {
+                "name": "docs/requirements/20260320-imagelog-guid-status-composite-key.md",
+                "type": "other",
+                "path": "docs/requirements/20260320-imagelog-guid-status-composite-key.md"
               },
               {
                 "name": "docs/api-definition.md",
@@ -5335,7 +5433,7 @@ const TREEMAP_DATA = {
       "name": "docs/contract.md",
       "color": "other",
       "role": "API·DB·포트 계약 — 10개 이상 에이전트가 참조",
-      "refsTo": 37,
+      "refsTo": 38,
       "barWidth": 100
     },
     {
@@ -5343,35 +5441,35 @@ const TREEMAP_DATA = {
       "color": "template",
       "role": "§1·§2·§3·§5·§6 요건 문서의 구조 정의",
       "refsTo": 31,
-      "barWidth": 84
+      "barWidth": 82
     },
     {
       "name": "search-fields-by-screen",
       "color": "workflow",
       "role": "search-fields-by-screen",
       "refsTo": 25,
-      "barWidth": 68
+      "barWidth": 66
     },
     {
       "name": "forms-and-filters",
       "color": "workflow",
       "role": "forms-and-filters",
       "refsTo": 24,
-      "barWidth": 65
+      "barWidth": 63
     },
     {
       "name": "search-field-definition-items",
       "color": "workflow",
       "role": "search-field-definition-items",
       "refsTo": 23,
-      "barWidth": 62
+      "barWidth": 61
     },
     {
       "name": "AGENT-COLLABORATION-ON-REQUIREMENT.md",
       "color": "workflow",
       "role": "에이전트 협업 인덱스 — 순서·핸드오프 규칙. 상세: REQUIREMENTS-AUTHORING-WORKFLOW, DEVELOPMENT-QUERY-EXPERTS.",
       "refsTo": 18,
-      "barWidth": 49
+      "barWidth": 47
     }
   ]
 };

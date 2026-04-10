@@ -69,6 +69,9 @@ public class LogDbSearchRequest {
     private Integer pageSize = 10;
     private String sortField = "log_timestamp";
     private String sortDirection = "desc";
+    /** Optional multi-column sort for pb_feplog (ordered). When non-empty, takes precedence over sortField/sortDirection for PB FEP. */
+    @JsonProperty("sortSpecs")
+    private List<LogDbSortSpec> sortSpecs = new ArrayList<>();
     private String displayTemplate = "detailed";
     
     // Getters and Setters
@@ -245,6 +248,14 @@ public class LogDbSearchRequest {
     
     public void setSortDirection(String sortDirection) {
         this.sortDirection = sortDirection;
+    }
+
+    public List<LogDbSortSpec> getSortSpecs() {
+        return sortSpecs;
+    }
+
+    public void setSortSpecs(List<LogDbSortSpec> sortSpecs) {
+        this.sortSpecs = sortSpecs != null ? sortSpecs : new ArrayList<>();
     }
     
     public String getDisplayTemplate() {

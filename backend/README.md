@@ -46,7 +46,7 @@ mvn spring-boot:run
 
 또는 빌드된 JAR 파일 실행:
 ```bash
-java -jar target/logmng-backend-1.0.0.jar
+java -jar target/logmng-backend-1.0.1.jar
 ```
 
 ### 테스트 실행
@@ -63,18 +63,20 @@ mvn test
 
 ### application.yml
 주요 설정 항목:
-- `server.port`: 서버 포트 (기본값: 9100)
+- `server.port`: 서버 포트 (기본값: **9200** — 배포·계약과 동일)
+- `logging.file.name`: 파일 로그 경로; 운영에서는 환경 변수 **`LOGGING_FILE_NAME`** 로 덮어쓰기 ([`docs/contract.md`](../docs/contract.md))
 - `logging.level`: 로깅 레벨 설정
 - `spring.jackson`: JSON 직렬화 설정
 
-### 환경 변수
-- `LOG_PATH`: 로그 파일 저장 경로 (기본값: `logs/`)
+### 환경 변수·비밀
+- **저장소 루트** [`.env.example`](../.env.example): 설치·런타임 키 템플릿(한글 주석). 실제 값은 **`.env`**에만 두고 `chmod 600`, **커밋하지 않음** (`.gitignore`).
+- **JDBC·스키마·3분할 DB** 등 정식 이름: [`docs/contract.md`](../docs/contract.md).
+- **DB 프로비저닝**: [`DB_SETUP_GUIDE.md`](DB_SETUP_GUIDE.md), `src/main/resources/db/setup.sh`.
 
 ## 로깅
 - 콘솔 출력 및 파일 로깅 지원
-- 로그 파일 위치: `logs/application.log`
-- 에러 로그: `logs/error.log`
-- 로그 롤링: 일별, 최대 30일 보관
+- 기본 파일 로그: **`logs/application.log`** (`LOGGING_FILE_NAME` 미설정 시 `application.yml` 기본과 동일)
+- `logback-spring.xml`에 에러 전용 파일 등이 있으면 해당 설정을 따름
 
 ## 개발 가이드
 

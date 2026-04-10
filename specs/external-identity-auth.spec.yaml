@@ -1,0 +1,223 @@
+# External org replica, admin provisioning, configurable login mode (local vs AD)
+# Requirement: docs/requirements/20260407-external-dept-employee-ad-login.md
+# Contract: docs/contract.md (auth.login.mode, auth.ad.*, fail-closed, session rules)
+# API summary: docs/api-definition.md §2, §2a
+# Step 3 — contract/spec; Backend/Frontend implement in Step 4.
+
+---
+metadata:
+  title: "External identity tables, provisioning APIs, auth.login.mode local|ad"
+  version: "1.0"
+  requirement_ids:
+    - "20260407-external-dept-employee-ad-login"
+    - "20260407-user-management-consistency-delete-reason-activity-audit"
+    - "20260408-my-page-local-password-and-profile"
+    - "20260409-employee-number-uniqueness-provisioning"
+  status: "draft"
+  base_path: "/api"
+
+---
+# 1. Purpose
+
+- Operators select **exactly one** authentication implementation per deployment/profile via **`auth.login.mode`**: **`local`** (table `password_hash`) or **`ad`** (directory bind / agreed LDAP integration).
+- Administrators with **user-management-class** access search replicated **`ext_employee`** / **`ext_department`** rows and **provision** `app_user` + linkage keys.
+- **Authenticated users with zero screen permissions** must not use protected business APIs; server returns **403**; auth/session introspection endpoints remain per §5.
+
+# 2. Configuration (Spring Boot YAML)
+
+**Source of truth for operators**: `application.yml` and **`application-{profile}.yml`**. Env may override via Spring relaxed binding.
+
+## 2.1 auth.login.mode
+
+| Property | Type | Required | Allowed values |
+|----------|------|----------|----------------|
+| **`auth.login.mode`** | string | Yes (product rule) | **`local`** \| **`ad`** |
+
+- **Semantics**: At runtime **only one** path executes for `POST /api/auth/login`. No silent fallback to the other mode on misconfiguration.
+- **Fail-closed** (at least one MUST hold):
+  - Process **refuses to start** (recommended for operator visibility), **or**
+  - Process starts but **rejects every login** with a **consistent** error until configuration is fixed.
+- Invalid enum / missing when required → fail-closed as above.
+
+## 2.2 auth.login.allow-local-in-production
+
+| Property | Type | Default | Description |
+|----------|------|---------|-------------|
+| **`auth.login.allow-local-in-production`** | boolean | `false` | When **`false`**, if the active profile is **production** (implementation-defined predicate, document in ops), **`auth.login.mode=local`** MUST fail-closed unless product explicitly approves break-glass. When **`true`**, permits local table auth in prod (explicit opt-in). |
+
+## 2.3 auth.ad.* (required when auth.login.mode = ad)
+
+Nested under **`auth.ad`**. End-user auth uses **JNDI `InitialDirContext` simple bind** against **`auth.ad.ldap-url`** with **UPN** = login `principal` when it contains `@`, else **`principal + "@" + auth.ad.domain`**. After bind, **`ExternalIdentityService`** resolution still uses the **request `principal`** string (trimmed), not only the UPN.
+
+| Property | Required | Description |
+|----------|----------|-------------|
+| **`auth.ad.ldap-url`** | Yes | LDAPS or LDAP URL; **`Context.PROVIDER_URL`**. Production MUST use **LDAPS or LDAP+StartTLS** with cert validation (Security §2.1). |
+| **`auth.ad.domain`** | Yes | UPN DNS suffix when login principal has no `@`. Env e.g. **`AUTH_AD_DOMAIN`**. |
+| **`auth.ad.manager-dn`** | No | Legacy — **unused** for authentication (retained for YAML compatibility). |
+| **`auth.ad.manager-password`** | No | Legacy — **unused**. |
+| **`auth.ad.user-search-base`** | No | Legacy — **unused**. |
+| **`auth.ad.user-search-filter`** | No | Legacy — **unused**. |
+| **`auth.ad.connect-timeout-ms`** | No | JNDI **`com.sun.jndi.ldap.connect.timeout`**. |
+| **`auth.ad.read-timeout-ms`** | No | JNDI **`com.sun.jndi.ldap.read.timeout`**. |
+
+- If **`auth.login.mode=ad`** and any **required** `auth.ad.*` is missing or blank → **fail-closed** (startup failure or login refusal — same family as §2.1).
+
+## 2.4 Security constraints (normative excerpts)
+
+- **Never** persist end-user directory passwords in `app_user`, sessions, or application logs.
+- Application DB role for **`ext_*`** tables: **SELECT-only** at runtime; writes via ETL/maintenance principals only (DBA).
+
+# 3. POST /api/auth/login
+
+**Path**: `/api/auth/login`  
+**Method**: POST  
+**Content-Type**: `application/json`
+
+## 3.1 Mode: local
+
+| Field | Type | Required |
+|-------|------|----------|
+| employeeNumber | string | Conditional — recommended login identifier (`app_user.employee_number`) |
+| userId | number | Conditional — deprecated legacy identifier (`app_user.id`) |
+| password | string | Yes |
+
+- **Exactly one identifier**: `employeeNumber` xor `userId` MUST be provided. If both are present, or both are absent, return **400** `INVALID_INPUT`.
+- **Normalization**: `employeeNumber` is compared after trim. Empty-after-trim is invalid input.
+- **Success**: Session cookie; same **`LoginResponse`** family as `docs/api-definition.md` §2.1 (user payload unchanged).
+- **Failure**: Invalid credentials → **401** with project error wrapper; code e.g. `UNAUTHORIZED` or existing login failure code (do not user-enumerate).
+
+## 3.2 Mode: ad
+
+| Field | Type | Required |
+|-------|------|----------|
+| principal | string | Yes — non-blank directory identifier |
+| password | string | Yes |
+
+- **Wrong shape** (e.g. `employeeNumber`/`userId` sent instead of `principal`) → **400** `INVALID_INPUT`.
+- **Directory authentication fails** → **401** `DIRECTORY_AUTH_FAILED` (or unified `UNAUTHORIZED`; implementation picks one per release and documents in `docs/api-definition.md`).
+- **Directory OK but no `app_user` row** for mapped external identity → **401** `APP_USER_NOT_PROVISIONED` (policy: login only after provisioning).
+- **Success**: Same session + `LoginResponse` as local mode; **`app_user`** resolved from mapping table / columns per DB schema (DBA).
+
+## 3.3 Misconfiguration at runtime
+
+- If the server is running but auth subsystem is unusable (invalid mode resolved at request time) → **503** or **401** with **`AUTH_CONFIGURATION_ERROR`** (pick one; document in api-definition).
+
+# 4. Provisioning APIs (admin)
+
+**Prefix**: `/api/provisioning`
+
+**Authorization** (align with `AuthService.canAccessUserManagementView`):
+
+- `is_system_admin === true`, **or**
+- `allowedScreenIds` contains **`user-management`** or **`user-permission-hierarchy`**.
+
+Otherwise → **403** `FORBIDDEN`. Unauthenticated → **401**.
+
+## 4.1 POST /api/provisioning/external-employees/search
+
+Search **`ext_employee`** with optional join to **`ext_department`** for department display name and **`departmentName`** filter (unified search: department name + user id (HR `employee_number`, same numeric style as app **user id** in User Management) + person name in one request). Replicated tables; exact column set in DB schema.
+
+**Request body** (JSON, camelCase):
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| keyword | string | No | **직원명** filter: `ext_employee.display_name` ILIKE `%trim%`. |
+| employeeNumber | string | No | **User id (HR)** / `employee_number`: trim; if empty after trim, filter omitted; else prefix `ext_employee.employee_number` LIKE `trimmed%`. |
+| departmentName | string | No | **부서명** filter: joined `ext_department.name` ILIKE `%trim%` (non-blank only). Server uses `LEFT JOIN ext_department` on `(source_system, external_department_id)`. |
+| externalDepartmentId | string | No | Filter by external dept id on `ext_employee`. |
+| sourceSystem | string | No | When multiple replicas — **source system** discriminator. |
+| page | integer | No | Default 1. |
+| pageSize | integer | No | Default e.g. 20, max cap server-side. |
+
+**Response `data`** (example shape):
+
+```json
+{
+  "items": [
+    {
+      "externalEmployeeId": "string",
+      "sourceSystem": "string",
+      "employeeNumber": "string",
+      "displayName": "string",
+      "externalDepartmentId": "string",
+      "jobTitle": "string",
+      "departmentName": "string"
+    }
+  ],
+  "pagination": { "currentPage": 1, "totalPages": 1, "totalCount": 0 }
+}
+```
+
+`departmentName` is the replicated department display name when the join resolves; may be null if no matching `ext_department` row.
+
+- Field names MAY mirror DB columns in camelCase; **PII minimization** in logs and error messages.
+
+**Errors**: 400 `INVALID_INPUT`; 401; 403.
+
+## 4.2 POST /api/provisioning/external-departments/search
+
+Search **`ext_department`**.
+
+**Request body**: e.g. `keyword`, `externalDepartmentId`, `sourceSystem`, `page`, `pageSize` — same pagination pattern as §4.1.
+
+**Response**: `items[]` + `pagination`.
+
+## 4.3 POST /api/provisioning/users/from-external-employee
+
+Create or link **`app_user`** from one external employee row. **Auditable mutation** (req `20260407-user-management-consistency-delete-reason-activity-audit`): client MUST send a non-blank **`changeReason`**; server validates trim, max **500** characters (same field name and persisted-activity cap as `permissionGroupAuditV1.changeReason` / MF-03 in `docs/api-definition.md` §8.0).
+
+**Request body** (JSON, camelCase):
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| externalEmployeeId | string | Yes | Natural key from replica row. |
+| sourceSystem | string | No | If omitted, server uses default source tag from config. |
+| departmentCode | string | No | Maps to canonical `department.code` when present. |
+| **changeReason** | string | **Yes** | Reason for provisioning (operator-supplied). Non-blank after trim; max **500** chars. Blank, missing, or over length → **400** `INVALID_INPUT`. |
+
+**Success**: **200** or **201** with `data` containing **`userId`** (numeric `app_user.id`) and minimal user summary. On success, activity log **`USER_CREATE`** (or product-confirmed equivalent) with `action_detail` keys per `specs/activity-action-types.spec.yaml` §3 (`changeReason`, `targetUserId`, `employeeNumber`, `username` where applicable; denylist applies).
+
+**Errors**:
+
+| HTTP | code | When |
+|------|------|------|
+| 400 | INVALID_INPUT | Missing keys, **missing/blank/overlong `changeReason`**, unknown dept code, etc. |
+| 401 | UNAUTHORIZED | No session |
+| 403 | FORBIDDEN | Not admin-class user |
+| 409 | EXTERNAL_IDENTITY_CONFLICT | `app_user` already linked to this external key |
+| 409 | USER_EMPLOYEE_NUMBER_DUPLICATED | Another **active** `app_user` (`deleted_at IS NULL`) already has the same **trimmed** non-null `employee_number` as would be stored (same semantics as User Management v2 direct create — `specs/user-management-v2.spec.yaml` §4.4 `409 USER_EMPLOYEE_NUMBER_DUPLICATED`). Rows with `deleted_at` set do not block reuse. |
+| 404 | EXT_EMPLOYEE_NOT_FOUND | External row not found (optional) |
+
+# 5. Zero-permission authenticated session
+
+When `isSystemAdmin === false` **and** `allowedScreenIds` is empty or absent:
+
+- **Protected APIs** (log search, user lists, provisioning, etc.) → **403** `FORBIDDEN` or resource-specific **`FUNCTION_NOT_ALLOWED`** / **`LOG_TYPE_NOT_ALLOWED`** per existing patterns.
+- **Allowed endpoints** (for modal + logout flow):
+  - `GET /api/auth/check`
+  - `GET /api/auth/me`
+  - **`POST /api/auth/me/password`** — **local mode only** for successful password update; in **`auth.login.mode=ad`** → **403** `PASSWORD_CHANGE_NOT_ALLOWED` (normative detail: **`specs/my-page-password.spec.yaml`**)
+  - `POST /api/auth/logout`
+
+**401** is for **missing/invalid session**, not for “no permissions.”
+
+# 6. Logout
+
+- **`POST /api/auth/logout`** — unchanged; session invalidated server-side; **no** `auth.login.mode` branch in contract.
+
+# 7. Alternate login URL (frontend / deployment)
+
+- **Out of API contract**: Same static bundle and **`/api` base**; reverse proxy path, `PUBLIC_URL`, or future SPA router — **deployment concern**; behavior must match primary entry (requirement §1).
+
+# 8. DB tables (reference only)
+
+- **`ext_department`**, **`ext_employee`**: replicated; app runtime **SELECT-only** for app DB role.
+- **`app_user`** linkage: `external_employee_id`, `external_source_system` and/or mapping table — **DBA** schema is authoritative; this spec references names from `docs/requirements/20260407-external-dept-employee-ad-login.md` §2 DB.
+
+# 9. Identifier semantics and transition policy
+
+- **Technical identifier (`userId`)** remains numeric `app_user.id` for path/query/API join semantics.
+- **Human-facing identifier** is `employeeNumber` (`app_user.employee_number`) for login labels and post-login self-context display.
+- **Auth response selfContext** MUST include `employeeNumber: string | null` in addition to `userId: number`.
+- **Null `employee_number` transition**: NULL is allowed for legacy rows during transition; for such users, auth still succeeds according to mode, but clients must not reinterpret technical `userId` as human-facing identifier.
+- **Deprecation**: Local-login `userId` input is backward-compatible and deprecated. Client migration target is `employeeNumber`.

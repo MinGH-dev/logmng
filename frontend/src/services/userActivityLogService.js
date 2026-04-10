@@ -2,7 +2,7 @@
  * 사용자 활동 이력 API 서비스
  */
 
-const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || 'http://localhost:9200/api';
+import { getApiBaseUrl } from '../config/runtimeApi';
 
 /**
  * 사용자 활동 이력 검색
@@ -10,7 +10,7 @@ const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || 'http://localhost:920
  */
 export const searchActivityLogs = async (searchParams) => {
   try {
-    const response = await fetch(`${API_BASE_URL}/activity-log/search`, {
+    const response = await fetch(`${getApiBaseUrl()}/activity-log/search`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -37,11 +37,40 @@ export const searchActivityLogs = async (searchParams) => {
 };
 
 /**
+ * 활동 유형 필터 옵션 (GET). 실패 시 클라이언트는 폴백 상수 사용.
+ * @returns {Promise<{ success: boolean, data: { code: string, label: string }[]|null, status?: number }>}
+ */
+export const getActivityLogActionTypes = async () => {
+  try {
+    const response = await fetch(`${getApiBaseUrl()}/activity-log/action-types`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      credentials: 'include',
+    });
+
+    const result = await response.json().catch(() => ({}));
+
+    if (!response.ok) {
+      return { success: false, data: null, status: response.status };
+    }
+
+    const raw = result.data !== undefined ? result.data : result;
+    const list = Array.isArray(raw) ? raw : [];
+    return { success: true, data: list };
+  } catch (error) {
+    console.error('활동 유형 목록 조회 실패:', error);
+    return { success: false, data: null };
+  }
+};
+
+/**
  * 사용자 활동 이력 상세 조회
  */
 export const getActivityLogDetail = async (id) => {
   try {
-    const response = await fetch(`${API_BASE_URL}/activity-log/${id}`, {
+    const response = await fetch(`${getApiBaseUrl()}/activity-log/${id}`, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
@@ -58,6 +87,83 @@ export const getActivityLogDetail = async (id) => {
   } catch (error) {
     console.error('활동 이력 상세 조회 실패:', error);
     throw error;
+  }
+};
+
+/**
+ * 특권 공개: 전체 인앱 복사 본문 등 (POST). 성공 시 서버가 접근 감사 기록.
+ * @param {number|string} id — activity log id
+ * @param {string} [revealKind='COPY_BODY_FULL']
+ * @returns {Promise<{ success: boolean, status?: number, data?: object, code?: string, error?: string }>}
+ */
+export const postActivityLogPrivilegedReveal = async (id, revealKind = 'COPY_BODY_FULL') => {
+  try {
+    const response = await fetch(`${getApiBaseUrl()}/activity-log/${id}/privileged-reveal`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      credentials: 'include',
+      body: JSON.stringify({ revealKind }),
+    });
+    const result = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      return {
+        success: false,
+        status: response.status,
+        code: result.code,
+        error: result.error || result.message,
+        ...result,
+      };
+    }
+    return { success: true, ...result };
+  } catch (error) {
+    console.error('활동 이력 특권 공개 요청 실패:', error);
+    return {
+      success: false,
+      error: error.message || '요청 실패',
+    };
+  }
+};
+
+/**
+ * 활동 로그 민감 상세 열람 접근 감사 목록 (GET, 페이지네이션).
+ * @param {Record<string, string|number|undefined>} params — startDate, endDate, accessorUserId, targetActivityLogId, accessType, page, pageSize, sortField, sortDirection
+ */
+export const getActivityLogAccessAudit = async (params = {}) => {
+  try {
+    const qs = new URLSearchParams();
+    Object.entries(params).forEach(([k, v]) => {
+      if (v !== undefined && v !== null && v !== '') {
+        qs.append(k, String(v));
+      }
+    });
+    const q = qs.toString();
+    const url = `${getApiBaseUrl()}/activity-log/access-audit${q ? `?${q}` : ''}`;
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      credentials: 'include',
+    });
+    const result = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      return {
+        success: false,
+        status: response.status,
+        code: result.code,
+        error: result.error || result.message,
+        ...result,
+      };
+    }
+    return result;
+  } catch (error) {
+    console.error('활동 로그 접근 감사 조회 실패:', error);
+    return {
+      success: false,
+      error: error.message || '요청 실패',
+    };
   }
 };
 

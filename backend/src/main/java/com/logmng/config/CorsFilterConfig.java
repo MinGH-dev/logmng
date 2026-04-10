@@ -9,6 +9,7 @@ import org.springframework.web.filter.CorsFilter;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.boot.web.servlet.FilterRegistrationBean;
 
+import java.util.Arrays;
 import java.util.List;
 
 /**
@@ -35,7 +36,10 @@ public class CorsFilterConfig {
         config.setAllowCredentials(true);
         config.setAllowedOrigins(cors.allowedOriginList());
         config.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
-        config.setAllowedHeaders(List.of("*"));
+        // No "*" with allowCredentials(true) — browsers reject it on credentialed preflight
+        config.setAllowedHeaders(Arrays.asList(
+                "Content-Type", "Authorization", "Accept", "Accept-Language",
+                "X-Requested-With", "Cache-Control", "Pragma"));
         config.setMaxAge(3600L);
         source.registerCorsConfiguration("/api/**", config);
 

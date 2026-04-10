@@ -1,0 +1,241 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 1420" role="img" aria-label="Log search wireframe: chip omnibar, panel-flush magnifier toggle strip" data-req="log-search-template-unification" data-ref="frontend/src/components (log search screens)" data-wireframe-semantics="v1" data-wireframe-rules-ref=".cursor/rules/svg-wireframe-semantics.mdc" data-wireframe-visible-meta="wireframe-visible-meta-log-search-template" data-wireframe-chrome="full" data-layout="log-search-chip-omnibar-right-panel" data-filter-surface="unified-rail-open-sample" data-search-omnibar="chip-placeholder-clear" data-rail-vs-panel="panel-flush-toggle-magnifier-x916" data-col-screen-name-policy="na-search-template-wireframe" data-wireframe-chrome-toggle-note="data-wireframe-chrome full no-meta clean" data-grid-primitive="assets/svg/primitives/logmng-data-grid.svg" data-pagination-primitive="assets/svg/primitives/common-pagination-bar.svg" data-grid-default-page-size="20">
+  <defs>
+    <style>
+      .view-title { fill: #212121; font-family: "Noto Sans KR", "Roboto", system-ui, sans-serif; font-size: 22px; font-weight: 600; }
+      .bg { fill: #f0f2f5; }
+      .side { fill: #ffffff; stroke: #e8eaed; stroke-width: 1; }
+      .bar { fill: #1565c0; }
+      .bart { fill: #ffffff; font-family: system-ui, sans-serif; font-size: 14px; }
+      .navg { fill: #5f6368; font-family: system-ui, sans-serif; font-size: 11px; font-weight: 600; }
+      .nav { fill: #3c4043; font-family: system-ui, sans-serif; font-size: 12px; }
+      .navhi { fill: #1565c0; font-weight: 600; }
+      .paper { fill: #ffffff; stroke: #dadce0; stroke-width: 1; }
+      .lbl { fill: #5f6368; font-family: system-ui, sans-serif; font-size: 11px; }
+      .item { fill: #202124; font-family: system-ui, sans-serif; font-size: 12px; }
+      .field { fill: #fafbfc; stroke: #dadce0; stroke-width: 1; }
+      .field-t { fill: #80868b; font-family: system-ui, sans-serif; font-size: 9px; }
+      .btn-ghost { fill: #ffffff; stroke: #dadce0; stroke-width: 1; }
+      .btn-ghost-t { fill: #1a73e8; font-family: system-ui, sans-serif; font-size: 10px; font-weight: 600; text-anchor: middle; }
+      .btn-primary { fill: #1a73e8; stroke: none; }
+      .btn-primary-t { fill: #ffffff; font-family: system-ui, sans-serif; font-size: 11px; font-weight: 600; text-anchor: middle; }
+      .chip { fill: #e8f0fe; stroke: #1a73e8; stroke-width: 1; }
+      .chip-sel { fill: #1a73e8; stroke: #1a73e8; stroke-width: 1; }
+      .chip-t { fill: #1967d2; font-family: system-ui, sans-serif; font-size: 10px; font-weight: 600; text-anchor: middle; }
+      .chip-t-sel { fill: #ffffff; font-family: system-ui, sans-serif; font-size: 10px; font-weight: 600; text-anchor: middle; }
+      .omnibar { fill: #ffffff; stroke: #dadce0; stroke-width: 1; }
+      .omnibar-icon { fill: none; stroke: #1a73e8; stroke-width: 1.6; stroke-linecap: round; }
+      .omnibar-chip { fill: #e8f0fe; stroke: #1a73e8; stroke-width: 1; }
+      .omnibar-chip-t { fill: #1967d2; font-family: system-ui, "Noto Sans KR", sans-serif; font-size: 10px; font-weight: 500; }
+      .omnibar-chip-x { fill: #1a73e8; font-family: system-ui, sans-serif; font-size: 9px; font-weight: 600; }
+      .omnibar-ph { fill: #9aa0a6; font-family: system-ui, "Noto Sans KR", sans-serif; font-size: 11px; }
+      .omnibar-clear { fill: #bdc1c6; font-family: system-ui, sans-serif; font-size: 14px; font-weight: 500; text-anchor: middle; }
+      .card-title { fill: #202124; font-family: system-ui, sans-serif; font-size: 12px; font-weight: 600; }
+      /* 공통 데이터 그리드 — primitives/logmng-data-grid.svg, docs/design/grid-and-table.md */
+      .grid-hdr-bg { fill: #fafafa; stroke: #e0e0e0; stroke-width: 1; }
+      .grid-hdr-txt { fill: #424242; font-family: system-ui, sans-serif; font-size: 11px; }
+      .grid-sort-icon { fill: #6c757d; font-size: 10px; }
+      .grid-sort-icon-active { fill: #1976d2; font-size: 11px; font-weight: 600; }
+      .grid-col-band { fill: #f6f8fb; }
+      .grid-col-band-alt { fill: #f1f4f8; }
+      .grid-col-divider { stroke: #d8dee6; stroke-width: 1; }
+      .grid-cell { fill: rgba(255, 255, 255, 0); stroke: #e3e8ef; stroke-width: 1; }
+      .grid-cell-hover-demo { fill: #e8eef6; }
+      /* 공통 페이징 바 — primitives/common-pagination-bar.svg (폭 608 영역에 맞춤) */
+      .pag-bar { fill: #ffffff; stroke: #e0e0e0; stroke-width: 1; }
+      .pag-txt { fill: #616161; font-family: system-ui, sans-serif; font-size: 12px; }
+      .pag-btn { fill: #ffffff; stroke: #bdbdbd; stroke-width: 1; }
+      .pag-btn-txt { fill: #424242; font-family: system-ui, sans-serif; font-size: 11px; }
+      .pag-btn-active { fill: #1976d2; stroke: #1976d2; stroke-width: 1; }
+      .pag-btn-active-txt { fill: #ffffff; font-family: system-ui, sans-serif; font-size: 11px; }
+      .pag-disabled { fill: #f5f5f5; stroke: #e0e0e0; stroke-width: 1; }
+      .pag-disabled-txt { fill: #bdbdbd; font-family: system-ui, sans-serif; font-size: 11px; }
+      .pag-divider { stroke: #e0e0e0; stroke-width: 1; }
+      .tiny { fill: #5f6368; font-family: ui-monospace, monospace; font-size: 9px; }
+      .drawer-sheet { fill: #ffffff; stroke: #dadce0; stroke-width: 1; filter: drop-shadow(-2px 0 10px rgba(32,33,36,0.1)); }
+      /* 토글 띠: 헤더와 동일 fill, 패널 접하는 우측은 면 겹침만. 좌·상·하는 drawer-head 테두리 톤 */
+      .drawer-handle-bg { fill: #fafbfc; stroke: none; filter: none; }
+      .drawer-handle-edge { fill: none; stroke: #e8eaed; stroke-width: 1; stroke-linejoin: round; stroke-linecap: round; }
+      /* 본문·토글 접점 안쪽 모서리 필렛(면은 본문 #fff) */
+      .drawer-body-head-fillet { fill: #ffffff; stroke: none; }
+      .drawer-head { fill: #fafbfc; stroke: none; }
+      .drawer-title { fill: #202124; font-family: system-ui, sans-serif; font-size: 13px; font-weight: 600; }
+      .drawer-foot { fill: #fafbfc; stroke: #e8eaed; stroke-width: 1; }
+      .acc-bar { fill: #f8f9fa; stroke: #e8eaed; stroke-width: 1; }
+      .acc-chev { fill: #5f6368; }
+      .panel-body-scroll { fill: #fafbfc; stroke: #e8eaed; stroke-width: 1; }
+      .drawer-tab { fill: #ffffff; stroke: #dadce0; stroke-width: 1; }
+      .drawer-tab-icon { fill: none; stroke: #5f6368; stroke-width: 1.35; stroke-linecap: round; }
+      .drawer-tab-label { fill: #202124; font-family: system-ui, "Noto Sans KR", sans-serif; font-size: 10px; font-weight: 600; text-anchor: middle; }
+      .drawer-tab-chev { fill: #5f6368; stroke: none; }
+      .wf-layout-main { }
+      .wf-layout-wire-annotations text { text-anchor: start; }
+      .wf-annotations-zone-panel { fill: #dfe4ea; stroke: none; }
+      .wf-annotations-zone-title { fill: #37474f; font-family: system-ui, "Noto Sans KR", sans-serif; font-size: 11px; font-weight: 700; }
+      .wf-meta-title { fill: #37474f; font-family: system-ui, sans-serif; font-size: 10px; font-weight: 700; }
+      .wf-meta-line { fill: #546e7a; font-family: system-ui, sans-serif; font-size: 8px; }
+      .wf-anno-text { fill: #546e7a; font-family: system-ui, sans-serif; font-style: italic; }
+      .wf-anno-legend { fill: #607d8b; font-family: system-ui, sans-serif; font-size: 8px; font-weight: 600; }
+      .wf-section-divider { stroke: #90a4ae; stroke-width: 1; stroke-dasharray: 6 4; }
+      .ux-banner-t { fill: #4527a0; font-family: system-ui, sans-serif; font-size: 11px; font-weight: 700; }
+      .ux-banner-b { fill: #4a148c; font-family: system-ui, sans-serif; font-size: 8px; }
+      .note-t { fill: #e65100; font-family: system-ui, sans-serif; font-size: 11px; font-weight: 600; }
+      .note-b { fill: #5d4037; font-family: system-ui, sans-serif; font-size: 9px; }
+      .foot { fill: #455a64; font-family: system-ui, sans-serif; font-size: 9px; }
+      .wf-mock-tag { fill: #616161; font-family: system-ui, sans-serif; font-size: 6px; font-weight: 600; }
+      svg[data-wireframe-chrome="clean"] .wf-layout-wire-annotations,
+      svg[data-wireframe-chrome="clean"] .wf-chrome-meta,
+      svg[data-wireframe-chrome="clean"] .wf-chrome-annotations { display: none !important; }
+      svg[data-wireframe-chrome="clean"] .wf-annotations-zone-panel,
+      svg[data-wireframe-chrome="clean"] .wf-annotations-zone-divider { display: none !important; }
+      svg[data-wireframe-chrome="no-meta"] .wf-chrome-meta { display: none !important; }
+    </style>
+  </defs>
+  <g id="wf-main-layout-log-search-template" class="wf-layout-main" data-wf-layer="main">
+    <rect class="bg" width="1200" height="640" id="shell-bg"/>
+    <rect class="side" x="0" y="0" width="240" height="640" id="shell-sidebar"/>
+    <text x="16" y="120" class="navg" id="nav-group-search">로그</text>
+    <text x="24" y="146" class="nav navhi" id="nav-log-search">로그 검색</text>
+    <text x="24" y="172" class="nav" id="nav-search-history">검색 이력</text>
+    <rect class="bar" x="240" y="0" width="960" height="56" id="shell-appbar"/>
+    <text x="260" y="36" class="bart" id="appbar-title">로그 관리 시스템</text>
+    <rect class="paper" x="264" y="72" width="912" height="552" rx="8" id="content-panel"/>
+    <text x="288" y="108" class="view-title" id="view-title">로그 검색 — 칩 검색바</text>
+    <text x="288" y="128" class="lbl" id="view-sub">한 줄 바에서 칩과 자유 입력. 상세 조건은 오른쪽 카드, 접기·펼치기는 헤더 톤 돌출 띠(패널과 겹쳐 접선 없음)·돋보기 가운데.</text>
+    <g id="search-omnibar" role="search" aria-label="통합 검색">
+    <rect class="omnibar" x="288" y="136" width="608" height="44" rx="8" id="omnibar-bg"/>
+    <circle class="omnibar-icon" cx="308" cy="158" r="5" fill="none" id="omnibar-lead-icon"/>
+    <line class="omnibar-icon" x1="312" y1="162" x2="318" y2="168" id="omnibar-lead-handle"/>
+    <rect class="omnibar-chip" x="328" y="146" width="118" height="24" rx="12" id="omnibar-filter-chip"/>
+    <text x="338" y="162" class="omnibar-chip-t" id="omnibar-chip-label">상태 : Running</text>
+    <text x="432" y="162" class="omnibar-chip-x" id="omnibar-chip-remove">×</text>
+    <text x="448" y="162" class="omnibar-ph" id="omnibar-placeholder">검색 필터 혹은 검색어를 입력하세요.</text>
+    <text x="878" y="162" class="omnibar-clear" id="omnibar-clear-all">×</text>
+    </g>
+    <text x="288" y="196" class="lbl" id="results-hint">결과 영역 (그리드·옴니바 폭 608, 우끝 896 ↔ 패널 916 간격 20px)</text>
+    <text x="288" y="212" class="wf-mock-tag wf-chrome-annotations" id="drawer-state-tag">UI 목업 · 통합 검색 패널 열림</text>
+    <rect class="paper" x="288" y="220" width="608" height="380" rx="8" id="results-card"/>
+    <text x="300" y="244" class="card-title" id="results-title">검색 결과</text>
+    <text x="300" y="260" class="tiny" id="results-sub">logmng-data-grid 계열: 컬럼 밴드·세로 구분·정렬 아이콘·행 hover. 표시 건수 기본 20(grid-and-table.md).</text>
+    <g id="results-data-grid" role="table" aria-label="검색 결과 테이블" data-wf-pattern="logmng-data-grid">
+    <rect class="grid-hdr-bg" x="300" y="272" width="584" height="28" id="results-grid-header-bg"/>
+    <rect class="grid-col-band" x="300" y="272" width="74" height="148" id="results-grid-col-time-band"/>
+    <rect class="grid-col-band-alt" x="374" y="272" width="80" height="148" id="results-grid-col-level-band"/>
+    <rect class="grid-col-band" x="454" y="272" width="111" height="148" id="results-grid-col-sev-band"/>
+    <rect class="grid-col-band-alt" x="565" y="272" width="319" height="148" id="results-grid-col-msg-band"/>
+    <line class="grid-col-divider" x1="374" y1="272" x2="374" y2="420" id="results-grid-divider-1"/>
+    <line class="grid-col-divider" x1="454" y1="272" x2="454" y2="420" id="results-grid-divider-2"/>
+    <line class="grid-col-divider" x1="565" y1="272" x2="565" y2="420" id="results-grid-divider-3"/>
+    <rect class="grid-hdr-bg" x="300" y="272" width="584" height="28" id="results-grid-header-overlay"/>
+    <text x="308" y="290" class="grid-hdr-txt" id="col-time"><tspan>시각</tspan><tspan class="grid-sort-icon-active" aria-hidden="true"> ↑</tspan></text>
+    <text x="382" y="290" class="grid-hdr-txt" id="col-level"><tspan>레벨</tspan><tspan class="grid-sort-icon" aria-hidden="true"> ↕</tspan></text>
+    <text x="466" y="290" class="grid-hdr-txt" id="col-msg"><tspan>메시지 요약</tspan><tspan class="grid-sort-icon" aria-hidden="true"> ↕</tspan></text>
+    <g id="results-grid-body" role="rowgroup">
+    <rect class="grid-cell" x="300" y="300" width="584" height="24" id="row-1"/>
+    <text x="308" y="316" class="item" id="row-1-t">…</text>
+    <rect class="grid-cell grid-cell-hover-demo" x="300" y="324" width="584" height="24" id="row-2-hover-demo"/>
+    <text x="308" y="340" class="item" id="row-2-t">…</text>
+    <rect class="grid-cell" x="300" y="348" width="584" height="24" id="row-3"/>
+    <text x="308" y="364" class="item" id="row-3-t">…</text>
+    <rect class="grid-cell" x="300" y="372" width="584" height="24" id="row-4"/>
+    <text x="308" y="388" class="item" id="row-4-t">…</text>
+    <rect class="grid-cell" x="300" y="396" width="584" height="24" id="row-5"/>
+    <text x="308" y="412" class="item" id="row-5-t">…</text>
+    </g>
+    </g>
+    <g id="results-pagination-bar" role="navigation" aria-label="페이지네이션" data-wf-pattern="common-pagination-bar">
+    <rect class="pag-bar" x="300" y="428" width="584" height="48" rx="4" id="pagination-container"/>
+    <text x="312" y="456" class="pag-txt" id="pagination-summary">총 248건 · 1–20 표시</text>
+    <line class="pag-divider" x1="458" y1="440" x2="458" y2="464" id="pagination-divider"/>
+    <text x="470" y="456" class="pag-txt" id="pagination-size-label">표시 건수</text>
+    <rect class="pag-btn" x="538" y="440" width="44" height="24" rx="4" id="pagination-size-select"/>
+    <text x="560" y="456" class="pag-btn-txt" text-anchor="middle" id="pagination-size-value">20</text>
+    <rect class="pag-disabled" x="592" y="440" width="26" height="24" rx="4" id="pagination-first-disabled"/>
+    <text x="605" y="456" class="pag-disabled-txt" text-anchor="middle" id="pagination-first-txt">|&lt;</text>
+    <rect class="pag-disabled" x="622" y="440" width="26" height="24" rx="4" id="pagination-prev-disabled"/>
+    <text x="635" y="456" class="pag-disabled-txt" text-anchor="middle" id="pagination-prev-txt">&lt;</text>
+    <rect class="pag-btn-active" x="652" y="440" width="26" height="24" rx="4" id="pagination-page-1-active"/>
+    <text x="665" y="456" class="pag-btn-active-txt" text-anchor="middle" id="pagination-page-1-txt">1</text>
+    <rect class="pag-btn" x="680" y="440" width="26" height="24" rx="4" id="pagination-page-2"/>
+    <text x="693" y="456" class="pag-btn-txt" text-anchor="middle" id="pagination-page-2-txt">2</text>
+    <rect class="pag-btn" x="708" y="440" width="26" height="24" rx="4" id="pagination-next"/>
+    <text x="721" y="456" class="pag-btn-txt" text-anchor="middle" id="pagination-next-txt">&gt;</text>
+    <rect class="pag-btn" x="736" y="440" width="26" height="24" rx="4" id="pagination-last"/>
+    <text x="749" y="456" class="pag-btn-txt" text-anchor="middle" id="pagination-last-txt">&gt;|</text>
+    <text x="778" y="456" class="pag-txt" id="pagination-page-info">1 / 13</text>
+    </g>
+    <g id="filter-drawer-group" data-wf-mock="unified-right-panel" role="dialog" aria-label="검색 조건 패널 왼쪽 토글 띠(돋보기만)">
+    <rect class="drawer-sheet" x="916" y="88" width="260" height="536" rx="10" id="unified-search-panel-shell"/>
+    <rect class="drawer-head" x="916" y="88" width="260" height="48" id="drawer-head-bg"/>
+    <path class="drawer-handle-bg" id="drawer-d-bracket-shell" d="M 919 88 L 894 88 Q 890 88 890 92 L 890 132 Q 890 136 894 136 L 919 136 L 919 88 Z"/>
+    <path class="drawer-handle-edge" id="drawer-handle-edge-outline" d="M 916 88 L 894 88 Q 890 88 890 92 L 890 132 Q 890 136 894 136 L 916 136" aria-hidden="true"/>
+    <g id="drawer-rail-controls" role="group" aria-label="검색 조건 패널 펼치기·접기, 돋보기 아이콘">
+    <circle class="omnibar-icon" cx="903" cy="112" r="5" fill="none" id="drawer-toggle-search-icon"/>
+    <line class="omnibar-icon" x1="907" y1="116" x2="913" y2="122" id="drawer-toggle-search-handle"/>
+    </g>
+    <path class="drawer-body-head-fillet" id="drawer-head-body-inner-fillet" d="M 916 136 L 930 136 A 14 14 0 0 1 916 150 Z" aria-hidden="true"/>
+    <text x="928" y="118" class="drawer-title" id="drawer-title">검색 조건</text>
+    <text x="928" y="156" class="lbl" id="sec-common">공통 필터</text>
+    <rect class="field" x="928" y="164" width="232" height="30" rx="4" id="fld-date-from"/>
+    <text x="936" y="184" class="field-t" id="fld-date-from-t">시작일시</text>
+    <rect class="field" x="928" y="202" width="232" height="30" rx="4" id="fld-date-to"/>
+    <text x="936" y="222" class="field-t" id="fld-date-to-t">종료일시</text>
+    <rect class="field" x="928" y="240" width="232" height="30" rx="4" id="fld-keyword"/>
+    <text x="936" y="260" class="field-t" id="fld-keyword-t">키워드 / ID</text>
+    <rect class="field" x="928" y="278" width="232" height="30" rx="4" id="fld-scope"/>
+    <text x="936" y="298" class="field-t" id="fld-scope-t">조회 범위 (화면별 SoT)</text>
+    <text x="928" y="324" class="lbl" id="sec-extend-label">화면별 확장</text>
+    <rect class="acc-bar" x="928" y="332" width="232" height="32" rx="4" id="acc-extension"/>
+    <text x="940" y="352" class="item" style="font-size:10px" id="acc-extension-t">펼치기 · FEP / Image 전용 필드</text>
+    <path class="acc-chev" d="M 1144 344 L 1152 344 L 1148 352 Z" aria-hidden="true"/>
+    <text x="940" y="380" class="tiny" id="acc-collapsed-hint">(접힘: 패널 본문에서만 주입)</text>
+    <rect class="panel-body-scroll" x="928" y="396" width="232" height="120" rx="4" id="fld-scroll-body"/>
+    <text x="936" y="430" class="field-t" id="fld-scroll-hint">추가 필드 · 스크롤 영역</text>
+    <text x="936" y="452" class="tiny" id="fld-scroll-sub">(와이어: 이 구간만 스크롤, 좌상단 토글 띠·헤더·푸터 고정)</text>
+    <rect class="drawer-foot" x="916" y="544" width="260" height="80" id="drawer-foot-bg"/>
+    <line x1="916" y1="544" x2="1176" y2="544" stroke="#e8eaed" stroke-width="1"/>
+    <rect class="btn-ghost" x="928" y="560" width="72" height="32" rx="4" id="btn-drawer-cancel"/>
+    <text x="964" y="580" class="btn-ghost-t" id="btn-drawer-cancel-t">취소</text>
+    <rect class="btn-primary" x="1052" y="560" width="92" height="32" rx="4" id="btn-drawer-apply"/>
+    <text x="1098" y="580" class="btn-primary-t" id="btn-drawer-apply-t">적용 및 검색</text>
+    </g>
+    <text x="288" y="616" class="tiny" id="closed-hint-note">닫힘: 통합 패널을 오른쪽으로 밀어 너비만 남기거나 숨김. 그리드는 동일 여백 유지, 스크림은 선택 사항.</text>
+  </g>
+  <g id="wf-wire-annotations-log-search-template" class="wf-layout-wire-annotations" data-wf-layer="wire-annotations">
+    <rect class="wf-annotations-zone-panel wf-chrome-annotations" x="0" y="640" width="1200" height="780" id="wf-annotations-zone-bg-log-search"/>
+    <line class="wf-annotations-zone-divider wf-chrome-annotations" x1="0" y1="640" x2="1200" y2="640" stroke="#455a64" stroke-width="2"/>
+    <text x="288" y="658" class="wf-annotations-zone-title wf-chrome-annotations" id="wf-annotations-zone-hint">와이어 주석 구역 (제품 화면 목업 아님)</text>
+    <text x="288" y="678" class="lbl wf-anno-text wf-chrome-annotations" font-size="8px" id="anno-s1-a">목적: 상단 칩 검색바로 빠른 필터·키워드를 한 줄에 두고, 상세 조건은 오른쪽 통합 패널로 보완. 결과 그리드 우측과 패널 좌측 간격 목업 20px(그리드·옴니바 폭 608).</text>
+    <text x="288" y="690" class="lbl wf-anno-text wf-chrome-annotations" font-size="8px" id="anno-s1-b">SoT: contract.md, specs, search-consistency 스킬. 본 SVG 라벨은 예시입니다.</text>
+    <text x="288" y="708" class="wf-anno-legend wf-chrome-annotations" id="wf-legend">■ 실선 카드와 시트 = 화면 목업 / 이탤릭 회색 = 와이어 주석과 스펙</text>
+    <line class="wf-section-divider wf-chrome-annotations" x1="288" y1="718" x2="1152" y2="718" id="wf-div-1"/>
+    <text x="288" y="738" class="ux-banner-t wf-chrome-annotations" id="ux-title">오른쪽 통합 검색 패턴 (와이어프레임, 구현 세부는 코드 SoT)</text>
+    <text x="288" y="754" class="ux-banner-b wf-chrome-annotations" id="ux-1">• 칩 검색바: 선행 파란 돋보기, 필터 칩(칩별 ×), 플레이스홀더, 맨 오른쪽 전체 지우기 ×.</text>
+    <text x="288" y="766" class="ux-banner-b wf-chrome-annotations" id="ux-2">• 접기·펼치기: 돌출 띠 fill=#fafbfc, 패널과 겹침으로 우접선 이중 제거. 돌출 측만 좌·상·하 외곽선(#e8eaed, drawer-head와 동일). 돋보기 cx≈903·cy≈112.</text>
+    <text x="288" y="778" class="ux-banner-b wf-chrome-annotations" id="ux-3">• 본문 #fff·헤더 #fafbfc. 헤더·본문 사이 가로 구분선 없음(헤더 stroke 없음). 토글·본문 접점 안쪽 필렛(본문 fill arc r≈14). 아이콘 omnibar 파랑.</text>
+    <text x="288" y="790" class="ux-banner-b wf-chrome-annotations" id="ux-4">• 푸터: 적용 및 검색, 취소를 패널 하단에 고정해 스크롤 길이와 무관하게 확인 동작을 유지.</text>
+    <text x="288" y="802" class="ux-banner-b wf-chrome-annotations" id="ux-5">• 접근성: 검색바·패널 토글 돋보기 톤 통일. 패널 닫기는 토글 띠·Esc·취소. 모바일은 전폭 패널 또는 바텀 시트 검토.</text>
+    <line class="wf-section-divider wf-chrome-annotations" x1="288" y1="812" x2="1152" y2="812" id="wf-div-2"/>
+    <text x="288" y="832" class="note-t wf-chrome-annotations" id="sec-template-title">검색바·패널 데이터 (주석)</text>
+    <text x="288" y="850" class="note-b wf-chrome-annotations" id="tmpl-1">• omnibar: 칩 배열(필드·값) + rawQuery 문자열. 칩 ×는 해당 조건만 제거, 오른쪽 ×는 입력 전체 초기화.</text>
+    <text x="288" y="864" class="note-b wf-chrome-annotations" id="tmpl-2">• 패널에서 적용한 필터는 omnibar 칩으로 동기화. 패널 닫힌 상태에서도 칩·입력으로 검색 가능하게 할지 정책 결정.</text>
+    <text x="288" y="878" class="note-b wf-chrome-annotations" id="tmpl-3">• 적용 순서: omnibar Enter 또는 패널 적용 및 검색 시 API 호출. 취소 시 패널만 닫고 omnibar 확정값은 유지 또는 롤백 정책.</text>
+    <line class="wf-section-divider wf-chrome-annotations" x1="288" y1="888" x2="1152" y2="888" id="wf-div-3"/>
+    <text x="288" y="908" class="foot wf-anno-text wf-chrome-annotations" id="foot-impl">구현 시: Omnibar + 그리드 + (돋보기 토글 띠 | ConditionPanel). 그리드 열과 패널 사이 gap 권장 20px, 토글은 패널에 붙임.</text>
+    <text x="288" y="924" class="foot wf-anno-text wf-chrome-annotations" id="foot-api">API: 기존 검색 엔드포인트에 칩 직렬화 필드·rawQuery 전달. 저장형 프리셋은 별도 API (TODO: 스펙 확정).</text>
+    <line class="wf-section-divider wf-chrome-annotations" x1="288" y1="934" x2="1152" y2="934" id="wf-div-4"/>
+    <text x="288" y="954" class="note-t wf-chrome-annotations" id="sec-checklist-title">공통화 체크리스트 (요약)</text>
+    <text x="288" y="972" class="note-b wf-chrome-annotations" id="chk-1">1) omnibar 높이·칩 스타일·플레이스홀더·전체 지우기 위치를 모든 로그 검색 화면에서 통일</text>
+    <text x="288" y="986" class="note-b wf-chrome-annotations" id="chk-2">2) 패널 본문 필드 순서와 라벨 키 통일, omnibar 칩 문구 규칙 통일</text>
+    <text x="288" y="1000" class="note-b wf-chrome-annotations" id="chk-3">3) 화면별 확장은 패널 본문 아코디언 한 블록으로만 노출 (인라인 중복 금지)</text>
+    <text x="288" y="1014" class="note-b wf-chrome-annotations" id="chk-4">4) 결과 그리드 툴바와 페이지네이션은 패널 열림 닫힘과 무관하게 동일 패턴</text>
+    <line class="wf-chrome-meta wf-chrome-annotations" x1="288" y1="1030" x2="1152" y2="1030" stroke="#90a4ae" stroke-width="1" stroke-dasharray="6 4" id="wf-meta-sep"/>
+    <g class="wf-chrome-meta wf-chrome-annotations wf-root-legend wireframe-root-legend" id="wireframe-visible-meta-log-search-template" data-wf-layer="wire-annotations-root" role="region" aria-label="Wireframe annotations: root data summary">
+      <title>Wireframe annotations — root summary</title>
+      <text x="288" y="1050" class="wf-meta-title" id="meta-title" text-anchor="start">■ 와이어 주석 — 루트 data-* 요약 (이미지 뷰어 표시, 제품 UI 문구 아님)</text>
+      <text x="288" y="1066" class="wf-meta-line" id="meta-l1" text-anchor="start">data-rail-vs-panel=panel-flush-toggle-magnifier-x916, data-layout=log-search-chip-omnibar-right-panel, data-req=log-search-template-unification.</text>
+      <text x="288" y="1080" class="wf-meta-line" id="meta-l2" text-anchor="start">data-col-screen-name-policy=na-search-template-wireframe — omnibar + 돋보기 토글 띠·조건 카드 맞닿음 목업, 화면명 열 매트릭스 없음.</text>
+      <text x="288" y="1094" class="wf-meta-line" id="meta-l3" text-anchor="start">data-wireframe-chrome: full, no-meta, clean 동작은 svg-wireframe-semantics.mdc와 동일.</text>
+      <text x="288" y="1108" class="wf-meta-line" id="meta-l4" text-anchor="start">전문 규칙: .cursor/rules/svg-wireframe-semantics.mdc, Chromium XML: .cursor/rules/svg-chromium.mdc</text>
+    </g>
+  </g>
+</svg>

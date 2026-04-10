@@ -1,6 +1,6 @@
 -- imagelog sample data (idempotent)
 -- Inserts only when the table is empty. Re-run does not delete or duplicate.
--- Req: 20260318-image-log-sample-data-preserve
+-- Req: 20260318-image-log-sample-data-preserve, 20260330-imagelog-dup-guid-sample-data (dup guid + input/output)
 --
 -- Mix: ~100 rows (95-105); rows WITHOUT encrypted data (plain/empty) and
 -- rows WITH encrypted/bracket-wrapped content for decryption and non-decryption testing.
@@ -112,6 +112,8 @@ BEGIN
 ('MONITOR', 'Ops', 'Trace', 'input', '[ENC_DATA_76]', '{"span":"[ENC_SPAN_76]"}', 'GUID-ENC-076', '', '{}', EXTRACT(EPOCH FROM NOW() - INTERVAL '74 hours') * 1000),
 ('MONITOR', 'Ops', 'Trace', 'output', '[ENC_DATA_77]', '{"trace":"[ENC_TR_77]"}', 'GUID-ENC-077', '[ENC_HDR_77]', '{}', EXTRACT(EPOCH FROM NOW() - INTERVAL '75 hours') * 1000),
 ('BATCH', 'Job', 'J5', 'input', '[ENC_DATA_78]', '{"task":"[ENC_TASK_78]"}', 'GUID-ENC-078', '', '{}', EXTRACT(EPOCH FROM NOW() - INTERVAL '76 hours') * 1000),
-('BATCH', 'Job', 'J5', 'output', '[ENC_DATA_79]', '{"summary":"[ENC_SUM_79]"}', 'GUID-ENC-079', '[ENC_HDR_79]', '{}', EXTRACT(EPOCH FROM NOW() - INTERVAL '77 hours') * 1000);
+('BATCH', 'Job', 'J5', 'output', '[ENC_DATA_79]', '{"summary":"[ENC_SUM_79]"}', 'GUID-ENC-079', '[ENC_HDR_79]', '{}', EXTRACT(EPOCH FROM NOW() - INTERVAL '77 hours') * 1000),
+('LDP', 'EduSG', 'SE10002_select', 'input', '', '{"dupGuid":"GUID-DUP-PRETTY-20260330","phase":"request","pretty":true}', 'GUID-DUP-PRETTY-20260330', '', '{"dupGuid":"GUID-DUP-PRETTY-20260330","phase":"requestHeader","pretty":true}', EXTRACT(EPOCH FROM NOW() - INTERVAL '78 hours') * 1000),
+('LDP', 'EduSG', 'SE10002_select', 'output', '', '{"dupGuid":"GUID-DUP-PRETTY-20260330","phase":"response","pretty":true}', 'GUID-DUP-PRETTY-20260330', '', '{"dupGuid":"GUID-DUP-PRETTY-20260330","phase":"responseHeader","pretty":true}', EXTRACT(EPOCH FROM NOW() - INTERVAL '79 hours') * 1000);
   END IF;
 END $$;

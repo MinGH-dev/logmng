@@ -3,6 +3,8 @@ package com.logmng.util;
 import com.logmng.constants.ScreenConstants;
 import org.junit.jupiter.api.Test;
 
+import java.util.List;
+
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
@@ -40,5 +42,20 @@ class LogTypeScreenHelperTest {
         assertThat(LogTypeScreenHelper.isKnownLogType("other")).isFalse();
         assertThat(LogTypeScreenHelper.isKnownLogType("")).isFalse();
         assertThat(LogTypeScreenHelper.isKnownLogType(null)).isFalse();
+    }
+
+    @Test
+    void userHasAccessToLogType_pb_feplog_acceptsPbFeplogScreen() {
+        assertThat(LogTypeScreenHelper.userHasAccessToLogType(List.of(ScreenConstants.PB_FEPLOG), "pb_feplog")).isTrue();
+    }
+
+    @Test
+    void userHasAccessToLogType_pb_feplog_acceptsPbFepLogSearchScreen() {
+        assertThat(LogTypeScreenHelper.userHasAccessToLogType(List.of(ScreenConstants.PB_FEP_LOG_SEARCH), "pb_feplog")).isTrue();
+    }
+
+    @Test
+    void userHasAccessToLogType_pb_feplog_rejectsOtherScreens() {
+        assertThat(LogTypeScreenHelper.userHasAccessToLogType(List.of(ScreenConstants.SEARCH_HISTORY), "pb_feplog")).isFalse();
     }
 }

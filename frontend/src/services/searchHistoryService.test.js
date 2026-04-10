@@ -1,4 +1,4 @@
-import { getSearchHistoryList, createSearchHistory } from './searchHistoryService';
+import { getSearchHistoryList, getSearchHistoryDetail, createSearchHistory } from './searchHistoryService';
 
 describe('searchHistoryService', () => {
   beforeEach(() => {
@@ -52,6 +52,27 @@ describe('searchHistoryService', () => {
     expect(requestUrl.searchParams.get('department')).toBeNull();
     expect(requestUrl.searchParams.get('username')).toBeNull();
     expect(requestUrl.searchParams.get('userId')).toBeNull();
+  });
+
+  test('includes listContext when provided', async () => {
+    await getSearchHistoryList({
+      page: 1,
+      pageSize: 20,
+      sortField: 'requested_at',
+      sortDirection: 'desc',
+      listContext: 'pending-approvals',
+    });
+
+    const requestUrl = new URL(global.fetch.mock.calls[0][0], 'http://localhost');
+    expect(requestUrl.searchParams.get('listContext')).toBe('pending-approvals');
+  });
+
+  test('getSearchHistoryDetail appends listContext query when provided', async () => {
+    await getSearchHistoryDetail(42, { listContext: 'pending-approvals' });
+
+    const requestUrl = new URL(global.fetch.mock.calls[0][0], 'http://localhost');
+    expect(requestUrl.pathname).toMatch(/\/search-history\/42$/);
+    expect(requestUrl.searchParams.get('listContext')).toBe('pending-approvals');
   });
 
   describe('createSearchHistory', () => {

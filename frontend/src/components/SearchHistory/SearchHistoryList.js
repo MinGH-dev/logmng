@@ -8,7 +8,7 @@ import {
   FILTER_OPTION_SCREEN_IDS,
   getDepartmentFilterOptions,
 } from '../../services/filterOptionsService';
-import { getSelfContext } from '../../utils/security';
+import { getEmployeeNumberDisplay, getSelfContext } from '../../utils/security';
 import DataTable, { EmptyTableBody } from '../DataTable';
 import UserContextFilterBlock from '../common/UserContextFilterBlock';
 import './SearchHistory.css';
@@ -250,7 +250,8 @@ const createEmptyRequesterFilters = () => ({
 const getLockedRequesterFilters = (selfContext) => ({
   department: selfContext?.department || '',
   username: selfContext?.username || '',
-  userId: selfContext?.userId || '',
+  userId: getEmployeeNumberDisplay(selfContext),
+  employeeNumber: selfContext?.employeeNumber || '',
 });
 
 /** Requester column values from row; supports camelCase and snake_case for API compatibility. */
@@ -368,14 +369,16 @@ function DecryptionRequestedSection({ detailData }) {
               <th scope="col">애플리케이션</th>
               <th scope="col">서비스 그룹</th>
               <th scope="col">GUID</th>
+              <th scope="col">status</th>
             </tr>
           </thead>
           <tbody>
             {rows.map((row, idx) => (
-              <tr key={row.guid != null ? String(row.guid) : idx}>
+              <tr key={row.guid != null ? `${String(row.guid)}::${row.status != null ? String(row.status) : ''}::${idx}` : idx}>
                 <td>{row.application != null && String(row.application).trim() !== '' ? String(row.application) : '—'}</td>
                 <td>{row.serviceGroup != null && String(row.serviceGroup).trim() !== '' ? String(row.serviceGroup) : '—'}</td>
                 <td>{row.guid != null ? String(row.guid) : '—'}</td>
+                <td>{row.status != null && String(row.status).trim() !== '' ? String(row.status) : '—'}</td>
               </tr>
             ))}
           </tbody>

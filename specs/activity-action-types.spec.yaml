@@ -1,0 +1,191 @@
+# Canonical activity action_type codes for user_activity_log
+# Requirement: docs/requirements/20260330-activity-types-user-mgmt-permission-group.md (OP-01)
+# Contract: docs/contract.md, docs/api-definition.md §8
+# Step 3 — API/contract only; Backend implements ActivityActionType (or equivalent) + emission points in Step 4.
+
+---
+metadata:
+  title: "user_activity_log.action_type taxonomy and optional GET /api/activity-log/action-types"
+  version: "1.6"
+  requirement: "20260330-activity-types-user-mgmt-permission-group, 20260330-permission-group-activity-detail-audit, 20260330-audit-evidence-activity-log-conservative, 20260407-user-management-consistency-delete-reason-activity-audit, 20260408-user-management-v2-activity-audit-detail-in-activity-log, 20260408-activity-statistics-decrypt-unique-rows-per-day"
+  status: "draft"
+  op_01_note: >
+    Closed set below is the Contract proposal for OP-01. Codes marked **provisional** (or “reserved / mapping TBD”)
+    are subject to product confirmation or Step 4 mapping (e.g. SEARCH_HISTORY_* vs SEARCH, approval vs DECRYPT).
+    Backend enum and DB VARCHAR(50) must cover the longest code (see OP-04).
+
+---
+# 1. Storage and query
+
+- **Column**: `user_activity_log.action_type` — `VARCHAR(50)` (see `schema_user_activity_log.sql`; extend via migration if a future code exceeds 50).
+- **Search filter**: `POST /api/activity-log/search` request body **`actionType`** — optional; when set, exact match on `action_type` (existing behavior).
+- **Scope**: Same as other activity-log APIs — `activity-log` screen + per-screen scope (`self` | `team` | `all`); see `specs/permission-group-hierarchy.spec.yaml` §4.3.
+
+# 2. OP-01 — Canonical `action_type` codes (UPPER_SNAKE_CASE)
+
+All values are **case-sensitive** strings. Labels (`labelKo`) are **display** hints for UI; authoritative copy may follow product wording.
+
+## 2.1 Implemented today (emit from existing `@ActivityLog` or controllers)
+
+| code | labelKo (hint) | Notes |
+|------|----------------|--------|
+| `LOGIN` | 로그인 | Auth |
+| `LOGOUT` | 로그아웃 | Auth |
+| `SEARCH` | 검색 | Log DB search |
+| `VIEW` | 상세 조회 | Log detail |
+| `DECRYPT` | 복호화 | Decrypt / decrypted view paths |
+| `ADVANCED_SEARCH` | 고급 검색 | Advanced search |
+
+## 2.2 Aspect fallback / generic (when `@ActivityLog(actionType="")` infers from method name)
+
+| code | labelKo (hint) | Notes |
+|------|----------------|--------|
+| `EXPORT` | 내보내기 | Inferred name contains `export` |
+| `STATS_VIEW` | 통계 조회 | Inferred name contains `stats`; also counted in search-like KPI bucket in `ActivityStatisticsService` |
+| `SCHEMA_VIEW` | 스키마 조회 | Inferred name contains `schema` |
+| `UNKNOWN` | 기타 | Fallback when no rule matches |
+
+## 2.3 Planned — permission group (req §2; Step 4 emission)
+
+| code | labelKo (hint) | Notes |
+|------|----------------|--------|
+| `PERMISSION_GROUP_CREATE` | 권한 그룹 생성 | `action_detail`: ids/codes only; no secrets |
+| `PERMISSION_GROUP_UPDATE` | 권한 그룹 수정 | |
+| `PERMISSION_GROUP_DELETE` | 권한 그룹 삭제 | |
+| `ASSIGN_USER_TO_PERMISSION_GROUP` | 권한 그룹 사용자 배정 | target user + group identifiers |
+| `UNASSIGN_USER_FROM_PERMISSION_GROUP` | 권한 그룹 사용자 해제 | target user + group identifiers |
+
+## 2.4 User & org admin (auditable mutations)
+
+| code | labelKo (hint) | Notes |
+|------|----------------|--------|
+| `USER_CREATE` | 사용자 생성 | Emit on successful **`POST /api/provisioning/users/from-external-employee`** and on **`POST /api/user-management-v2/users/direct`** (req `20260407-…`, `20260408-user-management-v2-activity-audit-detail-in-activity-log`). **Discriminate** v2 direct vs HR provisioning in `action_detail` — see §2.8 and §3 **user_admin** (`registrationSource`). |
+| `USER_UPDATE` | 사용자 수정 | **Profile / admin field updates** on an existing `app_user` only. **Do not** use this code for: manual department tree mutations (use **`DEPARTMENT_*`** in §2.8), permission-group membership changes (use **`ASSIGN_USER_TO_PERMISSION_GROUP`** / **`UNASSIGN_USER_FROM_PERMISSION_GROUP`**), or provisioning/direct registration (use **`USER_CREATE`** with discriminant). Excludes passwords/tokens in `action_detail`. |
+| `USER_DELETE` | 사용자 삭제 | Emit on successful **`DELETE /api/users/{userId}`** with required body `changeReason` (req `20260407-user-management-consistency-delete-reason-activity-audit`). `action_detail` §3. |
+| `DEPARTMENT_APPROVER_UPDATE` | 부서 결재자 변경 | department approver screens / APIs |
+| `SCREEN_DISPLAY_LABELS_UPDATE` | 화면 표시 라벨 변경 | PUT `/api/screen-display-labels` (req 20260406-menu-display-names-admin); `@ActivityLog` includeParams=false |
+
+## 2.5 Reserved / mapping TBD — search history & decrypt approval (OP-01 provisional)
+
+Product may **reuse** existing `SEARCH` / `DECRYPT` for some paths until instrumented. These codes are **reserved** so filters and labels stay stable when split.
+
+| code | labelKo (hint) | Notes |
+|------|----------------|--------|
+| `SEARCH_HISTORY_CREATE` | 검색 이력 생성 | Use when a distinct row is required vs generic `SEARCH` |
+| `DECRYPT_APPROVAL_APPROVE` | 복호화 승인 | Approval action (e.g. search-history approve) |
+| `DECRYPT_APPROVAL_REJECT` | 복호화 반려 | Reject action |
+
+## 2.6 Optional — list view audit (OP-03)
+
+| code | labelKo (hint) | Notes |
+|------|----------------|--------|
+| `USER_LIST_VIEW` | 사용자 목록 조회 | **provisional** — emit only if product accepts noise from `GET /api/users` list |
+
+## 2.7 Planned — in-app copy & access-audit evidence (req `20260330-audit-evidence-activity-log-conservative`)
+
+Conservative defaults: **in-app selection/copy only** (no OS-wide clipboard). Payloads are **truncated** server-side with **`was_truncated`**; full body view is **privileged** and **must** append an access-audit record (see `specs/activity-log-audit-evidence.spec.yaml`).
+
+| code | labelKo (hint) | Notes |
+|------|----------------|--------|
+| `IN_APP_COPY` | 인앱 복사 | **provisional label** — in-app copy event; `action_detail.copyPayload` shape in activity-log-audit-evidence spec §4 |
+| `ACCESS_AUDIT_VIEW` | 접근 감사(민감 상세 열람) | **Use only if** implementation stores access-audit rows in **`user_activity_log`** with a dedicated type; if a **separate table** is used, this code may be omitted and audit rows are not activity-log “actions”. |
+
+## 2.8 User Management v2 — department tree and direct registration (req `20260408-user-management-v2-activity-audit-detail-in-activity-log`)
+
+**Filter UX**: One **distinct `action_type` per filterable operation** (not a single `DEPARTMENT_CREATE` with an internal enum) so activity-log **`actionType`** matches reviewer expectations.
+
+| code | labelKo (hint) | Emit when (contract) |
+|------|----------------|---------------------|
+| `DEPARTMENT_CREATE_ROOT` | 부서 생성(최상위) | Successful **`POST /api/user-management-v2/departments/root`** |
+| `DEPARTMENT_CREATE_CHILD` | 부서 생성(하위) | Successful **`POST /api/user-management-v2/departments/{parentDepartmentId}/children`** |
+| `DEPARTMENT_UPDATE` | 부서 수정 | Successful department **update** mutation **when** that API is in contract (placeholder until path exists; do not log as `USER_UPDATE`). |
+| `DEPARTMENT_DELETE` | 부서 삭제 | Successful **`DELETE /api/user-management-v2/departments/{departmentId}`** (JSON body **`changeReason`** required); `action_detail` §3 **department_admin**. Spec: `specs/user-management-v2.spec.yaml` §4.3. |
+
+**Direct user registration (v2)**: Reuse **`USER_CREATE`** (no separate `USER_CREATE_DIRECT` in contract unless product explicitly splits later). Persist **`action_detail`** per §3 **user_admin** and set **`registrationSource`**: **`USER_MANAGEMENT_V2_DIRECT`**. HR / external-employee provisioning success continues to use **`USER_CREATE`** with **`registrationSource`**: **`EXTERNAL_PROVISIONING`** (or omit only where legacy rows predate the field — new emits SHOULD set the discriminant).
+
+**`GET /api/activity-log/action-types`**: MUST include **§2.8** codes that the backend emits (same rule as §4.3 for user lifecycle types).
+
+---
+
+# 3. `action_detail` shapes (high level — no secrets)
+
+JSON object stored in `user_activity_log.action_detail`. Implementations **must not** store passwords, tokens, session identifiers, or decrypted payload content.
+
+| Category | Typical keys (examples) | Forbidden |
+|----------|------------------------|-----------|
+| **auth** | method, outcome (success/failure without secrets) | password, token |
+| **log_search** | `logType`, screen id, row identifiers as already used for audit | full request/response bodies with PII unless policy allows |
+| **permission_group** | **`permissionGroupAuditV1`** (see `specs/activity-permission-group-audit.spec.yaml`): `before`/`after` snapshots, nested `allowedScreens` (`AllowedScreenItem`), optional `changeReason` (max 500, provisional). Legacy flat keys may coexist during transition. | raw JWT, encryption keys, denylist keys in §6 of that spec |
+| **user_assignment** | `targetUserId` (numeric `app_user.id`), `permissionGroupId` | — |
+| **user_admin** | **User lifecycle (req `20260407-user-management-consistency-delete-reason-activity-audit`, `20260408-user-management-v2-activity-audit-detail-in-activity-log`)** — flat `action_detail` for **`USER_CREATE`** / **`USER_DELETE`**: **`changeReason`** (string, required when the mutation API requires it; persisted max **500** chars, align MF-03 / `permissionGroupAuditV1.changeReason`), **`targetUserId`** (number, numeric `app_user.id` — required after create/delete target is known), optional **`employeeNumber`** (string), optional **`username`** (string), optional **`name`** (string, display name for v2 direct create — **omit or truncate** if Security/product policy requires), optional **`departmentId`** / **`departmentCode`** (string, target department code when relevant), optional **`rank`** (string), optional **`permissionGroupId`** (number). For **`USER_CREATE`** only: **`registrationSource`** (string enum) — **`EXTERNAL_PROVISIONING`** \| **`USER_MANAGEMENT_V2_DIRECT`** — **required for new rows** so filters and reviewers distinguish HR provisioning from v2 direct registration. Same denylist as permission_group / §6: no passwords, tokens, session ids, raw request bodies, decrypted content. | password hash, temp password, directory password, refresh tokens |
+| **department_admin** | **Department tree mutations (v2)** — flat object for **`DEPARTMENT_CREATE_ROOT`**, **`DEPARTMENT_CREATE_CHILD`**, and when implemented **`DEPARTMENT_UPDATE`** / **`DEPARTMENT_DELETE`**: **`changeReason`** (string, required when API requires it; max **500**), **`departmentCode`** (string, created or target code), **`parentDepartmentCode`** (string \| **null**, null for root create), optional **`name`** (string), optional **`sortOrder`** (number). For updates, optional **`before`** / **`after`** snapshots obey **mutation_before_after** (allowlisted keys only). Same §6 denylist. | passwords, tokens, full raw request body |
+| **department_approver** | `departmentCode`, optional approver `userId` references | — |
+| **decrypt_approval** | `searchHistoryId`, `decision` (approve/reject) | decrypted content |
+| **in_app_copy** | **`copyPayload`** (see `specs/activity-log-audit-evidence.spec.yaml` §4): truncated selection text, **`was_truncated`**, length/count; never secrets | full unredacted body in stored JSON for non-privileged views — use truncation + privileged reveal API |
+| **delete_snapshot** | **`deleteSnapshot`**: allowlisted keys + resource ids only (req §2) | full entity secrets, credentials |
+| **mutation_before_after** | **`before`**, **`after`** objects with **allowlisted** keys only for updated fields | secret plaintext; use mask/hash/omit per field class |
+
+Exact key names are implementation details; Contract requires **category-appropriate, non-sensitive** content only. Full JSON shapes for copy/delete/before-after **views** (masked vs revealed) are owned by **`specs/activity-log-audit-evidence.spec.yaml`**.
+
+---
+
+# 4. Optional API — filter dropdown options
+
+## 4.1 Endpoint
+
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | /api/activity-log/action-types | Returns canonical `{ code, label }[]` for the activity-type filter on **activity-log**. |
+
+**Alternate path (equivalent semantics)** if implementation prefers the shared `filter-options` family: `GET /api/filter-options/activity-action-types`. **Contract canonical path**: **`GET /api/activity-log/action-types`** (first choice in requirement §2).
+
+## 4.2 Auth / access
+
+- **401** if unauthenticated.
+- **403** `FORBIDDEN` if the user lacks **activity-log** screen access (`read`), same family as `POST /api/activity-log/search` and `GET /api/filter-options/departments?screen=activity-log`.
+- **is_system_admin**: same rules as other activity-log APIs (full access when admin).
+
+## 4.3 Response
+
+**200** — `ApiResponse` wrapper; **data**:
+
+```ts
+type ActivityActionTypeOption = {
+  code: string;   // e.g. "LOGIN" — matches action_type / actionType filter
+  label: string;  // Korean (or product locale) display string for UI
+};
+
+type ActivityActionTypesResponse = ActivityActionTypeOption[];
+```
+
+- Sort: **`code` ascending** unless product specifies locale-aware sort by `label` (document in release notes if changed).
+- Include **all** codes from §2 that the product surfaces in the filter (may exclude `UNKNOWN` from dropdown if product prefers). When user lifecycle audit is implemented, **`GET /api/activity-log/action-types`** MUST include **`USER_DELETE`** and **`USER_CREATE`** (req `20260407-user-management-consistency-delete-reason-activity-audit`, TC-11).
+- **Empty `actionType`** in search means “all types” (unchanged).
+- When User Management v2 audit is implemented, **`GET /api/activity-log/action-types`** MUST include **`DEPARTMENT_CREATE_ROOT`**, **`DEPARTMENT_CREATE_CHILD`**, and any contracted **`DEPARTMENT_UPDATE`** / **`DEPARTMENT_DELETE`** (req `20260408-user-management-v2-activity-audit-detail-in-activity-log`, TC-05).
+
+## 4.4 Errors
+
+| Status | code | When |
+|--------|------|------|
+| 401 | — | Not logged in |
+| 403 | FORBIDDEN | No activity-log access |
+
+---
+
+# 5. Statistics bucketing (informative; OP-02)
+
+- **Not a contract for KPI formulas** — product confirms whether new admin types appear in charts.
+- Existing SQL maps `LOGIN`, `SEARCH`/`ADVANCED_SEARCH`/`STATS_VIEW`, `DECRYPT` to daily aggregates; new types default to **visible in activity-log list** and **may be excluded** from legacy KPI buckets until product extends aggregation.
+- **`DECRYPT` in activity statistics** (req `20260408-activity-statistics-decrypt-unique-rows-per-day`): KPI fields **`totalDecrypts`** / per-day decrypt totals / per-user **`decryptCount`** aggregate **`user_activity_log`** rows with `action_type = DECRYPT` only (**not** `DECRYPT_APPROVAL_*` or approval tables). Counts use **distinct logical row keys per calendar day** (dedup key per log type per `docs/requirements/20260408-activity-statistics-decrypt-unique-rows-per-day.md` §2); **daily global** totals dedupe across users in scope, **per-user** breakdown dedupes within each user then sums days in range.
+
+---
+
+# 6. Related documents
+
+- `docs/contract.md` — activity-log scope, shared filters, appendix AAE-* stubs
+- `docs/requirements/20260408-user-management-v2-activity-audit-detail-in-activity-log.md` — v2 mutation audit, `department_admin`, `USER_CREATE` discriminant
+- `docs/api-definition.md` §8 — activity log API (masking, `POST .../privileged-reveal`, `GET .../access-audit`)
+- `specs/user-management-v2.spec.yaml` §5 — endpoint → `action_type` expectation
+- `docs/requirements/20260330-audit-evidence-activity-log-conservative.md` — product requirement
+- `specs/activity-log-audit-evidence.spec.yaml` — reveal + access-audit API and payload summaries
+- `specs/permission-group-hierarchy.spec.yaml` §4.3 — screen `activity-log` enforcement

@@ -3,7 +3,7 @@
  * docs/api-definition.md §14, specs/permission-group-hierarchy.spec.yaml
  */
 
-const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || 'http://localhost:9200/api';
+import { getApiBaseUrl } from '../config/runtimeApi';
 
 const fetchWithCreds = async (url, options = {}) => {
   const response = await fetch(url, {
@@ -32,7 +32,7 @@ const parseResponse = async (response) => {
  */
 export const getUserPermissionHierarchy = async (format = 'tree') => {
   const response = await fetchWithCreds(
-    `${API_BASE_URL}/departments/user-permission-hierarchy?format=${format}`
+    `${getApiBaseUrl()}/departments/user-permission-hierarchy?format=${format}`
   );
   return parseResponse(response);
 };
@@ -41,7 +41,7 @@ export const getUserPermissionHierarchy = async (format = 'tree') => {
  * 권한 그룹 목록
  */
 export const listPermissionGroups = async () => {
-  const response = await fetchWithCreds(`${API_BASE_URL}/permission-groups`);
+  const response = await fetchWithCreds(`${getApiBaseUrl()}/permission-groups`);
   const result = await parseResponse(response);
   const data = result.data;
   return Array.isArray(data) ? data : (data?.data || []);
@@ -52,7 +52,7 @@ export const listPermissionGroups = async () => {
  * @param {{ code: string, name: string, description?: string, sortOrder?: number }} body
  */
 export const createPermissionGroup = async (body) => {
-  const response = await fetchWithCreds(`${API_BASE_URL}/permission-groups`, {
+  const response = await fetchWithCreds(`${getApiBaseUrl()}/permission-groups`, {
     method: 'POST',
     body: JSON.stringify(body),
   });
@@ -64,17 +64,17 @@ export const createPermissionGroup = async (body) => {
  * @param {number} id
  */
 export const getPermissionGroup = async (id) => {
-  const response = await fetchWithCreds(`${API_BASE_URL}/permission-groups/${id}`);
+  const response = await fetchWithCreds(`${getApiBaseUrl()}/permission-groups/${id}`);
   return parseResponse(response);
 };
 
 /**
  * 권한 그룹 수정
  * @param {number} id
- * @param {{ code?: string, name?: string, description?: string, sortOrder?: number }} body
+ * @param {{ code?: string, name?: string, description?: string, sortOrder?: number, allowedScreens?: object[], changeReason?: string }} body
  */
 export const updatePermissionGroup = async (id, body) => {
-  const response = await fetchWithCreds(`${API_BASE_URL}/permission-groups/${id}`, {
+  const response = await fetchWithCreds(`${getApiBaseUrl()}/permission-groups/${id}`, {
     method: 'PUT',
     body: JSON.stringify(body),
   });
@@ -86,7 +86,7 @@ export const updatePermissionGroup = async (id, body) => {
  * @param {number} id
  */
 export const deletePermissionGroup = async (id) => {
-  const response = await fetchWithCreds(`${API_BASE_URL}/permission-groups/${id}`, {
+  const response = await fetchWithCreds(`${getApiBaseUrl()}/permission-groups/${id}`, {
     method: 'DELETE',
   });
   return parseResponse(response);
@@ -97,7 +97,7 @@ export const deletePermissionGroup = async (id) => {
  * @param {number} groupId
  */
 export const listUsersInGroup = async (groupId) => {
-  const response = await fetchWithCreds(`${API_BASE_URL}/permission-groups/${groupId}/users`);
+  const response = await fetchWithCreds(`${getApiBaseUrl()}/permission-groups/${groupId}/users`);
   const result = await parseResponse(response);
   const data = result.data;
   return Array.isArray(data) ? data : (data?.data || []);
@@ -109,7 +109,7 @@ export const listUsersInGroup = async (groupId) => {
  * @param {number} userId - app_user.id (numeric)
  */
 export const addUserToGroup = async (groupId, userId) => {
-  const response = await fetchWithCreds(`${API_BASE_URL}/permission-groups/${groupId}/users`, {
+  const response = await fetchWithCreds(`${getApiBaseUrl()}/permission-groups/${groupId}/users`, {
     method: 'POST',
     body: JSON.stringify({ userId: Number(userId) }),
   });
@@ -123,7 +123,7 @@ export const addUserToGroup = async (groupId, userId) => {
  */
 export const removeUserFromGroup = async (groupId, userId) => {
   const response = await fetchWithCreds(
-    `${API_BASE_URL}/permission-groups/${groupId}/users/${encodeURIComponent(String(userId))}`,
+    `${getApiBaseUrl()}/permission-groups/${groupId}/users/${encodeURIComponent(String(userId))}`,
     { method: 'DELETE' }
   );
   return parseResponse(response);

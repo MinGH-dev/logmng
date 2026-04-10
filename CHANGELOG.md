@@ -6,6 +6,30 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [1.0.1] - 2026-04-10
+
+### Changed
+
+- **backend**: Remove startup `imagelog` sample seeding (`GenerateSampleDataScript` removed). Load imagelog data via DB setup (`init-data-imagelog.sql`), `append-imagelog-encrypted-samples.sh`, or other explicit paths.
+- **chore (release)**: Backend artifact and offline bundle default version **1.0.1** (`pom.xml`, `package-airgap-bin.sh`, `dev-services.sh`, `build-offline-bundle.sh`, `bin/` run scripts, `install-offline.sh`).
+- **scripts**: `regenerate-encrypted-log-data.sh` reloads `init-data-imagelog.sql` after truncating `imagelog` (replacing restart-only refill).
+- **fix**: `package-airgap-bin.sh` — skip copying `run.sh` when source and destination are the same file (default `AIRGAP_BIN_ROOT=$ROOT/bin`).
+
+### 2026-03-31 (요구사항 문서·DB 샘플 SQL·보안 감사 증적 초안)
+
+- **docs (requirements)**: 이미지로그 복호화 행 키 정리 — `docs/requirements/20260330-image-log-pretty-decrypt-row-key.md`. 이미지로그 중복 guid 샘플 데이터 — `docs/requirements/20260330-imagelog-dup-guid-sample-data.md`. PB FEP 전체 펼치기·페이지 경계 — `docs/requirements/20260330-pb-fep-expand-all-cross-page.md`.
+- **chore / db (samples)**: 샘플·마이그레이션용 SQL 추가 — `backend/src/main/resources/db/migrate-imagelog-companion-status-20260330.sql`, `migrate-imagelog-dup-guid-sample-20260330.sql`, `migrate-pb-fep-pagination-bmsg-sample-20260330.sql`.
+- **docs (security)**: 사용자 활동 로그 수동 감사 증적 초안 — `docs/security/audit-evidence-user-activity-log-manual-draft.md`.
+
+### 2026-03-20 (Java FW 이미지로그 복합 행 키·복호화·검색이력·배포/오프라인)
+
+- **feat (imagelog / decrypt / search-history)**: `java_fw_imglog` 행 식별을 **(guid, status)** 복합 키로 통일 — 승인 스냅샷·`user_decryption_allowed`·복호화 API 검증·GET decrypt-allowed·검색 이력 상세·이미지로그 상세/DB 조회까지 guid 단독 키 제거(계약·프론트 허용 목록·그리드 동기화). 관련 마이그레이션·`schema_imagelog`/`schema_sys` 정합. (req `docs/requirements/20260320-imagelog-guid-status-composite-key.md`)
+- **feat (frontend runtime)**: 정적 배포용 `runtime-config.js`·`runtimeApi`로 API 베이스 URL 등 런타임 설정 분리; 서비스 레이어가 이를 사용하도록 정리.
+- **fix / chore (CORS·인증)**: CORS 허용 헤더 정리(`CorsAllowHeaders` 등)·프리플라이트/필터·`WebConfig`·`AuthInterceptor` 조정.
+- **docs / contract**: `docs/contract.md`, `docs/api-definition.md` 갱신; `docs/DEPLOY.md` 추가, `docs/QUICK_START.md`·`README.md`·`bin/README.md` 보완.
+- **chore (offline / airgap)**: 오프라인 번들·설치 스크립트(`build-offline-bundle`, `install-offline`, `download-psql-for-bundle`, `release-build` 등)·에어갭 정적 서버(`tools/airgap-static-server`) 보강.
+- **chore (skills / specs)**: 로그 검색·검색이력/복호화 도메인 스킬, `specs/permission-group-hierarchy.spec.yaml`, `docs/requirements/TOPIC-INDEX.md` 반영.
+
 ### 2026-03-17 (검색 이력·복호화·활동 통계 배치 동기화)
 
 - **feat (search-history)**: 검색 이력 그리드 컬럼 순서·부서/사용자명·요청자 컬럼 및 모달, 요청 사유 검색 필드, 라벨/레이아웃·복호화 드롭다운 개선; 서버 오류·auth 500 버그 수정; 사용자 ID 쿼리 및 네이밍(user_id 일원화). (req 20260316-*, 20260317-search-history-*)

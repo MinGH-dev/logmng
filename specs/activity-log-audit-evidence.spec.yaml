@@ -1,0 +1,147 @@
+# Activity log — conservative audit evidence (masking, privileged reveal, access-audit list)
+# Requirement: docs/requirements/20260330-audit-evidence-activity-log-conservative.md
+# Contract: docs/contract.md, docs/api-definition.md §8.2–§8.2.4
+# Related: specs/activity-action-types.spec.yaml §2.7, §3
+# Step 4: Backend/Frontend implement; DBA owns physical access-audit storage (see appendix TODO in contract)
+
+---
+metadata:
+  title: "Activity log detail masking, privileged reveal, access-audit query"
+  version: "0.1"
+  status: "draft"
+  requirement_id: "20260330-audit-evidence-activity-log-conservative"
+
+# 1. Scope
+
+- In-app copy events, delete snapshots, allowlisted before/after, masked detail responses, privileged reveal (**must** write access audit), and access-audit **list/query**.
+- **Out of scope**: OS-wide clipboard; entity versioning tables (req §1 point-in-time DB TBD).
+- **Open items**: storage table vs `user_activity_log` reuse for access audit — `docs/contract.md` appendix AAE-01.
+
+# 2. Privileged reveal API (side effect: access audit)
+
+## 2.1 Canonical path (recommended)
+
+| Method | Path | Description |
+|--------|------|-------------|
+| POST | /api/activity-log/{id}/privileged-reveal | Returns sensitive payload (e.g. full copy body) for **authorized** callers; **before** successful response, server **must** persist an **append-only** access-audit record. |
+
+- **Path `id`**: `user_activity_log.id` (Long), same row visibility rules as `GET /api/activity-log/{id}` (search scope).
+- **Request body** (JSON):
+
+```yaml
+example:
+  revealKind: "COPY_BODY_FULL"   # required string; closed set TBD with PO
+```
+
+- **revealKind** (initial):
+  - **`COPY_BODY_FULL`** — return full stored copy text for `IN_APP_COPY` (or equivalent) rows.
+  - Optional future values: unmasked structured detail (if product splits kinds) — document when added.
+
+- **Response**: `ApiResponse` success; **data** includes at least the revealed content, e.g.:
+
+```yaml
+example:
+  targetActivityLogId: 12345
+  revealKind: "COPY_BODY_FULL"
+  copyBodyFull: "…plaintext…"
+```
+
+- **Errors**:
+  - **400** `INVALID_INPUT` — unknown `revealKind`, malformed body.
+  - **401** — unauthenticated.
+  - **403** `REVEAL_NOT_ALLOWED` | `FUNCTION_NOT_ALLOWED` — caller lacks privileged role or row out of scope.
+  - **404** — activity log row not found or not visible to caller.
+
+## 2.2 Non-recommended alternative (query param)
+
+- **`GET /api/activity-log/{id}?reveal=copy_body_full`** — allowed only if implementation still guarantees **access audit** + **same permission checks** as POST; document **deprecation** risk (GET with side effects).
+
+# 3. Default detail response (masked)
+
+- **GET** `/api/activity-log/{id}` returns a **masked view** of `action_detail` (and metadata fields where applicable) for callers without privileged full-body view.
+- **Copy subsection**: include **truncated** text, **`was_truncated`** flag, optional **character count**; **never** return full copy body to non-privileged roles.
+- Response may include parallel keys e.g. `actionDetailMasked: true` for clients — **optional** product field.
+
+# 4. `action_detail` high-level shapes (storage)
+
+Authoritative field classification: requirement **§2 Solution approach** (NEVER_PLAINTEXT / ALLOWLIST_PLAINTEXT / HASH_ONLY / SUMMARY_ONLY). Below is **contract summary**; exact key names may align with backend DTOs.
+
+## 4.1 In-app copy (`action_type` e.g. `IN_APP_COPY`)
+
+```yaml
+copyPayload:
+  text: "…truncated server-side…"
+  was_truncated: true
+  length: 12345      # original selection length pre-truncation or stored length — product-defined
+  # optional: sourceScreenId, resource ids — non-sensitive only
+```
+
+- **S-2**: no passwords, tokens, API keys in `copyPayload` or elsewhere.
+
+## 4.2 Delete snapshot (physical delete path)
+
+```yaml
+deleteSnapshot:
+  resourceType: "…"
+  resourceId: "…"
+  allowlistedFields:        # example placeholder — only allowlisted keys
+    name: "…"
+```
+
+## 4.3 Update mutation (allowlisted before/after)
+
+```yaml
+before:
+  allowlistedFieldA: "…"
+after:
+  allowlistedFieldA: "…"
+```
+
+# 5. Access-audit list API
+
+## 5.1 Endpoint
+
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | /api/activity-log/access-audit | Paginated list of **who** accessed **sensitive** activity detail / full copy body, **when**, and **target** log id. |
+
+## 5.2 Query parameters (draft)
+
+| Param | Type | Required | Description |
+|-------|------|----------|-------------|
+| startDate | string | O | Range start (yyyy-MM-dd HH:mm:ss or ISO-8601 — align with activity-log search) |
+| endDate | string | O | Range end |
+| accessorUserId | number | | Filter by viewer (numeric `app_user.id`) |
+| targetActivityLogId | number | | Filter by `user_activity_log.id` accessed |
+| accessType | string | | Optional: `DETAIL_VIEW` \| `COPY_BODY_FULL` (extend with PO) |
+| page | integer | | Default 1 |
+| pageSize | integer | | Default 20 |
+| sortField | string | | e.g. `accessedAt` |
+| sortDirection | string | | `asc` \| `desc` |
+
+## 5.3 Response row (draft)
+
+| Field | Type | Description |
+|-------|------|-------------|
+| id | number | Access-audit row id (implementation) |
+| accessorUserId | number | Viewer `app_user.id` |
+| accessorDisplayName | string | optional display |
+| accessedAt | string | Timestamp |
+| targetActivityLogId | number | FK to `user_activity_log.id` |
+| accessType | string | e.g. `DETAIL_VIEW`, `COPY_BODY_FULL` |
+
+- **403** `ACCESS_AUDIT_FORBIDDEN` if caller lacks audit-list permission (TC-07: only events within caller’s audit scope).
+
+# 6. Optional export-approval hooks (TODO)
+
+- **Not fixed** until PO confirms Screen 4 (`docs/contract.md` AAE-04).
+- **Pattern**: mirror **search-history** approval workflow (request → pending → approve/reject) with **minimum scope** and documented purpose; endpoints **TBD**.
+
+# 7. Test mapping (requirement §3)
+
+| TC ID | Contract / spec anchor |
+|-------|-------------------------|
+| TC-02 | §4.1 `was_truncated`, server max length (PO) |
+| TC-05 / TC-06 | §2 privileged-reveal + §5 access-audit list |
+| TC-07 | §5.3 scope enforcement |
+| TC-08 | §6 export — when defined |

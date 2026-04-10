@@ -1,5 +1,6 @@
 package com.logmng.service;
 
+import com.logmng.activity.PermissionGroupAuditContext;
 import com.logmng.constants.ScreenConstants;
 import com.logmng.dto.request.PermissionGroupCreateRequest;
 import com.logmng.dto.request.PermissionGroupUpdateRequest;
@@ -7,9 +8,11 @@ import com.logmng.dto.response.AllowedScreenItem;
 import com.logmng.dto.response.AssignUserToGroupResponse;
 import com.logmng.dto.response.PermissionGroupResponse;
 import com.logmng.dto.response.UserListItemResponse;
+import com.logmng.diagnostic.PermissionGroupScreenDiagnosticLog;
 import com.logmng.exception.CustomException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import javax.sql.DataSource;
@@ -35,9 +38,13 @@ public class PermissionGroupService {
     private static final int MAX_CODE_LENGTH = 50;
     private static final int MAX_NAME_LENGTH = 200;
     private static final int MAX_USER_ID_LENGTH = 100;
+    private static final int MAX_CHANGE_REASON_LENGTH = 2000;
 
     private final DataSource dataSource;
     private final AppUserResolver appUserResolver;
+
+    @Value("${app.diagnostic.permission-group-screen:false}")
+    private boolean diagnosticPermissionGroupScreen;
 
     public PermissionGroupService(DataSource dataSource, AppUserResolver appUserResolver) {
         this.dataSource = dataSource;
@@ -45,18 +52,23 @@ public class PermissionGroupService {
     }
 
     public List<PermissionGroupResponse> listAll() {
+        PermissionGroupScreenDiagnosticLog.debug(diagnosticPermissionGroupScreen, "listAll_enter", "");
         List<PermissionGroupResponse> list = new ArrayList<>();
+        Long sqlContextGroupId = null;
         try (Connection conn = dataSource.getConnection()) {
             String sql = "SELECT id, code, name, description, sort_order FROM permission_group ORDER BY sort_order, code";
             try (PreparedStatement ps = conn.prepareStatement(sql);
                  ResultSet rs = ps.executeQuery()) {
                 while (rs.next()) {
+                    sqlContextGroupId = null;
                     PermissionGroupResponse r = mapRowToResponse(rs);
-                    r.setAllowedScreens(loadAllowedScreens(conn, r.getId()));
+                    sqlContextGroupId = r.getId();
+                    r.setAllowedScreens(loadAllowedScreens(conn, sqlContextGroupId));
                     list.add(r);
                 }
             }
         } catch (SQLException e) {
+            PermissionGroupScreenDiagnosticLog.sqlException(diagnosticPermissionGroupScreen, "listAll", sqlContextGroupId, e);
             log.error("Permission group list failed", e);
             throw new RuntimeException("권한 그룹 목록 조회 중 오류가 발생했습니다: " + e.getMessage(), e);
         }
@@ -124,10 +136,15 @@ public class PermissionGroupService {
     }
 
     public PermissionGroupResponse update(Long id, PermissionGroupUpdateRequest req) {
+        if (req.getChangeReason() != null && req.getChangeReason().length() > MAX_CHANGE_REASON_LENGTH) {
+            throw CustomException.badRequest(
+                    "changeReason은 " + MAX_CHANGE_REASON_LENGTH + "자 이하여야 합니다.", "INVALID_INPUT");
+        }
         if (req.getAllowedScreens() != null) {
             validateAllowedScreens(req.getAllowedScreens());
         }
         PermissionGroupResponse existing = findById(id);
+        PermissionGroupAuditContext.setBeforeState(existing);
         String code = req.getCode() != null ? trim(req.getCode()) : existing.getCode();
         String name = req.getName() != null ? trim(req.getName()) : existing.getName();
         if (code.isEmpty()) {
@@ -167,6 +184,7 @@ public class PermissionGroupService {
 
     public void delete(Long id) {
         PermissionGroupResponse existing = findById(id);
+        PermissionGroupAuditContext.setBeforeState(existing);
         int userCount = countUsersInGroup(id);
         if (userCount > 0) {
             throw CustomException.badRequest("사용자가 배정된 권한 그룹은 삭제할 수 없습니다. 먼저 사용자 배정을 해제하세요.", "PERMISSION_GROUP_HAS_USERS");
@@ -191,10 +209,17 @@ public class PermissionGroupService {
         if (uid.length() > MAX_USER_ID_LENGTH) {
             throw CustomException.badRequest("유효하지 않은 userId입니다.", "INVALID_INPUT");
         }
+        PermissionGroupAuditContext.clearAssignAudit();
         PermissionGroupResponse group = findById(groupId);
         ensureUserExists(uid);
         if (isUserInGroup(groupId, uid)) {
             throw CustomException.badRequest("해당 사용자는 이미 이 권한 그룹에 배정되어 있습니다.", "USER_ALREADY_IN_GROUP");
+        }
+        Long previousGroupId = findCurrentPermissionGroupIdForUser(uid);
+        if (previousGroupId != null) {
+            PermissionGroupAuditContext.setAssignPreviousState(findById(previousGroupId));
+        } else {
+            PermissionGroupAuditContext.setAssignPreviousState(null);
         }
         try (Connection conn = dataSource.getConnection()) {
             conn.setAutoCommit(false);
@@ -221,6 +246,7 @@ public class PermissionGroupService {
             log.error("Assign user to group failed: groupId={}, userId={}", groupId, uid, e);
             throw new RuntimeException("사용자 배정 중 오류가 발생했습니다: " + e.getMessage(), e);
         }
+        PermissionGroupAuditContext.setAssignAfterState(group);
         Long numericUserId = appUserResolver.getIdByUsername(uid);
         return new AssignUserToGroupResponse(numericUserId, groupId, group.getCode());
     }
@@ -229,7 +255,10 @@ public class PermissionGroupService {
         if (userId == null || userId.isBlank()) {
             throw CustomException.badRequest("userId는 필수이며 비어 있을 수 없습니다.", "INVALID_INPUT");
         }
-        findById(groupId);
+        PermissionGroupAuditContext.clearUnassignAudit();
+        PermissionGroupResponse group = findById(groupId);
+        PermissionGroupAuditContext.setUnassignGroupCode(group.getCode());
+        PermissionGroupAuditContext.setUnassignBeforeState(group);
         try (Connection conn = dataSource.getConnection()) {
             String sql = "DELETE FROM app_user_permission_group WHERE permission_group_id = ? AND user_id = ?";
             try (PreparedStatement ps = conn.prepareStatement(sql)) {
@@ -356,7 +385,8 @@ public class PermissionGroupService {
         try (Connection conn = dataSource.getConnection()) {
             String sql = "SELECT pgs.screen_id, pgs.scope FROM permission_group_screen pgs " +
                     "INNER JOIN app_user_permission_group aupg ON pgs.permission_group_id = aupg.permission_group_id " +
-                    "WHERE aupg.user_id = ? AND pgs.screen_id IN ('activity-log', 'statistics', 'search-history', 'pending-approvals')";
+                    "WHERE aupg.user_id = ? AND pgs.screen_id IN ('activity-log', 'statistics', 'search-history', 'pending-approvals', 'user-management-v2') "
+                    + "ORDER BY aupg.permission_group_id ASC, pgs.screen_id ASC";
             try (PreparedStatement ps = conn.prepareStatement(sql)) {
                 ps.setString(1, userId.trim());
                 try (ResultSet rs = ps.executeQuery()) {
@@ -385,8 +415,9 @@ public class PermissionGroupService {
         findById(groupId);
         List<UserListItemResponse> list = new ArrayList<>();
         try (Connection conn = dataSource.getConnection()) {
-            String sql = "SELECT u.id, u.username, u.role, u.department_code, u.position, u.rank, u.is_system_admin FROM app_user u " +
-                    "INNER JOIN app_user_permission_group a ON u.username = a.user_id WHERE a.permission_group_id = ? ORDER BY u.username";
+            String sql = "SELECT u.id, u.username, u.role, u.department_code, u.position, u.rank, u.is_system_admin, u.employee_number FROM app_user u " +
+                    "INNER JOIN app_user_permission_group a ON u.username = a.user_id "
+                    + "WHERE a.permission_group_id = ? AND u.deleted_at IS NULL ORDER BY u.username";
             try (PreparedStatement ps = conn.prepareStatement(sql)) {
                 ps.setLong(1, groupId);
                 try (ResultSet rs = ps.executeQuery()) {
@@ -398,8 +429,8 @@ public class PermissionGroupService {
                         String position = rs.getString("position");
                         String rank = rs.getString("rank");
                         boolean isSystemAdmin = Boolean.TRUE.equals(rs.getObject("is_system_admin", Boolean.class));
-                        boolean isApprover = false; // not loaded here; hierarchy uses DecryptApproverService for approver
-                        list.add(new UserListItemResponse(id, username, role, departmentCode, isApprover, position, rank, isSystemAdmin));
+                        String employeeNumber = rs.getString("employee_number");
+                        list.add(new UserListItemResponse(id, username, role, departmentCode, position, rank, isSystemAdmin, employeeNumber));
                     }
                 }
             }
@@ -459,6 +490,44 @@ public class PermissionGroupService {
         return 0;
     }
 
+    /**
+     * Current permission_group_id for the user, if any.
+     * Matches {@code user_id} as {@link AppUserResolver}-style username and, when present, as numeric {@code app_user.id}
+     * string (some rows may store either per legacy/manual data).
+     */
+    private Long findCurrentPermissionGroupIdForUser(String userId) {
+        if (userId == null || userId.isBlank()) {
+            return null;
+        }
+        String u = userId.trim();
+        Long numericId = appUserResolver.getIdByUsername(u);
+        try (Connection conn = dataSource.getConnection()) {
+            String sql;
+            if (numericId != null) {
+                sql = "SELECT permission_group_id FROM app_user_permission_group WHERE user_id = ? OR user_id = ? "
+                        + "ORDER BY permission_group_id LIMIT 1";
+            } else {
+                sql = "SELECT permission_group_id FROM app_user_permission_group WHERE user_id = ? "
+                        + "ORDER BY permission_group_id LIMIT 1";
+            }
+            try (PreparedStatement ps = conn.prepareStatement(sql)) {
+                ps.setString(1, u);
+                if (numericId != null) {
+                    ps.setString(2, String.valueOf(numericId));
+                }
+                try (ResultSet rs = ps.executeQuery()) {
+                    if (rs.next()) {
+                        return rs.getLong("permission_group_id");
+                    }
+                }
+            }
+        } catch (SQLException e) {
+            log.error("findCurrentPermissionGroupIdForUser failed: userId={}", userId, e);
+            return null;
+        }
+        return null;
+    }
+
     private boolean isUserInGroup(Long groupId, String userId) {
         try (Connection conn = dataSource.getConnection()) {
             String sql = "SELECT 1 FROM app_user_permission_group WHERE permission_group_id = ? AND user_id = ? LIMIT 1";
@@ -477,7 +546,7 @@ public class PermissionGroupService {
 
     private void ensureUserExists(String userId) {
         try (Connection conn = dataSource.getConnection()) {
-            String sql = "SELECT 1 FROM app_user WHERE username = ? LIMIT 1";
+            String sql = "SELECT 1 FROM app_user WHERE username = ? AND deleted_at IS NULL LIMIT 1";
             try (PreparedStatement ps = conn.prepareStatement(sql)) {
                 ps.setString(1, userId);
                 try (ResultSet rs = ps.executeQuery()) {
@@ -550,6 +619,7 @@ public class PermissionGroupService {
     private void validateScreenFunctions(String screenId, Boolean read, Boolean write, Boolean approve, Boolean decrypt) {
         if (ScreenConstants.MAIN.equals(screenId)
                 || ScreenConstants.PB_FEPLOG.equals(screenId)
+                || ScreenConstants.PB_FEP_LOG_SEARCH.equals(screenId)
                 || ScreenConstants.JAVA_FW_IMAGELOG.equals(screenId)) {
             if (Boolean.TRUE.equals(write) || Boolean.TRUE.equals(approve)) {
                 throw CustomException.badRequest("해당 화면은 조회 및 복호화만 지원합니다. write 또는 approve를 지정할 수 없습니다: " + screenId, "INVALID_SCREEN_FUNCTION");
@@ -567,6 +637,8 @@ public class PermissionGroupService {
     }
 
     private List<AllowedScreenItem> loadAllowedScreens(Connection conn, long groupId) throws SQLException {
+        PermissionGroupScreenDiagnosticLog.debug(diagnosticPermissionGroupScreen, "loadAllowedScreens_enter",
+                "permissionGroupId=" + groupId);
         List<AllowedScreenItem> screens = new ArrayList<>();
         String sql = "SELECT screen_id, scope, read, write, approve, decrypt FROM permission_group_screen WHERE permission_group_id = ? ORDER BY screen_id";
         try (PreparedStatement ps = conn.prepareStatement(sql)) {

@@ -1,0 +1,116 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 1066" role="img" aria-label="Decrypt approval UI API test states" data-req="20260323-approver-eligibility" data-wireframe-semantics="v1" data-wireframe-rules-ref=".cursor/rules/svg-wireframe-semantics.mdc" data-wireframe-visible-meta="wireframe-visible-meta-req04" data-wireframe-chrome="full" data-ref="frontend/src/components/PendingApprovals/PendingApprovals.js" data-col-screen-name-policy="na-api-test-cards">
+  <defs>
+    <style>
+      .title { fill: #212121; font-family: "Noto Sans KR", "Roboto", system-ui, sans-serif; font-size: 22px; font-weight: 600; }
+      .sub { fill: #616161; font-family: system-ui, sans-serif; font-size: 12px; }
+      .bg { fill: #eceff1; }
+      .card { fill: #ffffff; stroke: #cfd8dc; stroke-width: 1; }
+      .card-title { fill: #37474f; font-family: system-ui, sans-serif; font-size: 13px; font-weight: 600; }
+      .body { fill: #424242; font-family: system-ui, sans-serif; font-size: 11px; }
+      .code { fill: #1565c0; font-family: ui-monospace, monospace; font-size: 10px; }
+      .ok { fill: #2e7d32; font-family: system-ui, sans-serif; font-size: 11px; font-weight: 600; }
+      .deny { fill: #c62828; font-family: system-ui, sans-serif; font-size: 11px; font-weight: 600; }
+      .wf-layout-main { /* shell + product mock only */ }
+      .wf-layout-wire-annotations { /* blocks below main viewport + root legend */ }
+      .wf-layout-wire-annotations text { text-anchor: start; }
+      .wf-annotations-zone-panel { fill: #dfe4ea; stroke: none; }
+      .wf-annotations-zone-title { fill: #37474f; font-family: system-ui, "Noto Sans KR", sans-serif; font-size: 11px; font-weight: 700; }
+      .wf-meta-box { fill: #fafafa; stroke: #78909c; stroke-width: 1; stroke-dasharray: 5 3; }
+      .wf-meta-title { fill: #37474f; font-family: system-ui, sans-serif; font-size: 10px; font-weight: 700; }
+      .wf-meta-line { fill: #546e7a; font-family: system-ui, sans-serif; font-size: 8px; }
+      .wf-anno-tag { fill: #455a64; font-family: system-ui, sans-serif; font-size: 7px; font-weight: 700; }
+      .wf-mock-tag { fill: #616161; font-family: system-ui, sans-serif; font-size: 6px; font-weight: 600; }
+      .wf-anno-text { fill: #546e7a; font-family: system-ui, sans-serif; font-style: italic; }
+      .wf-anno-legend { fill: #607d8b; font-family: system-ui, sans-serif; font-size: 8px; font-weight: 600; }
+      .wf-anno-surf { stroke-dasharray: 5 4; stroke-width: 1.25; stroke: #78909c; }
+      .wf-anno-fill-light { fill: #f8fafc; }
+      .wf-anno-fill-amber { fill: #fffdf7; }
+      .wf-anno-fill-purple { fill: #faf7fc; }
+      .wf-anno-fill-red { fill: #fff5f5; }
+      .ux-banner.wf-anno-surf { fill: #f3edf8; stroke: #78909c; stroke-width: 1.25; }
+      .note-box.wf-anno-surf { fill: #fffdf5; stroke: #78909c; stroke-width: 1.25; }
+      .callout.wf-anno-surf { fill: #f2f6fa; stroke: #78909c; stroke-width: 1.25; }
+      .banner.wf-anno-surf { fill: #fffaf3; stroke: #78909c; stroke-width: 1.25; }
+      .warn.wf-anno-surf { fill: #fff5f5; stroke: #78909c; stroke-width: 1.25; }
+      .card.wf-anno-surf { fill: #f7f9fa; stroke: #78909c; stroke-width: 1.25; }
+      .wf-scope-legend-title { fill: #37474f; font-family: system-ui, "Noto Sans KR", sans-serif; font-size: 8px; font-weight: 700; }
+      .wf-scope-legend-line { fill: #546e7a; font-family: system-ui, "Noto Sans KR", sans-serif; font-size: 6.5px; font-style: italic; }
+      .wf-section-divider { stroke: #90a4ae; stroke-width: 1; stroke-dasharray: 6 4; }
+
+      svg[data-wireframe-chrome="no-meta"] .wf-chrome-meta { display: none !important; }
+      svg[data-wireframe-chrome="clean"] .wf-layout-wire-annotations,
+      svg[data-wireframe-chrome="clean"] .wf-chrome-meta,
+      svg[data-wireframe-chrome="clean"] .wf-chrome-annotations { display: none !important; }
+      svg[data-wireframe-chrome="clean"] .ux-banner.wf-anno-surf,
+      svg[data-wireframe-chrome="clean"] .note-box.wf-anno-surf,
+      svg[data-wireframe-chrome="clean"] .banner.wf-anno-surf,
+      svg[data-wireframe-chrome="clean"] .warn.wf-anno-surf,
+      svg[data-wireframe-chrome="clean"] .callout.wf-anno-surf { display: none !important; }
+      svg[data-wireframe-chrome="clean"] .card.wf-anno-surf { stroke-dasharray: none !important; stroke: #cfd8dc !important; fill: #ffffff !important; }
+      svg[data-wireframe-chrome="clean"] .wf-annotations-zone-panel,
+      svg[data-wireframe-chrome="clean"] .wf-annotations-zone-divider { display: none !important; }
+
+    </style>
+  </defs>
+  <g id="wf-main-layout-req04" class="wf-layout-main" data-wf-layer="main">
+  <rect class="bg" width="1200" height="884" id="canvas-bg"/>
+  <rect class="card wf-anno-surf" x="32" y="92" width="540" height="200" rx="6" id="card-a"/>
+  <text x="44" y="102" class="wf-anno-tag wf-chrome-annotations" id="wf-anno-tag-req04-a">와이어 주석 · 제품 UI 아님</text>
+  <text x="48" y="120" class="card-title" id="card-a-title">A) 일반 승인자 · 동일 부서 (TC-05, TC-11)</text>
+  <text x="48" y="142" class="body">조건: is_system_admin=false, 그룹에 pending-approvals 승인 O, 요청자 dept = 승인자 dept</text>
+  <text x="48" y="162" class="ok">기대: 목록·상세에서 승인 대기 행 표시, 승인·반려 버튼 활성</text>
+  <text x="48" y="182" class="code">canApproveForRequester = true</text>
+  <text x="48" y="202" class="body">검색 이력 화면에도 동일 정책에 맞는 액션 노출</text>
+  <text x="48" y="224" class="sub">수동: 브라우저 TC-11, 정보 노출 Q5</text>
+  <rect class="card wf-anno-surf" x="588" y="92" width="580" height="200" rx="6" id="card-b"/>
+  <text x="600" y="102" class="wf-anno-tag wf-chrome-annotations" id="wf-anno-tag-req04-b">와이어 주석 · 제품 UI 아님</text>
+  <text x="604" y="120" class="card-title" id="card-b-title">B) 승인 그룹 O 이지만 타 부서 요청 (TC-06 P2-2)</text>
+  <text x="604" y="142" class="body">조건: effective 승인 true 이지만 requester.department_code ≠ approver.department_code</text>
+  <text x="604" y="162" class="deny">기대: 승인 API 403, 계약에 따른 FUNCTION_NOT_ALLOWED</text>
+  <text x="604" y="182" class="body">UI: 해당 행 미노출 또는 버튼 비활성·거부 (제품 UX에 맞게)</text>
+  <text x="604" y="202" class="code">NOT_APPROVER 와 구분: TC-06b 는 자격 없음</text>
+  <rect class="card wf-anno-surf" x="32" y="308" width="540" height="200" rx="6" id="card-c"/>
+  <text x="44" y="318" class="wf-anno-tag wf-chrome-annotations" id="wf-anno-tag-req04-c">와이어 주석 · 제품 UI 아님</text>
+  <text x="48" y="336" class="card-title" id="card-c-title">C) 승인 그룹 없음 · 비승인자 (TC-06b, TC-03)</text>
+  <text x="48" y="358" class="body">조건: search-history / pending-approvals 에 approve=false 또는 미배정</text>
+  <text x="48" y="378" class="deny">기대: NOT_APPROVER 또는 FORBIDDEN_NOT_APPROVER (계약 명칭 준수)</text>
+  <text x="48" y="398" class="body">UI: 승인 대기 메뉴는 screen access 에 따람, 액션은 불가</text>
+  <text x="48" y="420" class="code">TC-15 IDOR: 타 사용자 대기 건 조회·승인 불가</text>
+  <rect class="card wf-anno-surf" x="588" y="308" width="580" height="200" rx="6" id="card-d"/>
+  <text x="600" y="318" class="wf-anno-tag wf-chrome-annotations" id="wf-anno-tag-req04-d">와이어 주석 · 제품 UI 아님</text>
+  <text x="604" y="336" class="card-title" id="card-d-title">D) 시스템 관리자 · 그룹 승인 있음 (TC-07b)</text>
+  <text x="604" y="358" class="body">조건: is_system_admin=true, 그룹 매트릭스에 승인 체크 O, 동일 부서라도</text>
+  <text x="604" y="378" class="deny">기대: effective 승인 false, canApproveForRequester false, 승인·반려 거부</text>
+  <text x="604" y="398" class="body">TC-10: GET /api/auth/me 의 해당 화면 approve 플래그 false</text>
+  <text x="604" y="420" class="code">ADMIN_EXT 는 is_system_admin=false 이면 TC-07c 처럼 그룹만 따름</text>
+  <rect class="card wf-anno-surf" x="32" y="524" width="1136" height="200" rx="6" id="card-e"/>
+  <text x="44" y="534" class="wf-anno-tag wf-chrome-annotations" id="wf-anno-tag-req04-e">와이어 주석 · 제품 UI 아님</text>
+  <text x="48" y="552" class="card-title" id="card-e-title">E) 커트오버 (A) 레거시 decrypt_approver 만 있음 (TC-16, TC-18, TC-DB-04)</text>
+  <text x="48" y="574" class="body">조건: 권한 그룹에 승인 없음, DB 에만 legacy 행 존재</text>
+  <text x="48" y="594" class="deny">기대: 자격 false, 앱은 그룹 테이블만 읍음 — 행 무시</text>
+  <text x="48" y="614" class="body">운영: Q4 M-3 전 수동 그룹 부여로 정합</text>
+  <text x="48" y="636" class="sub">감사 TC-14: 승인 시 numeric user id, 요청 식별자, 시각, 결과 로그 유지</text>
+  <rect class="card wf-anno-surf" x="32" y="736" width="1136" height="140" rx="6" id="card-f"/>
+  <text x="44" y="746" class="wf-anno-tag wf-chrome-annotations" id="wf-anno-tag-req04-f">와이어 주석 · 제품 UI 아님</text>
+  <text x="48" y="764" class="card-title" id="card-f-title">빠른 체크리스트</text>
+  <text x="48" y="786" class="body">N-1 Q6: 권한 변경 후 다음 요청부터 반영 · 짧은 /auth/me 캐시 시 staleness 문서화</text>
+  <text x="48" y="806" class="body">에러 맵핑 § 2: (a) 비승인자 NOT_APPROVER 계열 (b) 스코프·기능 FUNCTION_NOT_ALLOWED (c) 미인증 401</text>
+  <text x="48" y="826" class="body">프론트: 사용자 관리 TC-13, 권한 그룹 문구에서 decrypt_approver 이중 관리 안내 제거</text>
+  </g>
+  <g id="wf-wire-annotations-req04" class="wf-layout-wire-annotations" data-wf-layer="wire-annotations">
+  <rect class="wf-annotations-zone-panel wf-chrome-annotations" x="0" y="884" width="1200" height="182" id="wf-annotations-zone-bg-req04"/>
+  <line class="wf-annotations-zone-divider wf-chrome-annotations" x1="0" y1="884" x2="1200" y2="884" stroke="#455a64" stroke-width="2"/>
+  <text x="40" y="899" class="wf-annotations-zone-title wf-chrome-annotations" id="wf-annotations-zone-hint-req04">와이어 주석 구역 (제품 화면 목업 아님)</text>
+  <text x="40" y="920" class="title wf-anno-text wf-chrome-annotations" id="main-title" text-anchor="start">복호화 승인 흐름 — UI·API 기대 상태 (개발·테스트용)</text>
+  <text x="40" y="940" class="sub wf-anno-text wf-chrome-annotations" id="main-sub" text-anchor="start">문서: 20260323-approver-eligibility 요구서 § 3 TC. 카드 내 문자는 API·복호화 승인 테스트 상태 설명용(샘플); i18n·계약 SoT 아님.</text>
+  <line class="wf-section-divider wf-chrome-annotations" x1="40" y1="960" x2="1160" y2="960" aria-hidden="true" id="wf-section-divider-req04-s-meta"/>
+  <g class="wf-chrome-meta wf-chrome-annotations wf-root-legend wireframe-root-legend" id="wireframe-visible-meta-req04" data-wf-layer="wire-annotations-root" role="region" aria-label="Wireframe annotations: root data-* summary; not product UI. Toggle data-wireframe-chrome">
+    <title>Wireframe annotations — root summary</title>
+    <text x="40" y="982" class="wf-meta-title" id="wireframe-visible-meta-title-req04" text-anchor="start">■ 와이어 주석 — 루트 data-* 요약 (이미지 뷰어 표시 · 제품 UI 문구 아님)</text>
+    <text x="40" y="994" class="wf-meta-line" id="wireframe-visible-meta-l1-req04" text-anchor="start">루트 &lt;svg&gt; data-wireframe-* · data-col-screen-name-policy · data-ref = 해석 규칙 (에이전트·사람 공통).</text>
+    <text x="40" y="1006" class="wf-meta-line" id="wireframe-visible-meta-l2-req04" text-anchor="start">권한그룹 매트릭스: 행별 screenId·기능 = #screen-row-wire-legend-req02; 조회 범위 = #scope-wire-legend-req02.</text>
+    <text x="40" y="1018" class="wf-meta-line" id="wireframe-visible-meta-l3-req04" text-anchor="start">전문 규칙: .cursor/rules/svg-wireframe-semantics.mdc</text>
+    <text x="40" y="1030" class="wf-meta-line" id="wireframe-visible-meta-l4-req04" text-anchor="start">그 외 와이어(사용자 관리 등): 열별 주석은 동일하게 하단 슬랩 텍스트. 이 루트 data-* 요약도 data-wireframe-chrome으로 숨김.</text>
+  </g>
+  </g>
+</svg>

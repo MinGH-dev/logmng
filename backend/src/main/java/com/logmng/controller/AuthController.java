@@ -1,6 +1,7 @@
 package com.logmng.controller;
 
 import com.logmng.annotation.ActivityLog;
+import com.logmng.dto.request.ChangeMyPasswordRequest;
 import com.logmng.dto.request.LoginRequest;
 import com.logmng.dto.response.ApiResponse;
 import com.logmng.dto.response.LoginResponse;
@@ -146,6 +147,22 @@ public class AuthController {
         Map<String, LoginResponse> data = new HashMap<>();
         data.put("user", userInfo);
         return ResponseEntity.ok(ApiResponse.success(data));
+    }
+
+    /**
+     * 본인 비밀번호 변경 (local 모드·테이블 비밀번호만). POST /api/auth/me/password
+     */
+    @ActivityLog(
+            actionType = "PASSWORD_SELF_CHANGE",
+            description = "본인 비밀번호 변경",
+            includeParams = false,
+            includeResponse = false)
+    @PostMapping("/me/password")
+    public ResponseEntity<ApiResponse<Void>> changeMyPassword(
+            @Valid @RequestBody ChangeMyPasswordRequest body,
+            HttpServletRequest httpRequest) {
+        authService.changeOwnPassword(httpRequest, body);
+        return ResponseEntity.ok(ApiResponse.success(null, "비밀번호가 변경되었습니다."));
     }
 }
 

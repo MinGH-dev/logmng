@@ -98,6 +98,8 @@ When a user or requirement asks for something **different from the standard** fo
 | SearchHistory     | .search-history-list .log-table th/td:nth-child(4): 사용자ID column width fits 8-digit numbers (72px–96px) | req 20260317-search-history-grid-columns-filter-fix (search-field-definition-items §4.5) |
 | SearchHistory     | .search-history-list .log-table th/td:nth-child(6): 검색 조건 column width fits button only (120px–160px) | req 20260317-search-history-grid-columns-filter-fix (grid column size) |
 | ImageLogTable     | .decrypt-btn.decrypt-btn--not-allowed: dimmed decrypt button when GUID not in decryption-allowed or expired; click shows approval message | req 20260318-decryption-allowed-store-and-decrypt-ui |
+| UserManagement v2 | `.user-management`: full-width container (`max-width: none`); `.user-permission-hierarchy-tree-section` under `.user-management`: min-width `min(400px, 100%)` vs legacy 280px; `.hierarchy-users-table` auto layout, `width: max-content`, `min-width: max(100%, 35rem)`; `.hierarchy-node-users` owns `overflow-x: auto`; data cells omit ellipsis (§2.5 TC-20/TC-21) | req 20260408-user-management-v2-grid-tree-search-expand |
+| UserManagement v2 | `.user-management-v2-tree-bulk-btn.MuiButton-root`: MUI `size="small"` + `variant="outlined"` for 모두 펼치기/접기 (not `.sf-btn`); scoped font-size/padding; `min-height: 44px` for touch target | req 20260408-user-management-v2-grid-tree-search-expand (TC-16 tree utilities vs filter row) |
 
 *When you add an exception, add a row here and keep the table updated so overrides stay in one place per concern.*
 

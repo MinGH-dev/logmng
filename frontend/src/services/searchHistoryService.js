@@ -2,7 +2,7 @@
  * 검색 이력 API (복호화 승인 부가 기능)
  */
 
-const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || 'http://localhost:9200/api';
+import { getApiBaseUrl } from '../config/runtimeApi';
 
 /**
  * 검색 이력 저장
@@ -25,7 +25,7 @@ export const createSearchHistory = async (logType, searchParams, requestReason, 
     body.searchResultTotalCount = sr;
     body.decryptionTargetCount = dt;
   }
-  const response = await fetch(`${API_BASE_URL}/search-history`, {
+  const response = await fetch(`${getApiBaseUrl()}/search-history`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     credentials: 'include',
@@ -57,6 +57,7 @@ export const createSearchHistory = async (logType, searchParams, requestReason, 
  * @param {string} [opts.requestedAtTo] - 요청일시 범위 종료 (yyyy-MM-dd HH:mm:ss)
  * @param {string[]} [opts.approvalStatuses] - 복호화 승인 여부 (PENDING, APPROVED, REJECTED, EXPIRED); repeated param
  * @param {string} [opts.requestReason] - 요청사유 부분 검색
+ * @param {string} [opts.listContext] - `search-history` | `pending-approvals` (docs/api-definition.md §6.1.2)
  */
 export const getSearchHistoryList = async ({
   page = 1,
@@ -70,6 +71,7 @@ export const getSearchHistoryList = async ({
   requestedAtTo = '',
   approvalStatuses = [],
   requestReason = '',
+  listContext = '',
 } = {}) => {
   const params = new URLSearchParams({
     page: String(page),
@@ -77,6 +79,10 @@ export const getSearchHistoryList = async ({
     sortField,
     sortDirection,
   });
+
+  if (listContext != null && String(listContext).trim() !== '') {
+    params.set('listContext', String(listContext).trim());
+  }
 
   if (department) {
     params.set('department', department);
@@ -102,14 +108,17 @@ export const getSearchHistoryList = async ({
     params.set('requestReason', String(requestReason).trim());
   }
 
-  const response = await fetch(`${API_BASE_URL}/search-history?${params}`, {
+  const response = await fetch(`${getApiBaseUrl()}/search-history?${params}`, {
     method: 'GET',
     headers: { 'Content-Type': 'application/json' },
     credentials: 'include',
   });
   const result = await response.json();
   if (!response.ok) {
-    throw new Error(result.error || `HTTP ${response.status}`);
+    const err = new Error(result.error || `HTTP ${response.status}`);
+    err.status = response.status;
+    err.code = result.code;
+    throw err;
   }
   return result;
 };
@@ -118,7 +127,7 @@ export const getSearchHistoryList = async ({
  * 검색 이력 재요청 (만료 건)
  */
 export const reRequestSearchHistory = async (id) => {
-  const response = await fetch(`${API_BASE_URL}/search-history/${id}/re-request`, {
+  const response = await fetch(`${getApiBaseUrl()}/search-history/${id}/re-request`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     credentials: 'include',
@@ -132,16 +141,27 @@ export const reRequestSearchHistory = async (id) => {
 
 /**
  * 검색 이력 상세 (재조회용)
+ * @param {number|string} id
+ * @param {{ listContext?: string }} [options] - 목록과 동일한 listContext (복호화 승인 관리: `pending-approvals`)
  */
-export const getSearchHistoryDetail = async (id) => {
-  const response = await fetch(`${API_BASE_URL}/search-history/${id}`, {
+export const getSearchHistoryDetail = async (id, options = {}) => {
+  const params = new URLSearchParams();
+  if (options.listContext != null && String(options.listContext).trim() !== '') {
+    params.set('listContext', String(options.listContext).trim());
+  }
+  const q = params.toString();
+  const url = `${getApiBaseUrl()}/search-history/${id}${q ? `?${q}` : ''}`;
+  const response = await fetch(url, {
     method: 'GET',
     headers: { 'Content-Type': 'application/json' },
     credentials: 'include',
   });
   const result = await response.json();
   if (!response.ok) {
-    throw new Error(result.error || `HTTP ${response.status}`);
+    const err = new Error(result.error || `HTTP ${response.status}`);
+    err.status = response.status;
+    err.code = result.code;
+    throw err;
   }
   return result;
 };
@@ -151,7 +171,7 @@ export const getSearchHistoryDetail = async (id) => {
  */
 export const getPendingList = async (page = 1, pageSize = 20) => {
   const params = new URLSearchParams({ page: String(page), pageSize: String(pageSize) });
-  const response = await fetch(`${API_BASE_URL}/search-history/pending?${params}`, {
+  const response = await fetch(`${getApiBaseUrl()}/search-history/pending?${params}`, {
     method: 'GET',
     headers: { 'Content-Type': 'application/json' },
     credentials: 'include',
@@ -170,7 +190,7 @@ export const getPendingList = async (page = 1, pageSize = 20) => {
  * 검색 이력 승인 (결재자·관리자 전용)
  */
 export const approveSearchHistory = async (id) => {
-  const response = await fetch(`${API_BASE_URL}/search-history/${id}/approve`, {
+  const response = await fetch(`${getApiBaseUrl()}/search-history/${id}/approve`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     credentials: 'include',
@@ -190,7 +210,7 @@ export const approveSearchHistory = async (id) => {
  */
 export const rejectSearchHistory = async (id, rejectionReason) => {
   const body = rejectionReason != null && rejectionReason !== '' ? { rejectionReason } : {};
-  const response = await fetch(`${API_BASE_URL}/search-history/${id}/reject`, {
+  const response = await fetch(`${getApiBaseUrl()}/search-history/${id}/reject`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     credentials: 'include',

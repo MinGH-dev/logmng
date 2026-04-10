@@ -52,11 +52,17 @@ logging:
   level:
     root: INFO
     com.logmng: DEBUG
+    # Approval diagnostics: avoid inheriting com.logmng DEBUG unless explicitly needed (gate is app.diagnostic.approval-flow).
+    com.logmng.diagnostic.approval: INFO
+    # Permission-group screen entry: gate is app.diagnostic.permission-group-screen; set to DEBUG only when reproducing.
+    com.logmng.diagnostic.permissionGroupScreen: INFO
+    com.logmng.diagnostic.provisioningConsistency: INFO
   pattern:
     console: "%d{yyyy-MM-dd HH:mm:ss} - %msg%n"
     file: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
   file:
-    name: logs/application.log
+    # Spring Boot 2.7: env LOGGING_FILE_NAME → logging.file.name (docs/contract.md)
+    name: ${LOGGING_FILE_NAME:logs/application.log}
     max-size: 10MB
     max-history: 30
 
@@ -69,6 +75,33 @@ management:
   endpoint:
     health:
       show-details: when-authorized
+
+# 인증 모드 (요건 20260407): local = app_user.id + password_hash | ad = LDAP + app_user_external_identity 매핑
+# 운영 AD: auth.login.mode=ad 및 auth.ad.* 환경변수 필수. 묵시 폴백 없음 (fail-closed).
+# HR Sync PoC (preview-only). Env: HR_SYNC_POC_ENABLED, HR_SYNC_POC_APPLY_ENABLED, HR_SYNC_POC_DEFAULT_MODE
+hr:
+  sync:
+    poc:
+      enabled: ${HR_SYNC_POC_ENABLED:false}
+      apply-enabled: ${HR_SYNC_POC_APPLY_ENABLED:false}
+      default-mode: ${HR_SYNC_POC_DEFAULT_MODE:PREVIEW_ONLY}
+
+auth:
+  login:
+    mode: ${AUTH_LOGIN_MODE:local}
+    allow-local-in-production: ${AUTH_LOGIN_ALLOW_LOCAL_IN_PRODUCTION:false}
+  ad:
+    ldap-url: ${AUTH_AD_LDAP_URL:}
+    domain: ${AUTH_AD_DOMAIN:}
+    # Legacy (optional): not used for JNDI user simple bind; kept for backward-compatible YAML.
+    manager-dn: ${AUTH_AD_MANAGER_DN:}
+    manager-password: ${AUTH_AD_MANAGER_PASSWORD:}
+    user-search-base: ${AUTH_AD_USER_SEARCH_BASE:}
+    user-search-filter: ${AUTH_AD_USER_SEARCH_FILTER:(sAMAccountName={0})}
+    connect-timeout-ms: ${AUTH_AD_CONNECT_TIMEOUT_MS:5000}
+    read-timeout-ms: ${AUTH_AD_READ_TIMEOUT_MS:5000}
+  provisioning:
+    default-source-system: ${AUTH_PROVISIONING_DEFAULT_SOURCE_SYSTEM:HR_SAMPLE}
 
 # Application 설정
 app:
@@ -85,8 +118,15 @@ app:
       sys: ${APP_DB_SCHEMA_SYS:public}
       pb: ${APP_DB_SCHEMA_PB:public}
       imagelog: ${APP_DB_SCHEMA_IMAGELOG:public}
-  # Secondary JDBC (B) for ImageLog only. Omit url (or leave empty) to reuse primary pool — single-database dev fallback.
+  # Optional dedicated PB FEP JDBC: pb_send / pb_recv. Blank URL → reuse primary pool (same as ImageLog fallback).
   datasource:
+    pb:
+      url: ${APP_DATASOURCE_PB_URL:}
+      username: ${APP_DATASOURCE_PB_USERNAME:}
+      password: ${APP_DATASOURCE_PB_PASSWORD:}
+      driver-class-name: ${APP_DATASOURCE_PB_DRIVER:}
+      fail-fast: ${APP_DATASOURCE_PB_FAIL_FAST:true}
+      initialization-fail-timeout-ms: ${APP_DATASOURCE_PB_INIT_FAIL_TIMEOUT_MS:30000}
     imagelog:
       url: ${APP_DATASOURCE_IMAGELOG_URL:}
       username: ${APP_DATASOURCE_IMAGELOG_USERNAME:}
@@ -98,10 +138,21 @@ app:
   security:
     admin-id: admin
     admin-pw: admin123
-    encryption-key: ${ENCRYPTION_KEY:12345678901234567890123456789012}
+    # AES-256 (CryptoUtil): UTF-8 기준 32바이트 권장. 우선순위: ENCRYPTION_KEY → APP_SECURITY_ENCRYPTION_KEY(Spring) → 기본값(개발 전용)
+    encryption-key: ${ENCRYPTION_KEY:${APP_SECURITY_ENCRYPTION_KEY:12345678901234567890123456789012}}
     authorized-ips: "127.0.0.1,localhost,0:0:0:0:0:0:0:1,::1"
+  # 승인 흐름 진단 로그 (운영 기본 off). 켜면 [diag-approval] INFO가 출력됨.
+  diagnostic:
+    approval-flow: ${APP_DIAGNOSTIC_APPROVAL_FLOW:false}
+    # Permission group management screen / GET /api/permission-groups diagnostics (DEBUG via com.logmng.diagnostic.permissionGroupScreen).
+    permission-group-screen: ${APP_DIAGNOSTIC_PERMISSION_GROUP_SCREEN:false}
+    # Provisioning vs user-list / hierarchy: DEBUG logs under com.logmng.diagnostic.provisioningConsistency when true (req 20260407).
+    provisioning-consistency: ${APP_DIAGNOSTIC_PROVISIONING_CONSISTENCY:false}
   decryption:
-    enabled: ${DECRYPTION_ENABLED:true}
-    auto-decrypt-on-keyword-search: ${AUTO_DECRYPT_ON_KEYWORD_SEARCH:true}
-    failure-handling: ${FAILURE_HANDLING:fallback} # skip, fallback, error
+    # 복호화 켜기/끄기: DECRYPTION_ENABLED 또는 APP_DECRYPTION_ENABLED
+    enabled: ${DECRYPTION_ENABLED:${APP_DECRYPTION_ENABLED:true}}
+    # 키워드 검색 시 자동 복호화 시도: AUTO_DECRYPT_ON_KEYWORD_SEARCH 또는 APP_DECRYPTION_AUTO_DECRYPT_ON_KEYWORD_SEARCH
+    auto-decrypt-on-keyword-search: ${AUTO_DECRYPT_ON_KEYWORD_SEARCH:${APP_DECRYPTION_AUTO_DECRYPT_ON_KEYWORD_SEARCH:true}}
+    # skip | fallback | error — FAILURE_HANDLING 또는 APP_DECRYPTION_FAILURE_HANDLING
+    failure-handling: ${FAILURE_HANDLING:${APP_DECRYPTION_FAILURE_HANDLING:fallback}}
 

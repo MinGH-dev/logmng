@@ -1,5 +1,6 @@
 package com.logmng.util;
 
+import com.logmng.constants.ScreenConstants;
 import org.junit.jupiter.api.Test;
 
 import java.util.Collections;
@@ -23,6 +24,15 @@ class ScopeHelperTest {
     void resolveScope_nonScopeScreen_returnsAll() {
         assertThat(ScopeHelper.resolveScope(MAIN, false, null)).isEqualTo("all");
         assertThat(ScopeHelper.resolveScope("user-management", false, Map.of(ACTIVITY_LOG, "self"))).isEqualTo("all");
+    }
+
+    @Test
+    void resolveScope_userManagementV2_supportsSelfTeamAll() {
+        assertThat(ScopeHelper.resolveScope(ScreenConstants.USER_MANAGEMENT_V2, false, null)).isEqualTo("team");
+        assertThat(ScopeHelper.resolveScope(ScreenConstants.USER_MANAGEMENT_V2, false, Map.of(ScreenConstants.USER_MANAGEMENT_V2, "self")))
+                .isEqualTo("self");
+        assertThat(ScopeHelper.resolveScope(ScreenConstants.USER_MANAGEMENT_V2, true, Map.of(ScreenConstants.USER_MANAGEMENT_V2, "self")))
+                .isEqualTo("all");
     }
 
     // --- isSystemAdmin → "all" ---

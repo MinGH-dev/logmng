@@ -3,6 +3,7 @@ import { getUserPermissionHierarchy } from '../../services/permissionGroupServic
 import { getErrorMessage } from '../../utils/errorMessage';
 import logger from '../../utils/logger';
 import PermissionGroupPanel from '../PermissionGroupManagement/PermissionGroupPanel';
+import { MENU_TREE } from '../../constants/menuTree';
 import '../UserManagement/UserManagement.css';
 import '../PermissionGroupManagement/PermissionGroupManagement.css';
 import './UserPermissionHierarchy.css';
@@ -106,7 +107,7 @@ const HierarchyTree = ({ nodes, expandedCodes, onToggle, level = 0, isRoot = fal
   );
 };
 
-const UserPermissionHierarchy = ({ user }) => {
+const UserPermissionHierarchy = ({ user, menuTree = MENU_TREE }) => {
   const [tree, setTree] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -174,7 +175,7 @@ const UserPermissionHierarchy = ({ user }) => {
         </section>
         <section className="user-permission-hierarchy-groups-section" aria-label="권한 그룹 목록 및 관리">
           <h3>권한 그룹</h3>
-          <PermissionGroupPanel user={user} onRefreshHierarchy={loadHierarchy} />
+          <PermissionGroupPanel user={user} onRefreshHierarchy={loadHierarchy} menuTree={menuTree} />
         </section>
       </div>
     </div>

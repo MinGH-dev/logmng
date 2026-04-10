@@ -24,6 +24,8 @@ import {
 import { getErrorMessage } from '../../utils/errorMessage';
 import DataTable, { EmptyTableBody } from '../DataTable';
 import ScreenSelectionTree from './ScreenSelectionTree';
+import { MENU_TREE } from '../../constants/menuTree';
+import { hasPermissionGroupAdminFamilyAccess, hasPermissionGroupAdminWrite } from '../../constants/screenAccessPolicy';
 import logger from '../../utils/logger';
 import '../UserManagement/UserManagement.css';
 import './PermissionGroupManagement.css';
@@ -34,8 +36,9 @@ const GROUP_COLUMNS = [
   { key: 'description', label: '설명', sortable: false },
   { key: 'actions', label: '동작', sortable: false },
 ];
+const EMPLOYEE_NUMBER_FALLBACK_TEXT = '사번 미등록';
 
-const PermissionGroupPanel = ({ user, onRefreshHierarchy }) => {
+const PermissionGroupPanel = ({ user, onRefreshHierarchy, menuTree = MENU_TREE }) => {
   const [groups, setGroups] = useState([]);
   const [userList, setUserList] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -60,16 +63,16 @@ const PermissionGroupPanel = ({ user, onRefreshHierarchy }) => {
   const [deleteDialogError, setDeleteDialogError] = useState(null);
   const [createAllowedScreens, setCreateAllowedScreens] = useState([]);
   const [editAllowedScreens, setEditAllowedScreens] = useState([]);
+  const [editSaveReasonOpen, setEditSaveReasonOpen] = useState(false);
+  const [editPendingSave, setEditPendingSave] = useState(null);
+  const [editSaveReason, setEditSaveReason] = useState('');
+  const [editSaveReasonError, setEditSaveReasonError] = useState(null);
 
   const ids = getAllowedScreenIds(user);
   const screenFunctions = getScreenFunctions(user);
   const canAccessPermissionGroupManagement =
-    user?.isSystemAdmin === true ||
-    (Array.isArray(ids) &&
-      (ids.includes('permission-group-management') || ids.includes('user-permission-hierarchy')));
-  const canWrite =
-    screenFunctions?.['permission-group-management']?.write === true ||
-    screenFunctions?.['user-permission-hierarchy']?.write === true;
+    user?.isSystemAdmin === true || hasPermissionGroupAdminFamilyAccess(ids);
+  const canWrite = hasPermissionGroupAdminWrite(screenFunctions);
 
   const sortedGroups = useMemo(() => {
     if (!groups.length || !sortConfig.key) return groups;
@@ -135,20 +138,29 @@ const PermissionGroupPanel = ({ user, onRefreshHierarchy }) => {
     return s;
   };
 
+  /** Default scope when API omits scope for a scope-supporting screen (req 20250304 team default; req 20260409 UM v2 = team). */
+  const defaultScopeWhenMissing = (screenId) => (screenId === 'user-management-v2' ? 'team' : 'self');
+
   /** Normalize allowedScreens to [{ screenId, scope?, read?, write?, approve?, decrypt? }]. API may return string[] or object array.
    * Preserves explicit false for write/approve/decrypt when API returns partial data. When approve=true for approval-fixed screens, scope is set to 'team'. req 20250303, 20260306, 20260306-search-screen-decrypt-permission */
   const normalizeAllowedScreens = (arr) => {
-    const scopeScreens = ['activity-log', 'statistics', 'search-history', 'pending-approvals'];
-    const decryptScreens = ['pb-feplog', 'java-fw-imagelog'];
+    const scopeScreens = [
+      'activity-log',
+      'statistics',
+      'search-history',
+      'pending-approvals',
+      'user-management-v2',
+    ];
+    const decryptScreens = ['pb-feplog', 'pb-fep-log-search', 'java-fw-imagelog'];
     if (!Array.isArray(arr)) return [];
     return arr.map((s) => {
       const rawId = typeof s === 'string' ? s : s.screenId;
       const screenId = normalizeScreenId(rawId);
       const base = typeof s === 'string'
-        ? { screenId, scope: scopeScreens.includes(screenId) ? 'self' : undefined }
+        ? { screenId, scope: scopeScreens.includes(screenId) ? defaultScopeWhenMissing(screenId) : undefined }
         : {
             screenId,
-            scope: s.scope || (scopeScreens.includes(screenId) ? 'self' : undefined),
+            scope: s.scope || (scopeScreens.includes(screenId) ? defaultScopeWhenMissing(screenId) : undefined),
             read: s.read,
             write: s.write,
             approve: s.approve,
@@ -159,7 +171,7 @@ const PermissionGroupPanel = ({ user, onRefreshHierarchy }) => {
       const hasDecrypt = decryptScreens.includes(base.screenId);
       const approved = base.approve ?? (hasApprove ? false : undefined);
       const decryptVal = base.decrypt ?? (hasDecrypt ? false : undefined);
-      let scope = base.scope ?? (scopeScreens.includes(base.screenId) ? 'self' : undefined);
+      let scope = base.scope ?? (scopeScreens.includes(base.screenId) ? defaultScopeWhenMissing(base.screenId) : undefined);
       if (approved === true && APPROVAL_SCOPE_FIXED_SCREENS.includes(base.screenId)) {
         scope = 'team';
       }
@@ -196,6 +208,10 @@ const PermissionGroupPanel = ({ user, onRefreshHierarchy }) => {
     setEditOpen(true);
     setError(null);
     setEditDialogError(null);
+    setEditSaveReasonOpen(false);
+    setEditPendingSave(null);
+    setEditSaveReason('');
+    setEditSaveReasonError(null);
   };
 
   const openDelete = (group) => {
@@ -255,7 +271,7 @@ const PermissionGroupPanel = ({ user, onRefreshHierarchy }) => {
     }
   };
 
-  const handleEditSubmit = async (e) => {
+  const handleEditSubmit = (e) => {
     e.preventDefault();
     if (!editGroup || !editGroup.id) return;
     const form = e.target;
@@ -266,18 +282,48 @@ const PermissionGroupPanel = ({ user, onRefreshHierarchy }) => {
       setEditDialogError('코드와 이름을 입력하세요.');
       return;
     }
-    setActionId('edit');
     setEditDialogError(null);
+    const allowedScreens = toAllowedScreensPayload(editAllowedScreens);
+    setEditPendingSave({ id: editGroup.id, code, name, description, allowedScreens });
+    setEditSaveReason('');
+    setEditSaveReasonError(null);
+    setEditSaveReasonOpen(true);
+  };
+
+  const handleEditSaveReasonCancel = () => {
+    setEditSaveReasonOpen(false);
+    setEditPendingSave(null);
+    setEditSaveReason('');
+    setEditSaveReasonError(null);
+  };
+
+  const handleEditSaveReasonConfirm = async () => {
+    const reason = (editSaveReason || '').trim();
+    if (!reason) {
+      setEditSaveReasonError('저장 사유를 입력하세요.');
+      return;
+    }
+    if (!editPendingSave) return;
+    setActionId('edit');
+    setEditSaveReasonError(null);
     try {
-      const allowedScreens = toAllowedScreensPayload(editAllowedScreens);
-      await updatePermissionGroup(editGroup.id, { code, name, description, allowedScreens });
+      await updatePermissionGroup(editPendingSave.id, {
+        code: editPendingSave.code,
+        name: editPendingSave.name,
+        description: editPendingSave.description,
+        allowedScreens: editPendingSave.allowedScreens,
+        changeReason: reason,
+      });
+      setEditSaveReasonOpen(false);
+      setEditPendingSave(null);
+      setEditSaveReason('');
       setEditOpen(false);
       setEditGroup(null);
       await loadGroups();
       notifyHierarchyRefresh();
-    } catch (e) {
-      logger.error('권한 그룹 수정 실패:', e);
-      setEditDialogError(getErrorMessage(e, '수정에 실패했습니다.'));
+    } catch (err) {
+      logger.error('권한 그룹 수정 실패:', err);
+      setEditSaveReasonError(getErrorMessage(err, '수정에 실패했습니다.'));
     } finally {
       setActionId(null);
     }
@@ -352,6 +398,20 @@ const PermissionGroupPanel = ({ user, onRefreshHierarchy }) => {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [usersDialogOpen]);
 
+  useEffect(() => {
+    if (!editSaveReasonOpen) return;
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') {
+        setEditSaveReasonOpen(false);
+        setEditPendingSave(null);
+        setEditSaveReason('');
+        setEditSaveReasonError(null);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [editSaveReasonOpen]);
+
   const closeUsersDialog = useCallback(() => {
     setUsersDialogOpen(false);
     setUsersDialogGroup(null);
@@ -364,6 +424,13 @@ const PermissionGroupPanel = ({ user, onRefreshHierarchy }) => {
     const id = u.userId ?? u.username;
     return id != null && id !== '' && !alreadyInGroup(id);
   });
+
+  const getDisplayEmployeeNumber = (userLike) => {
+    const employeeNumber = userLike?.employeeNumber ?? userLike?.employee_number;
+    if (employeeNumber == null) return EMPLOYEE_NUMBER_FALLBACK_TEXT;
+    const normalized = String(employeeNumber).trim();
+    return normalized || EMPLOYEE_NUMBER_FALLBACK_TEXT;
+  };
 
   return (
     <>
@@ -477,6 +544,7 @@ const PermissionGroupPanel = ({ user, onRefreshHierarchy }) => {
               <div className="permission-group-form-row">
                 <span className="permission-group-form-label">접근 화면</span>
                 <ScreenSelectionTree
+                  menuTree={menuTree}
                   selectedScreens={createAllowedScreens}
                   onChange={setCreateAllowedScreens}
                 />
@@ -513,15 +581,73 @@ const PermissionGroupPanel = ({ user, onRefreshHierarchy }) => {
               <div className="permission-group-form-row">
                 <span className="permission-group-form-label">접근 화면</span>
                 <ScreenSelectionTree
+                  menuTree={menuTree}
                   selectedScreens={editAllowedScreens}
                   onChange={(next) => setEditAllowedScreens(next)}
                 />
               </div>
               <div className="permission-group-dialog-actions">
                 <button type="submit" className="user-management-btn add" disabled={!!actionId}>{(actionId === 'edit') ? '처리 중...' : '저장'}</button>
-                <button type="button" className="user-management-btn" onClick={() => { setEditOpen(false); setEditGroup(null); setError(null); setEditDialogError(null); }}>취소</button>
+                <button
+                  type="button"
+                  className="user-management-btn"
+                  onClick={() => {
+                    setEditOpen(false);
+                    setEditGroup(null);
+                    setError(null);
+                    setEditDialogError(null);
+                    handleEditSaveReasonCancel();
+                  }}
+                >
+                  취소
+                </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {editSaveReasonOpen && (
+        <div
+          className="permission-group-dialog-overlay permission-group-dialog-overlay-nested"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="dialog-edit-save-reason-title"
+        >
+          <div className="permission-group-dialog">
+            <h3 id="dialog-edit-save-reason-title">저장 사유</h3>
+            <p className="permission-group-hint">권한 그룹 변경 내용을 저장합니다. 사유를 입력한 뒤 확인을 누르세요.</p>
+            {editSaveReasonError && (
+              <div className="user-management-error" role="alert">{editSaveReasonError}</div>
+            )}
+            <div className="permission-group-form-row">
+              <label htmlFor="edit-save-reason">사유 <span aria-hidden>*</span></label>
+              <textarea
+                id="edit-save-reason"
+                value={editSaveReason}
+                onChange={(ev) => setEditSaveReason(ev.target.value)}
+                rows={4}
+                maxLength={2000}
+                required
+                aria-required="true"
+                autoComplete="off"
+                autoFocus
+                disabled={!!actionId}
+              />
+            </div>
+            <div className="permission-group-dialog-actions">
+              <button
+                type="button"
+                className="user-management-btn add"
+                onClick={handleEditSaveReasonConfirm}
+                disabled={!!actionId}
+              >
+                {(actionId === 'edit') ? '처리 중...' : '확인'}
+              </button>
+              <button type="button" className="user-management-btn" onClick={handleEditSaveReasonCancel} disabled={!!actionId}>
+                취소
+              </button>
+            </div>
           </div>
         </div>
       )}
@@ -571,7 +697,7 @@ const PermissionGroupPanel = ({ user, onRefreshHierarchy }) => {
                     const id = u.userId ?? u.username;
                     return (
                       <option key={id} value={String(id)}>
-                        {id} {u.departmentCode ? `(${u.departmentCode})` : ''}
+                        {getDisplayEmployeeNumber(u)} / {u.username || u.userName || id} {u.departmentCode ? `(${u.departmentCode})` : ''}
                       </option>
                     );
                   })}
@@ -606,7 +732,7 @@ const PermissionGroupPanel = ({ user, onRefreshHierarchy }) => {
                             const uid = u.userId ?? u.username;
                             return (
                               <tr key={uid}>
-                                <td>{uid}</td>
+                                <td>{getDisplayEmployeeNumber(u)}</td>
                                 <td>
                                   <button type="button" className="user-management-btn remove" onClick={() => handleRemoveUserFromGroup(uid)} disabled={usersDialogActionId === String(uid)} aria-label={`제거, ${uid}`}>
                                     {usersDialogActionId === String(uid) ? '처리 중...' : '제거'}

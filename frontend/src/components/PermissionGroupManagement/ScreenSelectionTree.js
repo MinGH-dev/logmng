@@ -21,8 +21,14 @@ import './ScreenSelectionTree.css';
 /** Read label when screen is selected: read is always on. UX: clarify "조회 ✓" so it's clear read is always on. */
 const READ_LABEL_DISPLAY = '조회 ✓';
 
-/** Screens that support scope (self | team | all). req 20250304-team-scope-default-and-approval; req 20260305 pending-approvals scope */
-const SCOPE_SUPPORTING_SCREENS = ['activity-log', 'statistics', 'search-history', 'pending-approvals'];
+/** Screens that support scope (self | team | all). req 20250304-team-scope-default-and-approval; req 20260305 pending-approvals scope; req 20260409 user-management-v2 */
+const SCOPE_SUPPORTING_SCREENS = [
+  'activity-log',
+  'statistics',
+  'search-history',
+  'pending-approvals',
+  'user-management-v2',
+];
 
 const SCOPE_OPTIONS = [
   { value: 'self', label: '본인' },
@@ -77,7 +83,7 @@ const getScreenIdSet = (normalized) => new Set(normalized.map((s) => s.screenId)
 const getItemForScreen = (normalized, screenId) =>
   normalized.find((s) => s.screenId === screenId);
 
-const ScreenSelectionTree = ({ selectedScreens, onChange }) => {
+const ScreenSelectionTree = ({ selectedScreens, onChange, menuTree = MENU_TREE }) => {
   const normalized = React.useMemo(() => normalizeSelected(selectedScreens), [selectedScreens]);
   const screenIdSet = React.useMemo(() => getScreenIdSet(normalized), [normalized]);
 
@@ -148,7 +154,7 @@ const ScreenSelectionTree = ({ selectedScreens, onChange }) => {
 
   return (
     <div className="screen-selection-tree" role="group" aria-label="접근 화면 선택">
-      {MENU_TREE.map((node) => (
+      {menuTree.map((node) => (
         <div key={node.id} className="screen-selection-group" role="group" aria-label={node.label}>
           <div className="screen-selection-group-header">{node.label}</div>
           <ul className="screen-selection-list">

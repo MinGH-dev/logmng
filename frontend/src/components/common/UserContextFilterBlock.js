@@ -10,7 +10,7 @@ import './UserContextFilterBlock.css';
  * @param {string[]} departmentList - Options for department select
  * @param {Array<{userId: number, ...}>} [userList] - If provided, userId is a select (numeric app_user.id); otherwise text input
  * @param {{ department: string, username: string, userId: number|string }} values
- * @param {{ department: string, username: string, userId: number|string }} [lockedValues]
+ * @param {{ department: string, username: string, userId: number|string, employeeNumber?: string }} [lockedValues]
  * @param {(name: 'department'|'username'|'userId', value: string|number) => void} onChange
  * @param {string} [idPrefix='user-ctx'] - Prefix for input ids (for a11y in same page)
  * @param {boolean} [compact] - When true, reduce margin for single-row inline layout (1–2 row UX)
@@ -27,6 +27,7 @@ const UserContextFilterBlock = ({
   idPrefix = 'user-ctx',
   compact = false,
   usernameMaxLength = 5,
+  lockedUserIdFallbackText = '사번 미등록',
 }) => {
   const isLocked = mode === 'locked';
   const id = (name) => `${idPrefix}-${name}`;
@@ -34,7 +35,10 @@ const UserContextFilterBlock = ({
     ? {
         department: lockedValues.department ?? '',
         username: lockedValues.username ?? '',
-        userId: lockedValues.userId != null && lockedValues.userId !== '' ? lockedValues.userId : '',
+        userId:
+          lockedValues.employeeNumber != null && String(lockedValues.employeeNumber).trim() !== ''
+            ? String(lockedValues.employeeNumber).trim()
+            : lockedUserIdFallbackText,
       }
     : values;
 
@@ -48,11 +52,12 @@ const UserContextFilterBlock = ({
     <input
       type="text"
       id={id(name)}
-      value={displayValues[name] || ''}
+      value={displayValues[name] ?? ''}
       readOnly
       aria-readonly="true"
       className="form-control user-context-filter-block__locked-control"
       aria-label={ariaLabel}
+      title="조회 범위가 본인으로 고정되어 변경할 수 없습니다."
     />
   );
 
@@ -82,16 +87,17 @@ const UserContextFilterBlock = ({
 
         <div className="form-group">
           <label htmlFor={id('username')}>{isLocked ? '사용자명' : '사용자명 (최대 5자)'}</label>
-          {isLocked ? renderLockedControl('username', '사용자명') : (
+          {isLocked ? renderLockedControl('username', '사용자명 (본인)') : (
             <input
               type="text"
               id={id('username')}
               value={displayValues.username || ''}
               onChange={(e) => onChange('username', e.target.value)}
-              className="form-control"
+              className="form-control user-context-filter-block__input-editable"
               placeholder="최대 5자"
               aria-label="사용자명 (최대 5자)"
               maxLength={usernameMaxLength}
+              autoComplete="off"
             />
           )}
         </div>

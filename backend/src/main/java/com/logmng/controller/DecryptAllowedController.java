@@ -64,7 +64,12 @@ public class DecryptAllowedController {
                     .body(ApiResponse.failure("해당 화면에 대한 복호화 권한이 없습니다.", "FUNCTION_NOT_ALLOWED"));
         }
 
-        Map<String, Object> data = decryptionAllowedService.getAllowed(currentUser.getUserId(), screenTrim);
+        // pb-fep-log-search shares decryption-allowed rows with pb-feplog (same logType pb_feplog).
+        String storageScreen = ScreenConstants.PB_FEP_LOG_SEARCH.equals(screenTrim)
+                ? ScreenConstants.PB_FEPLOG
+                : screenTrim;
+
+        Map<String, Object> data = decryptionAllowedService.getAllowed(currentUser.getUserId(), storageScreen);
         return ResponseEntity.ok(ApiResponse.success(data));
     }
 }

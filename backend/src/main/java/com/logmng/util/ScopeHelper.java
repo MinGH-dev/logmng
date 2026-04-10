@@ -10,7 +10,8 @@ import java.util.Locale;
 import java.util.Map;
 
 /**
- * Helper to resolve effective scope per screen for activity-log, statistics, search-history.
+ * Helper to resolve effective scope per screen for activity-log, statistics, search-history,
+ * pending-approvals, and user-management-v2 (read/list; req 20260409).
  * Per req 20250303-activity-statistics-self-only-scope; req 20250304-team-scope-default-and-approval.
  */
 public final class ScopeHelper {
@@ -21,7 +22,7 @@ public final class ScopeHelper {
     /**
      * Resolves effective scope for the given screen.
      *
-     * @param screenId      activity-log, statistics, or search-history
+     * @param screenId      activity-log, statistics, search-history, pending-approvals, user-management-v2, etc.
      * @param isSystemAdmin true if user is system administrator
      * @param screenScopes  per-screen scope from auth (may be null)
      * @return 'all' if isSystemAdmin; else from screenScopes for screenId; default 'team' when null/omitted (scope-supporting screens)

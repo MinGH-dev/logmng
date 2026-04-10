@@ -53,9 +53,11 @@
   box-sizing: border-box;
 }
 
-.user-context-filter-block--locked .form-group .form-control[readonly] {
+/* 본인(scope=self) 등 고정 표시: 편집 불가 — 배경을 회색으로 두어 흰색 편집 필드와 구분 */
+.user-context-filter-block--locked .form-group .form-control[readonly],
+.user-context-filter-block--locked .user-context-filter-block__locked-control {
   width: 100%;
-  background-color: #fff;
+  background-color: #e9ecef;
   color: #333;
-  cursor: default;
+  cursor: not-allowed;
 }

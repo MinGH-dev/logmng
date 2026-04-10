@@ -17,6 +17,8 @@ Use for **schema, migrations, and DB config** in this repo. Scope: `backend/src/
 
 - **Stack**: PostgreSQL (port 5432). Default dev: single DB `logmng`. **Split ops**: DB **A** (`DB_A_NAME`) for system + PB schemas (`SCHEMA_SYS`, `SCHEMA_PB`); DB **B** (`DB_B_NAME`) for ImageLog (`SCHEMA_IMAGELOG`). See `backend/DB_SETUP_GUIDE.md` and `docs/contract.md` (multi-datasource + env table). Req: `docs/requirements/20260320-multi-datasource-schema-configuration.md`.
 - **DDL layout**: `schema.sql` includes `schema_pb_fep.sql` and `schema_sys.sql`; ImageLog remains `schema_imagelog.sql` (often applied to B when split).
+- **Imagelog composite key (req 20260320)**: migrations `migrate-imagelog-guid-status-unique-20260320.sql` (DB B / ImageLog) and `migrate-sys-decryption-composite-pk-20260320.sql` (DB A / sys); wrapper `migrate-imagelog-composite-decrypt-20260320.sql` uses `\ir` for single-schema runs. `setup.sh` runs both in order.
+- **Permission group screen columns (req 20260320)**: `setup.sh` step **4h** runs `migrate-permission-group-screen-scope.sql` → `migrate-permission-group-screen-functions.sql` → `migrate-permission-group-screen-decrypt.sql` → `migrate-permission-group-screen-scope-team.sql` on DB A before init-data/5a so legacy `permission_group_screen` rows get `scope`/`read`/`write`/`approve`/`decrypt`. `check-db.sh` section **6b** validates those columns on `SCHEMA_SYS.permission_group_screen`.
 - **Scope**: `backend/src/main/resources/db/` (schema*.sql, setup.sh, check-db.sh, migrations, init-data), `backend/DB_*.md`. No Java, API, or frontend.
 - **Workflow**: Requirement doc + §3 test plan before schema/script changes. After schema change, state "backend/spec update needed".
 

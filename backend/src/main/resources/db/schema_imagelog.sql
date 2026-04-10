@@ -23,6 +23,9 @@ CREATE INDEX IF NOT EXISTS idx_imagelog_service ON imagelog(service);
 CREATE INDEX IF NOT EXISTS idx_imagelog_status ON imagelog(status);
 CREATE INDEX IF NOT EXISTS idx_imagelog_guid ON imagelog(guid);
 
+-- Req 20260320: business uniqueness (guid, status); coalesce for null/blank status
+CREATE UNIQUE INDEX IF NOT EXISTS uq_imagelog_guid_row_status ON imagelog (guid, COALESCE(NULLIF(TRIM(status), ''), ''));
+
 -- 복합 인덱스 (검색 성능 향상)
 CREATE INDEX IF NOT EXISTS idx_imagelog_search ON imagelog(insert_time, application, servicegroup, service);
 

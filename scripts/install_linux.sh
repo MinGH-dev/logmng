@@ -1,10 +1,19 @@
 #!/usr/bin/env bash
-# Interactive Linux helper: PostgreSQL setup (full or sys_only) + optional app env file.
-# Usage: from repo root — ./scripts/install_linux.sh
+# Linux helper: PostgreSQL setup (full or sys_only) + optional app env file.
+# Interactive (default): from repo root — ./scripts/install_linux.sh
+# Non-interactive (docs/contract.md): INSTALL_NONINTERACTIVE=1 and required env (e.g. in .env):
+#   SETUP_MODE=full|sys_only|pb_only, DB_HOST, DB_PORT, DB_USER, DB_PASSWORD, DB_NAME or DB_A_NAME;
+#   pb_only → DB_PB_NAME. Optional: PGPASSWORD or PGPASSWORD_SUPER (never logged).
+#   Example: set -a && source .env && set +a && INSTALL_NONINTERACTIVE=1 ./scripts/install_linux.sh
 # Requires: psql, bash 4+ (for ${var,,}); PostgreSQL reachable on this host.
 #
-# For a full offline bundle (JARs + db + single install/start tool on the server), use
-#   ./scripts/build-offline-bundle.sh
+# PB를 시스템 DB(A)와 별도 database에 두려면 대화형 프롬프트에 y이거나, 실행 전에 export:
+#   DB_PB_NAME, DB_PB_HOST, DB_PB_PORT, DB_PB_SUPERUSER(선택; 기본은 DB_SUPERUSER)
+# setup.sh가 분리 PB를 지원하면 이 변수들을 읽습니다. 앱은 APP_DATASOURCE_PB_URL을 PB JDBC와 맞춥니다.
+#
+# For a full offline bundle (JARs + db + single install/start tool on the server), optionally
+#   ./scripts/download-psql-for-bundle.sh
+# then ./scripts/build-offline-bundle.sh
 # and on the air-gapped host: ./install-offline.sh all
 
 set -euo pipefail
@@ -15,6 +24,103 @@ DB_SETUP_SH="$REPO_ROOT/backend/src/main/resources/db/setup.sh"
 if [[ ! -f "$DB_SETUP_SH" ]]; then
   echo "setup.sh not found: $DB_SETUP_SH" >&2
   exit 1
+fi
+
+is_install_noninteractive() {
+  local v="${INSTALL_NONINTERACTIVE:-0}"
+  [[ "$v" == "1" ]] || [[ "${v,,}" == "true" ]] || [[ "${v,,}" == "yes" ]]
+}
+
+# Non-interactive path (INSTALL_NONINTERACTIVE=1): source .env, validate, run setup.sh; no menus or password prompts.
+# On failure, stderr lists missing or invalid variable names only (TC-05). Never print secrets or PGPASSWORD values.
+run_install_noninteractive() {
+  local ENV_FILE="${INSTALL_ENV_FILE:-$REPO_ROOT/.env}"
+  if [[ -f "$ENV_FILE" ]]; then
+    set -a
+    # shellcheck disable=SC1090
+    source "$ENV_FILE"
+    set +a
+  fi
+
+  local missing=()
+  local sm="${SETUP_MODE:-}"
+
+  [[ -n "$sm" ]] || missing+=("SETUP_MODE")
+  if [[ -n "$sm" && "$sm" != "full" && "$sm" != "sys_only" && "$sm" != "pb_only" ]]; then
+    printf '%s\n' "SETUP_MODE" >&2
+    exit 1
+  fi
+
+  [[ -n "${DB_HOST:-}" ]] || missing+=("DB_HOST")
+  [[ -n "${DB_PORT:-}" ]] || missing+=("DB_PORT")
+  [[ -n "${DB_USER:-}" ]] || missing+=("DB_USER")
+  [[ -n "${DB_PASSWORD:-}" ]] || missing+=("DB_PASSWORD")
+  if [[ -z "${DB_A_NAME:-}" && -z "${DB_NAME:-}" ]]; then
+    missing+=("DB_NAME")
+    missing+=("DB_A_NAME")
+  fi
+  if [[ "$sm" == "pb_only" ]]; then
+    [[ -n "${DB_PB_NAME:-}" ]] || missing+=("DB_PB_NAME")
+  fi
+
+  if [[ ${#missing[@]} -gt 0 ]]; then
+    printf '%s\n' "${missing[@]}" >&2
+    exit 1
+  fi
+
+  export DB_SUPERUSER="${DB_SUPERUSER:-postgres}"
+  if [[ -z "${DB_A_NAME:-}" ]]; then
+    export DB_A_NAME="${DB_NAME}"
+  fi
+  if [[ -z "${DB_NAME:-}" ]]; then
+    export DB_NAME="${DB_A_NAME}"
+  fi
+  export DB_B_NAME="${DB_B_NAME:-$DB_A_NAME}"
+  export SCHEMA_SYS="${SCHEMA_SYS:-public}"
+  export SCHEMA_PB="${SCHEMA_PB:-public}"
+  export SCHEMA_IMAGELOG="${SCHEMA_IMAGELOG:-public}"
+  export SETUP_MODE="$sm"
+
+  # setup.sh: PGPASSWORD_SUPER or PGPASSWORD (optional for trust/peer). Export only if set — never echo.
+  [[ -n "${PGPASSWORD_SUPER:-}" ]] && export PGPASSWORD_SUPER
+  [[ -n "${PGPASSWORD:-}" ]] && export PGPASSWORD
+
+  echo "[install_linux] Non-interactive: SETUP_MODE=$SETUP_MODE → setup.sh" >&2
+  bash "$DB_SETUP_SH"
+  local rc=$?
+
+  if [[ "$rc" -eq 0 && "${INSTALL_WRITE_APP_ENV:-0}" == "1" ]]; then
+    SPRING_DATASOURCE_URL="${SPRING_DATASOURCE_URL:-jdbc:postgresql://${DB_HOST}:${DB_PORT}/${DB_A_NAME}}"
+    SPRING_DATASOURCE_USERNAME="${SPRING_DATASOURCE_USERNAME:-$DB_USER}"
+    SPRING_DATASOURCE_PASSWORD="${SPRING_DATASOURCE_PASSWORD:-$DB_PASSWORD}"
+    APP_DB_SCHEMA_SYS="${APP_DB_SCHEMA_SYS:-$SCHEMA_SYS}"
+    APP_DB_SCHEMA_PB="${APP_DB_SCHEMA_PB:-$SCHEMA_PB}"
+    APP_DB_SCHEMA_IMAGELOG="${APP_DB_SCHEMA_IMAGELOG:-$SCHEMA_IMAGELOG}"
+    if [[ -z "${APP_DATASOURCE_PB_URL:-}" && -n "${DB_PB_NAME:-}" && "$DB_PB_NAME" != "$DB_A_NAME" ]]; then
+      APP_DATASOURCE_PB_URL="jdbc:postgresql://${DB_PB_HOST:-$DB_HOST}:${DB_PB_PORT:-$DB_PORT}/${DB_PB_NAME}"
+      APP_DATASOURCE_PB_USERNAME="${APP_DATASOURCE_PB_USERNAME:-$DB_USER}"
+      APP_DATASOURCE_PB_PASSWORD="${APP_DATASOURCE_PB_PASSWORD:-$DB_PASSWORD}"
+    fi
+    APP_DATASOURCE_PB_URL="${APP_DATASOURCE_PB_URL:-}"
+    APP_DATASOURCE_PB_USERNAME="${APP_DATASOURCE_PB_USERNAME:-}"
+    APP_DATASOURCE_PB_PASSWORD="${APP_DATASOURCE_PB_PASSWORD:-}"
+    if [[ -z "${APP_DATASOURCE_IMAGELOG_URL:-}" && -n "${DB_B_NAME:-}" && "$DB_B_NAME" != "$DB_A_NAME" ]]; then
+      APP_DATASOURCE_IMAGELOG_URL="jdbc:postgresql://${DB_HOST}:${DB_PORT}/${DB_B_NAME}"
+      APP_DATASOURCE_IMAGELOG_USERNAME="${APP_DATASOURCE_IMAGELOG_USERNAME:-$DB_USER}"
+      APP_DATASOURCE_IMAGELOG_PASSWORD="${APP_DATASOURCE_IMAGELOG_PASSWORD:-$DB_PASSWORD}"
+    fi
+    APP_DATASOURCE_IMAGELOG_URL="${APP_DATASOURCE_IMAGELOG_URL:-}"
+    APP_DATASOURCE_IMAGELOG_USERNAME="${APP_DATASOURCE_IMAGELOG_USERNAME:-}"
+    APP_DATASOURCE_IMAGELOG_PASSWORD="${APP_DATASOURCE_IMAGELOG_PASSWORD:-}"
+    OUT_PATH="${INSTALL_APP_ENV_OUT:-$REPO_ROOT/backend/.env.logmng.generated}"
+    write_env_file "$OUT_PATH"
+  fi
+
+  exit "$rc"
+}
+
+if is_install_noninteractive; then
+  run_install_noninteractive
 fi
 
 if [[ "$(uname -s)" != "Linux" ]]; then
@@ -61,10 +167,15 @@ export SPRING_DATASOURCE_PASSWORD="${SPRING_DATASOURCE_PASSWORD}"
 export APP_DB_SCHEMA_SYS="${APP_DB_SCHEMA_SYS}"
 export APP_DB_SCHEMA_PB="${APP_DB_SCHEMA_PB}"
 export APP_DB_SCHEMA_IMAGELOG="${APP_DB_SCHEMA_IMAGELOG}"
+# PB FEP pool (optional; empty = reuse primary with sys+pb search_path)
+export APP_DATASOURCE_PB_URL="${APP_DATASOURCE_PB_URL:-}"
+export APP_DATASOURCE_PB_USERNAME="${APP_DATASOURCE_PB_USERNAME:-}"
+export APP_DATASOURCE_PB_PASSWORD="${APP_DATASOURCE_PB_PASSWORD:-}"
 # ImageLog pool (optional; empty = reuse primary)
 export APP_DATASOURCE_IMAGELOG_URL="${APP_DATASOURCE_IMAGELOG_URL}"
 export APP_DATASOURCE_IMAGELOG_USERNAME="${APP_DATASOURCE_IMAGELOG_USERNAME}"
 export APP_DATASOURCE_IMAGELOG_PASSWORD="${APP_DATASOURCE_IMAGELOG_PASSWORD}"
+export LOGGING_FILE_NAME="${LOGGING_FILE_NAME:-}"
 EOF
   echo "Wrote: $path"
 }
@@ -106,18 +217,56 @@ if [[ -n "$PGPASS_SUPER" ]]; then
   export PGPASSWORD_SUPER="$PGPASS_SUPER"
 fi
 
+# Optional: PB FEP in a separate PostgreSQL database (DB_PB_* → bundled setup.sh; see DB_SETUP_GUIDE.md).
+if [[ -n "${DB_PB_NAME:-}" ]]; then
+  echo "[정보] DB_PB_NAME이 설정되어 있음 (${DB_PB_NAME}) — PB는 시스템 DB(A)와 별도 database로 프로비저닝합니다."
+  DB_PB_HOST="${DB_PB_HOST:-$DB_HOST}"
+  DB_PB_PORT="${DB_PB_PORT:-$DB_PORT}"
+  DB_PB_SUPERUSER="${DB_PB_SUPERUSER:-$DB_SUPERUSER}"
+  export DB_PB_NAME DB_PB_HOST DB_PB_PORT DB_PB_SUPERUSER
+else
+  read -r -p "PB FEP를 시스템 DB(A)와 다른 PostgreSQL database에 둡니까? [y/N]: " _pb_split || true
+  if [[ "${_pb_split,,}" == "y" ]]; then
+    DB_PB_NAME="$(prompt "PB database 이름" "logmng_pb")"
+    read -r -p "PB DB 호스트 [${DB_HOST}]: " _pbh || true
+    DB_PB_HOST="${_pbh:-$DB_HOST}"
+    read -r -p "PB DB 포트 [${DB_PORT}]: " _pbp || true
+    DB_PB_PORT="${_pbp:-$DB_PORT}"
+    DB_PB_SUPERUSER="${DB_PB_SUPERUSER:-$DB_SUPERUSER}"
+    export DB_PB_NAME DB_PB_HOST DB_PB_PORT DB_PB_SUPERUSER
+  else
+    unset DB_PB_NAME DB_PB_HOST DB_PB_PORT DB_PB_SUPERUSER 2>/dev/null || true
+  fi
+fi
+
 SPRING_DATASOURCE_URL="jdbc:postgresql://${DB_HOST}:${DB_PORT}/${DB_A_NAME}"
 SPRING_DATASOURCE_USERNAME="$DB_USER"
 SPRING_DATASOURCE_PASSWORD="$DB_PASSWORD"
 APP_DB_SCHEMA_SYS="$SCHEMA_SYS"
 APP_DB_SCHEMA_PB="$SCHEMA_PB"
 APP_DB_SCHEMA_IMAGELOG="$SCHEMA_IMAGELOG"
+APP_DATASOURCE_PB_URL=""
+APP_DATASOURCE_PB_USERNAME=""
+APP_DATASOURCE_PB_PASSWORD=""
 APP_DATASOURCE_IMAGELOG_URL=""
 APP_DATASOURCE_IMAGELOG_USERNAME=""
 APP_DATASOURCE_IMAGELOG_PASSWORD=""
 
 if [[ "$choice" == "3" ]]; then
   echo ""
+  def_pb_url=""
+  if [[ -n "${DB_PB_NAME:-}" ]]; then
+    def_pb_url="jdbc:postgresql://${DB_PB_HOST:-$DB_HOST}:${DB_PB_PORT:-$DB_PORT}/${DB_PB_NAME}"
+    read -r -p "PB FEP 전용 JDBC URL [${def_pb_url}]: " pb_url || true
+    APP_DATASOURCE_PB_URL="${pb_url:-$def_pb_url}"
+  else
+    read -r -p "PB FEP 전용 JDBC URL (비우면 Primary 풀 + search_path) []: " pb_url || true
+    APP_DATASOURCE_PB_URL="${pb_url:-}"
+  fi
+  if [[ -n "$APP_DATASOURCE_PB_URL" ]]; then
+    APP_DATASOURCE_PB_USERNAME="$(prompt "PB FEP DB 사용자" "$DB_USER")"
+    APP_DATASOURCE_PB_PASSWORD="$(prompt "PB FEP DB 비밀번호" "$DB_PASSWORD")"
+  fi
   read -r -p "ImageLog 전용 JDBC URL (비우면 단일 DB 폴백) []: " img_url || true
   APP_DATASOURCE_IMAGELOG_URL="${img_url:-}"
   if [[ -n "$APP_DATASOURCE_IMAGELOG_URL" ]]; then
@@ -164,6 +313,19 @@ bash "$DB_SETUP_SH"
 echo ""
 read -r -p "애플리케이션용 export 파일을 생성할까요? [y/N]: " gen || true
 if [[ "${gen,,}" == "y" ]]; then
+  def_pb_url=""
+  if [[ -n "${DB_PB_NAME:-}" ]]; then
+    def_pb_url="jdbc:postgresql://${DB_PB_HOST:-$DB_HOST}:${DB_PB_PORT:-$DB_PORT}/${DB_PB_NAME}"
+    read -r -p "PB FEP 전용 JDBC URL [${def_pb_url}]: " pb_url || true
+    APP_DATASOURCE_PB_URL="${pb_url:-$def_pb_url}"
+  else
+    read -r -p "PB FEP 전용 JDBC URL (비우면 Primary 풀 + search_path) []: " pb_url || true
+    APP_DATASOURCE_PB_URL="${pb_url:-}"
+  fi
+  if [[ -n "$APP_DATASOURCE_PB_URL" ]]; then
+    APP_DATASOURCE_PB_USERNAME="$(prompt "PB FEP DB 사용자" "$DB_USER")"
+    APP_DATASOURCE_PB_PASSWORD="$(prompt "PB FEP DB 비밀번호" "$DB_PASSWORD")"
+  fi
   read -r -p "ImageLog 전용 JDBC URL (비우면 단일 DB) []: " img_url || true
   APP_DATASOURCE_IMAGELOG_URL="${img_url:-}"
   if [[ -n "$APP_DATASOURCE_IMAGELOG_URL" ]]; then

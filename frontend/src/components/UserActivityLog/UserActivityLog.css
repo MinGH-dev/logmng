@@ -3,7 +3,10 @@
 .activity-log-list-container {
   padding: var(--sf-container-padding);
   max-width: 1400px;
+  width: 100%;
+  min-width: 0;
   margin: 0 auto;
+  box-sizing: border-box;
 }
 
 .activity-log-header {
@@ -28,6 +31,12 @@
   padding: var(--sf-container-padding);
   border-radius: 8px;
   margin-bottom: var(--sf-block-gap);
+  max-width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+  /* 실제 폼 너비 기준으로 버튼 행 정렬 (사이드바 등으로 메인 컬럼만 좁을 때 대응) */
+  container-type: inline-size;
+  container-name: activity-log-search;
 }
 
 .activity-log-auth-error {
@@ -40,7 +49,7 @@
   font-size: 14px;
 }
 
-/* P12/P11: Form accessible name; Row 2 group label "검색 조건" (visually hidden) */
+/* P12/P11: Form accessible name; Row 2 group label "검색 조건" (visually hidden) — default; grid row uses static override below */
 .activity-log-search-form__row2-heading-sr-only {
   position: absolute;
   width: 1px;
@@ -51,14 +60,6 @@
   clip: rect(0, 0, 0, 0);
   white-space: nowrap;
   border: 0;
-}
-
-/* P2: User block same width-by-role as statistics (req 20260311); do not squeeze. */
-.search-form-row-2 .user-context-filter-block--compact {
-  min-width: var(--sf-field-user-block-min);
-  max-width: var(--sf-field-user-block-max);
-  flex: 0 1 auto;
-  margin-right: var(--sf-block-gap);
 }
 
 /* Row 1: 시작 일시, 종료 일시 only (req 20260311-activity-log-statistics-design-standards) */
@@ -89,13 +90,50 @@
   margin-top: 2px;
 }
 
-/* Row 2: 부서, 사용자명, 사용자 ID, 기타 조건, 액션 타입, IP, 검색, 초기화 */
+/* Row 2: 사용자 블록 | 기타 조건 | 검색·초기화 — 한 행 Grid (minmax로 좁은 메인 컬럼에서도 넘침 완화) */
 .search-form-row-2 {
   position: relative;
-  display: flex;
-  flex-wrap: wrap;
-  align-items: flex-end;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto;
+  grid-template-rows: 0 minmax(0, auto);
+  align-items: end;
   gap: var(--sf-row-gap);
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+}
+
+/* 스크린리더 제목만 0높이 행에 두고, 필드+버튼은 2행에 한 줄 배치 */
+.search-form-row-2 > .activity-log-search-form__row2-heading-sr-only {
+  grid-column: 1 / -1;
+  grid-row: 1;
+  position: static;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* P2: User block — grid 열 축소 시 넘침 방지; 열 배치 */
+.search-form-row-2 > .user-context-filter-block--compact {
+  grid-column: 1;
+  grid-row: 2;
+  min-width: 0;
+  max-width: min(var(--sf-field-user-block-max), 100%);
+}
+
+.search-form-row-2 > .search-form-row-2__extra {
+  grid-column: 2;
+  grid-row: 2;
+}
+
+.search-form-row-2 > .search-form-actions {
+  grid-column: 3;
+  grid-row: 2;
 }
 
 .search-form-row-2 .form-group {
@@ -107,8 +145,7 @@
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  margin-left: var(--sf-block-gap);
-  flex: 0 1 auto;
+  margin-left: 0;
   min-width: 0;
 }
 
@@ -137,8 +174,10 @@
 
 .search-form-row-2 .search-form-actions {
   margin-top: 0;
-  margin-left: auto;
-  flex-shrink: 0;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  min-width: 0;
+  max-width: 100%;
 }
 
 .search-form-row {
@@ -285,28 +324,54 @@
 /* 로딩/빈 상태는 DataTable.css .loading-container, .no-data 사용 */
 /* 페이지네이션: DataTable 내부 .pagination, .page-btn 사용 (grid-and-table.md) */
 
-/* 상세 모달 */
+/* 상세 모달 — req 20260408-activity-log-detail-modal-viewport-centering
+ * Scroll model: Option B — single vertical scroll on .activity-log-detail-body; header/footer stay visible
+ * within max-height. Overlay also scrolls (overflow-y: auto) with margin auto so when the dialog exceeds
+ * the region, top/bottom remain reachable (complements body scroll on very small heights).
+ * Centering: fixed inset matches main column (--app-main-inset-* from App.js; below app bar, right of sidebar). */
 .activity-log-detail-overlay {
   position: fixed;
-  top: 0;
-  left: 0;
+  left: var(--app-main-inset-left, 0px);
   right: 0;
+  top: var(--app-main-inset-top, 0px);
   bottom: 0;
   background: rgba(0, 0, 0, 0.5);
   display: flex;
-  justify-content: center;
+  flex-direction: column;
   align-items: center;
-  z-index: 1000;
+  justify-content: flex-start;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 16px;
+  box-sizing: border-box;
+  z-index: 1300;
+  -webkit-overflow-scrolling: touch;
 }
 
 .activity-log-detail-modal {
   background: white;
   border-radius: 8px;
-  width: 90%;
+  width: min(900px, 100%);
   max-width: 900px;
-  max-height: 90vh;
-  overflow-y: auto;
+  min-width: 0;
+  margin-top: auto;
+  margin-bottom: auto;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  max-height: min(
+    calc(100dvh - var(--app-main-inset-top, 0px) - 48px),
+    calc(100vh - var(--app-main-inset-top, 0px) - 48px)
+  );
+  overflow: hidden;
   box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.activity-log-detail-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
 }
 
 .activity-log-detail-header {
@@ -492,20 +557,203 @@
   margin-bottom: 10px;
 }
 
+/* Permission-group audit (action_detail.permissionGroupAuditV1) */
+.permission-group-audit-section {
+  margin-top: 16px;
+  padding: 12px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 4px;
+}
+
+.permission-group-audit-section h4 {
+  margin: 0 0 12px;
+  font-size: 14px;
+  font-weight: 600;
+  color: #1e293b;
+}
+
+.pg-audit-subsection {
+  margin-top: 16px;
+}
+
+.pg-audit-subheading {
+  margin: 0 0 8px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #334155;
+}
+
+.pg-audit-empty {
+  margin: 8px 0 0;
+  font-size: 13px;
+  color: #64748b;
+}
+
+.pg-audit-truncated-note {
+  margin: 0 0 12px;
+  font-size: 12px;
+  color: #b45309;
+}
+
+.pg-audit-snapshot-note {
+  margin: 0 0 10px;
+  padding: 8px 10px;
+  font-size: 12px;
+  line-height: 1.45;
+  color: #334155;
+  background: #e0f2fe;
+  border: 1px solid #bae6fd;
+  border-radius: 4px;
+}
+
+.activity-log-object-diff-table thead th.pg-audit-diff-col-before,
+.activity-log-object-diff-table thead th.pg-audit-diff-col-after {
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.pg-audit-screen-table thead th {
+  font-size: 12px;
+}
+
+.pg-audit-fallback-pre {
+  margin: 0;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.permission-group-legacy-flat,
+.action-detail-unknown-keys {
+  margin-top: 16px;
+}
+
+.permission-group-legacy-flat h4,
+.action-detail-unknown-keys h4 {
+  font-size: 13px;
+  font-weight: 600;
+  margin: 0 0 8px;
+  color: #334155;
+}
+
 .activity-log-detail-footer {
   padding: 20px;
   border-top: 1px solid #dee2e6;
   display: flex;
+  flex-wrap: wrap;
+  align-items: center;
   justify-content: flex-end;
+  gap: 12px;
 }
 
-/* P4: Narrow viewport — buttons wrap; consistent left alignment */
-@media (max-width: 1099px) {
-  .search-form-row-2 .search-form-actions {
-    margin-left: 0;
-    width: 100%;
-    justify-content: flex-start;
-  }
+.activity-log-detail-loading,
+.activity-log-detail-fetch-error {
+  padding: 16px;
+  margin-bottom: 12px;
+}
+
+.activity-log-detail-fetch-error {
+  background: #f8d7da;
+  color: #721c24;
+  border-radius: 4px;
+}
+
+.activity-log-copy-subsection {
+  margin-top: 20px;
+  padding-top: 16px;
+  border-top: 1px solid #dee2e6;
+}
+
+.activity-log-copy-subsection h4 {
+  margin: 0 0 10px;
+  font-size: 15px;
+}
+
+.activity-log-truncated-badge {
+  margin-left: 8px;
+  vertical-align: middle;
+}
+
+.activity-log-copy-meta {
+  font-size: 13px;
+  color: #555;
+  margin: 8px 0;
+}
+
+.activity-log-copy-preview {
+  max-height: 240px;
+  overflow: auto;
+}
+
+.activity-log-reveal-copy-btn {
+  margin-top: 10px;
+}
+
+.activity-log-reveal-error {
+  color: #c0392b;
+  font-size: 13px;
+  margin-top: 8px;
+}
+
+.activity-log-open-access-audit-link {
+  margin-right: auto;
+}
+
+/* Generic mutation summary (before/after / delete / insert) */
+.activity-log-mutation-summary {
+  margin-bottom: 20px;
+  padding: 12px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 4px;
+}
+
+.activity-log-mutation-summary > h4 {
+  margin: 0 0 12px;
+  font-size: 14px;
+  font-weight: 600;
+  color: #1e293b;
+}
+
+.activity-log-diff-cell-pre {
+  margin: 0;
+  max-height: 200px;
+  overflow: auto;
+  font-size: 11px;
+}
+
+.activity-log-mutation-json-details {
+  margin-top: 10px;
+}
+
+.activity-log-embedded-access-audit-section {
+  margin-top: 8px;
+}
+
+.activity-log-embedded-access-audit {
+  margin-top: 4px;
+}
+
+.activity-log-embedded-access-audit summary {
+  cursor: pointer;
+  font-weight: 600;
+  color: #334155;
+  padding: 6px 0;
+}
+
+.activity-log-access-audit-embed-wrap {
+  overflow-x: auto;
+  margin-top: 8px;
+}
+
+.activity-log-access-audit-embed-table {
+  min-width: 520px;
+}
+
+.activity-log-embedded-access-audit-hint {
+  margin: 8px 0 0;
+  font-size: 12px;
+  color: #64748b;
 }
 
 /* P9: Loading spinner next to "검색 중..." */
@@ -534,9 +782,8 @@
     overflow-x: scroll;
   }
 
-  .activity-log-detail-modal {
-    width: 95%;
-    max-height: 95vh;
+  .activity-log-detail-overlay {
+    padding: 12px;
   }
 }
 

@@ -1,0 +1,324 @@
+# User Management v2 - manual department tree and direct user entry
+# Requirement: docs/requirements/20260408-user-management-v2-manual-department-tree-and-quick-user-entry.md
+# Contract: docs/contract.md (API 규칙, screen/function 권한 모델)
+# Step 3 - contract/spec only; Backend/Frontend implement in Step 4.
+
+---
+metadata:
+  title: "User Management v2 API contract (manual tree + quick entry)"
+  version: "1.2"
+  requirement_ids:
+    - "20260408-user-management-v2-manual-department-tree-and-quick-user-entry"
+    - "20260408-user-management-v2-activity-audit-detail-in-activity-log"
+    - "20260409-user-management-v2-read-scope"
+  status: "draft"
+  base_path: "/api/user-management-v2"
+
+---
+# 1. Purpose
+
+- Provide operator-driven user management without HR provisioning as the default v2 path.
+- Define mutation APIs for manual department tree composition (root + child).
+- Define direct user registration contract and quick-entry data contract so FE can implement:
+  - "immediately previous value"
+  - "recent values"
+  for `employeeNumber`, `name`, `rank`, `permissionGroupId`.
+
+# 2. Authorization model
+
+## 2.1 Screen access and functions
+
+- **Screen id**: **`user-management-v2`** (production). Contract for **`AllowedScreenItem.scope`**, **`screenScopes`**, and interceptor mapping: **`specs/permission-group-hierarchy.spec.yaml`** §1.1, §4.3. Requirement: **`docs/requirements/20260409-user-management-v2-read-scope.md`**.
+- **Screen access** (authenticated): caller must have user-management-class access for APIs used by this screen:
+  - `is_system_admin = true`, or
+  - `allowedScreenIds` contains **`user-management-v2`** and/or legacy keys (**`user-management`**, **`user-permission-hierarchy`**) as implemented for **`canAccessUserManagementView`** / **`ScreenAccessInterceptor`** — **v2-only** operators must be able to load shared reads (req 20260409 §1).
+- **Read function**: **`screenFunctions['user-management-v2'].read`** effective true (or system admin). Applies to all **GET** paths in this spec and to **shared read APIs** (§2.2).
+- **Mutation APIs** (`POST`, `DELETE` under `/api/user-management-v2/**`): require **write** on the v2 screen:
+  - `is_system_admin = true`, or
+  - **`screenFunctions['user-management-v2'].write = true`** (preferred; aligns with **`permission-group-hierarchy`** §4.4). Implementations that still mirror legacy **`user-management`** for write must document DOC-CODE-SYNC.
+- **Legacy user delete** (`DELETE /api/users/{userId}`) when used from UM v2: same **write** + **scope** rules as other v2 mutations (§2.3).
+- **Read API** (`GET /quick-entry/options`): screen access + read; write not required.
+
+## 2.2 Read scope (`self` | `team` | `all`) and shared APIs
+
+Non–system-admin operators have a **list/read scope** for this screen from **`screenScopes['user-management-v2']`**: **`self`**, **`team`**, or **`all`**. **Default** when permission row omits or null: **`team`** (same as activity-log / statistics — req `20250304-team-scope-default`). **`is_system_admin = true`**: effective read scope is always **`all`**; do not apply permission-group scope to admins.
+
+**Semantics** (align with **`specs/permission-group-hierarchy.spec.yaml`** §1.1, §4.3 — same API values and UI labels **본인 / 부서 / 전체**):
+
+| Scope | User list (`GET /api/users`) | Department hierarchy (`GET /api/departments/user-permission-hierarchy`) | Quick-entry (`GET /api/user-management-v2/quick-entry/options`) |
+|-------|------------------------------|------------------------------------------------------------------------|---------------------------------------------------------------------|
+| `self` | Only the **current** `app_user` row | Redacted tree: no unrelated departments/users beyond minimal context for the operator (implementation-defined; must not leak peers). | Only values tied to the **current operator** (no other users' history). |
+| `team` | Users with **same `department_code`** as the operator | Department nodes on paths relevant to that department (default product: subtree rooted at operator department — DOC-CODE-SYNC). Edge: blank operator `department_code` — same policy as statistics **`team`** / `DepartmentScopeHelper`. | Must not expose other users' quick-entry data. |
+| `all` | Full list subject to screen access | Full tree subject to screen access | Full operator-relevant options subject to screen access |
+
+**Shared read APIs** (must enforce scope **server-side**; no client-trusted widening):
+
+- **`GET /api/users`**
+- **`GET /api/departments/user-permission-hierarchy`** (query `format` as today)
+- **`GET /api/user-management-v2/quick-entry/options`**
+
+Scope is resolved only from **server-side** permission groups + **`is_system_admin`**, never from request body alone.
+
+**`self` UI**: Where applicable, follow **visible locked self-context** for the user block (**`department` → `username` → `userId`**) per **`.cursor/skills/search-consistency-domain/SKILL.md`** and **`selfContext`** on auth payloads. Here, display semantics are: `selfContext.employeeNumber` = human-facing user identifier, `selfContext.userId` = technical id.
+
+## 2.3 Mutations and out-of-scope targets
+
+Mutations must not affect entities **outside** the operator's **effective read scope** (§2.2), except where product explicitly documents otherwise.
+
+**Denial behavior** (implement one consistent policy; document in backend):
+
+- **`403`** **`FUNCTION_NOT_ALLOWED`** — generic denial when the user has read access but must not perform the action on that target.
+- **`403`** **`FORBIDDEN`** — alternative when aligning with existing management API patterns.
+- **`404`** **`USER_NOT_FOUND`** or **`DEPARTMENT_NOT_FOUND`** — allowed when the product chooses **existence hiding** for out-of-scope IDs (avoid IDOR-style enumeration).
+
+**Errors** (cumulative with §2.1):
+
+- `401 UNAUTHORIZED`: no valid session.
+- `403 FORBIDDEN`: screen access denied (including missing **`user-management-v2`** for v2-only flows where contract requires it).
+- `403 FUNCTION_NOT_ALLOWED`: write denied, or mutation target **out of effective read scope**, or legacy write flag mismatch per §2.1.
+
+# 3. Domain identifiers and field rules
+
+- `departmentId`: **legacy field name**. Actual semantic value is `departmentCode` (string code), not numeric DB id.
+- `parentDepartmentId`: **legacy field name** in path/response. Actual semantic value is parent `departmentCode` (string code), nullable for root.
+- `permissionGroupId`: numeric id of canonical `permission_group` row.
+- `userId`: numeric `app_user.id` returned after creation.
+- `employeeNumber`: string, 1..32, trimmed, non-blank.
+- `name`: string, 1..100, trimmed, non-blank.
+- `rank`: string, 1..100, trimmed, non-blank.
+
+Naming compatibility note:
+- FE/BE must keep payload key names (`departmentId`, `parentDepartmentId`) for compatibility.
+- Semantic interpretation is code-based: treat these fields as `departmentCode`/`parentDepartmentCode` string values.
+- Type-safe clients should map as:
+  - `departmentId: string` (sample: `"DI-PLAT"`)
+  - `parentDepartmentId: string | null` (sample: `"DI"` or `null`)
+
+Validation failures return:
+- `400 INVALID_INPUT` with field-level message/details per project error wrapper.
+
+# 4. APIs
+
+## 4.1 POST /api/user-management-v2/departments/root
+
+Create a top-level department node.
+
+**Request body**
+
+```json
+{
+  "name": "디지털혁신본부",
+  "code": "DI",
+  "sortOrder": 10,
+  "changeReason": "v2 수동 트리 구성 시작"
+}
+```
+
+| Field | Type | Required | Description |
+|------|------|----------|-------------|
+| name | string | Yes | Department display name. |
+| code | string | No | Optional unique code (if product keeps code semantics). |
+| sortOrder | integer | No | Sibling order among root nodes. |
+| changeReason | string | Yes | Non-blank mutation reason (trimmed). |
+
+**Success (201)**
+
+```json
+{
+  "success": true,
+  "data": {
+    "departmentId": "DI",
+    "name": "디지털혁신본부",
+    "code": "DI",
+    "parentDepartmentId": null,
+    "sortOrder": 10
+  }
+}
+```
+
+**Errors**
+- `400 INVALID_INPUT`
+- `409 DEPARTMENT_CODE_DUPLICATED` (when `code` uniqueness is enabled)
+
+## 4.2 POST /api/user-management-v2/departments/{parentDepartmentId}/children
+
+Create a child department under an existing parent.
+
+**Path param**
+- `parentDepartmentId` (string, required) - parent department code.
+
+**Request body**
+
+```json
+{
+  "name": "플랫폼개발팀",
+  "code": "DI-PLAT",
+  "sortOrder": 20,
+  "changeReason": "하위 조직 추가"
+}
+```
+
+**Success (201)**
+
+```json
+{
+  "success": true,
+  "data": {
+    "departmentId": "DI-PLAT",
+    "name": "플랫폼개발팀",
+    "code": "DI-PLAT",
+    "parentDepartmentId": "DI",
+    "sortOrder": 20
+  }
+}
+```
+
+**Errors**
+- `400 INVALID_INPUT`
+- `404 DEPARTMENT_NOT_FOUND` (parent code not found)
+- `409 DEPARTMENT_CODE_DUPLICATED` (when `code` uniqueness is enabled)
+
+## 4.3 DELETE /api/user-management-v2/departments/{departmentId}
+
+Remove a leaf department node when no blocking references exist.
+
+**Path param**
+
+- `departmentId` (string, required) — legacy field name; **department code** to delete (same semantics as other v2 department paths).
+
+**Request body** (JSON, **required** — empty body is contract-invalid for this `DELETE`, same pattern as `DELETE /api/users/{userId}`)
+
+```json
+{
+  "changeReason": "조직 정리 — 미사용 부서 제거"
+}
+```
+
+| Field | Type | Required | Description |
+|------|------|----------|-------------|
+| changeReason | string | Yes | Non-blank mutation reason after trim; align MF-03 / max **500** chars with other v2 mutations. |
+
+**Success (200)**
+
+Envelope: common `ApiResponse` with `success: true`. **`data`**: implementation-defined minimal summary (e.g. deleted `departmentId` / code) or `null` — DOC-CODE-SYNC with backend.
+
+**Errors**
+
+- `400 INVALID_INPUT` — missing/blank/`changeReason` over limit, etc.
+- `404 DEPARTMENT_NOT_FOUND` — no department for the given code.
+- `409 DEPARTMENT_HAS_CHILDREN` — department has child departments; delete children first.
+- `409 DEPARTMENT_HAS_ACTIVE_USERS` — one or more `app_user` rows still reference this department.
+- `409 DEPARTMENT_ORG_LINK_REFERENCES` — `department_org_link` (or equivalent org link) still references this department.
+
+HTTP status SHOULD align with project patterns (`404` / `409` with `ApiResponse.code` as above; document if implementation uses a single conflict status for all three `409` cases).
+
+## 4.4 POST /api/user-management-v2/users/direct
+
+Directly register a user under a selected department (no HR provisioning dependency).
+
+**Request body**
+
+```json
+{
+  "departmentId": "DI-PLAT",
+  "employeeNumber": "20261234",
+  "name": "홍길동",
+  "rank": "대리",
+  "permissionGroupId": 3,
+  "changeReason": "운영자 직접 등록"
+}
+```
+
+| Field | Type | Required | Description |
+|------|------|----------|-------------|
+| departmentId | string | Yes | Legacy field name. Actual meaning is target department code (`departmentCode`). |
+| employeeNumber | string | Yes | Manual entry value (no HR lookup required). |
+| name | string | Yes | Manual entry value. |
+| rank | string | Yes | Manual entry value. |
+| permissionGroupId | number | Yes | Selected permission group id. |
+| changeReason | string | Yes | Non-blank mutation reason (trimmed). |
+
+**Success (201)**
+
+```json
+{
+  "success": true,
+  "data": {
+    "userId": 20261234,
+    "employeeNumber": "20261234",
+    "name": "홍길동",
+    "rank": "대리",
+    "departmentId": "DI-PLAT",
+    "permissionGroupId": 3,
+    "createdAt": "2026-04-08T10:00:00Z"
+  }
+}
+```
+
+**Errors**
+- `400 INVALID_INPUT`
+- `404 DEPARTMENT_NOT_FOUND`
+- `404 PERMISSION_GROUP_NOT_FOUND`
+- `409 USER_EMPLOYEE_NUMBER_DUPLICATED`
+
+## 4.5 GET /api/user-management-v2/quick-entry/options
+
+Return quick-entry values for FE form acceleration. **Per-operator** storage; responses must respect **`screenScopes['user-management-v2']`** (§2.2): e.g. **`self`** → no other users' recent/previous values; **`team`**/**`all`** per server enforcement.
+
+**Query**
+- `fields` (optional, csv): subset of `employeeNumber,name,rank,permissionGroupId`.
+- `limit` (optional, integer): default 10, max 20.
+
+**Success (200)**
+
+```json
+{
+  "success": true,
+  "data": {
+    "employeeNumber": {
+      "previous": "20261234",
+      "recent": ["20261234", "20261235", "20261236"]
+    },
+    "name": {
+      "previous": "홍길동",
+      "recent": ["홍길동", "김철수", "이영희"]
+    },
+    "rank": {
+      "previous": "대리",
+      "recent": ["대리", "과장", "차장"]
+    },
+    "permissionGroupId": {
+      "previous": 3,
+      "recent": [3, 5, 7]
+    }
+  }
+}
+```
+
+Contract notes:
+- `previous`: immediately previous successful direct-registration value for that operator and field; `null` if absent.
+- `recent`: most-recent-first unique list for that operator and field.
+- If storage strategy is not yet persistent, backend MAY serve session-scoped values, but response shape MUST remain identical.
+
+**Errors**
+- `400 INVALID_INPUT` (invalid `fields` or `limit`)
+
+# 5. Mutation audit and activity logging contract
+
+- All mutation APIs in this spec (`departments/root`, `departments/{id}/children`, `DELETE departments/{departmentId}`, `users/direct`) MUST require `changeReason` in the request body (including `DELETE` JSON body).
+- Backend MUST persist actor + timestamp + target identifiers in audit trail.
+- Detailed action type strings are governed by `specs/activity-action-types.spec.yaml`.
+- **Expected activity log (success paths, contract)**: `departments/root` → `action_type` **`DEPARTMENT_CREATE_ROOT`** with **`action_detail`** per §3 **department_admin**; `departments/{parent}/children` → **`DEPARTMENT_CREATE_CHILD`**; **`DELETE departments/{departmentId}`** → **`DEPARTMENT_DELETE`** with **`action_detail`** per §3 **department_admin** (e.g. **`changeReason`**, **`departmentCode`**, optional **`before`** snapshot for deleted node — DOC-CODE-SYNC); `users/direct` → **`USER_CREATE`** with **`registrationSource`** **`USER_MANAGEMENT_V2_DIRECT`** and **user_admin** keys (see `specs/activity-action-types.spec.yaml` §2.8, §3). **`USER_UPDATE` MUST NOT** substitute for these operations.
+
+# 6. Compatibility notes
+
+- Existing HR provisioning APIs under `/api/provisioning/*` remain valid during transition.
+- User Management v2 FE must not require provisioning flow to complete direct user registration.
+
+# 7. Related docs
+
+- `docs/contract.md`
+- `docs/api-definition.md`
+- `specs/permission-group-hierarchy.spec.yaml`
+- `specs/activity-action-types.spec.yaml`
+- `docs/requirements/20260409-user-management-v2-read-scope.md`

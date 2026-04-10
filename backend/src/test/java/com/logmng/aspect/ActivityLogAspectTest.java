@@ -1,10 +1,13 @@
 package com.logmng.aspect;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.logmng.controller.DecryptController;
 import com.logmng.dto.response.ApiResponse;
 import com.logmng.dto.response.LoginResponse;
 import com.logmng.service.AuthService;
+import com.logmng.service.PermissionGroupService;
 import com.logmng.service.StubUserActivityLogServiceSaveCapture;
+import com.logmng.util.IpUtil;
 import jakarta.servlet.http.HttpServletRequest;
 import org.aspectj.lang.ProceedingJoinPoint;
 import org.aspectj.lang.reflect.MethodSignature;
@@ -71,7 +74,8 @@ class ActivityLogAspectTest {
         doReturn(ResponseEntity.ok(ApiResponse.success(Map.of("decrypted", "data"))))
                 .when(joinPoint).proceed();
 
-        aspect = new ActivityLogAspect(userActivityLogService, authService);
+        PermissionGroupService permissionGroupService = new PermissionGroupService(null, null);
+        aspect = new ActivityLogAspect(userActivityLogService, authService, permissionGroupService, new IpUtil());
     }
 
     private static javax.sql.DataSource createH2DataSource() throws Exception {
@@ -87,7 +91,7 @@ class ActivityLogAspectTest {
     }
 
     @Test
-    @DisplayName("TC-03: decryptRow args (logType, request Map, httpRequest) → no 500; activity log has placeholders for Servlet param")
+    @DisplayName("Regression: decryptRow args (logType, request Map, httpRequest) → no 500; activity log has placeholders for Servlet param")
     void logActivity_doesNotSerializeHttpServletRequest_putsPlaceholderInRequestParams() throws Throwable {
         aspect.logActivity(joinPoint);
 
@@ -99,6 +103,11 @@ class ActivityLogAspectTest {
         assertThat(requestParams.get("httpRequest")).isEqualTo("<HttpServletRequest>");
         assertThat(requestParams.get("request")).isNotNull();
         assertThat(requestParams).containsKey("logType");
+        assertThat(requestParams.get("logType")).isEqualTo("java_fw_imglog");
+        @SuppressWarnings("unchecked")
+        Map<String, Object> decryptBody = (Map<String, Object>) requestParams.get("request");
+        assertThat(decryptBody).containsKey("status");
+        assertThat(decryptBody).containsKey("guid");
     }
 
     /**
@@ -165,17 +174,95 @@ class ActivityLogAspectTest {
         Map<String, Object> requestParams = (Map<String, Object>) actionDetail.get("requestParams");
         assertThat(requestParams).isNotNull();
         assertThat(requestParams.get("httpRequest")).isEqualTo("<HttpServletRequest>");
-        // "request" param was a Map containing HttpServletRequest; stored value must contain placeholder, not raw request
+        // java_fw_imglog decrypt body: only audit fields (guid, status, …); no raw map / no Servlet leakage
         Object requestParam = requestParams.get("request");
         assertThat(requestParam).isNotNull();
-        String requestParamStr = requestParam.toString();
-        assertThat(requestParamStr).contains("<HttpServletRequest>");
-        assertThat(requestParamStr).doesNotContain("NamesEnumerator");
+        assertThat(requestParam).isInstanceOf(Map.class);
+        @SuppressWarnings("unchecked")
+        Map<String, Object> requestMap = (Map<String, Object>) requestParam;
+        assertThat(requestMap).doesNotContainKey("httpRequest");
+        assertThat(requestMap).containsKey("guid");
+        assertThat(requestMap).containsKey("status");
+        assertThat(requestMap.toString()).doesNotContain("NamesEnumerator");
+    }
+
+    /**
+     * Activity statistics filters non-LOGIN rows with
+     * {@code action_detail::text LIKE '%"logType":"java_fw_imglog"%'}.
+     * Path-variable {@code logType} must not be stored as a JSON string value (double-encoded quotes).
+     */
+    @Test
+    @DisplayName("Regression: decryptRow action_detail JSON contains exact statistics substring for logType")
+    void logActivity_decryptRow_actionDetailJsonContainsBareLogTypeForStatisticsLike() throws Throwable {
+        aspect.logActivity(joinPoint);
+        String json = new ObjectMapper().writeValueAsString(userActivityLogService.getLastActionDetail());
+        assertThat(json).contains("\"logType\":\"java_fw_imglog\"");
+        assertThat(json).doesNotContain("\"logType\":\"\\\"java_fw_imglog\\\"\"");
+    }
+
+    @Test
+    @DisplayName("TC-01: valid X-Forwarded-For literal persisted (ahead of proxy RemoteAddr)")
+    void tc01_validXffLiteral_persisted() throws Throwable {
+        MockHttpServletRequest request = new MockHttpServletRequest();
+        request.addHeader("X-Forwarded-For", "203.0.113.5");
+        request.setRemoteAddr("10.0.0.1");
+        request.setMethod("POST");
+        request.setRequestURI("/api/logs/decrypt/java_fw_imglog");
+        RequestContextHolder.setRequestAttributes(new ServletRequestAttributes(request));
+        when(joinPoint.getArgs()).thenReturn(new Object[]{
+                "java_fw_imglog",
+                Map.of("searchHistoryId", "1", "guid", "g"),
+                request
+        });
+
+        aspect.logActivity(joinPoint);
+
+        assertThat(userActivityLogService.getLastIpAddress()).isEqualTo("203.0.113.5");
+    }
+
+    @Test
+    @DisplayName("TC-02: non-literal X-Forwarded-For falls back to valid RemoteAddr, not pattern")
+    void tc02_invalidXffPattern_fallsBackToRemoteAddr() throws Throwable {
+        MockHttpServletRequest request = new MockHttpServletRequest();
+        request.addHeader("X-Forwarded-For", "172.23.111.*");
+        request.setRemoteAddr("172.23.111.10");
+        request.setMethod("POST");
+        request.setRequestURI("/api/logs/decrypt/java_fw_imglog");
+        RequestContextHolder.setRequestAttributes(new ServletRequestAttributes(request));
+        when(joinPoint.getArgs()).thenReturn(new Object[]{
+                "java_fw_imglog",
+                Map.of("searchHistoryId", "1", "guid", "g"),
+                request
+        });
+
+        aspect.logActivity(joinPoint);
+
+        assertThat(userActivityLogService.getLastIpAddress()).isEqualTo("172.23.111.10");
+        assertThat(userActivityLogService.getLastIpAddress()).isNotEqualTo("172.23.111.*");
+    }
+
+    @Test
+    @DisplayName("TC-03: no forwarded headers; RemoteAddr literal persisted")
+    void tc03_noForwardedHeaders_usesRemoteAddr() throws Throwable {
+        MockHttpServletRequest request = new MockHttpServletRequest();
+        request.setRemoteAddr("172.23.111.10");
+        request.setMethod("POST");
+        request.setRequestURI("/api/logs/decrypt/java_fw_imglog");
+        RequestContextHolder.setRequestAttributes(new ServletRequestAttributes(request));
+        when(joinPoint.getArgs()).thenReturn(new Object[]{
+                "java_fw_imglog",
+                Map.of("searchHistoryId", "1", "guid", "g"),
+                request
+        });
+
+        aspect.logActivity(joinPoint);
+
+        assertThat(userActivityLogService.getLastIpAddress()).isEqualTo("172.23.111.10");
     }
 
     private static class StubAuthServiceForAspect extends AuthService {
         StubAuthServiceForAspect() {
-            super(null, null, null, null, null);
+            super(null, null, null, null, new com.logmng.config.AuthProperties(), null, null);
         }
 
         @Override
@@ -183,7 +270,7 @@ class ActivityLogAspectTest {
             LoginResponse r = new LoginResponse();
             r.setUsername("testuser");
             r.setUserId(1000L);
-            r.setSelfContext(new LoginResponse.SelfContext(null, "Test User", 1000L));
+            r.setSelfContext(new LoginResponse.SelfContext(null, "Test User", 1000L, "EMP-1000"));
             return r;
         }
     }

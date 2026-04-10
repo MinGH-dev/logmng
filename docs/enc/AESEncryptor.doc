@@ -1,0 +1,97 @@
+package com.tmax.proobject.service.encryption.aes;
+
+import com.tmax.proobject.core2.exception.ProObjectRuntimeException;
+import com.tmax.proobject.runtime.encryption.EncryptionKeyProvider;
+import com.tmax.proobject.runtime.encryption.ProObjectTextEncryptor;
+import com.tmax.proobject.runtime.exception.code.ExtendedProObjectExceptionCode;
+import java.nio.ByteBuffer;
+import java.security.AlgorithmParameters;
+import java.security.Key;
+import java.security.NoSuchAlgorithmException;
+import java.security.spec.InvalidKeySpecException;
+import javax.crypto.Cipher;
+import javax.crypto.SecretKey;
+import javax.crypto.SecretKeyFactory;
+import javax.crypto.spec.IvParameterSpec;
+import javax.crypto.spec.PBEKeySpec;
+import javax.crypto.spec.SecretKeySpec;
+import org.apache.commons.codec.binary.Base64;
+
+public class AESEncryptor extends ProObjectTextEncryptor {
+	private static final String CODE = "E002";
+	private static final String CHARSET = "UTF-8";
+	private static final byte[] SALTS = new byte[]{38, -115, 102, -89, 53, -88, 26, -127, 111, -70, -39, -6, 54, 22, 37,
+			1};
+	private Key key;
+
+	public AESEncryptor(EncryptionKeyProvider keyProvider) {
+		super(keyProvider);
+		String strKey = keyProvider.getKey();
+		if (strKey != null) {
+			this.key = this.toSecretKey(strKey);
+		}
+
+	}
+
+	private Key toSecretKey(String key) {
+		try {
+			PBEKeySpec spec = new PBEKeySpec(key.toCharArray(), SALTS, 70000, 256);
+			SecretKeyFactory factory = SecretKeyFactory.getInstance("PBKDF2WithHmacSHA1");
+			SecretKey secretkey = factory.generateSecret(spec);
+			SecretKeySpec keySpec = new SecretKeySpec(secretkey.getEncoded(), "AES");
+			return keySpec;
+		} catch (InvalidKeySpecException | NoSuchAlgorithmException var6) {
+			throw new ProObjectRuntimeException(ExtendedProObjectExceptionCode.DATAOBJECT_ENCRYPTION_INIT_FAIL, var6);
+		}
+	}
+
+	protected String doEncrypt(String text) {
+		if (this.key == null) {
+			throw new ProObjectRuntimeException(ExtendedProObjectExceptionCode.DATAOBJECT_ENCRYPTION_FAIL,
+					"The Key is not configured");
+		} else {
+			try {
+				Cipher cipher = Cipher.getInstance("AES/CBC/PKCS5Padding");
+				cipher.init(1, this.key);
+				AlgorithmParameters params = cipher.getParameters();
+				byte[] ivBytes = ((IvParameterSpec) params.getParameterSpec(IvParameterSpec.class)).getIV();
+				byte[] encryptedBytes = cipher.doFinal(text.getBytes("UTF-8"));
+				byte[] buffer = new byte[SALTS.length + ivBytes.length + encryptedBytes.length];
+				System.arraycopy(SALTS, 0, buffer, 0, SALTS.length);
+				System.arraycopy(ivBytes, 0, buffer, SALTS.length, ivBytes.length);
+				System.arraycopy(encryptedBytes, 0, buffer, SALTS.length + ivBytes.length, encryptedBytes.length);
+				String encryptedStr = new String(Base64.encodeBase64(buffer));
+				return "E002" + encryptedStr;
+			} catch (Exception var8) {
+				throw new ProObjectRuntimeException(ExtendedProObjectExceptionCode.DATAOBJECT_ENCRYPTION_FAIL, var8);
+			}
+		}
+	}
+
+	protected String doDecrypt(String encryptedText) {
+		if (this.key == null) {
+			throw new ProObjectRuntimeException(ExtendedProObjectExceptionCode.DATAOBJECT_DECRYPTION_FAIL,
+					"The Key is not configured");
+		} else {
+			try {
+				if (!encryptedText.startsWith("E002")) {
+					return encryptedText;
+				} else {
+					encryptedText = encryptedText.substring("E002".length());
+					Cipher cipher = Cipher.getInstance("AES/CBC/PKCS5Padding");
+					ByteBuffer buffer = ByteBuffer.wrap(Base64.decodeBase64(encryptedText.getBytes("UTF-8")));
+					byte[] salt = new byte[16];
+					buffer.get(salt, 0, salt.length);
+					byte[] ivBytes = new byte[cipher.getBlockSize()];
+					buffer.get(ivBytes, 0, ivBytes.length);
+					byte[] encryptedBytes = new byte[buffer.capacity() - salt.length - ivBytes.length];
+					buffer.get(encryptedBytes);
+					cipher.init(2, this.key, new IvParameterSpec(ivBytes));
+					return new String(cipher.doFinal(encryptedBytes));
+				}
+			} catch (Exception var7) {
+				throw new ProObjectRuntimeException(ExtendedProObjectExceptionCode.DATAOBJECT_DECRYPTION_FAIL, var7);
+			}
+		}
+	}
+}

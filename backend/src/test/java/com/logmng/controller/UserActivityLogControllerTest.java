@@ -12,6 +12,7 @@ import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import javax.sql.DataSource;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -70,6 +71,15 @@ class UserActivityLogControllerTest {
         assertThat(captured.getDepartment()).isNull();
         assertThat(captured.getIpAddress()).isNull();
         assertThat(captured.getAllowedUserIds()).isNull();
+    }
+
+    @Test
+    void getActionTypes_returnsSortedCodeAndLabel() throws Exception {
+        mockMvc.perform(get("/api/activity-log/action-types"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.data[0].code").value("ADVANCED_SEARCH"))
+                .andExpect(jsonPath("$.data[0].label").exists());
     }
 
     @Test

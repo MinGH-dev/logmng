@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 22" role="img" aria-label="Common grid checkbox 14px for binary flags e.g. approve">
+  <defs>
+    <style>
+      .spec { fill: #616161; font-family: system-ui, sans-serif; font-size: 8px; }
+      .cb-box { fill: #ffffff; stroke: #546e7a; stroke-width: 1.25; }
+      .cb-box-on { fill: #e3f2fd; stroke: #1976d2; stroke-width: 1.25; }
+      .cb-mark { fill: #0d47a1; font-family: system-ui, sans-serif; font-size: 11px; font-weight: 700; text-anchor: middle; }
+    </style>
+  </defs>
+  <desc>14x14 px, rx=2. Center in cell: x = column_center - 7, y = row_top + (row_height - 14) / 2 (row h 34 gives +10). Use for use/write/decrypt/approve flags in dense grids. Ref: generate_req_20260323_approver_svgs.py CB_SZ. Legacy pill: common-grid-toggle-pill.svg.</desc>
+  <text x="0" y="9" class="spec" id="cb-spec">14px</text>
+  <rect class="cb-box" x="22" y="4" width="14" height="14" rx="2" id="cb-unchecked"/>
+  <rect class="cb-box cb-box-on" x="0" y="4" width="14" height="14" rx="2" id="cb-checked-bg"/>
+  <text x="7" y="15" class="cb-mark" id="cb-checked-mark">&#x2713;</text>
+</svg>

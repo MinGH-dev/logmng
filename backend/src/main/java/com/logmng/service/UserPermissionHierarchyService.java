@@ -4,8 +4,10 @@ import com.logmng.dto.response.DepartmentNodeResponse;
 import com.logmng.dto.response.DepartmentNodeWithUsersResponse;
 import com.logmng.dto.response.PermissionGroupSummary;
 import com.logmng.dto.response.UserPermissionSummary;
+import com.logmng.util.UserManagementReadScopeContext;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import javax.sql.DataSource;
@@ -17,6 +19,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * User-permission hierarchy: department tree with users and permission groups per node. §14.9.
@@ -26,21 +29,40 @@ import java.util.Map;
 public class UserPermissionHierarchyService {
 
     private static final Logger log = LoggerFactory.getLogger(UserPermissionHierarchyService.class);
+    private static final Logger diagnosticLog = LoggerFactory.getLogger("com.logmng.diagnostic.provisioningConsistency");
+
+    /** Synthetic department bucket for users with null {@code department_code} (req 20260407 visibility vs provisioning). */
+    public static final String UNASSIGNED_DEPARTMENT_CODE = "__UNASSIGNED__";
 
     private final DataSource dataSource;
     private final DepartmentService departmentService;
+    private final boolean diagnosticProvisioningConsistency;
 
-    public UserPermissionHierarchyService(DataSource dataSource, DepartmentService departmentService) {
+    public UserPermissionHierarchyService(DataSource dataSource, DepartmentService departmentService,
+                                         @Value("${app.diagnostic.provisioning-consistency:false}") boolean diagnosticProvisioningConsistency) {
         this.dataSource = dataSource;
         this.departmentService = departmentService;
+        this.diagnosticProvisioningConsistency = diagnosticProvisioningConsistency;
     }
 
     /**
      * Tree format: list of root DepartmentNodeWithUsersResponse with children and users.
      */
     public List<DepartmentNodeWithUsersResponse> getHierarchyTree() {
+        return getHierarchyTree(UserManagementReadScopeContext.unrestricted());
+    }
+
+    /**
+     * Tree with User Management v2 read scope (req 20260409). Unrestricted context = legacy full tree.
+     */
+    public List<DepartmentNodeWithUsersResponse> getHierarchyTree(UserManagementReadScopeContext ctx) {
+        if (ctx == null) {
+            ctx = UserManagementReadScopeContext.unrestricted();
+        }
+        boolean narrow = ctx.restrictsUserIds() || ctx.restrictHierarchyDepartments();
+        List<Long> allowIds = narrow && ctx.restrictsUserIds() ? ctx.getAllowedNumericUserIds() : null;
+        Map<String, List<UserPermissionSummary>> usersByDept = loadUsersByDepartment(allowIds);
         List<DepartmentNodeResponse> roots = departmentService.listTree();
-        Map<String, List<UserPermissionSummary>> usersByDept = loadUsersByDepartment();
         Map<String, DepartmentNodeWithUsersResponse> byCode = new LinkedHashMap<>();
         for (DepartmentNodeResponse r : roots) {
             buildNodeWithUsers(r, byCode, usersByDept);
@@ -50,6 +72,10 @@ public class UserPermissionHierarchyService {
             result.add(byCode.get(r.getCode()));
         }
         sortRoots(result);
+        if (narrow && ctx.getVisibleDepartmentCodes() != null) {
+            result = filterRootsByVisibleDepartments(result, ctx.getVisibleDepartmentCodes());
+        }
+        appendUnassignedBucketIfNeeded(usersByDept, result, narrow ? ctx.getVisibleDepartmentCodes() : null);
         return result;
     }
 
@@ -57,11 +83,26 @@ public class UserPermissionHierarchyService {
      * Flat format: list of department nodes with users; no children.
      */
     public List<DepartmentNodeWithUsersResponse> getHierarchyFlat() {
+        return getHierarchyFlat(UserManagementReadScopeContext.unrestricted());
+    }
+
+    /**
+     * Flat hierarchy with UM v2 read scope.
+     */
+    public List<DepartmentNodeWithUsersResponse> getHierarchyFlat(UserManagementReadScopeContext ctx) {
+        if (ctx == null) {
+            ctx = UserManagementReadScopeContext.unrestricted();
+        }
+        boolean narrow = ctx.restrictsUserIds() || ctx.restrictHierarchyDepartments();
+        List<Long> allowIds = narrow && ctx.restrictsUserIds() ? ctx.getAllowedNumericUserIds() : null;
+        Map<String, List<UserPermissionSummary>> usersByDept = loadUsersByDepartment(allowIds);
         List<Map<String, Object>> flat = departmentService.listFlat();
-        Map<String, List<UserPermissionSummary>> usersByDept = loadUsersByDepartment();
         List<DepartmentNodeWithUsersResponse> result = new ArrayList<>();
         for (Map<String, Object> row : flat) {
             String code = (String) row.get("code");
+            if (narrow && ctx.getVisibleDepartmentCodes() != null && !ctx.getVisibleDepartmentCodes().contains(code)) {
+                continue;
+            }
             String parentCode = (String) row.get("parentCode");
             String name = (String) row.get("name");
             Integer sortOrder = row.get("sortOrder") != null ? (Integer) row.get("sortOrder") : 0;
@@ -69,6 +110,7 @@ public class UserPermissionHierarchyService {
             node.setUsers(usersByDept.getOrDefault(code, new ArrayList<>()));
             result.add(node);
         }
+        appendUnassignedFlatIfNeeded(usersByDept, result, narrow ? ctx.getVisibleDepartmentCodes() : null);
         return result;
     }
 
@@ -84,30 +126,56 @@ public class UserPermissionHierarchyService {
         }
     }
 
-    private Map<String, List<UserPermissionSummary>> loadUsersByDepartment() {
+    /**
+     * @param allowedUserIds null = all users; empty = none; non-empty = filter (req 20260409 UM v2 scope).
+     */
+    private Map<String, List<UserPermissionSummary>> loadUsersByDepartment(List<Long> allowedUserIds) {
         Map<String, List<UserPermissionSummary>> usersByDept = new LinkedHashMap<>();
+        if (allowedUserIds != null && allowedUserIds.isEmpty()) {
+            return usersByDept;
+        }
         Map<String, List<PermissionGroupSummary>> groupsByUser = loadPermissionGroupsByUser();
         try (Connection conn = dataSource.getConnection()) {
-            String sql = "SELECT id, username, name, role, department_code, position, rank, is_system_admin FROM app_user ORDER BY username";
-            try (PreparedStatement ps = conn.prepareStatement(sql);
-                 ResultSet rs = ps.executeQuery()) {
-                while (rs.next()) {
-                    Long id = rs.getObject("id", Long.class);
-                    String username = rs.getString("username");
-                    String name = rs.getString("name");
-                    String role = rs.getString("role");
-                    String departmentCode = rs.getString("department_code");
-                    String position = rs.getString("position");
-                    String rank = rs.getString("rank");
-                    boolean isSystemAdmin = Boolean.TRUE.equals(rs.getObject("is_system_admin", Boolean.class));
-                    String dept = (departmentCode != null && !departmentCode.isBlank()) ? departmentCode : null;
-                    if (dept == null) {
-                        continue;
+            StringBuilder sql = new StringBuilder(
+                    "SELECT id, username, name, role, department_code, position, rank, is_system_admin, employee_number "
+                            + "FROM app_user WHERE deleted_at IS NULL ");
+            if (allowedUserIds != null) {
+                sql.append("AND id IN (");
+                for (int i = 0; i < allowedUserIds.size(); i++) {
+                    if (i > 0) sql.append(',');
+                    sql.append('?');
+                }
+                sql.append(") ");
+            }
+            sql.append("ORDER BY username");
+            try (PreparedStatement ps = conn.prepareStatement(sql.toString())) {
+                if (allowedUserIds != null) {
+                    for (int i = 0; i < allowedUserIds.size(); i++) {
+                        ps.setLong(i + 1, allowedUserIds.get(i));
                     }
-                    String userName = (name != null && !name.isBlank()) ? name : username;
-                    List<PermissionGroupSummary> groups = groupsByUser.getOrDefault(username, new ArrayList<>());
-                    UserPermissionSummary u = new UserPermissionSummary(id, userName, role, position, rank, groups, isSystemAdmin);
-                    usersByDept.computeIfAbsent(dept, k -> new ArrayList<>()).add(u);
+                }
+                try (ResultSet rs = ps.executeQuery()) {
+                    while (rs.next()) {
+                        Long id = rs.getObject("id", Long.class);
+                        String username = rs.getString("username");
+                        String name = rs.getString("name");
+                        String role = rs.getString("role");
+                        String departmentCode = rs.getString("department_code");
+                        String position = rs.getString("position");
+                        String rank = rs.getString("rank");
+                        boolean isSystemAdmin = Boolean.TRUE.equals(rs.getObject("is_system_admin", Boolean.class));
+                        String employeeNumber = rs.getString("employee_number");
+                        String dept = (departmentCode != null && !departmentCode.isBlank()) ? departmentCode.trim() : UNASSIGNED_DEPARTMENT_CODE;
+                        if (diagnosticProvisioningConsistency) {
+                            diagnosticLog.debug(
+                                    "[diag-provision] hierarchy user: id={} username={} department_code={} bucket={} employeeNumber={}",
+                                    id, username, departmentCode, dept, employeeNumber);
+                        }
+                        String userName = (name != null && !name.isBlank()) ? name : username;
+                        List<PermissionGroupSummary> groups = groupsByUser.getOrDefault(username, new ArrayList<>());
+                        UserPermissionSummary u = new UserPermissionSummary(id, userName, role, position, rank, groups, isSystemAdmin, employeeNumber);
+                        usersByDept.computeIfAbsent(dept, k -> new ArrayList<>()).add(u);
+                    }
                 }
             }
         } catch (SQLException e) {
@@ -146,5 +214,80 @@ public class UserPermissionHierarchyService {
             if (oa != ob) return Integer.compare(oa, ob);
             return (a.getCode() != null && b.getCode() != null) ? a.getCode().compareTo(b.getCode()) : 0;
         });
+    }
+
+    private void appendUnassignedBucketIfNeeded(Map<String, List<UserPermissionSummary>> usersByDept,
+                                               List<DepartmentNodeWithUsersResponse> roots) {
+        appendUnassignedBucketIfNeeded(usersByDept, roots, null);
+    }
+
+    private void appendUnassignedBucketIfNeeded(Map<String, List<UserPermissionSummary>> usersByDept,
+                                               List<DepartmentNodeWithUsersResponse> roots,
+                                               Set<String> visibleDepartmentCodes) {
+        List<UserPermissionSummary> unassigned = usersByDept.get(UNASSIGNED_DEPARTMENT_CODE);
+        if (unassigned == null || unassigned.isEmpty()) {
+            return;
+        }
+        if (visibleDepartmentCodes != null && !visibleDepartmentCodes.contains(UNASSIGNED_DEPARTMENT_CODE)) {
+            return;
+        }
+        DepartmentNodeWithUsersResponse bucket = new DepartmentNodeWithUsersResponse(
+                UNASSIGNED_DEPARTMENT_CODE, null, "미배치", 999_999);
+        bucket.setUsers(unassigned);
+        roots.add(bucket);
+    }
+
+    private void appendUnassignedFlatIfNeeded(Map<String, List<UserPermissionSummary>> usersByDept,
+                                            List<DepartmentNodeWithUsersResponse> result) {
+        appendUnassignedFlatIfNeeded(usersByDept, result, null);
+    }
+
+    private void appendUnassignedFlatIfNeeded(Map<String, List<UserPermissionSummary>> usersByDept,
+                                              List<DepartmentNodeWithUsersResponse> result,
+                                              Set<String> visibleDepartmentCodes) {
+        List<UserPermissionSummary> unassigned = usersByDept.get(UNASSIGNED_DEPARTMENT_CODE);
+        if (unassigned == null || unassigned.isEmpty()) {
+            return;
+        }
+        if (visibleDepartmentCodes != null && !visibleDepartmentCodes.contains(UNASSIGNED_DEPARTMENT_CODE)) {
+            return;
+        }
+        DepartmentNodeWithUsersResponse node = new DepartmentNodeWithUsersResponse(
+                UNASSIGNED_DEPARTMENT_CODE, null, "미배치", 999_999);
+        node.setUsers(unassigned);
+        result.add(node);
+    }
+
+    private List<DepartmentNodeWithUsersResponse> filterRootsByVisibleDepartments(
+            List<DepartmentNodeWithUsersResponse> roots, Set<String> visible) {
+        if (visible == null || visible.isEmpty()) {
+            return roots;
+        }
+        List<DepartmentNodeWithUsersResponse> out = new ArrayList<>();
+        for (DepartmentNodeWithUsersResponse r : roots) {
+            DepartmentNodeWithUsersResponse f = filterNodeByVisible(r, visible);
+            if (f != null) {
+                out.add(f);
+            }
+        }
+        return out;
+    }
+
+    private DepartmentNodeWithUsersResponse filterNodeByVisible(DepartmentNodeWithUsersResponse node, Set<String> visible) {
+        if (node == null || node.getCode() == null) {
+            return null;
+        }
+        if (!visible.contains(node.getCode())) {
+            return null;
+        }
+        List<DepartmentNodeWithUsersResponse> newChildren = new ArrayList<>();
+        for (DepartmentNodeWithUsersResponse c : node.getChildren()) {
+            DepartmentNodeWithUsersResponse fc = filterNodeByVisible(c, visible);
+            if (fc != null) {
+                newChildren.add(fc);
+            }
+        }
+        node.setChildren(newChildren);
+        return node;
     }
 }

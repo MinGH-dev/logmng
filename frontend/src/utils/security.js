@@ -64,6 +64,19 @@ export const getAllowedScreenIds = (user) => {
 };
 
 /**
+ * True if the user may use the main app shell (system admin or at least one allowed screen).
+ * Zero-permission authenticated users must not see the shell (req 20260407-external-dept-employee-ad-login).
+ * @param {object|null|undefined} user
+ * @returns {boolean}
+ */
+export const hasEffectiveAppAccess = (user) => {
+  if (!user) return false;
+  if (user.isSystemAdmin === true) return true;
+  const ids = getAllowedScreenIds(user);
+  return Array.isArray(ids) && ids.length > 0;
+};
+
+/**
  * Normalize screenFunctions from user-like object (handles camelCase and snake_case).
  * @param {object} user - User or userData object
  * @returns {Record<string,{read:boolean,write?:boolean,approve?:boolean}>|null} screenFunctions or null
@@ -87,12 +100,20 @@ const normalizeUserIdFromApi = (raw) => {
   return Number.isNaN(n) ? '' : n;
 };
 
+const EMPLOYEE_NUMBER_FALLBACK_TEXT = '사번 미등록';
+
+const normalizeEmployeeNumberFromApi = (raw) => {
+  if (raw == null) return '';
+  const normalized = String(raw).trim();
+  return normalized;
+};
+
 /**
  * Normalize selfContext from user-like object (handles camelCase and snake_case).
  * userId from API is numeric (app_user.id); normalized to number or '' (req 20260316).
  * Fallback: if API sends string numeric, coerced to number; if missing or non-numeric, userId is ''.
  * @param {object} user - User or userData object
- * @returns {{department: string, username: string, userId: number|''}|null} selfContext or null
+ * @returns {{department: string, username: string, userId: number|'', employeeNumber: string}|null} selfContext or null
  */
 export const getSelfContext = (user) => {
   if (!user) return null;
@@ -104,6 +125,7 @@ export const getSelfContext = (user) => {
     department: ctx.department ?? '',
     username: ctx.username ?? '',
     userId: normalizeUserIdFromApi(rawUserId),
+    employeeNumber: normalizeEmployeeNumberFromApi(ctx.employeeNumber ?? ctx.employee_number),
   };
 };
 
@@ -111,18 +133,31 @@ export const getSelfContext = (user) => {
  * Self-context for display when scope=self. Prefers auth selfContext (userId numeric from API);
  * if missing, falls back to username so at least name/ID are visible (req 20260316).
  * @param {object} user - User or userData object
- * @returns {{department: string, username: string, userId: number|string}|null}
+ * @returns {{department: string, username: string, userId: number|string, employeeNumber: string}|null}
  */
 export const getSelfContextForDisplay = (user) => {
   const fromAuth = getSelfContext(user);
-  if (fromAuth && (fromAuth.username || fromAuth.userId !== '' || (fromAuth.department != null && fromAuth.department !== ''))) {
+  if (
+    fromAuth &&
+    (fromAuth.username || fromAuth.userId !== '' || fromAuth.employeeNumber || (fromAuth.department != null && fromAuth.department !== ''))
+  ) {
     return fromAuth;
   }
   const uname = user?.username ?? user?.user_name;
   if (uname != null && String(uname).trim() !== '') {
-    return { department: '', username: String(uname).trim(), userId: String(uname).trim() };
+    return {
+      department: '',
+      username: String(uname).trim(),
+      userId: String(uname).trim(),
+      employeeNumber: '',
+    };
   }
   return fromAuth;
+};
+
+export const getEmployeeNumberDisplay = (selfContext, fallbackText = EMPLOYEE_NUMBER_FALLBACK_TEXT) => {
+  const employeeNumber = normalizeEmployeeNumberFromApi(selfContext?.employeeNumber ?? selfContext?.employee_number);
+  return employeeNumber || fallbackText;
 };
 
 /**
@@ -239,7 +274,9 @@ const securityUtils = {
   getScreenFunctions,
   getSelfContext,
   getSelfContextForDisplay,
+  getEmployeeNumberDisplay,
   deriveScreenFunctionsFromAllowed,
+  hasEffectiveAppAccess,
   clearUserData,
   sanitizeErrorMessage,
   getUserFriendlyErrorMessage

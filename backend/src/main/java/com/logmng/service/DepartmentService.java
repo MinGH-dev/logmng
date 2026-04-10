@@ -150,7 +150,7 @@ public class DepartmentService {
             String sql = "SELECT d.name " +
                     "FROM app_user u " +
                     "JOIN department d ON d.code = u.department_code " +
-                    "WHERE u.username = ? AND d.name IS NOT NULL AND d.name <> '' " +
+                    "WHERE u.username = ? AND u.deleted_at IS NULL AND d.name IS NOT NULL AND d.name <> '' " +
                     "LIMIT 1";
             try (PreparedStatement ps = conn.prepareStatement(sql)) {
                 ps.setString(1, username.trim());
@@ -207,5 +207,104 @@ public class DepartmentService {
             current = parent;
         }
         return out;
+    }
+
+    /**
+     * All department codes in the subtree rooted at {@code rootCode} (including root), BFS order.
+     * Req 20260409-user-management-v2-read-scope (team hierarchy visibility).
+     */
+    public List<String> getDescendantCodesIncludingSelf(String rootCode) {
+        if (rootCode == null || rootCode.isBlank()) {
+            return List.of();
+        }
+        List<String> out = new ArrayList<>();
+        LinkedHashSet<String> queue = new LinkedHashSet<>();
+        queue.add(rootCode.trim());
+        int guard = 0;
+        while (!queue.isEmpty() && guard++ < 10_000) {
+            String code = queue.iterator().next();
+            queue.remove(code);
+            out.add(code);
+            for (String child : loadChildCodes(code)) {
+                queue.add(child);
+            }
+        }
+        return out;
+    }
+
+    private List<String> loadChildCodes(String parentCode) {
+        List<String> children = new ArrayList<>();
+        try (Connection conn = dataSource.getConnection()) {
+            String sql = "SELECT code FROM department WHERE parent_code = ? ORDER BY sort_order, code";
+            try (PreparedStatement ps = conn.prepareStatement(sql)) {
+                ps.setString(1, parentCode);
+                try (ResultSet rs = ps.executeQuery()) {
+                    while (rs.next()) {
+                        children.add(rs.getString("code"));
+                    }
+                }
+            }
+        } catch (SQLException e) {
+            log.error("부서 하위 목록 조회 실패: parent={}", parentCode, e);
+        }
+        return children;
+    }
+
+    /**
+     * True if {@code nodeCode} is the same as {@code ancestorCode} or a strict descendant in the department tree.
+     */
+    public boolean isSameOrDescendantDepartment(String ancestorCode, String nodeCode) {
+        if (ancestorCode == null || nodeCode == null) {
+            return false;
+        }
+        if (ancestorCode.trim().equalsIgnoreCase(nodeCode.trim())) {
+            return true;
+        }
+        return isStrictDescendantOf(nodeCode, ancestorCode);
+    }
+
+    /**
+     * True if {@code descendantCandidate} is under {@code ancestorCode} in the tree (strict: not equal).
+     */
+    public boolean isStrictDescendantOf(String descendantCandidate, String ancestorCode) {
+        if (descendantCandidate == null || ancestorCode == null) {
+            return false;
+        }
+        String d = descendantCandidate.trim();
+        String a = ancestorCode.trim();
+        if (d.equalsIgnoreCase(a)) {
+            return false;
+        }
+        String current = d;
+        int depth = 0;
+        while (current != null && !current.isBlank() && depth < MAX_ANCESTOR_DEPTH) {
+            depth++;
+            String parent = getParentCode(current);
+            if (parent == null || parent.isBlank()) {
+                return false;
+            }
+            if (parent.trim().equalsIgnoreCase(a)) {
+                return true;
+            }
+            current = parent;
+        }
+        return false;
+    }
+
+    private String getParentCode(String code) {
+        try (Connection conn = dataSource.getConnection()) {
+            String sql = "SELECT parent_code FROM department WHERE code = ? LIMIT 1";
+            try (PreparedStatement ps = conn.prepareStatement(sql)) {
+                ps.setString(1, code);
+                try (ResultSet rs = ps.executeQuery()) {
+                    if (rs.next()) {
+                        return rs.getString("parent_code");
+                    }
+                }
+            }
+        } catch (SQLException e) {
+            log.error("부서 parent 조회 실패: code={}", code, e);
+        }
+        return null;
     }
 }

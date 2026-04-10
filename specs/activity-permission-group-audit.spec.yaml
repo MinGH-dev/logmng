@@ -1,0 +1,181 @@
+# Permission-group activity: persisted action_detail (user_activity_log)
+# Requirement: docs/requirements/20260330-permission-group-activity-detail-audit.md (MF-01, MF-03, OP-PG-01–02); assign/unassign before-after: docs/requirements/20260407-permission-group-assign-unassign-audit-before-after.md
+# Contract: docs/contract.md, docs/api-definition.md §8
+# Step 3 — machine-readable schema; Backend/Frontend implement to this spec (see DOC-CODE-SYNC note in contract).
+# DTO alignment: PermissionGroupCreateRequest, PermissionGroupUpdateRequest, AllowedScreenItem — specs/permission-group-hierarchy.spec.yaml §1.1
+
+---
+metadata:
+  title: "user_activity_log.action_detail — permission group audit (permissionGroupAuditV1)"
+  version: "1.0"
+  requirement: "20260330-permission-group-activity-detail-audit, 20260330-activity-types-user-mgmt-permission-group, 20260407-permission-group-assign-unassign-audit-before-after"
+  status: "draft"
+  schema_key: "permissionGroupAuditV1"
+  op_pg_01: "Resolved: nested allowedScreens[] as AllowedScreenItem (same as POST/PUT /api/permission-groups)."
+  op_pg_02: "Provisional (MF-03): persist changeReason under permissionGroupAuditV1.changeReason, max length 500; Product may revise to omit in a later contract version."
+
+---
+# 1. Scope
+
+- **Applies when** `user_activity_log.action_type` is one of:
+  - `PERMISSION_GROUP_CREATE`
+  - `PERMISSION_GROUP_UPDATE`
+  - `PERMISSION_GROUP_DELETE`
+  - `ASSIGN_USER_TO_PERMISSION_GROUP`
+  - `UNASSIGN_USER_FROM_PERMISSION_GROUP`
+- **Source of truth for codes**: `specs/activity-action-types.spec.yaml` §2.3.
+- **Storage**: JSON in `user_activity_log.action_detail` (same column as today). **No** new tables required by this contract.
+- **API exposure**: `GET /api/activity-log/{id}` returns the stored map; `action_detail` includes this structure when present (same authorization/scope as `POST /api/activity-log/search` — see requirement §2.1 Security).
+
+---
+# 2. Top-level shape in action_detail
+
+Implementations **may** retain legacy flat keys (`permissionGroupId`, `permissionGroupCode`, …) during transition. **New audit-grade payloads** MUST be nested under a single object key:
+
+| Key | Type | Description |
+|-----|------|-------------|
+| **`permissionGroupAuditV1`** | object | Versioned audit payload (this spec). |
+
+Other top-level keys in `action_detail` remain category-specific; they MUST NOT duplicate secrets (see §6 Denylist).
+
+---
+# 3. permissionGroupAuditV1 (version 1)
+
+## 3.1 Common fields
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `schemaVersion` | string | yes | Literal **`"1"`** for this document version (evolve with breaking changes). |
+| `operation` | string | yes | One of: `CREATE`, `UPDATE`, `DELETE`, `ASSIGN_USER`, `UNASSIGN_USER`. Maps to action types in §4. |
+| `permissionGroupId` | number (integer) | yes* | Numeric permission group id (`permission_group.id`). *Required whenever the group is known at write time. |
+| `permissionGroupCode` | string | no | Group `code` when known (non-secret identifier). |
+| `before` | PermissionGroupSnapshot \| null | no* | Pre-mutation snapshot (see §3.3). *For **`ASSIGN_USER_TO_PERMISSION_GROUP`** and **`UNASSIGN_USER_FROM_PERMISSION_GROUP`**, required semantics in §3.5 (value may be **`null`** where §3.5 allows). |
+| `after` | PermissionGroupSnapshot \| null | no* | Post-mutation snapshot (see §3.3). *Same §3.5 rule for assign/unassign. |
+| `targetUserId` | number (integer) | no | Numeric `app_user.id` for assign/unassign operations. |
+| `changeReason` | string \| omitted | no | **Provisional (MF-03 / OP-PG-02):** If persisted, MUST be truncated to **max length 500** characters at write time. Reflects `PermissionGroupUpdateRequest.changeReason` when the client sent a non-blank value. **Product may revise** the contract to omit this field from persisted audit in v1 — if so, update this spec and §3.4 before production rollout. |
+
+## 3.2 Large payloads (OP / SR-PG-06)
+
+If `allowedScreens` is too large for storage or policy limits, implementations MAY set:
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `allowedScreensTruncated` | boolean | When `true`, `before.allowedScreens` and/or `after.allowedScreens` may be incomplete; omit or shorten with this flag set. |
+
+## 3.3 PermissionGroupSnapshot (before / after)
+
+Aligned with **`PermissionGroupResponse`** / create-update DTOs (not an unconstrained entity dump). **OP-PG-01:** use **nested** `allowedScreens` as `AllowedScreenItem[]`, not a flat id-only list.
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `code` | string | Group code. |
+| `name` | string | Display name. |
+| `description` | string \| null | Optional description. |
+| `sortOrder` | number (integer) | Sort order (default 0 if omitted in API). |
+| `allowedScreens` | array of AllowedScreenItem | Same shape as `specs/permission-group-hierarchy.spec.yaml` §1.1. |
+
+### AllowedScreenItem (JSON object)
+
+| Field | Type | Notes |
+|-------|------|--------|
+| `screenId` | string | Required per item. |
+| `scope` | string \| omitted | `'self'` \| `'team'` \| `'all'` where applicable; omitted/null → effective `'team'` per permission-group spec. |
+| `read` | boolean \| null | Optional explicit flags. |
+| `write` | boolean \| null | |
+| `approve` | boolean \| null | |
+| `decrypt` | boolean \| null | |
+
+## 3.4 changeReason (MF-03 provisional decision)
+
+- **Contract decision (provisional):** Persist operator-supplied **`changeReason`** inside `permissionGroupAuditV1.changeReason` when provided on **UPDATE**, with **maximum length 500** at persistence time (truncate; do not fail the mutation solely for length unless API validation already rejects).
+- **Rationale:** Audit trail for administrative notes; length cap limits PII/free-text risk (Security §2.1).
+- **Revisable:** Product may switch to **omit** `changeReason` from persisted audit — update this spec and `docs/contract.md` before implementing that behavior.
+
+## 3.5 Per action_type expectations
+
+| action_type | operation | before | after | targetUserId | changeReason |
+|-------------|-----------|--------|-------|--------------|--------------|
+| `PERMISSION_GROUP_CREATE` | `CREATE` | null | non-null (created state) | omit | omit |
+| `PERMISSION_GROUP_UPDATE` | `UPDATE` | non-null when pre-state read succeeds | non-null when post-state known | omit | optional; max 500 if present |
+| `PERMISSION_GROUP_DELETE` | `DELETE` | non-null when pre-delete snapshot available | null | omit | omit |
+| `ASSIGN_USER_TO_PERMISSION_GROUP` | `ASSIGN_USER` | **Required:** previous group **`PermissionGroupSnapshot`**, or **`null`** if the user had no prior group membership | **Required:** new group **`PermissionGroupSnapshot`** after assignment (the group targeted by this operation) | required | omit |
+| `UNASSIGN_USER_FROM_PERMISSION_GROUP` | `UNASSIGN_USER` | **Required:** **`PermissionGroupSnapshot`** of the group being left (path `{id}`) | **`null`** (membership removed) | required | omit |
+
+- **Requirement:** `docs/requirements/20260407-permission-group-assign-unassign-audit-before-after.md` §2. Top-level **`permissionGroupId`** / **`permissionGroupCode`** refer to the **new** group on assign and the **group being modified** on unassign; they must stay **consistent** with **`before`** / **`after`** per the table above.
+- **Large / truncated lists:** If `allowedScreens` is omitted, shortened, or incomplete for storage or policy reasons, set **`allowedScreensTruncated: true`** per §3.2 so consumers do not assume a full nested list. Minimum auditable snapshot fields remain per §3.3 / parent requirement (e.g. **`code`**, **`name`**, **`sortOrder`** when truncation applies).
+
+---
+# 4. Mapping: action_type ↔ permissionGroupAuditV1.operation
+
+| action_type | operation |
+|-------------|-----------|
+| `PERMISSION_GROUP_CREATE` | `CREATE` |
+| `PERMISSION_GROUP_UPDATE` | `UPDATE` |
+| `PERMISSION_GROUP_DELETE` | `DELETE` |
+| `ASSIGN_USER_TO_PERMISSION_GROUP` | `ASSIGN_USER` |
+| `UNASSIGN_USER_FROM_PERMISSION_GROUP` | `UNASSIGN_USER` |
+
+---
+# 5. Example (UPDATE — illustrative)
+
+```json
+{
+  "permissionGroupAuditV1": {
+    "schemaVersion": "1",
+    "operation": "UPDATE",
+    "permissionGroupId": 42,
+    "permissionGroupCode": "GENERAL_USER",
+    "changeReason": "정책 변경에 따른 화면 권한 조정",
+    "before": {
+      "code": "GENERAL_USER",
+      "name": "일반",
+      "description": "old",
+      "sortOrder": 0,
+      "allowedScreens": [
+        { "screenId": "activity-log", "scope": "team", "read": true }
+      ]
+    },
+    "after": {
+      "code": "GENERAL_USER",
+      "name": "일반 사용자",
+      "description": "new",
+      "sortOrder": 0,
+      "allowedScreens": [
+        { "screenId": "activity-log", "scope": "all", "read": true }
+      ]
+    }
+  }
+}
+```
+
+---
+# 6. Denylist (must never appear in action_detail)
+
+Persisted JSON MUST NOT contain keys or values copied from secrets or sensitive transport. Align with **`docs/requirements/20260330-activity-types-user-mgmt-permission-group.md`** §2.1 Security (denylist / allowlist approach).
+
+**Forbidden key names (non-exhaustive; block by convention and tests):**
+
+- `password`, `newPassword`, `currentPassword`, `confirmPassword`
+- `token`, `accessToken`, `refreshToken`, `authorization`, `secret`, `clientSecret`, `apiKey`
+- Raw OAuth / credential blobs
+
+**Forbidden content:**
+
+- Raw unsanitized HTTP request bodies from mutating endpoints
+- Decrypted log payload excerpts, unmasked search keywords (unless a separate requirement explicitly allows)
+
+Implementations SHOULD add unit/assertion coverage (requirement §3 TC-07).
+
+---
+# 7. Open points (remaining for Backend / Product)
+
+| ID | Owner | Topic |
+|----|--------|--------|
+| OP-PG-03 | Product | CSV/export scope, timeline, and whether `action_detail` columns are humanized vs raw JSON |
+| OP-PG-04 | Architecture / Backend | Whether `GET /api/activity-log/{id}/audit-detail` (O2) is needed — must mirror auth of `GET /api/activity-log/{id}` if added (MF-04) |
+| MF-05 | Contract (when export ships) | Export-specific subsection: columns, redaction, scope parity with `POST /api/activity-log/search` |
+
+---
+# 8. DOC–CODE sync (this feature)
+
+For permission-group audit rows, **`specs/activity-permission-group-audit.spec.yaml`** is the **implementation target** for `action_detail` shape (including **`20260330-permission-group-activity-detail-audit`** and assign/unassign **`before`/`after`** semantics under **`20260407-permission-group-assign-unassign-audit-before-after`**). After Step 4, any intentional deviation must update this spec and `docs/contract.md` / `docs/api-definition.md` in the same change (see `docs/workflow/DOC-CODE-SYNC.md`).

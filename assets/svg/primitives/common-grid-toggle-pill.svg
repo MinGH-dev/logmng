@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 44" role="img" aria-label="Common grid toggle pill 64 by 18 px rx 9: on, off, info variants">
+  <defs>
+    <style>
+      .spec { fill: #616161; font-family: system-ui, sans-serif; font-size: 9px; }
+      .toggle-on { fill: #e8f5e9; stroke: #81c784; stroke-width: 1; }
+      .toggle-on-t { fill: #2e7d32; font-family: system-ui, sans-serif; font-size: 7px; text-anchor: middle; }
+      .toggle-off { fill: #eceff1; stroke: #90a4ae; stroke-width: 1; }
+      .toggle-off-t { fill: #455a64; font-family: system-ui, sans-serif; font-size: 7px; text-anchor: middle; }
+      .toggle-info { fill: #e3f2fd; stroke: #64b5f6; stroke-width: 1; }
+      .toggle-info-t { fill: #1565c0; font-family: system-ui, sans-serif; font-size: 7px; text-anchor: middle; }
+    </style>
+  </defs>
+  <desc>Optional pill variant (64x18). Req matrix wireframe req-20260323-02 now uses common-grid-checkbox-14.svg for all binary flags. Keep this file for other layouts or MUI switch sketches.</desc>
+  <text x="0" y="11" class="spec" id="toggle-pill-spec">64x18 px, rx=9, row h 34 gives y offset +8</text>
+  <rect class="toggle-on" x="0" y="20" width="64" height="18" rx="9" id="toggle-pill-on-bg"/>
+  <text x="32" y="32" class="toggle-on-t" id="toggle-pill-on-label">ON</text>
+  <rect class="toggle-off" x="76" y="20" width="64" height="18" rx="9" id="toggle-pill-off-bg"/>
+  <text x="108" y="32" class="toggle-off-t" id="toggle-pill-off-label">OFF</text>
+  <rect class="toggle-info" x="152" y="20" width="64" height="18" rx="9" id="toggle-pill-info-bg"/>
+  <text x="184" y="32" class="toggle-info-t" id="toggle-pill-info-label">INFO</text>
+</svg>

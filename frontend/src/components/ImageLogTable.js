@@ -2,7 +2,60 @@ import React, { useState } from 'react';
 import DataTable, { EmptyTableBody } from './DataTable';
 import './ImageLogTable.css';
 import logger from '../utils/logger';
+import { getApiBaseUrl } from '../config/runtimeApi';
 import { getUserFriendlyErrorMessage, DECRYPTION_NOT_APPROVED_MESSAGE } from '../utils/security';
+
+/** CI eslint (react-scripts)는 컴포넌트 내부 async 콜백의 import 사용을 간혹 미검출함 — 래퍼로 참조 고정 */
+function buildJavaFwDecryptApiUrl(screenId) {
+  const apiBaseUrl = getApiBaseUrl();
+  return screenId
+    ? `${apiBaseUrl}/logs/decrypt/java_fw_imglog?screen=${encodeURIComponent(screenId)}`
+    : `${apiBaseUrl}/logs/decrypt/java_fw_imglog`;
+}
+
+/**
+ * Parse fetch response body once; returns `{ parsed, rawText }`.
+ * `parsed` is null if body is empty or not JSON.
+ */
+function parseResponseBodyJson(rawText) {
+  const raw = rawText == null ? '' : String(rawText);
+  if (!raw.trim()) {
+    return { parsed: {}, rawText: raw };
+  }
+  try {
+    const parsed = JSON.parse(raw);
+    return {
+      parsed: parsed && typeof parsed === 'object' ? parsed : {},
+      rawText: raw,
+    };
+  } catch {
+    return { parsed: null, rawText: raw };
+  }
+}
+
+/**
+ * ApiResponse-style message for alerts (message, error string, or nested error.message).
+ * @param {object} payload - normalized object from JSON body
+ * @returns {string|null}
+ */
+function getApiErrorMessageForAlert(payload) {
+  if (!payload || typeof payload !== 'object') return null;
+  if (typeof payload.message === 'string' && payload.message.trim() !== '') {
+    return payload.message.trim();
+  }
+  if (typeof payload.error === 'string' && payload.error.trim() !== '') {
+    return payload.error.trim();
+  }
+  if (
+    payload.error &&
+    typeof payload.error === 'object' &&
+    typeof payload.error.message === 'string' &&
+    payload.error.message.trim() !== ''
+  ) {
+    return payload.error.message.trim();
+  }
+  return null;
+}
 
 const IMAGE_LOG_COLUMNS = [
   { key: 'insert_time', label: 'insert_time', sortable: true },
@@ -35,13 +88,28 @@ const ImageLogTable = ({
   decryptionAllowed = null,
   screenId = null,
 }) => {
-  // decryptionAllowed: { validUntil: string | null, guids: string[] } from GET /api/decrypt/allowed (req 20260318)
+  // decryptionAllowed: GET /api/decrypt/allowed — req 20260320: allowedRows [{ guid, status }]; guids만 있으면 레거시(guid-only)
   const allowedGuids = decryptionAllowed && Array.isArray(decryptionAllowed.guids) ? decryptionAllowed.guids : [];
+  const allowedRows = decryptionAllowed && Array.isArray(decryptionAllowed.allowedRows) ? decryptionAllowed.allowedRows : [];
   const validUntil = decryptionAllowed?.validUntil ?? null;
-  const isAllowedForGuid = (guid) => {
-    if (!guid || !allowedGuids.length) return false;
+
+  const normalizeAllowedStatus = (s) => (s == null || s === '' ? '' : String(s).trim());
+
+  const isAllowedForRow = (guid, status) => {
+    if (!guid) return false;
     const until = validUntil ? new Date(validUntil) : null;
     if (until && until.getTime() <= Date.now()) return false;
+    const rowSt = normalizeAllowedStatus(status);
+    const g = String(guid).trim();
+    if (allowedRows.length > 0) {
+      return allowedRows.some((r) => {
+        if (!r || r.guid == null) return false;
+        const rg = String(r.guid).trim();
+        const rs = normalizeAllowedStatus(r.status ?? r.row_status);
+        return rg === g && rs === rowSt;
+      });
+    }
+    if (!allowedGuids.length) return false;
     return allowedGuids.includes(guid);
   };
   // 시간 포맷팅
@@ -195,9 +263,8 @@ const ImageLogTable = ({
   
   // 상세 보기 상태
   const [selectedLog, setSelectedLog] = useState(null);
-  const [prettyPrint, setPrettyPrint] = useState(true);
-  
-  // Pretty 출력 상태 (각 로그별로 관리)
+
+  // Pretty 출력 상태 — decrypt와 동일하게 guid+status 복합 키 (getLogKey)
   const [prettyLogs, setPrettyLogs] = useState(new Set());
   
   // 복호화 상태 (각 로그별로 관리) - guid+status를 key로 사용
@@ -214,22 +281,22 @@ const ImageLogTable = ({
     setSelectedLog(null);
   };
   
-  // Pretty 출력 토글
-  const togglePretty = (guid) => {
-    setPrettyLogs(prev => {
+  // Pretty 출력 토글 (guid + status — decrypt와 동일 키)
+  const togglePretty = (guid, status) => {
+    const key = getLogKey(guid, status);
+    setPrettyLogs((prev) => {
       const newSet = new Set(prev);
-      if (newSet.has(guid)) {
-        newSet.delete(guid);
+      if (newSet.has(key)) {
+        newSet.delete(key);
       } else {
-        newSet.add(guid);
+        newSet.add(key);
       }
       return newSet;
     });
   };
-  
-  // Pretty 출력 여부 확인
-  const isPretty = (guid) => {
-    return prettyLogs.has(guid);
+
+  const isPretty = (guid, status) => {
+    return prettyLogs.has(getLogKey(guid, status));
   };
   
   // 복호화 처리
@@ -256,10 +323,7 @@ const ImageLogTable = ({
     });
     
     try {
-      const apiBaseUrl = process.env.REACT_APP_API_BASE_URL || 'http://localhost:9200/api';
-      const decryptUrl = screenId
-        ? `${apiBaseUrl}/logs/decrypt/java_fw_imglog?screen=${encodeURIComponent(screenId)}`
-        : `${apiBaseUrl}/logs/decrypt/java_fw_imglog`;
+      const decryptUrl = buildJavaFwDecryptApiUrl(screenId);
       logger.debug('🔓 복호화 API 호출:', { apiUrl: decryptUrl, guid, status, screenId });
       const body = { guid, status };
       if (searchHistoryId != null) body.searchHistoryId = searchHistoryId;
@@ -272,40 +336,58 @@ const ImageLogTable = ({
         body: JSON.stringify(body)
       });
       
-      logger.debug('🔓 복호화 API 응답 상태:', { status: response.status });
-      
-      if (response.status === 403) {
-        let result = null;
-        try {
-          const text = await response.text();
-          result = text ? JSON.parse(text) : {};
-        } catch (_) {
-          result = {};
-        }
-        // 403 body is in result; log so user can see code, detailCode, error in console
-        logger.debug('🔓 복호화 API 403 응답 body:', { code: result?.code, detailCode: result?.detailCode, error: result?.error });
-        if (result.code === 'DECRYPTION_NOT_APPROVED') {
-          logger.debug('🔓 복호화 승인 미완료:', { code: result.code });
-          alert(getUserFriendlyErrorMessage('복호화', result));
-          return;
-        }
-        if (result.code === 'ROW_NOT_IN_APPROVED_SNAPSHOT') {
-          logger.debug('🔓 승인된 검색 결과에 없는 항목 복호화 시도:', { code: result.code });
-          alert(result.message || '승인된 검색 결과에 포함된 항목만 복호화할 수 있습니다.');
-          return;
-        }
-        // 기타 403: 공통 안내 후 return (body 이미 소비됨)
-        alert(getUserFriendlyErrorMessage('복호화', result));
-        return;
-      }
+      const rawText = await response.text();
+      const { parsed, rawText: bodyText } = parseResponseBodyJson(rawText);
+      const payload = parsed !== null ? parsed : {};
+
+      logger.debug('🔓 복호화 API 응답 상태:', { status: response.status, hasJson: parsed !== null });
       
       if (!response.ok) {
-        const errorText = await response.text();
-        logger.error('🔓 복호화 API 오류:', { status: response.status, error: errorText });
-        throw new Error(`HTTP error! status: ${response.status}`);
+        if (response.status === 403) {
+          logger.debug('🔓 복호화 API 403 응답 body:', {
+            code: payload?.code,
+            detailCode: payload?.detailCode,
+            error: payload?.error,
+          });
+          if (payload.code === 'DECRYPTION_NOT_APPROVED') {
+            logger.debug('🔓 복호화 승인 미완료:', { code: payload.code });
+            alert(getUserFriendlyErrorMessage('복호화', payload));
+            return;
+          }
+          if (payload.code === 'ROW_NOT_IN_APPROVED_SNAPSHOT') {
+            logger.debug('🔓 승인된 검색 결과에 없는 항목 복호화 시도:', { code: payload.code });
+            alert(
+              getApiErrorMessageForAlert(payload) ||
+                '승인된 검색 결과에 포함된 항목만 복호화할 수 있습니다.'
+            );
+            return;
+          }
+          const msg403 = getApiErrorMessageForAlert(payload);
+          alert(msg403 || getUserFriendlyErrorMessage('복호화', payload));
+          return;
+        }
+
+        const apiMsg = getApiErrorMessageForAlert(payload);
+        logger.error('🔓 복호화 API 오류:', {
+          status: response.status,
+          code: payload.code,
+          body: bodyText?.slice?.(0, 500),
+        });
+        if (apiMsg) {
+          alert(apiMsg);
+        } else {
+          alert(getUserFriendlyErrorMessage('복호화', new Error(`HTTP error! status: ${response.status}`)));
+        }
+        return;
       }
-      
-      const result = await response.json();
+
+      if (parsed === null) {
+        logger.error('🔓 복호화 API: 성공 상태이나 본문이 JSON이 아님:', { preview: bodyText?.slice?.(0, 200) });
+        alert(getUserFriendlyErrorMessage('복호화', new Error('Invalid response')));
+        return;
+      }
+
+      const result = parsed;
       logger.debug('🔓 복호화 API 결과:', { 
         success: result.success,
         hasData: !!result.data,
@@ -399,7 +481,7 @@ const ImageLogTable = ({
     logs.map((log, index) => {
                 const logGuid = log.guid || `log-${index}`;
                 const logStatus = log.status || '';
-                const isPrettyMode = isPretty(logGuid);
+                const isPrettyMode = isPretty(logGuid, logStatus);
                 const decryptedData = getDecryptedData(logGuid, logStatus);
                 const isDecryptedRow = isDecrypted(logGuid, logStatus);
                 const isDecryptingRow = isDecrypting(logGuid, logStatus);
@@ -504,7 +586,7 @@ const ImageLogTable = ({
                       <button
                         type="button"
                         className={`pretty-btn ${isPrettyMode ? 'active' : ''}`}
-                        onClick={() => togglePretty(logGuid)}
+                        onClick={() => togglePretty(logGuid, logStatus)}
                         title={isPrettyMode ? 'Pretty 출력 끄기' : 'Pretty 출력 켜기'}
                         aria-label={isPrettyMode ? 'Pretty 출력 끄기' : 'Pretty 출력 켜기'}
                       >
@@ -555,7 +637,7 @@ const ImageLogTable = ({
                         }
 
                         // req 20260318: 허용 목록(decryption-allowed) 기준으로 normal vs dimmed
-                        const allowed = isAllowedForGuid(logGuid);
+                        const allowed = isAllowedForRow(logGuid, logStatus);
                         if (!allowed) {
                           return (
                             <button
@@ -610,6 +692,8 @@ const ImageLogTable = ({
         pagination={pagination}
         pageSize={pageSize}
         onPageSizeChange={onPageSizeChange}
+        containerClassName="log-table-container--fill"
+        paginationFooterOrder="info-buttons-size"
         ariaLabel="이미지 로그 검색 결과"
       >
         {tableBody}
@@ -641,10 +725,10 @@ const ImageLogTable = ({
                 <div className="detail-section-header">
                   <h3>Data String</h3>
                   <label className="pretty-print-toggle">
-                    <input 
-                      type="checkbox" 
-                      checked={prettyPrint}
-                      onChange={(e) => setPrettyPrint(e.target.checked)}
+                    <input
+                      type="checkbox"
+                      checked={isPretty(selectedLog.guid || '', selectedLog.status || '')}
+                      onChange={() => togglePretty(selectedLog.guid || '', selectedLog.status || '')}
                     />
                     Pretty Print
                   </label>
@@ -654,24 +738,25 @@ const ImageLogTable = ({
                     const selectedLogGuid = selectedLog.guid || '';
                     const selectedLogStatus = selectedLog.status || '';
                     const decryptedDataForSelected = getDecryptedData(selectedLogGuid, selectedLogStatus);
-                    const datastringToShow = decryptedDataForSelected?.decrypted_datastring 
-                      || selectedLog.datastring 
-                      || selectedLog.decrypted_data 
-                      || selectedLog.data 
+                    const datastringToShow = decryptedDataForSelected?.decrypted_datastring
+                      || selectedLog.datastring
+                      || selectedLog.decrypted_data
+                      || selectedLog.data
                       || '';
-                    return formatJsonString(datastringToShow, prettyPrint);
+                    const modalPretty = isPretty(selectedLogGuid, selectedLogStatus);
+                    return formatJsonString(datastringToShow, modalPretty);
                   })()}
                 </pre>
               </div>
-              
+
               <div className="detail-section">
                 <div className="detail-section-header">
                   <h3>Header String</h3>
                   <label className="pretty-print-toggle">
-                    <input 
-                      type="checkbox" 
-                      checked={prettyPrint}
-                      onChange={(e) => setPrettyPrint(e.target.checked)}
+                    <input
+                      type="checkbox"
+                      checked={isPretty(selectedLog.guid || '', selectedLog.status || '')}
+                      onChange={() => togglePretty(selectedLog.guid || '', selectedLog.status || '')}
                     />
                     Pretty Print
                   </label>
@@ -681,12 +766,13 @@ const ImageLogTable = ({
                     const selectedLogGuid = selectedLog.guid || '';
                     const selectedLogStatus = selectedLog.status || '';
                     const decryptedDataForSelected = getDecryptedData(selectedLogGuid, selectedLogStatus);
-                    const headerstringToShow = decryptedDataForSelected?.decrypted_headerstring 
-                      || selectedLog.headerstring 
-                      || selectedLog.decrypted_header 
-                      || selectedLog.header 
+                    const headerstringToShow = decryptedDataForSelected?.decrypted_headerstring
+                      || selectedLog.headerstring
+                      || selectedLog.decrypted_header
+                      || selectedLog.header
                       || '';
-                    return formatJsonString(headerstringToShow, prettyPrint);
+                    const modalPretty = isPretty(selectedLogGuid, selectedLogStatus);
+                    return formatJsonString(headerstringToShow, modalPretty);
                   })()}
                 </pre>
               </div>

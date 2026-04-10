@@ -5,9 +5,13 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.logmng.dto.request.AdvancedSearchRequest;
 import com.logmng.dto.request.FilterCondition;
+import com.logmng.dto.DecryptionRowKey;
 import com.logmng.dto.request.LogDbSearchRequest;
+import com.logmng.dto.request.LogDbSortSpec;
 import com.logmng.dto.response.LogDbSearchResponse;
+import com.logmng.exception.CustomException;
 import com.logmng.util.CryptoUtil;
+import com.logmng.util.CryptoUtil.LogPayloadCryptoVariant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -28,18 +32,33 @@ public class LogDbService {
     /** Max rows to fetch when data/header/keyword filters are present; filter in memory then paginate. Per req 20260318. */
     private static final int IMGLOG_FILTER_PREFETCH_CAP = 5000;
 
+    /**
+     * When JSON bracket-wrapped ImageLog ciphertext cannot be decrypted, substitute this instead of echoing E002+Base64.
+     */
+    private static final String IMAGE_LOG_JSON_DECRYPT_FAILED = "복호화에 실패했습니다 (키 불일치 또는 손상된 데이터)";
+
     private static final Logger log = LoggerFactory.getLogger(LogDbService.class);
 
     private final DataSource primaryDataSource;
+    private final DataSource pbDataSource;
     private final DataSource imagelogDataSource;
     private final CryptoUtil cryptoUtil;
     private final ObjectMapper objectMapper;
     private static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
+
+    /** Allowlisted ORDER BY columns for pb_send ∪ pb_recv (req 20260326). */
+    private static final Set<String> PB_FEPLOG_SORTABLE_COLUMNS = Collections.unmodifiableSet(new HashSet<>(Arrays.asList(
+            "id", "log_timestamp", "media_code", "tr_code", "user_id", "ip_address",
+            "user_agent", "request_data", "response_data", "status_code", "response_time",
+            "error_message", "session_id", "device_type", "created_at", "updated_at", "log_type"
+    )));
     
     public LogDbService(@Qualifier("dataSource") DataSource primaryDataSource,
+                        @Qualifier("pbDataSource") DataSource pbDataSource,
                         @Qualifier("imagelogDataSource") DataSource imagelogDataSource,
                         CryptoUtil cryptoUtil) {
         this.primaryDataSource = primaryDataSource;
+        this.pbDataSource = pbDataSource;
         this.imagelogDataSource = imagelogDataSource;
         this.cryptoUtil = cryptoUtil;
         this.objectMapper = new ObjectMapper();
@@ -63,14 +82,95 @@ public class LogDbService {
             throw new RuntimeException("지원하지 않는 로그 타입입니다: " + logType);
         }
     }
+
+    private String normalizePbFeplogSortField(String raw) {
+        if (raw == null) {
+            return null;
+        }
+        String f = raw.trim();
+        if (f.isEmpty()) {
+            return null;
+        }
+        if ("prc_time".equalsIgnoreCase(f)) {
+            return "log_timestamp";
+        }
+        if ("brodid".equalsIgnoreCase(f)) {
+            return "user_id";
+        }
+        if ("msg_code".equalsIgnoreCase(f)) {
+            return "status_code";
+        }
+        if ("bmsg".equalsIgnoreCase(f)) {
+            return "error_message";
+        }
+        if ("log_ch_cd".equalsIgnoreCase(f)) {
+            return "device_type";
+        }
+        if ("log_io_cd".equalsIgnoreCase(f)) {
+            return "log_type";
+        }
+        if ("pub_ip".equalsIgnoreCase(f) || "src_ip".equalsIgnoreCase(f)) {
+            return "ip_address";
+        }
+        if ("prt_ip".equalsIgnoreCase(f) || "app_id".equalsIgnoreCase(f)) {
+            return "session_id";
+        }
+        if ("login_id".equalsIgnoreCase(f)) {
+            return "user_id";
+        }
+        if ("send_recv".equalsIgnoreCase(f)) {
+            return "log_type";
+        }
+        if ("term_no".equalsIgnoreCase(f)) {
+            return "response_time";
+        }
+        return f;
+    }
+
+    /**
+     * Safe ORDER BY for PB FEP union query. Uses sortSpecs when non-empty; else legacy sortField/sortDirection.
+     */
+    String buildPbFeplogOrderBy(LogDbSearchRequest request) {
+        List<LogDbSortSpec> specs = request.getSortSpecs();
+        if (specs != null && !specs.isEmpty()) {
+            StringBuilder ob = new StringBuilder();
+            Set<String> used = new HashSet<>();
+            for (LogDbSortSpec spec : specs) {
+                if (spec == null) {
+                    continue;
+                }
+                String col = normalizePbFeplogSortField(spec.getField());
+                if (col == null || !PB_FEPLOG_SORTABLE_COLUMNS.contains(col) || used.contains(col)) {
+                    continue;
+                }
+                used.add(col);
+                String dirRaw = spec.getDirection();
+                String dir = dirRaw != null && "asc".equalsIgnoreCase(dirRaw.trim()) ? "ASC" : "DESC";
+                if (ob.length() > 0) {
+                    ob.append(", ");
+                }
+                ob.append(col).append(" ").append(dir);
+            }
+            if (ob.length() > 0) {
+                return ob.toString();
+            }
+        }
+        String sortField = normalizePbFeplogSortField(request.getSortField() != null ? request.getSortField() : "log_timestamp");
+        if (sortField == null || !PB_FEPLOG_SORTABLE_COLUMNS.contains(sortField)) {
+            sortField = "log_timestamp";
+        }
+        String sortDirection = request.getSortDirection() != null ? request.getSortDirection() : "desc";
+        String dir = "asc".equalsIgnoreCase(sortDirection.trim()) ? "ASC" : "DESC";
+        return sortField + " " + dir;
+    }
     
     /**
-     * PB FEP 로그 검색 (pb_send, pb_recv)
+     * PB FEP search: SQL {@code pb_send} {@code UNION ALL} {@code pb_recv}. Shared by legacy {@link #searchLogs} (pb_feplog) and wireframe {@link #searchPbFepLogWireframe}.
      */
-    private LogDbSearchResponse searchPbFeplog(LogDbSearchRequest request) {
+    private LogDbSearchResponse executePbFeplogUnionSearch(LogDbSearchRequest request) {
         List<Map<String, Object>> results = new ArrayList<>();
         
-        try (Connection connection = primaryDataSource.getConnection()) {
+        try (Connection connection = pbDataSource.getConnection()) {
             // SQL 쿼리 구성
             StringBuilder sql = new StringBuilder();
             sql.append("SELECT id, log_timestamp, media_code, tr_code, user_id, ip_address, ");
@@ -142,14 +242,7 @@ public class LogDbService {
                 params.add(request.getLoginId());
             }
             
-            // 정렬 (prc_time을 log_timestamp로 매핑)
-            String sortField = request.getSortField() != null ? request.getSortField() : "log_timestamp";
-            // 프론트엔드에서 보내는 prc_time을 log_timestamp로 변환
-            if ("prc_time".equalsIgnoreCase(sortField)) {
-                sortField = "log_timestamp";
-            }
-            String sortDirection = request.getSortDirection() != null ? request.getSortDirection() : "desc";
-            sql.append("ORDER BY ").append(sortField).append(" ").append(sortDirection);
+            sql.append("ORDER BY ").append(buildPbFeplogOrderBy(request));
             
             log.debug("실행 SQL: {}", sql.toString());
             log.debug("파라미터: {}", params);
@@ -201,18 +294,20 @@ public class LogDbService {
                         }
                         
                         // 복호화 옵션이 활성화된 경우 복호화된 데이터 포함
-                        if (request.getDecryptData() && !request.getKeywords().isEmpty()) {
+                        if (Boolean.TRUE.equals(request.getDecryptData())
+                                && request.getKeywords() != null
+                                && !request.getKeywords().isEmpty()) {
                             try {
                                 // request_data 복호화
                                 if (row.get("request_data") != null) {
                                     String encryptedRequest = (String) row.get("request_data");
-                                    String decryptedRequest = cryptoUtil.decrypt(encryptedRequest);
+                                    String decryptedRequest = cryptoUtil.decryptLogPayload(encryptedRequest, LogPayloadCryptoVariant.PB_FEP);
                                     row.put("decrypted_request_data", decryptedRequest);
                                 }
                                 // response_data 복호화
                                 if (row.get("response_data") != null) {
                                     String encryptedResponse = (String) row.get("response_data");
-                                    String decryptedResponse = cryptoUtil.decrypt(encryptedResponse);
+                                    String decryptedResponse = cryptoUtil.decryptLogPayload(encryptedResponse, LogPayloadCryptoVariant.PB_FEP);
                                     row.put("decrypted_response_data", decryptedResponse);
                                 }
                             } catch (Exception e) {
@@ -242,6 +337,185 @@ public class LogDbService {
             log.error("PB FEP 로그 검색 중 오류 발생", e);
             throw new RuntimeException("PB FEP 로그 검색 중 오류가 발생했습니다: " + e.getMessage(), e);
         }
+    }
+
+    private LogDbSearchResponse searchPbFeplog(LogDbSearchRequest request) {
+        return executePbFeplogUnionSearch(request);
+    }
+
+    /**
+     * PB FEP wireframe screen ({@code pb-fep-log-search}): same UNION/query as legacy {@code searchPbFeplog}, response rows use wireframe JSON keys (req 20260326).
+     */
+    public LogDbSearchResponse searchPbFepLogWireframe(LogDbSearchRequest request) {
+        validatePbFepWireframeSearchRequest(request);
+        LogDbSearchRequest exec = copyRequestForPbFeplogWireframeExecution(request);
+        LogDbSearchResponse raw = executePbFeplogUnionSearch(exec);
+        List<Map<String, Object>> mapped = new ArrayList<>(raw.getData().size());
+        for (Map<String, Object> row : raw.getData()) {
+            mapped.add(mapPbFepRowToWireframe(row));
+        }
+        return new LogDbSearchResponse(mapped, raw.getPagination());
+    }
+
+    /**
+     * Validates wireframe-only rules: required dates/loginId, range order, pageSize allowlist, strict sortSpecs allowlist.
+     */
+    void validatePbFepWireframeSearchRequest(LogDbSearchRequest request) {
+        if (request.getLoginId() == null || request.getLoginId().trim().isEmpty()) {
+            throw CustomException.badRequest("Login ID는 필수입니다.", "INVALID_INPUT");
+        }
+        if (request.getStartDate() == null || request.getStartDate().trim().isEmpty()) {
+            throw CustomException.badRequest("시작 일시(startDate)는 필수입니다.", "INVALID_INPUT");
+        }
+        if (request.getEndDate() == null || request.getEndDate().trim().isEmpty()) {
+            throw CustomException.badRequest("종료 일시(endDate)는 필수입니다.", "INVALID_INPUT");
+        }
+        LocalDateTime start = request.getStartDateAsDateTime();
+        LocalDateTime end = request.getEndDateAsDateTime();
+        if (start == null) {
+            throw CustomException.badRequest("시작 일시(startDate) 형식이 올바르지 않습니다.", "INVALID_INPUT");
+        }
+        if (end == null) {
+            throw CustomException.badRequest("종료 일시(endDate) 형식이 올바르지 않습니다.", "INVALID_INPUT");
+        }
+        if (start.isAfter(end)) {
+            throw CustomException.badRequest("검색 기간이 올바르지 않습니다. 시작 일시가 종료 일시보다 늦을 수 없습니다.", "INVALID_INPUT");
+        }
+        Integer ps = request.getPageSize();
+        if (ps != null && ps != 25 && ps != 50 && ps != 100) {
+            throw CustomException.badRequest("pageSize는 25, 50, 100 중 하나여야 합니다.", "INVALID_INPUT");
+        }
+        List<LogDbSortSpec> specs = request.getSortSpecs();
+        if (specs != null) {
+            for (LogDbSortSpec spec : specs) {
+                if (spec == null) {
+                    throw CustomException.badRequest("sortSpecs 항목이 null일 수 없습니다.", "INVALID_INPUT");
+                }
+                String rawField = spec.getField();
+                if (rawField == null || rawField.trim().isEmpty()) {
+                    throw CustomException.badRequest("sortSpecs.field는 비어 있을 수 없습니다.", "INVALID_INPUT");
+                }
+                String col = normalizePbFeplogSortField(rawField.trim());
+                if (col == null || !PB_FEPLOG_SORTABLE_COLUMNS.contains(col)) {
+                    throw CustomException.badRequest("유효하지 않은 정렬 필드입니다: " + rawField.trim(), "INVALID_INPUT");
+                }
+                String dir = spec.getDirection();
+                if (dir != null && !dir.trim().isEmpty()
+                        && !"asc".equalsIgnoreCase(dir.trim())
+                        && !"desc".equalsIgnoreCase(dir.trim())) {
+                    throw CustomException.badRequest("sortSpecs.direction은 asc 또는 desc여야 합니다.", "INVALID_INPUT");
+                }
+            }
+        }
+    }
+
+    private static LogDbSearchRequest copyRequestForPbFeplogWireframeExecution(LogDbSearchRequest in) {
+        LogDbSearchRequest r = new LogDbSearchRequest();
+        r.setStartDate(in.getStartDate());
+        r.setEndDate(in.getEndDate());
+        r.setLoginId(in.getLoginId());
+        r.setTrCode(in.getTrCode());
+        r.setMediaCode(in.getMediaCode());
+        r.setKeywords(in.getKeywords() != null ? new ArrayList<>(in.getKeywords()) : new ArrayList<>());
+        r.setDecryptData(in.getDecryptData());
+        r.setSortSpecs(in.getSortSpecs() != null ? new ArrayList<>(in.getSortSpecs()) : new ArrayList<>());
+        r.setSortField(in.getSortField());
+        r.setSortDirection(in.getSortDirection());
+        r.setPage(in.getPage() != null ? in.getPage() : 1);
+        r.setPageSize(in.getPageSize() != null ? in.getPageSize() : 25);
+        r.setLogType("pb_feplog");
+        r.setDisplayTemplate(in.getDisplayTemplate());
+        return r;
+    }
+
+    private static String formatPbFepMsgCode(Object statusCode) {
+        if (statusCode == null) {
+            return null;
+        }
+        return String.valueOf(statusCode);
+    }
+
+    /** Strip H2 debug form when a CLOB column was already converted to a plain String. */
+    private static String unwrapH2ClobDebugStringIfPresent(String s) {
+        if (s == null || s.length() < 7) {
+            return s;
+        }
+        if (s.startsWith("clob") && s.contains(": '") && s.endsWith("'")) {
+            int start = s.lastIndexOf(": '") + 3;
+            if (start >= 3 && start < s.length()) {
+                return s.substring(start, s.length() - 1).replace("''", "'");
+            }
+        }
+        return s;
+    }
+
+    /** JDBC CLOB (e.g. H2) → string for JSON-safe wireframe fields. */
+    private static String jdbcValueToString(Object value) {
+        if (value == null) {
+            return null;
+        }
+        if (value instanceof Clob) {
+            try {
+                Clob c = (Clob) value;
+                long n = c.length();
+                if (n <= 0) {
+                    return "";
+                }
+                int len = n > Integer.MAX_VALUE ? Integer.MAX_VALUE : (int) n;
+                return unwrapH2ClobDebugStringIfPresent(c.getSubString(1, len));
+            } catch (SQLException e) {
+                return unwrapH2ClobDebugStringIfPresent(value.toString());
+            }
+        }
+        String s = value instanceof String ? (String) value : value.toString();
+        return unwrapH2ClobDebugStringIfPresent(s);
+    }
+
+    private static String buildWireframeDataCellSummary(String requestPayload, String responsePayload) {
+        String res = responsePayload != null ? responsePayload : "";
+        String req = requestPayload != null ? requestPayload : "";
+        String pick = !res.isEmpty() ? res : req;
+        if (pick.isEmpty()) {
+            return null;
+        }
+        int max = 200;
+        if (pick.length() <= max) {
+            return pick;
+        }
+        return pick.substring(0, max) + "...";
+    }
+
+    private static Map<String, Object> mapPbFepRowToWireframe(Map<String, Object> row) {
+        Map<String, Object> out = new LinkedHashMap<>();
+        String branch = row.get("log_type") != null ? row.get("log_type").toString().trim().toLowerCase(Locale.ROOT) : "";
+        out.put("id", row.get("id"));
+        out.put("log_type", row.get("log_type"));
+        out.put("log_timestamp", row.get("log_timestamp"));
+        out.put("tr_code", jdbcValueToString(row.get("tr_code")));
+        out.put("login_id", jdbcValueToString(row.get("user_id")));
+        out.put("msg_code", formatPbFepMsgCode(row.get("status_code")));
+        out.put("bmsg", jdbcValueToString(row.get("error_message")));
+        out.put("log_ch_cd", jdbcValueToString(row.get("device_type")));
+        if ("send".equals(branch)) {
+            out.put("send_recv", "SEND");
+        } else if ("recv".equals(branch)) {
+            out.put("send_recv", "RECV");
+        } else {
+            out.put("send_recv", "RECV");
+        }
+        out.put("src_ip", jdbcValueToString(row.get("ip_address")));
+        out.put("dest_ip", "");
+        Object sessionId = row.get("session_id");
+        out.put("app_id", sessionId != null ? sessionId.toString() : "");
+
+        Object reqRaw = row.get("decrypted_request_data") != null ? row.get("decrypted_request_data") : row.get("request_data");
+        Object resRaw = row.get("decrypted_response_data") != null ? row.get("decrypted_response_data") : row.get("response_data");
+        String reqOut = jdbcValueToString(reqRaw);
+        String resOut = jdbcValueToString(resRaw);
+        out.put("request_data", reqOut);
+        out.put("response_data", resOut);
+        out.put("data", buildWireframeDataCellSummary(reqOut, resOut));
+        return out;
     }
     
     /**
@@ -432,12 +706,12 @@ public class LogDbService {
                 try {
                     if (row.get("data") != null) {
                         String encryptedData = (String) row.get("data");
-                        String decryptedData = cryptoUtil.decrypt(encryptedData);
+                        String decryptedData = cryptoUtil.decryptLogPayload(encryptedData, LogPayloadCryptoVariant.IMAGE_LOG);
                         row.put("decrypted_data", decryptedData);
                     }
                     if (row.get("header") != null) {
                         String encryptedHeader = (String) row.get("header");
-                        String decryptedHeader = cryptoUtil.decrypt(encryptedHeader);
+                        String decryptedHeader = cryptoUtil.decryptLogPayload(encryptedHeader, LogPayloadCryptoVariant.IMAGE_LOG);
                         row.put("decrypted_header", decryptedHeader);
                     }
                 } catch (Exception e) {
@@ -578,32 +852,45 @@ public class LogDbService {
         if (guids == null || guids.isEmpty()) {
             return Collections.emptyMap();
         }
+        List<DecryptionRowKey> keys = new ArrayList<>();
+        for (String g : guids) {
+            if (g != null && !g.isBlank()) {
+                keys.add(new DecryptionRowKey(g, ""));
+            }
+        }
+        return getApplicationServiceGroupByGuidStatusPairs(keys);
+    }
+
+    /**
+     * Resolve application/servicegroup per (guid, status) composite. Map key = {@link DecryptionRowKey#compositeMapKey()}.
+     */
+    public Map<String, Map<String, String>> getApplicationServiceGroupByGuidStatusPairs(List<DecryptionRowKey> keys) {
+        if (keys == null || keys.isEmpty()) {
+            return Collections.emptyMap();
+        }
         Map<String, Map<String, String>> result = new LinkedHashMap<>();
         try (Connection connection = imagelogDataSource.getConnection()) {
-            StringBuilder sql = new StringBuilder("SELECT guid, application, servicegroup FROM imagelog WHERE guid IN (");
-            for (int i = 0; i < guids.size(); i++) {
-                if (i > 0) sql.append(", ");
-                sql.append("?");
-            }
-            sql.append(")");
-            try (PreparedStatement stmt = connection.prepareStatement(sql.toString())) {
-                for (int i = 0; i < guids.size(); i++) {
-                    stmt.setString(i + 1, guids.get(i));
+            for (DecryptionRowKey k : keys) {
+                if (k == null || k.getGuid().isEmpty()) {
+                    continue;
                 }
-                try (ResultSet rs = stmt.executeQuery()) {
-                    while (rs.next()) {
-                        String guid = rs.getString("guid");
-                        if (guid == null) continue;
-                        Map<String, String> row = new LinkedHashMap<>();
-                        row.put("application", rs.getString("application"));
-                        row.put("serviceGroup", rs.getString("servicegroup"));
-                        result.put(guid, row);
+                String sql = "SELECT application, servicegroup FROM imagelog WHERE guid = ? AND COALESCE(NULLIF(TRIM(status), ''), '') = ?";
+                try (PreparedStatement stmt = connection.prepareStatement(sql)) {
+                    stmt.setString(1, k.getGuid());
+                    stmt.setString(2, k.getStatus());
+                    try (ResultSet rs = stmt.executeQuery()) {
+                        if (rs.next()) {
+                            Map<String, String> row = new LinkedHashMap<>();
+                            row.put("application", rs.getString("application"));
+                            row.put("serviceGroup", rs.getString("servicegroup"));
+                            result.put(k.compositeMapKey(), row);
+                        }
                     }
                 }
             }
         } catch (SQLException e) {
-            log.warn("imagelog resolution by guids failed (returning empty map): {}", e.getMessage());
-            return Collections.emptyMap();
+            log.warn("imagelog resolution by guid+status failed (returning partial map): {}", e.getMessage());
+            return result;
         }
         return result;
     }
@@ -611,14 +898,18 @@ public class LogDbService {
     /**
      * DB 로그 상세 조회
      */
-    public Map<String, Object> getLogDetail(String logType, String type, String identifier) {
-        log.info("🔍 DB 로그 상세 조회: logType={}, type={}, identifier={}", logType, type, identifier);
+    public Map<String, Object> getLogDetail(String logType, String type, String identifier, String status) {
+        log.info("🔍 DB 로그 상세 조회: logType={}, type={}, identifier={}, status={}", logType, type, identifier, status);
         
         if ("pb_feplog".equals(logType)) {
             Long id = Long.parseLong(identifier);
             return getPbFeplogDetail(type, id);
         } else if ("java_fw_imglog".equals(logType)) {
-            return getJavaFwImglogDetail(identifier); // guid 사용
+            String st = DecryptionRowKey.normalizeStatus(status);
+            if (st.isEmpty()) {
+                throw new IllegalArgumentException("java_fw_imglog 상세 조회에는 status 쿼리 파라미터가 필요합니다.");
+            }
+            return getJavaFwImglogDetail(identifier, st);
         } else {
             throw new RuntimeException("지원하지 않는 로그 타입입니다: " + logType);
         }
@@ -630,7 +921,7 @@ public class LogDbService {
     private Map<String, Object> getPbFeplogDetail(String type, Long id) {
         String tableName = "send".equalsIgnoreCase(type) ? "pb_send" : "pb_recv";
         
-        try (Connection connection = primaryDataSource.getConnection()) {
+        try (Connection connection = pbDataSource.getConnection()) {
             String sql = "SELECT id, log_timestamp, media_code, tr_code, user_id, ip_address, " +
                         "user_agent, request_data, response_data, status_code, response_time, " +
                         "error_message, session_id, device_type, created_at, updated_at " +
@@ -673,18 +964,19 @@ public class LogDbService {
     }
     
     /**
-     * Java FW Image 로그 상세 조회 (guid로 조회)
+     * Java FW Image 로그 상세 조회 (guid + status)
      */
-    private Map<String, Object> getJavaFwImglogDetail(String guid) {
-        log.info("🔍 이미지로그 상세 조회: guid={}", guid);
+    private Map<String, Object> getJavaFwImglogDetail(String guid, String status) {
+        log.info("🔍 이미지로그 상세 조회: guid={}, status={}", guid, status);
         
         try (Connection connection = imagelogDataSource.getConnection()) {
             String sql = "SELECT application, servicegroup, service, status, data, datastring, " +
                         "guid, header, headerstring, insert_time " +
-                        "FROM imagelog WHERE guid = ?";
+                        "FROM imagelog WHERE guid = ? AND COALESCE(NULLIF(TRIM(status), ''), '') = ?";
             
             try (PreparedStatement stmt = connection.prepareStatement(sql)) {
                 stmt.setString(1, guid);
+                stmt.setString(2, DecryptionRowKey.normalizeStatus(status));
                 
                 try (ResultSet rs = stmt.executeQuery()) {
                     if (rs.next()) {
@@ -721,10 +1013,10 @@ public class LogDbService {
                             row.put("headerstring", decryptedHeaderstring);
                         }
                         
-                        log.info("✅ 이미지로그 상세 조회 완료: GUID={}", guid);
+                        log.info("✅ 이미지로그 상세 조회 완료: GUID={}, status={}", guid, status);
                         return row;
                     } else {
-                        throw new RuntimeException("이미지로그를 찾을 수 없습니다: guid=" + guid);
+                        throw new RuntimeException("이미지로그를 찾을 수 없습니다: guid=" + guid + ", status=" + status);
                     }
                 }
             }
@@ -743,24 +1035,21 @@ public class LogDbService {
         log.info("🔓 단일 로우 복호화 시작: logType={}, guid={}, status={}", logType, guid, status);
         
         if (!"java_fw_imglog".equals(logType)) {
-            throw new RuntimeException("현재 java_fw_imglog만 지원됩니다.");
+            throw CustomException.badRequest("현재 java_fw_imglog만 지원됩니다.", "UNSUPPORTED_LOG_TYPE");
+        }
+        String st = DecryptionRowKey.normalizeStatus(status);
+        if (st.isEmpty()) {
+            throw CustomException.badRequest("java_fw_imglog 복호화에는 status가 필요합니다.", "MISSING_STATUS");
         }
         
         try (Connection connection = imagelogDataSource.getConnection()) {
             String sql = "SELECT application, servicegroup, service, status, data, datastring, " +
                         "guid, header, headerstring, insert_time " +
-                        "FROM imagelog WHERE guid = ?";
-            
-            // status가 제공된 경우 WHERE 조건에 추가
-            if (status != null && !status.trim().isEmpty()) {
-                sql += " AND status = ?";
-            }
+                        "FROM imagelog WHERE guid = ? AND COALESCE(NULLIF(TRIM(status), ''), '') = ?";
             
             try (PreparedStatement stmt = connection.prepareStatement(sql)) {
                 stmt.setString(1, guid);
-                if (status != null && !status.trim().isEmpty()) {
-                    stmt.setString(2, status);
-                }
+                stmt.setString(2, st);
                 
                 try (ResultSet rs = stmt.executeQuery()) {
                     if (rs.next()) {
@@ -785,17 +1074,18 @@ public class LogDbService {
                             row.put(columnName, value);
                         }
                         
-                        // data 필드 복호화
+                        // data 필드 복호화 (실패 시 클라이언트 복구 가능 오류 — 본문에 내부 메시지 미포함)
                         if (row.get("data") != null) {
                             try {
                                 String encryptedData = (String) row.get("data");
-                                String decryptedData = cryptoUtil.decrypt(encryptedData);
+                                String decryptedData = cryptoUtil.decryptLogPayload(encryptedData, LogPayloadCryptoVariant.IMAGE_LOG);
                                 row.put("decrypted_data", decryptedData);
                                 row.put("data_encrypted", true);
                             } catch (Exception e) {
-                                log.warn("data 복호화 실패 (GUID: {}): {}", guid, e.getMessage());
-                                row.put("decrypted_data", "복호화 실패: " + e.getMessage());
-                                row.put("data_encrypted", true);
+                                log.warn("data 복호화 실패 (GUID: {}): {}", guid, e.toString());
+                                throw CustomException.badRequest(
+                                        "복호화할 수 없습니다. 암호문 형식이 올바르지 않거나 키가 일치하지 않을 수 있습니다.",
+                                        "DECRYPTION_FAILED");
                             }
                         }
                         
@@ -803,13 +1093,14 @@ public class LogDbService {
                         if (row.get("header") != null) {
                             try {
                                 String encryptedHeader = (String) row.get("header");
-                                String decryptedHeader = cryptoUtil.decrypt(encryptedHeader);
+                                String decryptedHeader = cryptoUtil.decryptLogPayload(encryptedHeader, LogPayloadCryptoVariant.IMAGE_LOG);
                                 row.put("decrypted_header", decryptedHeader);
                                 row.put("header_encrypted", true);
                             } catch (Exception e) {
-                                log.warn("header 복호화 실패 (GUID: {}): {}", guid, e.getMessage());
-                                row.put("decrypted_header", "복호화 실패: " + e.getMessage());
-                                row.put("header_encrypted", true);
+                                log.warn("header 복호화 실패 (GUID: {}): {}", guid, e.toString());
+                                throw CustomException.badRequest(
+                                        "복호화할 수 없습니다. 암호문 형식이 올바르지 않거나 키가 일치하지 않을 수 있습니다.",
+                                        "DECRYPTION_FAILED");
                             }
                         }
                         
@@ -832,39 +1123,40 @@ public class LogDbService {
                                 logType, guid, rowStatus, duration);
                         return row;
                     } else {
-                        throw new RuntimeException("이미지로그를 찾을 수 없습니다: guid=" + guid + 
-                                (status != null ? ", status=" + status : ""));
+                        throw CustomException.notFound("해당 로그 행을 찾을 수 없습니다.", "LOG_ROW_NOT_FOUND");
                     }
                 }
             }
         } catch (SQLException e) {
             log.error("단일 로우 복호화 중 오류 발생", e);
-            throw new RuntimeException("단일 로우 복호화 중 오류가 발생했습니다: " + e.getMessage(), e);
+            throw CustomException.internalError(
+                    "일시적인 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.",
+                    "INTERNAL_SERVER_ERROR");
         }
     }
     
     /**
      * 복호화된 데이터 조회
      */
-    public Map<String, Object> getDecryptedData(String logType, String type, String identifier) {
+    public Map<String, Object> getDecryptedData(String logType, String type, String identifier, String status) {
         long startTime = System.currentTimeMillis();
-        log.info("🔓 복호화 요청 시작: logType={}, type={}, identifier={}", logType, type, identifier);
+        log.info("🔓 복호화 요청 시작: logType={}, type={}, identifier={}, status={}", logType, type, identifier, status);
         
-        Map<String, Object> logData = getLogDetail(logType, type, identifier);
+        Map<String, Object> logData = getLogDetail(logType, type, identifier, status);
         
         try {
             if ("pb_feplog".equals(logType)) {
                 // request_data 복호화
                 if (logData.get("request_data") != null) {
                     String encryptedRequest = (String) logData.get("request_data");
-                    String decryptedRequest = cryptoUtil.decrypt(encryptedRequest);
+                    String decryptedRequest = cryptoUtil.decryptLogPayload(encryptedRequest, LogPayloadCryptoVariant.PB_FEP);
                     logData.put("decrypted_request_data", decryptedRequest);
                 }
                 
                 // response_data 복호화
                 if (logData.get("response_data") != null) {
                     String encryptedResponse = (String) logData.get("response_data");
-                    String decryptedResponse = cryptoUtil.decrypt(encryptedResponse);
+                    String decryptedResponse = cryptoUtil.decryptLogPayload(encryptedResponse, LogPayloadCryptoVariant.PB_FEP);
                     logData.put("decrypted_response_data", decryptedResponse);
                 }
                 
@@ -888,14 +1180,14 @@ public class LogDbService {
                 // data 복호화
                 if (logData.get("data") != null) {
                     String encryptedData = (String) logData.get("data");
-                    String decryptedData = cryptoUtil.decrypt(encryptedData);
+                    String decryptedData = cryptoUtil.decryptLogPayload(encryptedData, LogPayloadCryptoVariant.IMAGE_LOG);
                     logData.put("decrypted_data", decryptedData);
                 }
                 
                 // header 복호화
                 if (logData.get("header") != null) {
                     String encryptedHeader = (String) logData.get("header");
-                    String decryptedHeader = cryptoUtil.decrypt(encryptedHeader);
+                    String decryptedHeader = cryptoUtil.decryptLogPayload(encryptedHeader, LogPayloadCryptoVariant.IMAGE_LOG);
                     logData.put("decrypted_header", decryptedHeader);
                 }
                 
@@ -917,9 +1209,9 @@ public class LogDbService {
     
     /**
      * JSON 문자열 내부의 암호화된 값([]로 감싸진 값)을 복호화
-     * 
+     *
      * @param jsonString JSON 문자열
-     * @return 복호화된 JSON 문자열 (복호화 실패 시 원본 값 유지)
+     * @return 복호화된 JSON 문자열 (필드 단위 복호화 실패 시 해당 값은 고정 안내 문구로 대체)
      */
     private String decryptJsonStringValues(String jsonString) {
         if (jsonString == null || jsonString.trim().isEmpty()) {
@@ -961,13 +1253,13 @@ public class LogDbService {
                         String encryptedValue = textValue.substring(1, textValue.length() - 1);
                         try {
                             // 복호화 시도
-                            String decryptedValue = cryptoUtil.decrypt(encryptedValue);
+                            String decryptedValue = cryptoUtil.decryptLogPayload(encryptedValue, LogPayloadCryptoVariant.IMAGE_LOG);
                             // 복호화 성공 시 값 교체
                             objectNode.put(entry.getKey(), decryptedValue);
                             log.debug("✅ JSON 내부 값 복호화 성공: key={}", entry.getKey());
                         } catch (Exception e) {
-                            // 복호화 실패 시 원본 값 유지
-                            log.debug("복호화 실패, 원본 값 유지: key={}, error={}", entry.getKey(), e.getMessage());
+                            log.debug("복호화 실패, 플레이스홀더로 대체: key={}, error={}", entry.getKey(), e.getMessage());
+                            objectNode.put(entry.getKey(), IMAGE_LOG_JSON_DECRYPT_FAILED);
                         }
                     }
                 } else if (value.isObject() || value.isArray()) {
@@ -986,14 +1278,15 @@ public class LogDbService {
                         String encryptedValue = textValue.substring(1, textValue.length() - 1);
                         try {
                             // 복호화 시도
-                            String decryptedValue = cryptoUtil.decrypt(encryptedValue);
+                            String decryptedValue = cryptoUtil.decryptLogPayload(encryptedValue, LogPayloadCryptoVariant.IMAGE_LOG);
                             // 복호화 성공 시 값 교체
                             ((com.fasterxml.jackson.databind.node.ArrayNode) node).set(i, 
                                 objectMapper.valueToTree(decryptedValue));
                             log.debug("✅ JSON 배열 내부 값 복호화 성공: index={}", i);
                         } catch (Exception e) {
-                            // 복호화 실패 시 원본 값 유지
-                            log.debug("복호화 실패, 원본 값 유지: index={}, error={}", i, e.getMessage());
+                            log.debug("복호화 실패, 플레이스홀더로 대체: index={}, error={}", i, e.getMessage());
+                            ((com.fasterxml.jackson.databind.node.ArrayNode) node).set(i,
+                                    objectMapper.valueToTree(IMAGE_LOG_JSON_DECRYPT_FAILED));
                         }
                     }
                 } else if (element.isObject() || element.isArray()) {
@@ -1179,16 +1472,18 @@ public class LogDbService {
                             try {
                                 if (row.get("data") != null) {
                                     String encryptedData = (String) row.get("data");
-                                    String decryptedData = cryptoUtil.decrypt(encryptedData);
+                                    String decryptedData = cryptoUtil.decryptLogPayload(encryptedData, LogPayloadCryptoVariant.IMAGE_LOG);
                                     row.put("decrypted_data", decryptedData);
                                 }
                                 if (row.get("header") != null) {
                                     String encryptedHeader = (String) row.get("header");
-                                    String decryptedHeader = cryptoUtil.decrypt(encryptedHeader);
+                                    String decryptedHeader = cryptoUtil.decryptLogPayload(encryptedHeader, LogPayloadCryptoVariant.IMAGE_LOG);
                                     row.put("decrypted_header", decryptedHeader);
                                 }
                             } catch (Exception e) {
                                 log.warn("복호화 실패 (GUID: {}): {}", row.get("guid"), e.getMessage());
+                                row.put("decrypted_data", "복호화 실패: " + e.getMessage());
+                                row.put("decrypted_header", "복호화 실패: " + e.getMessage());
                             }
                         }
                         

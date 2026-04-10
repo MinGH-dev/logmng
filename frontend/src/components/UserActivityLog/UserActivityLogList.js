@@ -2,7 +2,17 @@ import React, { useState, useEffect } from 'react';
 import UserActivityLogSearchForm from './UserActivityLogSearchForm';
 import UserActivityLogTable from './UserActivityLogTable';
 import UserActivityLogDetail from './UserActivityLogDetail';
-import { searchActivityLogs } from '../../services/userActivityLogService';
+import {
+  searchActivityLogs,
+  getActivityLogActionTypes,
+  getActivityLogDetail,
+  getActivityLogAccessAudit,
+} from '../../services/userActivityLogService';
+import { FALLBACK_ACTIVITY_ACTION_TYPE_OPTIONS } from '../../constants/activityActionTypesFallback';
+import {
+  toActionTypeSelectOptions,
+  toActionTypeLabelMap,
+} from '../../utils/activityActionTypeOptions';
 import {
   FILTER_OPTION_SCREEN_IDS,
   getDepartmentFilterOptions,
@@ -10,8 +20,7 @@ import {
 import { getSelfContextForDisplay } from '../../utils/security';
 import './UserActivityLog.css';
 import logger from '../../utils/logger';
-
-const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || 'http://localhost:9200/api';
+import { getApiBaseUrl } from '../../config/runtimeApi';
 const SELF_SCOPE_OMIT_FIELDS = ['userId', 'username', 'department', 'ipAddress'];
 
 const sanitizeSearchParamsForScope = (params = {}, isSelfScope = false) => {
@@ -28,20 +37,42 @@ const sanitizeSearchParamsForScope = (params = {}, isSelfScope = false) => {
   return normalizedParams;
 };
 
-const UserActivityLogList = ({ user }) => {
+const UserActivityLogList = ({
+  user,
+  onNavigateToAccessAudit,
+  canOpenAccessAudit = false,
+}) => {
   const [logs, setLogs] = useState([]);
   const [loading, setLoading] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
   const [pageSize, setPageSize] = useState(20);
+  const [detailOpen, setDetailOpen] = useState(false);
   const [selectedLog, setSelectedLog] = useState(null);
+  const [detailLoading, setDetailLoading] = useState(false);
+  const [detailError, setDetailError] = useState(null);
   const [searchParams, setSearchParams] = useState({});
   const [authError, setAuthError] = useState(null);
   const [serverToday, setServerToday] = useState(null);
   const [departmentList, setDepartmentList] = useState([]);
+  const [actionTypeSelectOptions, setActionTypeSelectOptions] = useState(() =>
+    toActionTypeSelectOptions(FALLBACK_ACTIVITY_ACTION_TYPE_OPTIONS),
+  );
+  const [actionTypeLabelMap, setActionTypeLabelMap] = useState(() =>
+    toActionTypeLabelMap(FALLBACK_ACTIVITY_ACTION_TYPE_OPTIONS),
+  );
+  const [actionTypesLoading, setActionTypesLoading] = useState(false);
+  const [accessAuditState, setAccessAuditState] = useState({ status: 'idle', rows: [] });
 
-  const isSelfScope = !user?.isSystemAdmin && user?.screenScopes?.['activity-log'] === 'self';
+  const activityLogScope =
+    user?.screenScopes?.['activity-log'] ?? user?.screen_scopes?.['activity-log'];
+  const isSelfScope = !user?.isSystemAdmin && activityLogScope === 'self';
+  /** Align with backend ScopeHelper: team = not self and not all; missing scope defaults to team. */
+  const isTeamScope =
+    !user?.isSystemAdmin &&
+    activityLogScope !== 'self' &&
+    activityLogScope !== 'all';
   const selfContext = getSelfContextForDisplay(user);
 
   // 부서 목록 로드 (scope≠self일 때 검색 폼 드롭다운용)
@@ -62,6 +93,55 @@ const UserActivityLogList = ({ user }) => {
   }, [isSelfScope]);
 
   useEffect(() => {
+    let cancelled = false;
+    setActionTypesLoading(true);
+    getActivityLogActionTypes()
+      .then((res) => {
+        if (cancelled) return;
+        if (res.success && Array.isArray(res.data) && res.data.length > 0) {
+          setActionTypeSelectOptions(toActionTypeSelectOptions(res.data));
+          setActionTypeLabelMap(toActionTypeLabelMap(res.data));
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setActionTypesLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!detailOpen || !selectedLog?.id || !canOpenAccessAudit) {
+      setAccessAuditState({ status: 'idle', rows: [] });
+      return;
+    }
+    let cancelled = false;
+    setAccessAuditState({ status: 'loading', rows: [] });
+    getActivityLogAccessAudit({ targetActivityLogId: selectedLog.id, pageSize: 20 })
+      .then((result) => {
+        if (cancelled) return;
+        if (result.success && result.data != null) {
+          const payload = result.data;
+          const list = Array.isArray(payload.data)
+            ? payload.data
+            : Array.isArray(payload)
+              ? payload
+              : [];
+          setAccessAuditState({ status: 'success', rows: list });
+        } else {
+          setAccessAuditState({ status: 'error', rows: [] });
+        }
+      })
+      .catch(() => {
+        if (!cancelled) setAccessAuditState({ status: 'error', rows: [] });
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [detailOpen, selectedLog?.id, canOpenAccessAudit]);
+
+  useEffect(() => {
     if (!isSelfScope) return;
     setSearchParams((prev) => sanitizeSearchParamsForScope(prev, true));
   }, [isSelfScope]);
@@ -69,7 +149,7 @@ const UserActivityLogList = ({ user }) => {
   // 초기 로드 - 서버 날짜(health) 기준 '오늘'로 검색 (브라우저/서버 타임존 불일치 방지)
   useEffect(() => {
     let cancelled = false;
-    fetch(`${API_BASE_URL}/health`, { credentials: 'include' })
+    fetch(`${getApiBaseUrl()}/health`, { credentials: 'include' })
       .then((res) => res.json())
       .then((res) => {
         if (cancelled) return;
@@ -81,6 +161,9 @@ const UserActivityLogList = ({ user }) => {
           handleSearch({
             startDate: `${dateStr} 00:00:00`,
             endDate: `${dateStr} 23:59:59`,
+            ...(isTeamScope && selfContext?.department
+              ? { department: selfContext.department }
+              : {}),
           });
         } else {
           const today = new Date();
@@ -90,6 +173,9 @@ const UserActivityLogList = ({ user }) => {
           handleSearch({
             startDate: `${y}-${m}-${d} 00:00:00`,
             endDate: `${y}-${m}-${d} 23:59:59`,
+            ...(isTeamScope && selfContext?.department
+              ? { department: selfContext.department }
+              : {}),
           });
         }
       })
@@ -102,6 +188,9 @@ const UserActivityLogList = ({ user }) => {
           handleSearch({
             startDate: `${y}-${m}-${d} 00:00:00`,
             endDate: `${y}-${m}-${d} 23:59:59`,
+            ...(isTeamScope && selfContext?.department
+              ? { department: selfContext.department }
+              : {}),
           });
         }
       });
@@ -117,7 +206,12 @@ const UserActivityLogList = ({ user }) => {
     try {
       const sanitizedParams = sanitizeSearchParamsForScope(params, isSelfScope);
       setSearchParams(sanitizedParams);
-      const requestParams = { ...sanitizedParams, page: 1, pageSize };
+
+      const requestParams = {
+        ...sanitizedParams,
+        page: 1,
+        pageSize,
+      };
 
       logger.debug('🔍 활동 이력 검색 요청:', requestParams);
 
@@ -183,6 +277,7 @@ const UserActivityLogList = ({ user }) => {
   const handlePageSizeChange = (newSize) => {
     setPageSize(newSize);
     setCurrentPage(1);
+
     const sanitizedParams = sanitizeSearchParamsForScope(searchParams, isSelfScope);
     setSearchParams(sanitizedParams);
     const requestParams = { ...sanitizedParams, page: 1, pageSize: newSize };
@@ -201,21 +296,32 @@ const UserActivityLogList = ({ user }) => {
 
   // 행 클릭 (상세 조회)
   const handleRowClick = async (log) => {
+    setDetailOpen(true);
+    setDetailLoading(true);
+    setDetailError(null);
+    setSelectedLog(null);
     try {
-      const { getActivityLogDetail } = await import('../../services/userActivityLogService');
       const result = await getActivityLogDetail(log.id);
 
       if (result.success && result.data) {
         setSelectedLog(result.data);
+      } else {
+        setDetailError(result.error || '상세 조회에 실패했습니다.');
       }
     } catch (error) {
       logger.error('❌ 활동 이력 상세 조회 실패:', { error: error.message });
+      setDetailError(error.message || '상세 조회에 실패했습니다.');
+    } finally {
+      setDetailLoading(false);
     }
   };
 
   // 상세 모달 닫기
   const handleCloseDetail = () => {
+    setDetailOpen(false);
     setSelectedLog(null);
+    setDetailError(null);
+    setDetailLoading(false);
   };
 
   return (
@@ -232,8 +338,11 @@ const UserActivityLogList = ({ user }) => {
         loading={loading}
         initialServerDate={serverToday}
         isSelfScope={isSelfScope}
+        isTeamScope={isTeamScope}
         departmentList={departmentList}
         selfContext={selfContext}
+        actionTypeOptions={actionTypeSelectOptions}
+        actionTypesLoading={actionTypesLoading}
       />
 
       {authError && (
@@ -259,11 +368,21 @@ const UserActivityLogList = ({ user }) => {
           totalCount={totalCount}
           pageSize={pageSize}
           onPageSizeChange={handlePageSizeChange}
+          actionTypeLabelMap={actionTypeLabelMap}
         />
       </div>
 
-      {selectedLog && (
-        <UserActivityLogDetail log={selectedLog} onClose={handleCloseDetail} />
+      {detailOpen && (
+        <UserActivityLogDetail
+          log={selectedLog}
+          loading={detailLoading}
+          error={detailError}
+          onClose={handleCloseDetail}
+          actionTypeLabelMap={actionTypeLabelMap}
+          onNavigateToAccessAudit={onNavigateToAccessAudit}
+          canOpenAccessAudit={canOpenAccessAudit}
+          accessAuditState={accessAuditState}
+        />
       )}
     </div>
   );

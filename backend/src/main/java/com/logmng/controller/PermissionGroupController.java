@@ -1,8 +1,10 @@
 package com.logmng.controller;
 
+import com.logmng.annotation.ActivityLog;
 import com.logmng.dto.request.PermissionGroupCreateRequest;
 import com.logmng.dto.request.PermissionGroupUpdateRequest;
 import com.logmng.dto.response.ApiResponse;
+import com.logmng.dto.response.LoginResponse;
 import com.logmng.dto.response.AssignUserToGroupResponse;
 import com.logmng.dto.response.PermissionGroupResponse;
 import com.logmng.dto.response.UserListItemResponse;
@@ -12,8 +14,10 @@ import com.logmng.service.AuthService;
 import com.logmng.service.PermissionGroupService;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
+import com.logmng.diagnostic.PermissionGroupScreenDiagnosticLog;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -33,6 +37,9 @@ public class PermissionGroupController {
     private final PermissionGroupService permissionGroupService;
     private final AuthService authService;
     private final AppUserResolver appUserResolver;
+
+    @Value("${app.diagnostic.permission-group-screen:false}")
+    private boolean diagnosticPermissionGroupScreen;
 
     public PermissionGroupController(PermissionGroupService permissionGroupService,
                                      AuthService authService,
@@ -54,18 +61,23 @@ public class PermissionGroupController {
         return null;
     }
 
-    /** Allows isSystemAdmin OR allowedScreenIds contains user-management or user-permission-hierarchy. Per spec §4.3. */
+    /**
+     * Allows system admin or any screen id enumerated for permission-group APIs in
+     * {@code AuthService#canAccessUserManagementView} (incl. {@code permission-group-management},
+     * {@code permission-group-screen-matrix}). Per specs/permission-group-hierarchy.spec.yaml §4.3;
+     * {@code docs/requirements/20260410-screen-access-menu-api-consistency.md}.
+     */
     private void requireUserManagementAccess(HttpServletRequest request) {
         if (!authService.checkAuth(request)) {
             throw CustomException.unauthorized("로그인이 필요합니다.", "UNAUTHORIZED");
         }
         if (!authService.canAccessUserManagementView(request)) {
-            log.info("Permission group API access denied: no user-management or user-permission-hierarchy");
+            log.info("Permission group API access denied: no screen in permission-group admin family (see AuthService#canAccessUserManagementView)");
             throw CustomException.forbidden("관리자만 권한 그룹을 관리할 수 있습니다.", "FORBIDDEN");
         }
     }
 
-    /** Requires write function for user-management or user-permission-hierarchy. Per spec §4.4. */
+    /** Requires write per {@code AuthService#hasWriteForManagementScreens} (permission-group admin family). Per spec §4.4. */
     private void requireWriteForManagement(HttpServletRequest request) {
         if (!authService.hasWriteForManagementScreens(request)) {
             log.info("Permission group write API denied: no write function");
@@ -79,6 +91,7 @@ public class PermissionGroupController {
     @GetMapping
     public ResponseEntity<ApiResponse<List<PermissionGroupResponse>>> list(HttpServletRequest request) {
         requireUserManagementAccess(request);
+        PermissionGroupScreenDiagnosticLog.debug(diagnosticPermissionGroupScreen, "GET_list_enter", "after_auth_checks");
         List<PermissionGroupResponse> data = permissionGroupService.listAll();
         return ResponseEntity.ok(ApiResponse.success(data));
     }
@@ -87,6 +100,7 @@ public class PermissionGroupController {
      * POST /api/permission-groups — create. §14.2
      */
     @PostMapping
+    @ActivityLog(actionType = "PERMISSION_GROUP_CREATE", description = "권한 그룹 생성", includeParams = false, includeResponse = false)
     public ResponseEntity<ApiResponse<PermissionGroupResponse>> create(
             @Valid @RequestBody PermissionGroupCreateRequest body,
             HttpServletRequest request) {
@@ -112,6 +126,7 @@ public class PermissionGroupController {
      * PUT /api/permission-groups/{id} — update. §14.4
      */
     @PutMapping("/{id}")
+    @ActivityLog(actionType = "PERMISSION_GROUP_UPDATE", description = "권한 그룹 수정", includeParams = false, includeResponse = false)
     public ResponseEntity<ApiResponse<PermissionGroupResponse>> update(
             @PathVariable Long id,
             @RequestBody PermissionGroupUpdateRequest body,
@@ -119,6 +134,17 @@ public class PermissionGroupController {
         requireUserManagementAccess(request);
         requireWriteForManagement(request);
         PermissionGroupResponse data = permissionGroupService.update(id, body);
+        String changeReason = body.getChangeReason();
+        if (changeReason != null && !changeReason.isBlank()) {
+            LoginResponse actor = authService.getCurrentUserInfo(request);
+            Long actorUserId = actor != null ? actor.getUserId() : null;
+            String actorUsername = actor != null ? actor.getUsername() : null;
+            String trimmed = changeReason.trim();
+            int logLen = Math.min(trimmed.length(), 500);
+            log.info(
+                    "Permission group updated: id={}, actorUserId={}, actorUsername={}, changeReasonPrefix={}",
+                    id, actorUserId, actorUsername, trimmed.substring(0, logLen));
+        }
         return ResponseEntity.ok(ApiResponse.success(data));
     }
 
@@ -126,6 +152,7 @@ public class PermissionGroupController {
      * DELETE /api/permission-groups/{id} — delete. §14.5
      */
     @DeleteMapping("/{id}")
+    @ActivityLog(actionType = "PERMISSION_GROUP_DELETE", description = "권한 그룹 삭제", includeParams = false, includeResponse = false)
     public ResponseEntity<ApiResponse<Void>> delete(
             @PathVariable Long id,
             HttpServletRequest request) {
@@ -139,6 +166,7 @@ public class PermissionGroupController {
      * POST /api/permission-groups/{id}/users — assign user. §14.6. Body userId = numeric app_user.id (req 20260316).
      */
     @PostMapping("/{id}/users")
+    @ActivityLog(actionType = "ASSIGN_USER_TO_PERMISSION_GROUP", description = "권한 그룹 사용자 배정", includeParams = false, includeResponse = false)
     public ResponseEntity<ApiResponse<AssignUserToGroupResponse>> assignUser(
             @PathVariable Long id,
             @Valid @RequestBody Map<String, Object> body,
@@ -165,6 +193,7 @@ public class PermissionGroupController {
      * DELETE /api/permission-groups/{id}/users/{userId} — remove user. §14.7. Path userId = numeric app_user.id (req 20260316).
      */
     @DeleteMapping("/{id}/users/{userId}")
+    @ActivityLog(actionType = "UNASSIGN_USER_FROM_PERMISSION_GROUP", description = "권한 그룹 사용자 해제", includeParams = false, includeResponse = false)
     public ResponseEntity<ApiResponse<Void>> unassignUser(
             @PathVariable Long id,
             @PathVariable Long userId,

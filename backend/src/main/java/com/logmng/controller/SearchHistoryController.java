@@ -1,6 +1,7 @@
 package com.logmng.controller;
 
 import com.logmng.constants.ScreenConstants;
+import com.logmng.diagnostic.ApprovalFlowDiagnosticLog;
 import com.logmng.dto.request.RejectRequest;
 import com.logmng.dto.request.SearchHistoryCreateRequest;
 import com.logmng.dto.request.SearchHistoryListRequest;
@@ -10,16 +11,17 @@ import com.logmng.dto.response.UserActivityLogResponse;
 import com.logmng.exception.CustomException;
 import com.logmng.service.AppUserResolver;
 import com.logmng.service.AuthService;
-import com.logmng.service.DecryptApproverService;
 import com.logmng.service.SearchHistoryService;
 import com.logmng.util.DepartmentScopeHelper;
 import com.logmng.util.ScopeHelper;
+import com.logmng.util.SearchHistoryListContextHelper;
 import org.slf4j.Logger;
 
 import javax.sql.DataSource;
 import java.util.Collections;
 import java.util.List;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -39,21 +41,21 @@ public class SearchHistoryController {
     private static final Logger log = LoggerFactory.getLogger(SearchHistoryController.class);
 
     private final SearchHistoryService searchHistoryService;
-    private final DecryptApproverService decryptApproverService;
     private final AuthService authService;
     private final DataSource dataSource;
     private final AppUserResolver appUserResolver;
+    private final boolean diagnosticApprovalFlow;
 
     public SearchHistoryController(SearchHistoryService searchHistoryService,
-                                   DecryptApproverService decryptApproverService,
                                    AuthService authService,
                                    DataSource dataSource,
-                                   AppUserResolver appUserResolver) {
+                                   AppUserResolver appUserResolver,
+                                   @Value("${app.diagnostic.approval-flow:false}") boolean diagnosticApprovalFlow) {
         this.searchHistoryService = searchHistoryService;
-        this.decryptApproverService = decryptApproverService;
         this.authService = authService;
         this.dataSource = dataSource;
         this.appUserResolver = appUserResolver;
+        this.diagnosticApprovalFlow = diagnosticApprovalFlow;
     }
 
     /** Current user's username (app_user.username). Resolved from session userId via AuthService. */
@@ -102,6 +104,15 @@ public class SearchHistoryController {
         return v instanceof Map ? (Map<String, String>) v : null;
     }
 
+    @SuppressWarnings("unchecked")
+    private static List<String> getAllowedScreenIds(HttpServletRequest request) {
+        if (request == null) return null;
+        jakarta.servlet.http.HttpSession session = request.getSession(false);
+        if (session == null) return null;
+        Object v = session.getAttribute("allowedScreenIds");
+        return v instanceof List ? (List<String>) v : null;
+    }
+
     private static String normalizeOptionalParam(String value) {
         if (value == null) {
             return null;
@@ -133,19 +144,47 @@ public class SearchHistoryController {
         }
     }
 
-    /** Requires (isAdmin or isApprover) AND (isAdmin or screenFunctions.approve for search-history/pending-approvals). Per spec §4.4. Req 20260316: isApprover by Long. */
-    private void requireApproverOrAdmin(HttpServletRequest request) {
+    private void logApprovalAuthzDecision(HttpServletRequest request,
+                                          Long searchHistoryId,
+                                          String action,
+                                          Long actorUserId,
+                                          String actorUsername,
+                                          boolean isSystemAdmin,
+                                          boolean canApprove,
+                                          String decision,
+                                          String denialCode) {
+        String scope = ScopeHelper.resolveScope(ScreenConstants.PENDING_APPROVALS, isSystemAdmin, getScreenScopes(request));
+        String detail = String.format(
+                "path=%s method=%s actorUserId=%s actorUsername=%s isSystemAdmin=%s canApprove=%s screenId=%s effectiveScope=%s action=%s decision=%s denialCode=%s",
+                request != null ? request.getRequestURI() : "",
+                request != null ? request.getMethod() : "",
+                actorUserId != null ? actorUserId : "",
+                actorUsername != null ? actorUsername : "",
+                isSystemAdmin,
+                canApprove,
+                ScreenConstants.PENDING_APPROVALS,
+                scope != null ? scope : "",
+                action != null ? action : "",
+                decision,
+                denialCode != null ? denialCode : "");
+        ApprovalFlowDiagnosticLog.debug(diagnosticApprovalFlow, searchHistoryId != null ? searchHistoryId : -1L, "AUTHZ_DECISION", detail);
+    }
+
+    /** Requires effective screenFunctions.approve for search-history or pending-approvals (contract 「복호화 승인 자격」; no decrypt_approver; system admin never approves). */
+    private void requireApproverOrAdmin(HttpServletRequest request, Long searchHistoryId, String action) {
         Long userId = getCurrentUserId(request);
+        String username = getCurrentUsername(request);
+        boolean sysAdmin = isSystemAdmin(request);
         if (userId == null) {
+            logApprovalAuthzDecision(request, searchHistoryId, action, null, username, sysAdmin, false, "DENY", "UNAUTHORIZED");
             throw CustomException.unauthorized("로그인이 필요합니다.", "UNAUTHORIZED");
         }
-        boolean isAdmin = decryptApproverService.isAdmin(isSystemAdmin(request));
-        if (!isAdmin && !decryptApproverService.isApprover(userId)) {
+        boolean canApprove = authService.hasApproveForSearchHistory(request);
+        if (!canApprove) {
+            logApprovalAuthzDecision(request, searchHistoryId, action, userId, username, sysAdmin, false, "DENY", "FUNCTION_NOT_ALLOWED");
             throw CustomException.forbidden("해당 기능에 대한 권한이 없습니다.", "FUNCTION_NOT_ALLOWED");
         }
-        if (!isAdmin && !authService.hasApproveForSearchHistory(request)) {
-            throw CustomException.forbidden("해당 기능에 대한 권한이 없습니다.", "FUNCTION_NOT_ALLOWED");
-        }
+        logApprovalAuthzDecision(request, searchHistoryId, action, userId, username, sysAdmin, canApprove, "ALLOW", null);
     }
 
     /**
@@ -177,7 +216,7 @@ public class SearchHistoryController {
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "20") int pageSize,
             HttpServletRequest httpRequest) {
-        requireApproverOrAdmin(httpRequest);
+        requireApproverOrAdmin(httpRequest, null, "listPending");
         Long approverUserId = getCurrentUserId(httpRequest);
         if (approverUserId == null) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
@@ -210,6 +249,7 @@ public class SearchHistoryController {
             @RequestParam(name = "pageSize", required = false) String pageSizeParam,
             @RequestParam(defaultValue = "requested_at") String sortField,
             @RequestParam(defaultValue = "desc") String sortDirection,
+            @RequestParam(required = false) String listContext,
             HttpServletRequest httpRequest) {
         Long currentUserId;
         try {
@@ -223,12 +263,22 @@ public class SearchHistoryController {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                     .body(ApiResponse.failure("로그인이 필요합니다.", "UNAUTHORIZED"));
         }
+        List<String> allowedScreens = getAllowedScreenIds(httpRequest);
+        if (allowedScreens == null) {
+            allowedScreens = Collections.emptyList();
+        }
+        final String effectiveScreenId;
+        try {
+            effectiveScreenId = SearchHistoryListContextHelper.resolveEffectiveScreenId(listContext, allowedScreens);
+        } catch (SearchHistoryListContextHelper.ListContextResolutionException e) {
+            throw CustomException.forbidden("해당 기능에 대한 권한이 없습니다.", "FUNCTION_NOT_ALLOWED");
+        }
         try {
             int page = parsePageParam(pageParam, 1);
             int pageSize = parsePageParam(pageSizeParam, 20);
             if (pageSize > 100) pageSize = 100;
             Long requesterUserIdNum = parseRequesterUserIdParam(requesterUserIdParam);
-            String scope = ScopeHelper.resolveScope(ScreenConstants.SEARCH_HISTORY, isSystemAdmin(httpRequest), getScreenScopes(httpRequest));
+            String scope = ScopeHelper.resolveScope(effectiveScreenId, isSystemAdmin(httpRequest), getScreenScopes(httpRequest));
             SearchHistoryListRequest listRequest = new SearchHistoryListRequest();
             listRequest.setActorUserId(currentUserId);
             listRequest.setPage(page);
@@ -253,6 +303,8 @@ public class SearchHistoryController {
 
             SearchHistoryListResponse data = searchHistoryService.list(listRequest);
             return ResponseEntity.ok(ApiResponse.success(data));
+        } catch (CustomException e) {
+            throw e;
         } catch (IllegalArgumentException e) {
             throw e;
         } catch (Throwable t) {
@@ -297,15 +349,34 @@ public class SearchHistoryController {
     @GetMapping("/{id}")
     public ResponseEntity<ApiResponse<Map<String, Object>>> getDetail(
             @PathVariable Long id,
+            @RequestParam(required = false) String listContext,
             HttpServletRequest httpRequest) {
         Long userId = getCurrentUserId(httpRequest);
         if (userId == null) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                     .body(ApiResponse.failure("로그인이 필요합니다.", "UNAUTHORIZED"));
         }
+        List<String> allowedScreens = getAllowedScreenIds(httpRequest);
+        if (allowedScreens == null) {
+            allowedScreens = Collections.emptyList();
+        }
+        final String effectiveScreenId;
         try {
-            Map<String, Object> data = searchHistoryService.getDetail(userId, id);
+            effectiveScreenId = SearchHistoryListContextHelper.resolveEffectiveScreenId(listContext, allowedScreens);
+        } catch (SearchHistoryListContextHelper.ListContextResolutionException e) {
+            throw CustomException.forbidden("해당 기능에 대한 권한이 없습니다.", "FUNCTION_NOT_ALLOWED");
+        }
+        try {
+            boolean sysAdmin = isSystemAdmin(httpRequest);
+            Map<String, String> scopes = getScreenScopes(httpRequest);
+            String scope = ScopeHelper.resolveScope(effectiveScreenId, sysAdmin, scopes);
+            List<Long> teamPeers = "team".equals(scope)
+                    ? DepartmentScopeHelper.getNumericUserIdsInSameDepartment(dataSource, userId)
+                    : null;
+            Map<String, Object> data = searchHistoryService.getDetail(userId, id, effectiveScreenId, sysAdmin, scopes, teamPeers);
             return ResponseEntity.ok(ApiResponse.success(data));
+        } catch (CustomException e) {
+            throw e;
         } catch (NoSuchElementException e) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(ApiResponse.failure(e.getMessage(), "NOT_FOUND"));
         } catch (SecurityException e) {
@@ -323,7 +394,7 @@ public class SearchHistoryController {
             HttpServletRequest httpRequest) {
         Long userId;
         try {
-            requireApproverOrAdmin(httpRequest);
+            requireApproverOrAdmin(httpRequest, id, "approve");
             userId = getCurrentUserId(httpRequest);
         } catch (CustomException e) {
             throw e;
@@ -342,6 +413,7 @@ public class SearchHistoryController {
         } catch (CustomException e) {
             throw e;
         } catch (Throwable t) {
+            ApprovalFlowDiagnosticLog.controllerThrowable(diagnosticApprovalFlow, id, userId, t);
             log.error("승인 처리 중 오류: id={}, userId={}, type={}, message={}", id, userId, t.getClass().getName(), t.getMessage(), t);
             return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                     .body(ApiResponse.failure("승인 처리 중 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.", "APPROVAL_ERROR"));
@@ -356,7 +428,7 @@ public class SearchHistoryController {
             @PathVariable Long id,
             @RequestBody(required = false) RejectRequest body,
             HttpServletRequest httpRequest) {
-        requireApproverOrAdmin(httpRequest);
+        requireApproverOrAdmin(httpRequest, id, "reject");
         Long userId = getCurrentUserId(httpRequest);
         if (userId == null) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED)

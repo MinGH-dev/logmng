@@ -28,7 +28,7 @@ public class AppUserResolver {
             return null;
         }
         try (Connection conn = dataSource.getConnection()) {
-            String sql = "SELECT username FROM app_user WHERE id = ? LIMIT 1";
+            String sql = "SELECT username FROM app_user WHERE id = ? AND deleted_at IS NULL LIMIT 1";
             try (PreparedStatement ps = conn.prepareStatement(sql)) {
                 ps.setLong(1, id);
                 try (ResultSet rs = ps.executeQuery()) {
@@ -48,7 +48,7 @@ public class AppUserResolver {
             return null;
         }
         try (Connection conn = dataSource.getConnection()) {
-            String sql = "SELECT id FROM app_user WHERE username = ? LIMIT 1";
+            String sql = "SELECT id FROM app_user WHERE username = ? AND deleted_at IS NULL LIMIT 1";
             try (PreparedStatement ps = conn.prepareStatement(sql)) {
                 ps.setString(1, username.trim());
                 try (ResultSet rs = ps.executeQuery()) {

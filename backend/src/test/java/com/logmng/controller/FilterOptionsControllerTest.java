@@ -11,6 +11,8 @@ import org.junit.jupiter.api.Test;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
+import com.logmng.constants.ScreenConstants;
+
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -38,6 +40,27 @@ class FilterOptionsControllerTest {
         mockMvc = MockMvcBuilders.standaloneSetup(controller)
                 .setControllerAdvice(new com.logmng.exception.GlobalExceptionHandler())
                 .build();
+    }
+
+    @Test
+    void getDepartments_pendingApprovalsScreen_returnsOptions() throws Exception {
+        authService = new StubAuthServiceForFilterOptions(
+                "currentUser",
+                false,
+                List.of(ScreenConstants.PENDING_APPROVALS),
+                Map.of("pending-approvals", "all"));
+        FilterOptionsController controller = new FilterOptionsController(filterOptionsService, authService);
+        mockMvc = MockMvcBuilders.standaloneSetup(controller)
+                .setControllerAdvice(new com.logmng.exception.GlobalExceptionHandler())
+                .build();
+        filterOptionsService.setResponse(List.of("지원"));
+
+        mockMvc.perform(get("/api/filter-options/departments").param("screen", "pending-approvals"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.data[0]").value("지원"));
+
+        assertThat(filterOptionsService.getLastScreenId()).isEqualTo("pending-approvals");
     }
 
     @Test
@@ -113,7 +136,7 @@ class FilterOptionsControllerTest {
                                                 boolean isSystemAdmin,
                                                 List<String> allowedScreenIds,
                                                 Map<String, String> screenScopes) {
-            super(null, null, null, null, null);
+            super(null, null, null, null, new com.logmng.config.AuthProperties(), null, null);
             this.username = username;
             this.isSystemAdmin = isSystemAdmin;
             this.allowedScreenIds = allowedScreenIds;

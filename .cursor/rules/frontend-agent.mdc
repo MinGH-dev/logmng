@@ -14,6 +14,10 @@ Apply when working under **frontend/**.
 - **API**: Use only APIs defined in `docs/contract.md` and `specs/*.spec.yaml`. Match URLs and request/response shape to contract/spec.
 - **Env**: Frontend port 3001, API base `http://localhost:9200/api` per contract. Align with e.g. REACT_APP_API_BASE_URL in frontend/.env.
 
+## Wireframe SVGs
+
+When using `assets/svg/**/*.svg` wireframes as implementation context, follow **`.cursor/rules/svg-wireframe-semantics.mdc`**: root `data-*` is policy; XML comments are non-UI traceability; visible text is mock-only vs contract/spec SoT.
+
 ## When working
 
 1. Before using or changing an API, confirm it exists in specs/ or contract. If not, say "spec definition needed" and implement after it is defined.

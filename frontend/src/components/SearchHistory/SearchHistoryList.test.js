@@ -37,6 +37,7 @@ const baseUser = {
     department: '개발부',
     username: '홍길동',
     userId: 20260001,
+    employeeNumber: 'EMP-20260001',
   },
 };
 
@@ -157,13 +158,13 @@ describe('SearchHistoryList', () => {
       userId: 12345678,
     }));
 
-    await userEvent.click(screen.getByRole('button', { name: '행 수 증가' }));
+    await userEvent.selectOptions(screen.getByRole('combobox', { name: '페이지당 행 수' }), '25');
 
     await waitFor(() => expect(getSearchHistoryList).toHaveBeenCalledTimes(3));
     await waitFor(() => expect(screen.queryByText('데이터를 불러오는 중...')).not.toBeInTheDocument());
     expect(getSearchHistoryList).toHaveBeenNthCalledWith(3, expect.objectContaining({
       page: 1,
-      pageSize: 21,
+      pageSize: 25,
       sortField: 'requested_at',
       sortDirection: 'desc',
       department: '개발부',
@@ -301,7 +302,7 @@ describe('SearchHistoryList', () => {
     expect(screen.getByText('요청자')).toBeInTheDocument();
     expect(screen.getByDisplayValue('개발부')).toHaveAttribute('readonly');
     expect(screen.getByDisplayValue('홍길동')).toHaveAttribute('readonly');
-    expect(screen.getByDisplayValue('20260001')).toHaveAttribute('readonly');
+    expect(screen.getByDisplayValue('EMP-20260001')).toHaveAttribute('readonly');
     expect(getSearchHistoryList).toHaveBeenLastCalledWith(expect.objectContaining({
       page: 1,
       pageSize: 20,
@@ -584,7 +585,10 @@ describe('SearchHistoryList', () => {
         searchParams: { startDate: '2026-01-01' },
         searchResultTotalCount: 48,
         decryptionTargetCount: 37,
-        decryptionRequestedRows: [{ application: 'App1', serviceGroup: 'SG1', guid: 'g1' }, { application: 'App2', serviceGroup: 'SG2', guid: 'g2' }],
+        decryptionRequestedRows: [
+          { application: 'App1', serviceGroup: 'SG1', guid: 'g1', status: 'input' },
+          { application: 'App2', serviceGroup: 'SG2', guid: 'g2', status: 'output' },
+        ],
         decryptionRequestedCount: 2,
       },
     });
@@ -595,6 +599,9 @@ describe('SearchHistoryList', () => {
       expect(screen.getByText(/암호화건수:\s*37/)).toBeInTheDocument();
     });
     expect(screen.getByRole('heading', { name: /복호화 요청 대상 \(총 37건\)/ })).toBeInTheDocument();
+    expect(screen.getByRole('columnheader', { name: 'status' })).toBeInTheDocument();
+    expect(screen.getByRole('cell', { name: 'input' })).toBeInTheDocument();
+    expect(screen.getByRole('cell', { name: 'output' })).toBeInTheDocument();
   });
 
   test('TC-04 (req 20260318): list shows 48 in 검색건수 column and 37 in 암호화건수; detail modal shows both distinctly', async () => {

@@ -1,5 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import DataTable, { EmptyTableBody } from '../DataTable';
+import { getActivityActionTypeLabel } from '../../utils/activityActionTypeOptions';
 import './UserActivityLog.css';
 
 const ACTIVITY_LOG_COLUMNS = [
@@ -25,6 +26,7 @@ const UserActivityLogTable = ({
   totalCount = 0,
   pageSize = 20,
   onPageSizeChange,
+  actionTypeLabelMap = {},
 }) => {
   const [sortConfig, setSortConfig] = useState({ key: 'created_at', direction: 'desc' });
 
@@ -61,21 +63,6 @@ const UserActivityLogTable = ({
     } catch (e) {
       return dateTimeStr;
     }
-  };
-
-  const getActionTypeLabel = (actionType) => {
-    const labels = {
-      'LOGIN': '로그인',
-      'LOGOUT': '로그아웃',
-      'SEARCH': '검색',
-      'VIEW': '조회',
-      'DECRYPT': '복호화',
-      'ADVANCED_SEARCH': '고급 검색',
-      'EXPORT': '내보내기',
-      'STATS_VIEW': '통계 조회',
-      'SCHEMA_VIEW': '스키마 조회',
-    };
-    return labels[actionType] || actionType;
   };
 
   const getSuccessBadge = (success) => {
@@ -122,7 +109,7 @@ const UserActivityLogTable = ({
               <td>{log.id}</td>
               <td>{log.userId ?? log.user_id ?? '-'}</td>
               <td>{log.username || '-'}</td>
-              <td>{getActionTypeLabel(log.action_type)}</td>
+              <td>{getActivityActionTypeLabel(log.action_type, actionTypeLabelMap)}</td>
               <td>{log.ip_address || '-'}</td>
               <td className="request-path-cell">
                 {log.request_path ? (

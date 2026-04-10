@@ -1,7 +1,11 @@
 #!/usr/bin/env bash
-# dev 서비스 start/stop/restart (frontend | backend | db | all)
-# 사용법: ./scripts/dev-services.sh <frontend|backend|db|all> <start|stop|restart>
+# dev 서비스 start/stop/restart/status (frontend | backend | db | all)
+# 사용법: ./scripts/dev-services.sh <frontend|backend|db|all> <start|stop|restart|status>
 # db: PostgreSQL (Homebrew postgresql@16, 포트 5432)
+#
+# 승인 흐름 진단 로그([diag-approval])를 켜려면 백엔드 재시작 시:
+#   BACKEND_DIAGNOSTIC_APPROVAL=1 ./scripts/dev-services.sh backend restart
+# (또는 미리 export APP_DIAGNOSTIC_APPROVAL_FLOW=true)
 
 set -e
 
@@ -11,10 +15,32 @@ FRONTEND_PORT="${FRONTEND_PORT:-3001}"
 BACKEND_PORT="${BACKEND_PORT:-9200}"
 DB_PORT="${DB_PORT:-5432}"
 POSTGRES_SERVICE="${POSTGRES_SERVICE:-postgresql@16}"
-JAR_NAME="logmng-backend-1.0.0.jar"
+JAR_NAME="logmng-backend-1.0.1.jar"
 LOGS_DIR="$DEV_ROOT/logs"
 
 mkdir -p "$LOGS_DIR"
+
+# Stale backend jar caused wrong API behavior (e.g. statistics KPIs) while DB had current data; rebuild when jar lags sources.
+ensure_backend_jar_current() {
+  local backend_dir="$DEV_ROOT/backend"
+  local jar="$backend_dir/target/$JAR_NAME"
+  local pom="$backend_dir/pom.xml"
+  local src_java="$backend_dir/src/main/java"
+  local need_build=false
+
+  if [ ! -f "$jar" ]; then
+    need_build=true
+  elif [ -f "$pom" ] && [ "$pom" -nt "$jar" ]; then
+    need_build=true
+  elif [ -d "$src_java" ] && [ -n "$(find "$src_java" -name '*.java' -newer "$jar" 2>/dev/null | head -n 1)" ]; then
+    need_build=true
+  fi
+
+  if [ "$need_build" = true ]; then
+    echo "[...] Building backend (mvn package -DskipTests; jar missing or older than pom/src)..."
+    mvn package -DskipTests -q -f "$pom"
+  fi
+}
 
 kill_port() {
   local port=$1
@@ -34,13 +60,16 @@ start_backend() {
     echo "[!!] Backend (port $BACKEND_PORT) is already running."
     return 0
   fi
+  ensure_backend_jar_current
   cd "$DEV_ROOT/backend"
-  if [ ! -f "target/$JAR_NAME" ]; then
-    echo "[...] Building backend (mvn clean package -DskipTests)..."
-    mvn clean package -DskipTests -q
-  fi
   mkdir -p logs
-  nohup java -jar "target/$JAR_NAME" >> logs/backend-stdout.log 2>&1 &
+  local approval_diag="${APP_DIAGNOSTIC_APPROVAL_FLOW:-false}"
+  if [ "${BACKEND_DIAGNOSTIC_APPROVAL:-}" = "1" ] || [ "${BACKEND_DIAGNOSTIC_APPROVAL:-}" = "true" ]; then
+    approval_diag=true
+    echo "[OK] APP_DIAGNOSTIC_APPROVAL_FLOW=true (BACKEND_DIAGNOSTIC_APPROVAL)"
+  fi
+  # Local dev: enable HR Sync PoC API by default (preview-only; apply stays off in application.yml).
+  nohup env APP_DIAGNOSTIC_APPROVAL_FLOW="$approval_diag" HR_SYNC_POC_ENABLED="${HR_SYNC_POC_ENABLED:-true}" java -jar "target/$JAR_NAME" >> logs/backend-stdout.log 2>&1 &
   echo "[OK] Backend starting (port $BACKEND_PORT). Logs: backend/logs/"
 }
 
@@ -62,6 +91,35 @@ stop_backend() {
 
 stop_frontend() {
   kill_port "$FRONTEND_PORT" "Frontend"
+}
+
+# Exit 0 if something is listening on port; 1 otherwise (TC-06).
+status_port() {
+  local port=$1
+  local name=$2
+  if lsof -ti ":$port" >/dev/null 2>&1; then
+    echo "[OK] $name is running (listening on port $port)."
+    return 0
+  fi
+  echo "[--] $name is stopped (nothing listening on port $port)."
+  return 1
+}
+
+status_backend() {
+  status_port "$BACKEND_PORT" "Backend"
+}
+
+status_frontend() {
+  status_port "$FRONTEND_PORT" "Frontend"
+}
+
+status_db() {
+  if command -v pg_isready >/dev/null 2>&1 && pg_isready -h localhost -p "$DB_PORT" >/dev/null 2>&1; then
+    echo "[OK] DB (PostgreSQL) is accepting connections on localhost:$DB_PORT."
+    return 0
+  fi
+  echo "[--] DB (PostgreSQL) is not ready on localhost:$DB_PORT."
+  return 1
 }
 
 # PostgreSQL (Homebrew). macOS + brew 전제.
@@ -102,7 +160,8 @@ case "${1:-}" in
       start)   start_backend ;;
       stop)    stop_backend ;;
       restart) stop_backend; start_backend ;;
-      *)       echo "Usage: $0 backend {start|stop|restart}"; exit 1 ;;
+      status)  status_backend ;;
+      *)       echo "Usage: $0 backend {start|stop|restart|status}"; exit 1 ;;
     esac
     ;;
   frontend)
@@ -110,7 +169,8 @@ case "${1:-}" in
       start)   start_frontend ;;
       stop)    stop_frontend ;;
       restart) stop_frontend; start_frontend ;;
-      *)       echo "Usage: $0 frontend {start|stop|restart}"; exit 1 ;;
+      status)  status_frontend ;;
+      *)       echo "Usage: $0 frontend {start|stop|restart|status}"; exit 1 ;;
     esac
     ;;
   db)
@@ -118,7 +178,8 @@ case "${1:-}" in
       start)   start_db ;;
       stop)    stop_db ;;
       restart) restart_db ;;
-      *)       echo "Usage: $0 db {start|stop|restart}"; exit 1 ;;
+      status)  status_db ;;
+      *)       echo "Usage: $0 db {start|stop|restart|status}"; exit 1 ;;
     esac
     ;;
   all)
@@ -126,11 +187,18 @@ case "${1:-}" in
       start)   start_db; start_backend; start_frontend ;;
       stop)    stop_backend; stop_frontend; stop_db ;;
       restart) stop_backend; stop_frontend; stop_db; start_db; start_backend; start_frontend ;;
-      *)       echo "Usage: $0 all {start|stop|restart}"; exit 1 ;;
+      status)
+        rc=0
+        status_db || rc=1
+        status_backend || rc=1
+        status_frontend || rc=1
+        exit $rc
+        ;;
+      *)       echo "Usage: $0 all {start|stop|restart|status}"; exit 1 ;;
     esac
     ;;
   *)
-    echo "Usage: $0 <frontend|backend|db|all> <start|stop|restart>"
+    echo "Usage: $0 <frontend|backend|db|all> <start|stop|restart|status>"
     exit 1
     ;;
 esac

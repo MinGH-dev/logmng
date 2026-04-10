@@ -4,9 +4,11 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.logmng.constants.ScreenConstants;
 import com.logmng.dto.response.ApiResponse;
 import com.logmng.dto.response.LoginResponse;
+import com.logmng.diagnostic.PermissionGroupScreenDiagnosticLog;
 import com.logmng.service.AuthService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import org.springframework.web.servlet.HandlerInterceptor;
 
@@ -21,6 +23,10 @@ import java.util.regex.Pattern;
  * Screen-based access validation per specs/permission-group-hierarchy.spec.yaml §4.3.
  * Validates that non-ADMIN users have the required screen for the API path.
  * ADMIN bypasses; paths without mapping are allowed.
+ * <p>
+ * Permission-group admin API path {@code /api/permission-groups.*}: required screen ids are the
+ * <strong>enumerated</strong> set documented in {@code PATH_SCREEN_RULES} for that pattern and in
+ * {@code docs/requirements/20260410-screen-access-menu-api-consistency.md} (fail-closed; no widening beyond listed ids).
  */
 @Component
 public class ScreenAccessInterceptor implements HandlerInterceptor {
@@ -36,23 +42,58 @@ public class ScreenAccessInterceptor implements HandlerInterceptor {
 
     /** Path pattern (regex) -> required screen_id(s). Order: more specific first. */
     private static final List<PathScreenRule> PATH_SCREEN_RULES = List.of(
-            new PathScreenRule("^/api/departments/user-permission-hierarchy$", List.of(ScreenConstants.USER_MANAGEMENT, ScreenConstants.USER_PERMISSION_HIERARCHY)),
+            new PathScreenRule("^/api/user-management-v2/.*", List.of(ScreenConstants.USER_MANAGEMENT_V2)),
+            new PathScreenRule("^/api/departments/user-permission-hierarchy$",
+                    List.of(ScreenConstants.USER_MANAGEMENT, ScreenConstants.USER_PERMISSION_HIERARCHY, ScreenConstants.USER_MANAGEMENT_V2)),
             new PathScreenRule("^/api/departments.*", List.of(ScreenConstants.DEPARTMENT_APPROVERS, ScreenConstants.USER_PERMISSION_HIERARCHY)),
-            new PathScreenRule("^/api/permission-groups.*", List.of(ScreenConstants.USER_MANAGEMENT, ScreenConstants.USER_PERMISSION_HIERARCHY)),
+            new PathScreenRule("^/api/permission-groups.*",
+                    List.of(
+                            ScreenConstants.USER_MANAGEMENT,
+                            ScreenConstants.USER_PERMISSION_HIERARCHY,
+                            ScreenConstants.USER_MANAGEMENT_V2,
+                            ScreenConstants.PERMISSION_GROUP_MANAGEMENT,
+                            ScreenConstants.PERMISSION_GROUP_SCREEN_MATRIX)),
             new PathScreenRule("^/api/search-history/pending.*", List.of(ScreenConstants.PENDING_APPROVALS)),
-            new PathScreenRule("^/api/search-history/[^/]+/approve.*", List.of(ScreenConstants.PENDING_APPROVALS)),
-            new PathScreenRule("^/api/search-history/[^/]+/reject.*", List.of(ScreenConstants.PENDING_APPROVALS)),
+            new PathScreenRule("^/api/search-history/[^/]+/approve.*",
+                    List.of(ScreenConstants.PENDING_APPROVALS, ScreenConstants.SEARCH_HISTORY)),
+            new PathScreenRule("^/api/search-history/[^/]+/reject.*",
+                    List.of(ScreenConstants.PENDING_APPROVALS, ScreenConstants.SEARCH_HISTORY)),
             new PathScreenRule("^/api/search-history.*", List.of(ScreenConstants.SEARCH_HISTORY)),
+            new PathScreenRule("^/api/activity-log/\\d+/privileged-reveal$",
+                    List.of(ScreenConstants.ACTIVITY_LOG, ScreenConstants.ACTIVITY_LOG_ACCESS_AUDIT)),
+            new PathScreenRule("^/api/activity-log/access-audit$",
+                    List.of(ScreenConstants.ACTIVITY_LOG, ScreenConstants.ACTIVITY_LOG_ACCESS_AUDIT)),
             new PathScreenRule("^/api/activity-log.*", List.of(ScreenConstants.ACTIVITY_LOG)),
             new PathScreenRule("^/api/statistics.*", List.of(ScreenConstants.STATISTICS)),
-            new PathScreenRule("^/api/users.*", List.of(ScreenConstants.USER_MANAGEMENT)),
-            new PathScreenRule("^/api/logs/db-refactored.*", List.of(ScreenConstants.PB_FEPLOG, ScreenConstants.JAVA_FW_IMAGELOG)),
-            new PathScreenRule("^/api/logs/decrypt.*", List.of(ScreenConstants.PB_FEPLOG, ScreenConstants.JAVA_FW_IMAGELOG)),
-            new PathScreenRule("^/api/search.*", List.of(ScreenConstants.PB_FEPLOG, ScreenConstants.JAVA_FW_IMAGELOG))
+            // PoC UM clone: dedicated screen; also allow same family as other PoC HR paths (spec / contract).
+            new PathScreenRule(
+                    "^/api/hr-sync/poc/user-mgmt/.*",
+                    List.of(
+                            ScreenConstants.USER_MANAGEMENT_V2_POC,
+                            ScreenConstants.HR_SYNC_POC,
+                            ScreenConstants.USER_MANAGEMENT,
+                            ScreenConstants.USER_PERMISSION_HIERARCHY)),
+            // PoC: /config, /preview, /snapshots, /snapshots/{id}/employees (single pattern).
+            new PathScreenRule("^/api/hr-sync/poc.*", List.of(ScreenConstants.USER_MANAGEMENT, ScreenConstants.USER_PERMISSION_HIERARCHY)),
+            new PathScreenRule("^/api/users.*",
+                    List.of(ScreenConstants.USER_MANAGEMENT, ScreenConstants.USER_MANAGEMENT_V2)),
+            new PathScreenRule("^/api/provisioning.*", List.of(ScreenConstants.USER_MANAGEMENT, ScreenConstants.USER_PERMISSION_HIERARCHY)),
+            new PathScreenRule("^/api/logs/db-refactored.*", List.of(ScreenConstants.PB_FEPLOG, ScreenConstants.PB_FEP_LOG_SEARCH, ScreenConstants.JAVA_FW_IMAGELOG)),
+            new PathScreenRule("^/api/logs/decrypt.*", List.of(ScreenConstants.PB_FEPLOG, ScreenConstants.PB_FEP_LOG_SEARCH, ScreenConstants.JAVA_FW_IMAGELOG)),
+            new PathScreenRule("^/api/search.*", List.of(ScreenConstants.PB_FEPLOG, ScreenConstants.PB_FEP_LOG_SEARCH, ScreenConstants.JAVA_FW_IMAGELOG))
     );
 
     private final AuthService authService;
     private final ObjectMapper objectMapper;
+
+    @Value("${app.diagnostic.permission-group-screen:false}")
+    private boolean diagnosticPermissionGroupScreen;
+
+    @Value("${app.diagnostic.approval-flow:false}")
+    private boolean diagnosticApprovalFlow;
+
+    private static final Pattern PERMISSION_GROUPS_API = Pattern.compile("^/api/permission-groups.*");
+    private static final Pattern APPROVAL_ACTION_API = Pattern.compile("^/api/search-history/[^/]+/(approve|reject).*$");
 
     public ScreenAccessInterceptor(AuthService authService, ObjectMapper objectMapper) {
         this.authService = authService;
@@ -77,17 +118,87 @@ public class ScreenAccessInterceptor implements HandlerInterceptor {
         if (Boolean.TRUE.equals(userInfo.getIsSystemAdmin())) {
             return true;
         }
+        List<String> allowedScreenIds = userInfo.getAllowedScreenIds();
+        if (allowedScreenIds == null || allowedScreenIds.isEmpty()) {
+            log.warn("Screen access denied (zero permissions): path={} user={}", path, userInfo.getUsername());
+            sendForbidden(response);
+            return false;
+        }
+        if (isSearchHistoryReadGet(request.getMethod(), path)) {
+            if (allowSearchHistoryListOrDetailRead(userInfo)) {
+                return true;
+            }
+            sendForbidden(response);
+            return false;
+        }
         List<String> requiredScreens = findRequiredScreens(path);
         if (requiredScreens == null || requiredScreens.isEmpty()) {
             return true;
         }
-        List<String> allowed = userInfo.getAllowedScreenIds();
-        boolean hasAccess = allowed != null && requiredScreens.stream().anyMatch(allowed::contains);
+        List<String> allowed = allowedScreenIds;
+        boolean hasAccess = requiredScreens.stream().anyMatch(allowed::contains);
         if (hasAccess) {
+            logApprovalActionDecision(request, userInfo, "ALLOW", null);
             return true;
         }
+        if (PERMISSION_GROUPS_API.matcher(path).matches()) {
+            PermissionGroupScreenDiagnosticLog.screenAccessDenyPermissionGroups(
+                    diagnosticPermissionGroupScreen,
+                    path,
+                    requiredScreens,
+                    userInfo.getUserId(),
+                    "missing_required_screen_in_session");
+        }
         log.warn("Screen access denied: path={} requiredScreens={} user={}", path, requiredScreens, userInfo.getUsername());
+        logApprovalActionDecision(request, userInfo, "DENY", "FORBIDDEN");
         sendForbidden(response);
+        return false;
+    }
+
+    private void logApprovalActionDecision(HttpServletRequest request, LoginResponse userInfo, String decision, String denialCode) {
+        if (!diagnosticApprovalFlow || !APPROVAL_ACTION_API.matcher(request.getRequestURI()).matches() || !log.isDebugEnabled()) {
+            return;
+        }
+        boolean canApprove = authService.hasApproveForSearchHistory(request);
+        String scope = null;
+        if (userInfo.getScreenScopes() != null) {
+            scope = userInfo.getScreenScopes().get(ScreenConstants.PENDING_APPROVALS);
+        }
+        log.debug("[diag-approval-authz] path={} method={} actorUserId={} actorUsername={} isSystemAdmin={} canApprove={} screenId={} effectiveScope={} decision={} denialCode={}",
+                request.getRequestURI(),
+                request.getMethod(),
+                userInfo.getUserId(),
+                userInfo.getUsername(),
+                Boolean.TRUE.equals(userInfo.getIsSystemAdmin()),
+                canApprove,
+                ScreenConstants.PENDING_APPROVALS,
+                scope != null ? scope : "",
+                decision,
+                denialCode != null ? denialCode : "");
+    }
+
+    private static boolean isSearchHistoryReadGet(String method, String path) {
+        if (!"GET".equalsIgnoreCase(method)) {
+            return false;
+        }
+        if ("/api/search-history".equals(path)) {
+            return true;
+        }
+        return path != null && path.startsWith("/api/search-history/")
+                && path.matches("^/api/search-history/\\d+$");
+    }
+
+    /**
+     * GET list/detail: search-history screen OR pending-approvals with effective read (docs/contract.md §6.1.2).
+     */
+    private boolean allowSearchHistoryListOrDetailRead(LoginResponse userInfo) {
+        List<String> allowed = userInfo.getAllowedScreenIds();
+        if (allowed != null && allowed.contains(ScreenConstants.SEARCH_HISTORY)) {
+            return true;
+        }
+        if (allowed != null && allowed.contains(ScreenConstants.PENDING_APPROVALS)) {
+            return authService.hasEffectiveReadForPendingApprovals(userInfo);
+        }
         return false;
     }
 

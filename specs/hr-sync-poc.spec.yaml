@@ -1,0 +1,520 @@
+# HR Sync PoC API (preview-only, zero-impact)
+# Requirement: docs/requirements/20260408-external-hr-user-sync-security-db-design.md (§2.6 PoC);
+#   docs/requirements/20260408-hr-sync-poc-snapshot-list-and-sample-data.md (snapshots + personnel GET).
+# Contract: docs/contract.md § HR Sync PoC (preview-only)
+# API narrative: docs/api-definition.md §2b
+# Step 3 — machine-readable contract; Backend/Frontend implement in Step 4.
+# DOC-CODE-SYNC: After implementation, any intentional deviation updates this file + contract + api-definition in the same change (docs/workflow/DOC-CODE-SYNC.md).
+
+---
+metadata:
+  title: "HR Sync PoC API (preview-only)"
+  version: "1.4"
+  requirement_ids:
+    - "20260408-external-hr-user-sync-security-db-design"
+    - "20260408-hr-sync-poc-snapshot-list-and-sample-data"
+    - "20260408-hr-sync-poc-run-preview-visible-results"
+    - "20260408-poc-user-management-v2-isolated-clone"
+  status: "draft"
+  base_path: "/api/hr-sync/poc"
+
+---
+# 1. Purpose
+
+- Provide a **zero-impact** Proof-of-Concept surface for HR-driven user sync: **preview/classification only**.
+- Default product mode is **`PREVIEW_ONLY`**; mutation/apply to `app_user`, application permission stores, or production Tree authority is **out of scope** for `POST .../preview`.
+- Behavior is governed by flags such as **`HR_SYNC_POC_ENABLED`**, **`HR_SYNC_POC_DEFAULT_MODE`**, **`HR_SYNC_POC_APPLY_ENABLED`** (exact property/env names are backend configuration; semantics below).
+
+---
+# 2. Non-goals (PoC contract)
+
+- **No writes** from `POST /api/hr-sync/poc/preview` to:
+  - `app_user` (or equivalent user table),
+  - permission / role assignment tables used for runtime authorization,
+  - production Tree / department authority of record.
+- **Apply execution** (batch commit, revoke-first transfer, resigned lifecycle, etc.) is **blocked** in PoC unless an explicitly approved, time-bounded apply gate is satisfied — see §7. This spec documents **config + preview** only for Step 3/4 PoC trajectory.
+
+---
+# 3. Authorization model (outline)
+
+- All routes under `/api/hr-sync/poc` require an **authenticated session** unless backend explicitly documents a narrower exception (none expected for PoC).
+- Fine-grained role/screen mapping (e.g. dedicated PoC preview role per requirement `HR_SYNC_POC_ROLE_REQUIRED_FOR_PREVIEW`) is **product implementation**; denied callers receive **403** with a project `code` (e.g. `FORBIDDEN`, `FUNCTION_NOT_ALLOWED`, or `POC_DISABLED` when the whole surface is off).
+- When **`HR_SYNC_POC_ENABLED`** is false: respond **403** with **`POC_DISABLED`** and/or **do not register** the routes (deployment choice); clients must not rely on one exclusive mechanism — either is valid if documented in release notes.
+
+### 3.1 PoC User Management (UM v2 clone) — screen and session
+
+- **Screen id**: **`user-management-v2-poc`** (distinct from production **`user-management-v2`**; permission assignment is independent).
+- **Route prefix**: `/api/hr-sync/poc/user-mgmt`
+- **Mirrors other PoC APIs** for the global gate:
+  - Valid session required; unauthenticated → **401** `UNAUTHORIZED` (or project-equivalent).
+  - When **`HR_SYNC_POC_ENABLED`** is false: **403** **`POC_DISABLED`** (and/or routes not registered — same family as §3).
+- **Screen access**: Caller must have **`user-management-v2-poc`** in **`allowedScreenIds`** (or **`is_system_admin=true`** per project rules). Otherwise **403** with **`FORBIDDEN`** / **`FUNCTION_NOT_ALLOWED`** (align with `ScreenAccessInterceptor` / permission patterns; DOC-CODE-SYNC).
+- **UI feature flag**: Frontend may additionally hide the menu when **`REACT_APP_HR_SYNC_POC_UI`** (or successor) is false; API contract remains server‑authoritative for **`HR_SYNC_POC_ENABLED`** and screen permission.
+
+---
+# 4. APIs
+
+## 4.1 GET /api/hr-sync/poc/config
+
+Expose **non-secret** PoC configuration for UI gating.
+
+**Success (200)**
+
+Wrapper: standard `ApiResponse` with `success: true`.
+
+**`data` schema**
+
+| Field | Type | Description |
+|-------|------|-------------|
+| pocEnabled | boolean | True when `HR_SYNC_POC_ENABLED` (or equivalent) is on. |
+| defaultMode | string | Default mode; product default **`PREVIEW_ONLY`**. |
+| applyEnabled | boolean | Reflects `HR_SYNC_POC_APPLY_ENABLED`; **does not** grant the right to call a future apply API — additional gates apply per requirement §2.6. |
+
+**Example**
+
+```json
+{
+  "success": true,
+  "data": {
+    "pocEnabled": true,
+    "defaultMode": "PREVIEW_ONLY",
+    "applyEnabled": false
+  }
+}
+```
+
+**Errors**
+
+| HTTP | code | When |
+|------|------|------|
+| 401 | UNAUTHORIZED | No valid session. |
+| 403 | POC_DISABLED | PoC feature off or route disabled. |
+
+**Security**: Do **not** return manifest digests, HMAC secrets, upstream credentials, or raw PII payloads.
+
+---
+## 4.2 POST /api/hr-sync/poc/preview
+
+Run a **read-only** classification / impact summary for the given optional snapshot/ingest identifiers.
+
+**Request body**
+
+```json
+{
+  "snapshotId": "optional-snapshot-id",
+  "ingestRunId": "optional-ingest-run-id"
+}
+```
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| snapshotId | string | No | External HR snapshot identifier when available. |
+| ingestRunId | string | No | Upstream ingest run identifier when available. |
+
+Validation rules when upstream integration exists are **implementation-defined** and must be DOC-CODE-SYNC’d (e.g. both empty forbidden, or one required).
+
+**Classification scope (`classificationCounts` vs `snapshotId`)**
+
+- When the request body includes a **non-blank** `snapshotId`, **`classificationCounts` MUST be computed only from `ext_employee` rows whose `snapshot_id` equals that value** (exact column name per schema / replica DDL; DOC-CODE-SYNC). Multi-snapshot PoC data MUST NOT be merged into this aggregate.
+- When **`snapshotId` is omitted, null, or treated as absent per product validation (e.g. blank string normalized to absent)**, **`classificationCounts` remain the PoC global stub**: an **unscoped** aggregate over replica `ext_employee` (e.g. whole-table or product-defined stub mapping), **not** restricted to a single snapshot. Clients that need snapshot-scoped counts SHOULD send `snapshotId`.
+
+**Legitimate empty snapshot vs errors**
+
+- If `snapshotId` is present and valid but **there are zero** matching `ext_employee` rows, respond **200** **`success: true`** with **`classificationCounts` all zero** (every key `0`). This is **legitimate empty**, **not** **404** — preview contract differs from §4.4 personnel list (which may use **404** for unknown/empty snapshot per that section).
+- If counting **fails** due to **replica/DB error** (e.g. SQL exception, connection failure), the server MUST **not** return **200** with all-zero counts as a silent substitute. Respond per **Errors** below (**`HR_SYNC_POC_PREVIEW_FAILED`**).
+
+**Success (200)**
+
+**`data` schema**
+
+| Field | Type | Description |
+|-------|------|-------------|
+| previewId | string | Server-issued preview artifact id (for future apply linkage; apply not in this spec’s minimal PoC). |
+| snapshotId | string | Echo or resolved snapshot id used for the preview. |
+| classificationCounts | object | Counts per classification key (integers ≥ 0). |
+| classificationCounts.TRANSFER | number | Department-driven transfer bucket. |
+| classificationCounts.NEW_HIRE | number | |
+| classificationCounts.RESIGNED | number | |
+| classificationCounts.UNCHANGED | number | |
+| classificationCounts.PROFILE_UPDATE_NON_SECURITY | number | |
+| classificationCounts.CONFLICT | number | |
+| classificationCounts.ORPHAN | number | |
+| riskTier | string | e.g. `AUTO`, `CONDITIONAL`, `APPROVAL_REQUIRED`, or placeholder until policy engine wired. |
+| upstreamGateStatus | string | Upstream completion/manifest gate status; until integrated use placeholder such as `NOT_READY` or `PLACEHOLDER`. |
+| messageCode | string | Safe machine-readable hint for UI (no secrets). |
+
+**Example**
+
+```json
+{
+  "success": true,
+  "data": {
+    "previewId": "poc-preview-01HZX8QVKM3TP9V6WGRYZK7FX4",
+    "snapshotId": "snap-2026-04-08T00:00:00Z",
+    "classificationCounts": {
+      "TRANSFER": 2,
+      "NEW_HIRE": 1,
+      "RESIGNED": 0,
+      "UNCHANGED": 40,
+      "PROFILE_UPDATE_NON_SECURITY": 3,
+      "CONFLICT": 0,
+      "ORPHAN": 0
+    },
+    "riskTier": "APPROVAL_REQUIRED",
+    "upstreamGateStatus": "PLACEHOLDER",
+    "messageCode": "HR_SYNC_POC_PREVIEW_OK"
+  }
+}
+```
+
+**Errors**
+
+| HTTP | code | When |
+|------|------|------|
+| 400 | VALIDATION_ERROR | Invalid body; missing required ids when rules demand them; bad types. |
+| 401 | UNAUTHORIZED | No valid session. |
+| 403 | POC_DISABLED | PoC feature off. |
+| 403 / 503 | SYNC_SOURCE_NOT_READY | Upstream ingest/manifest/completion not available or not validated; **placeholder** behavior allowed until integration (DOC-CODE-SYNC HTTP choice). |
+| 503 | HR_SYNC_POC_PREVIEW_FAILED | **Preview aggregation failed** (replica/DB error, timeout, or other failure while computing `classificationCounts`). Do **not** mask as **200** + all-zero counts. |
+| 403 | FORBIDDEN / FUNCTION_NOT_ALLOWED | Authenticated but not authorized for PoC preview (implementation aligns with permission model). |
+
+**Read-only guarantee**
+
+- Implementations MUST NOT persist preview results into `app_user`, permission-grant tables, or production Tree mutations as part of this endpoint’s handling. Optional **PoC-isolated** audit/storage is out of scope for this minimal spec unless added in a later version with explicit schema.
+
+---
+## 4.3 GET /api/hr-sync/poc/snapshots
+
+Return **distinct PoC snapshot identifiers** available in replica data (e.g. `ext_employee.snapshot_id` non-null cohorts), plus **minimal metadata** for UI selection. **Read-only**; no writes to `app_user`, permission tables, or production Tree.
+
+**Query parameters**
+
+None.
+
+**Success (200)**
+
+Wrapper: standard `ApiResponse` with `success: true`.
+
+**`data` schema**
+
+| Field | Type | Description |
+|-------|------|-------------|
+| snapshots | array | Snapshot list items (see below). Order: stable for a given DB state (e.g. `snapshotId` ascending). |
+
+**`snapshots[]` item**
+
+| Field | Type | Description |
+|-------|------|-------------|
+| snapshotId | string | Logical snapshot / extract batch id for PoC (e.g. `poc-snap-20260408-A`). |
+| label | string \| null | Optional human-readable label; may be null if not stored. |
+| employeeCount | integer | Count of `ext_employee` rows in this snapshot (≥ 0). |
+| maxImportedAt | string \| null | Optional ISO-8601 timestamp: max `imported_at` (or equivalent) in that snapshot; null if column unused or all null. |
+
+**Example**
+
+```json
+{
+  "success": true,
+  "data": {
+    "snapshots": [
+      {
+        "snapshotId": "poc-snap-20260408-A",
+        "label": "PoC sample A",
+        "employeeCount": 3,
+        "maxImportedAt": "2026-04-08T02:00:00Z"
+      },
+      {
+        "snapshotId": "poc-snap-20260408-B",
+        "label": "PoC sample B",
+        "employeeCount": 2,
+        "maxImportedAt": "2026-04-08T02:00:05Z"
+      }
+    ]
+  }
+}
+```
+
+**Errors**
+
+| HTTP | code | When |
+|------|------|------|
+| 401 | UNAUTHORIZED | No valid session. |
+| 403 | POC_DISABLED | PoC feature off or route disabled. |
+| 403 | FORBIDDEN / FUNCTION_NOT_ALLOWED | Authenticated but not allowed for PoC snapshot/personnel (same class as preview; screen access aligned). |
+
+**Data minimization**: Do not return upstream secrets, raw manifest payloads, or per-row replica dumps. This endpoint returns **aggregate list metadata** only.
+
+---
+## 4.4 GET /api/hr-sync/poc/snapshots/{snapshotId}/employees
+
+Return a **bounded, paginated** page of **minimal personnel DTOs** for replica employees in `snapshotId`. Source: **`ext_employee`** (optional join `ext_department` for display name only). **Read-only**; no writes to `app_user` or permission tables.
+
+**Path parameters**
+
+| Param | Type | Description |
+|-------|------|-------------|
+| snapshotId | string | Snapshot id; must match server validation (length ≤ **128**, allowed charset: alphanumeric, hyphen, underscore, dot per product regex; **DOC-CODE-SYNC** exact pattern). |
+
+**Query parameters**
+
+| Param | Type | Default | Description |
+|-------|------|---------|-------------|
+| page | integer | 1 | 1-based page index (≥ 1). |
+| size | integer | 20 | Page size; **minimum 1**, **maximum 100** (product cap; exceed → see Errors). |
+
+Alternative names `page` / `pageSize` are **not** part of this contract unless DOC-CODE-SYNC’d to a single canonical pair project-wide.
+
+**Success (200)**
+
+Wrapper: standard `ApiResponse` with `success: true`.
+
+**`data` schema**
+
+| Field | Type | Description |
+|-------|------|-------------|
+| snapshotId | string | Echo of resolved `snapshotId`. |
+| employees | array | Personnel rows for this page (see below). |
+| pagination | object | `{ "currentPage": number, "totalPages": number, "totalCount": number }` — same family as list/search APIs. |
+
+**`employees[]` item (minimal fields — §2.1 alignment)**
+
+Expose **only** fields needed for the PoC personnel table. Do **not** return **email** in PoC responses. Do **not** return raw replica-only columns beyond this list.
+
+| Field | Type | Description |
+|-------|------|-------------|
+| displayName | string \| null | Display name for the row (e.g. `ext_employee.display_name`). |
+| jobTitle | string \| null | Job / title (e.g. `ext_employee.job_title` or mapped column). |
+| departmentKey | string \| null | **External** department key for UI linkage (e.g. `external_department_id` or stable `ext_department` code — implementation maps from schema; not `app_user` / internal Tree id). |
+| departmentName | string \| null | Optional display name from `ext_department` join when available. |
+| active | boolean | Employment / active flag suitable for demo (e.g. from `ext_employee` active/resign semantics). |
+| employeeNumber | string \| null | **Optional**; if present, **full** `ext_employee.employee_number` for PoC (no masking). |
+
+**Example**
+
+```json
+{
+  "success": true,
+  "data": {
+    "snapshotId": "poc-snap-20260408-A",
+    "employees": [
+      {
+        "displayName": "Sample User One",
+        "jobTitle": "Analyst",
+        "departmentKey": "EXT-DEPT-001",
+        "departmentName": "Sample Dept A",
+        "active": true,
+        "employeeNumber": "12345678"
+      }
+    ],
+    "pagination": {
+      "currentPage": 1,
+      "totalPages": 1,
+      "totalCount": 3
+    }
+  }
+}
+```
+
+**Errors**
+
+| HTTP | code | When |
+|------|------|------|
+| 400 | VALIDATION_ERROR | Invalid `snapshotId` format; `page` < 1; `size` < 1 or **size > 100** (or cap mismatch — DOC-CODE-SYNC single cap). |
+| 401 | UNAUTHORIZED | No valid session. |
+| 403 | POC_DISABLED | PoC feature off. |
+| 403 | FORBIDDEN / FUNCTION_NOT_ALLOWED | Authenticated but not allowed for PoC personnel list. |
+| 404 | NOT_FOUND | **No replica rows** for `snapshotId` (unknown or empty snapshot). |
+
+**Unknown snapshot contract**: Requirement allows **404** vs **200 + empty `employees`**. This spec chooses **404** with **`code`: `NOT_FOUND`** when the snapshot id is not present in replica data (TC-04).
+
+**Read-only guarantee**: Same as §4.2 — no mutations to `app_user`, permission grants, or production Tree.
+
+---
+## 4.5 GET /api/hr-sync/poc/user-mgmt/replica-departments/tree
+
+**Purpose**: Return a **nested department tree** for PoC User Management UX, sourced **only** from replica **`ext_department`** (SELECT). Does **not** read or mutate production Tree / `department` authority tables.
+
+**Query parameters**
+
+| Param | Type | Default | Description |
+|-------|------|---------|-------------|
+| sourceSystem | string | `HR_SAMPLE` | Replica source system key (e.g. column `source_system` on `ext_department`; product aligns with sample/PoC seed). |
+
+**Success (200)**
+
+Wrapper: standard `ApiResponse` with `success: true`.
+
+**`data` schema**
+
+| Field | Type | Description |
+|-------|------|-------------|
+| sourceSystem | string | Echo or resolved `sourceSystem` used for the query. |
+| roots | array | Root nodes; each node matches **`ReplicaDepartmentTreeNode`** (see below). |
+
+**`ReplicaDepartmentTreeNode`**
+
+| Field | Type | Description |
+|-------|------|-------------|
+| departmentKey | string | Stable external department key (e.g. `external_department_id` or product‑defined code — DOC-CODE-SYNC to schema). |
+| parentDepartmentKey | string \| null | Parent’s `departmentKey`; null for roots. |
+| name | string \| null | Display name from replica (`ext_department.name` or mapped). |
+| sortOrder | integer | Sort hint within siblings (≥ 0; default 0 if unknown). |
+| children | array | Same shape, recursively (empty array if leaf). |
+
+**Example** (abbreviated)
+
+```json
+{
+  "success": true,
+  "data": {
+    "sourceSystem": "HR_SAMPLE",
+    "roots": [
+      {
+        "departmentKey": "EXT-DEPT-ROOT",
+        "parentDepartmentKey": null,
+        "name": "Sample Org",
+        "sortOrder": 0,
+        "children": [
+          {
+            "departmentKey": "EXT-DEPT-001",
+            "parentDepartmentKey": "EXT-DEPT-ROOT",
+            "name": "Sample Dept A",
+            "sortOrder": 10,
+            "children": []
+          }
+        ]
+      }
+    ]
+  }
+}
+```
+
+**Errors**
+
+| HTTP | code | When |
+|------|------|------|
+| 401 | UNAUTHORIZED | No valid session. |
+| 403 | POC_DISABLED | PoC feature off. |
+| 403 | FORBIDDEN / FUNCTION_NOT_ALLOWED | Authenticated but lacks **`user-management-v2-poc`** (or equivalent). |
+| 503 | — | Replica / DB failure while building tree (product error code DOC-CODE-SYNC; do not return empty tree as success if query failed). |
+
+**Read-only guarantee**: **No** INSERT/UPDATE/DELETE on **`app_user`**, application permission tables, or production department Tree.
+
+---
+## 4.6 GET /api/hr-sync/poc/user-mgmt/replica-users
+
+**Purpose**: Paginated **replica employee** rows for PoC UM grid, from **`ext_employee`** with optional join **`ext_department`** for display names only. **Read-only** replica source; **never** joins to **`app_user`** for mutation.
+
+**Query parameters**
+
+| Param | Type | Default | Description |
+|-------|------|---------|-------------|
+| snapshotId | string | — | Optional. When present, restrict to rows whose replica snapshot column matches (same semantics as §4.4 / `ext_employee.snapshot_id`; DOC-CODE-SYNC column name). |
+| departmentKey | string | — | Optional. Filter by external department key (same family as §4.4 `departmentKey` / tree `departmentKey`). |
+| sourceSystem | string | `HR_SAMPLE` | Optional replica source filter when schema supports it (align with §4.5). |
+| page | integer | 1 | 1-based page (≥ 1). |
+| size | integer | 20 | Page size; **minimum 1**, **maximum 100**. |
+
+**Success (200)**
+
+Wrapper: standard `ApiResponse` with `success: true`.
+
+**`data` schema**
+
+| Field | Type | Description |
+|-------|------|-------------|
+| snapshotId | string \| null | Echo when request included `snapshotId`; else null. |
+| departmentKey | string \| null | Echo when filter applied; else null. |
+| sourceSystem | string | Echo or resolved `sourceSystem`. |
+| users | array | Rows shaped like §4.4 **`employees[]`** items: `displayName`, `jobTitle`, `departmentKey`, `departmentName`, `active`, optional `employeeNumber`. **Do not** include **email**. |
+| pagination | object | `{ "currentPage": number, "totalPages": number, "totalCount": number }` |
+
+**Errors**
+
+| HTTP | code | When |
+|------|------|------|
+| 400 | VALIDATION_ERROR | Invalid `page`/`size` or **size > 100**. |
+| 401 | UNAUTHORIZED | No valid session. |
+| 403 | POC_DISABLED | PoC feature off. |
+| 403 | FORBIDDEN / FUNCTION_NOT_ALLOWED | Lacks **`user-management-v2-poc`**. |
+| 404 | NOT_FOUND | When **`snapshotId`** is **present** and **unknown** or **no rows** for that snapshot in replica data (same contract choice as §4.4; DOC-CODE-SYNC). When `snapshotId` **omitted**, **do not** use 404 for “empty page”; return **200** with `users: []` and `totalCount: 0` if applicable. |
+
+**Read-only guarantee**: **No** writes to **`app_user`**, permission grants, or production Tree.
+
+---
+## 4.7 POST /api/hr-sync/poc/user-mgmt/actions/migrate-preview
+
+**Purpose**: **Stub** for migration‑testing UX (e.g. “preview migrate” button). **Does not** persist anything to production identity stores.
+
+**Normative side-effect guarantee**
+
+- The handler **MUST NOT** perform **INSERT**, **UPDATE**, or **DELETE** on **`app_user`**.
+- The handler **MUST NOT** mutate application **permission** / **screen** / **role** assignment tables or production **department Tree** authority.
+- Optional request body (empty object or future fields) is allowed; validation is implementation-defined.
+
+**Success (200)**
+
+```json
+{
+  "success": true,
+  "data": {
+    "persisted": false,
+    "messageCode": "POC_ACTION_NOT_PERSISTED"
+  }
+}
+```
+
+**`data` schema**
+
+| Field | Type | Description |
+|-------|------|-------------|
+| persisted | boolean | Always **`false`** for this stub. |
+| messageCode | string | Always **`POC_ACTION_NOT_PERSISTED`**. |
+
+**Errors**
+
+| HTTP | code | When |
+|------|------|------|
+| 401 | UNAUTHORIZED | No valid session. |
+| 403 | POC_DISABLED | PoC feature off. |
+| 403 | FORBIDDEN / FUNCTION_NOT_ALLOWED | Lacks **`user-management-v2-poc`**. |
+
+**Audit**: This stub **MUST NOT** emit **`user_activity_log`** (or other production audit) entries that **imply** a real user or permission mutation. If product later requires PoC-only audit rows, that is a **separate** requirement.
+
+---
+# 5. Error codes (project `ApiResponse.code`)
+
+| code | Typical HTTP | Meaning |
+|------|----------------|---------|
+| POC_DISABLED | 403 | `HR_SYNC_POC_ENABLED` false or PoC routes disabled. |
+| SYNC_SOURCE_NOT_READY | 403 or 503 | Upstream not ready; may return placeholder preview policy until wired. |
+| HR_SYNC_POC_PREVIEW_FAILED | 503 | Preview **`classificationCounts`** could not be computed (replica/DB failure); not used for legitimate zero-row snapshots (**200** + zeros). |
+| VALIDATION_ERROR | 400 | Request validation failed (preview body, pagination, or `snapshotId` path validation). |
+| NOT_FOUND | 404 | Unknown or empty **`snapshotId`** for §4.4 (contract choice; no 200 empty page). |
+| POC_ACTION_NOT_PERSISTED | — | **Not an error code.** Returned in **successful** stub **`data.messageCode`** for §4.7 (`POST .../actions/migrate-preview`). |
+
+Other codes (`UNAUTHORIZED`, `FORBIDDEN`, `FUNCTION_NOT_ALLOWED`) follow existing project patterns.
+
+---
+# 6. Classification keys
+
+Keys in `classificationCounts` align with requirement §2 design:
+
+- `TRANSFER` — department-change-only transfer bucket (revoke-first applies on **apply**, not on preview).
+- `NEW_HIRE`, `RESIGNED`, `UNCHANGED`, `PROFILE_UPDATE_NON_SECURITY`, `CONFLICT`, `ORPHAN`.
+
+All values are non-negative integers. Keys **SHOULD** all be present in JSON for stable clients; if omitted, clients may treat as `0` only if documented in DOC-CODE-SYNC.
+
+---
+# 7. Apply blocked in PoC
+
+- Requirement **§2.6**: default **`PREVIEW_ONLY`**; **`HR_SYNC_POC_APPLY_ENABLED`** default off.
+- **No `POST .../apply`** (or equivalent mutation) is defined in this PoC spec. When a future apply API exists:
+  - It MUST be denied (**403** or route not registered) when apply is disabled or preview-only mode fails closed.
+  - Scheduler/service-account bypass is forbidden per requirement.
+- Servers MAY omit apply routes entirely in PoC builds; clients MUST NOT assume an apply URL exists.
+
+---
+# 8. DOC-CODE-SYNC note
+
+This file is the **machine-readable** target for `/api/hr-sync/poc/config`, `/api/hr-sync/poc/preview`, **`GET /api/hr-sync/poc/snapshots`**, **`GET /api/hr-sync/poc/snapshots/{snapshotId}/employees`**, **`GET /api/hr-sync/poc/user-mgmt/replica-departments/tree`**, **`GET /api/hr-sync/poc/user-mgmt/replica-users`**, and **`POST /api/hr-sync/poc/user-mgmt/actions/migrate-preview`**. After Step 4, align response shapes and error codes with `docs/contract.md` and `docs/api-definition.md` in the **same change** when adjusting behavior (`docs/workflow/DOC-CODE-SYNC.md`).

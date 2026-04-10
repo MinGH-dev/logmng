@@ -30,7 +30,8 @@ public class FilterOptionsController {
             Arrays.asList(
                     ScreenConstants.ACTIVITY_LOG,
                     ScreenConstants.STATISTICS,
-                    ScreenConstants.SEARCH_HISTORY
+                    ScreenConstants.SEARCH_HISTORY,
+                    ScreenConstants.PENDING_APPROVALS
             ).stream().collect(Collectors.toSet())
     );
 
@@ -49,7 +50,7 @@ public class FilterOptionsController {
         String normalizedScreenId = screenId != null ? screenId.trim() : null;
         if (normalizedScreenId == null || !DEPARTMENT_OPTION_SCREENS.contains(normalizedScreenId)) {
             throw CustomException.badRequest(
-                    "`screen`은 activity-log, statistics, search-history 중 하나여야 합니다.",
+                    "`screen`은 activity-log, statistics, search-history, pending-approvals 중 하나여야 합니다.",
                     "INVALID_SCREEN_ID"
             );
         }

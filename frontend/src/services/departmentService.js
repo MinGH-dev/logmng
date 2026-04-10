@@ -3,7 +3,7 @@
  * docs/api-definition.md §12
  */
 
-const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || 'http://localhost:9200/api';
+import { getApiBaseUrl } from '../config/runtimeApi';
 
 const fetchWithCreds = async (url, options = {}) => {
   const response = await fetch(url, {
@@ -19,7 +19,7 @@ const fetchWithCreds = async (url, options = {}) => {
  * @param {string} format - 'tree' | 'flat'
  */
 export const getDepartments = async (format = 'tree') => {
-  const response = await fetchWithCreds(`${API_BASE_URL}/departments?format=${format}`);
+  const response = await fetchWithCreds(`${getApiBaseUrl()}/departments?format=${format}`);
   const result = await response.json();
   if (!response.ok) {
     const msg = result.error || (response.status === 403 ? '권한이 없습니다.' : `HTTP ${response.status}`);
@@ -34,10 +34,10 @@ export const getDepartments = async (format = 'tree') => {
 /**
  * 해당 부서 멤버 목록 (department_code = code)
  * @param {string} code - 부서코드
- * @returns {Promise<Array<{userId, username, role, departmentCode, position, isApprover}>>}
+ * @returns {Promise<Array<{userId, username, role, departmentCode, position}>>}
  */
 export const getDepartmentMembers = async (code) => {
-  const response = await fetchWithCreds(`${API_BASE_URL}/departments/${encodeURIComponent(code)}/members`);
+  const response = await fetchWithCreds(`${getApiBaseUrl()}/departments/${encodeURIComponent(code)}/members`);
   const result = await response.json();
   if (!response.ok) {
     const msg = result.error || (response.status === 404 ? '부서를 찾을 수 없습니다.' : `HTTP ${response.status}`);

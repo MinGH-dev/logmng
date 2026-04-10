@@ -1,12 +1,10 @@
 import axios from 'axios';
+import { getApiBaseUrl } from '../config/runtimeApi';
 import { getSecureStorage, removeSecureStorage } from '../utils/security';
 import logger from '../utils/logger';
 
-// API 기본 설정
-const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || 'http://localhost:9200/api';
-
 const api = axios.create({
-  baseURL: API_BASE_URL,
+  baseURL: getApiBaseUrl(),
   timeout: 30000,
   withCredentials: true, // 세션 쿠키 전달 (통계·활동 로그 등 인증 필요 API용)
   headers: {
@@ -51,10 +49,10 @@ statisticsApiClient.interceptors.response.use(
   }
 );
 
-// 요청 인터셉터
+// 요청 인터셉터 (런타임 API URL: LOGMNG_API_BASE_URL / runtime-config.js)
 api.interceptors.request.use(
   (config) => {
-    // 토큰이 있다면 헤더에 추가
+    config.baseURL = getApiBaseUrl();
     const token = getSecureStorage('accessToken');
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;

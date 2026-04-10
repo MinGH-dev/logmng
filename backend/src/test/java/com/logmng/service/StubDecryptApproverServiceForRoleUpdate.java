@@ -15,10 +15,11 @@ public class StubDecryptApproverServiceForRoleUpdate extends DecryptApproverServ
 
     private final AtomicReference<UserListItemResponse> updateResult = new AtomicReference<>();
     private final AtomicReference<RuntimeException> updateException = new AtomicReference<>();
+    private final AtomicReference<RuntimeException> deleteException = new AtomicReference<>();
     private boolean admin = true;
 
     public StubDecryptApproverServiceForRoleUpdate() {
-        super(null, null);
+        super(null, null, null, null, null);
     }
 
     public void setAdmin(boolean admin) {
@@ -33,6 +34,10 @@ public class StubDecryptApproverServiceForRoleUpdate extends DecryptApproverServ
     public void setUpdateException(RuntimeException ex) {
         updateException.set(ex);
         updateResult.set(null);
+    }
+
+    public void setDeleteException(RuntimeException ex) {
+        deleteException.set(ex);
     }
 
     @Override
@@ -51,6 +56,11 @@ public class StubDecryptApproverServiceForRoleUpdate extends DecryptApproverServ
     }
 
     @Override
+    public List<UserListItemResponse> listUsers(List<Long> allowedNumericUserIds) {
+        return Collections.emptyList();
+    }
+
+    @Override
     public UserListItemResponse updateUserRole(String callerUserId, String targetUserId, String role) {
         RuntimeException ex = updateException.get();
         if (ex != null) {
@@ -60,6 +70,14 @@ public class StubDecryptApproverServiceForRoleUpdate extends DecryptApproverServ
         if (result != null) {
             return result;
         }
-        return new UserListItemResponse(20260001L, targetUserId, role, null, false, null, null, false);
+        return new UserListItemResponse(20260001L, targetUserId, role, null, null, null, false);
+    }
+
+    @Override
+    public void softDeleteUserById(long targetUserId, String changeReason, String actorUsername, String clientIp) {
+        RuntimeException ex = deleteException.get();
+        if (ex != null) {
+            throw ex;
+        }
     }
 }

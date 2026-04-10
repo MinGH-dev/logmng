@@ -1,0 +1,85 @@
+---
+description: How to read wireframe SVGs — root data-* policy + XML comments vs visible text (separation of concerns).
+globs: assets/svg/**/*.svg
+alwaysApply: false
+---
+
+# Wireframe SVG semantics (consumption rules)
+
+Wireframe SVGs under `assets/svg/` (especially `assets/svg/scenes/req-*-*.svg`) separate **what is drawn for users** from **authoring/traceability metadata**. Consumers—**including the Frontend subagent when using a wireframe as context**—must follow these rules instead of duplicating prose in handoff docs.
+
+## 1. Root `<svg>` attributes = policy contract
+
+Treat optional `data-*` attributes on the document root as the **machine-readable policy** for this file:
+
+| Attribute (examples) | Meaning |
+|----------------------|--------|
+| `data-req` | Requirement / trace id |
+| `data-ref` | Primary code entry (e.g. component path) |
+| `data-grid-checkbox-primitive`, `data-grid-checkbox-size` | Checkbox cell visual/size reference |
+| `data-grid-select-primitive` | Single-select / dropdown cell reference (`common-grid-cell-select.svg` pattern) |
+| `data-col-screen-name-policy` | e.g. `user-facing-label-screenId-in-visible-wire-layer` (req matrix): **only** visible text in the screen-name column is user-facing; per-row **screenId** and function summaries live in the **visible** dashed panel `#screen-row-wire-legend-*` (not in XML comments). Legacy name `user-facing-label-only-screenId-and-ux-notes-in-xml-comments` may still appear in older files. Use `na-*` when there is **no** screen-name column (e.g. `na-user-table`, `na-tc09-hierarchy-wireframe`, `na-api-test-cards`): visible table/card text is **sample/mock only**. |
+| `data-screen-row-wire-legend` | Id of the **per-row screenId · 기능 요약** wire block (`#screen-row-wire-legend-…`): dashed panel below the matrix grid, visible in preview. **Not** product UI. Used on `req-20260323-02-permission-group-matrix-final.svg`. |
+| `data-wireframe-semantics` | Version of this comment/schema convention (e.g. `v1`) |
+| `data-wireframe-rules-ref` | Repo path to this rule file (e.g. `.cursor/rules/svg-wireframe-semantics.mdc`) |
+| `data-wireframe-visible-meta` | Id of the **root summary** `<g id="wireframe-visible-meta-…">` (dashed border box): visible **wire annotation** repeating root `data-*` policy for image/browser viewers. Same contract as root attributes + comments; not product UI copy. (Legacy id prefix kept for tooling.) |
+| `data-wireframe-chrome` | **Chrome layer toggle** (preview / agents): `full` (default) shows all wire annotations; `no-meta` hides the **root summary** block and its separator (`.wf-chrome-meta`: bottom dashed box + line above it); `clean` hides **all** wire annotations (`.wf-layout-wire-annotations`, `.wf-chrome-meta`, `.wf-chrome-annotations`) and simplifies dashed test cards to solid outlines. **Not** product runtime. |
+| `data-scope-wire-legend` | Id of the **조회 범위** wire block (`#scope-wire-legend-…`): dashed panel + `wf_anno_tag` + per-screen scope lines (visible in raster preview). **Not** product UI; complements matrix rows. Used on `req-20260323-02-permission-group-matrix-final.svg`. |
+
+If a policy key is present, **do not contradict it** when implementing or when extracting strings from the file.
+
+## 2. Layout: main mock vs wire annotations
+
+**Main layout** (`<g class="wf-layout-main" data-wf-layer="main">`): shell, sidebar, app bar, white `paper`, grids/trees/cards—approximate product viewport.
+
+**Wire annotations stack** (`<g class="wf-layout-wire-annotations" id="wf-wire-annotations-…" data-wf-layer="wire-annotations">`): everything below the main viewport that is not shipped UI—docked spec copy, legends, footnotes, and the **root summary** text block. All of this is **와이어 주석** (one naming bucket for humans); do not treat as product copy. **req-20260323:** one tinted slab only; inner themes are separated by **`wf-section-divider`** lines, not nested annotation boxes.
+
+**Annotation zone slab** (req-20260323 generator): a full-width `rect` (`.wf-annotations-zone-panel`, `id` prefix `wf-annotations-zone-bg-`) plus a top edge line (`.wf-annotations-zone-divider`) and zone title (`.wf-annotations-zone-title`) so the lower canvas reads as a **separate panel** from the product mock. The main shell/sidebar/canvas background rect ends at the same **Y** as the zone top so gray/white product chrome does not bleed into the slab.
+
+### 2.0 Root summary (root `data-*` in visible text)
+
+Some files include **`wf-meta-title` / `wf-meta-line`** copy inside `wireframe-visible-meta-*` (`wf-chrome-meta`, `data-layer="wire-annotations-root"`)—**no inner rect** in req-20260323; a dashed separator line may sit just above this block.
+
+- Sits **below** the main `paper` (or below the wire stack’s upper blocks) in the wire-annotations group.
+- Visible in **normal SVG preview** where `<!-- -->` is not shown.
+- **Same meaning** as root `data-*` and XML comments.
+- Toggle with root `data-wireframe-chrome` (§1).
+
+### 2.1 Other visible markers (req-20260323 wireframes)
+
+To separate **mock UI** from **authoring/spec text** in the same diagram:
+
+| CSS class (examples) | Role |
+|------------------------|------|
+| `wf-anno-tag` | Small label **“와이어 주석 · 제품 UI 아님”** (e.g. on mock test cards in main layout) |
+| `wf-anno-surf` | Dashed stroke on mock-only surfaces (e.g. req-04 cards); **not** used for nested boxes inside the wire slab in req-20260323 |
+| `wf-section-divider` | Horizontal dashed rule between wire-annotation sections within the single lower slab (`id` prefix `wf-section-divider-`) |
+| `wf-anno-text` | Italic gray copy = spec / footnote / MUI hint / subtitle — not final product strings |
+| `wf-anno-legend` | Short legend (e.g. solid vs dashed meaning, matrix row ↔ visible `#screen-row-wire-legend-*` / `#scope-wire-legend-*`) |
+| `wf-mock-tag` | **“UI 목업”** on elements that illustrate real controls (e.g. snackbar) but are still wireframe samples |
+| `wf-layout-wire-annotations` | Parent group for non-main wire copy; hidden when `data-wireframe-chrome="clean"` |
+| `wf-annotations-zone-panel` / `wf-annotations-zone-divider` / `wf-annotations-zone-title` | Lower “second canvas”: tinted full-width slab, top rule, and zone label (req-20260323); `clean` hides with other wire chrome |
+| `wf-chrome-meta` | Root summary `<g>` + separator line above it; hidden when `data-wireframe-chrome="no-meta"` or `clean` |
+| `wf-chrome-annotations` | Wire labels (tags, italic hints, footers, UX banners, root summary group, …); hidden when `data-wireframe-chrome="clean"` |
+| `wf-scope-legend-title` / `wf-scope-legend-line` | **조회 범위** wire legend typography (matrix SVG only); italic lines = spec, not product copy |
+
+**Rough rule:** solid fills + normal weight in the main grid/nav ≈ **screen mockup**; typography + `wf-chrome-annotations` in the lower slab ≈ **comments / spec / non-shipped** (section breaks = `wf-section-divider`, not inner boxes).
+
+## 3. XML comments (`<!-- ... -->`) = optional non-UI layer
+
+- **Prefer visible wire layers** for anything that must show in raster/browser preview: **`#screen-row-wire-legend-*`** (per-row screenId · 기능 요약), **`#scope-wire-legend-*`** (조회 범위), **`#wf-wire-annotations-*`**, **`wireframe-visible-meta-*`** (root summary inside the wire stack), and other `wf-chrome-annotations` text.
+- XML comments, when present, may hold the same trace text for source-only readers; **do not** rely on comments for preview-visible semantics.
+- **Do not** copy comment (or wire-annotation) text into React components, i18n files, or table cells as the source of truth for shipped UI.
+
+**Permission-group matrix (`req-20260323-02-…`):** Row-level summaries → `data-screen-row-wire-legend` / `screen_row_legend_*` in `scripts/generate_req_20260323_approver_svgs.py`. **조회 범위** semantics → `data-scope-wire-legend` / `scope_wire_legend_*` in the same generator.
+
+## 4. Visible SVG text = wireframe mock only
+
+Visible `<text>` (and primitives drawn to match `common-grid-*`) illustrates layout and **sample** labels. **Authoritative** screen labels, API fields, and permission logic still come from `docs/contract.md`, `specs/*.spec.yaml`, and frontend sources of truth (e.g. `screenFunctionDescriptions.js`), not from the SVG alone.
+
+## 5. Runtime vs agent
+
+- The **production app** does not need to parse SVG comments; this rule targets **humans and agents** interpreting wireframes during design/implementation.
+- If tooling is added later to parse comments, it should use the same `data-wireframe-semantics` version and prefixes as documented here.
+
+See also: `.cursor/rules/svg-chromium.mdc` (UTF-8, well-formed XML, primitive alignment).

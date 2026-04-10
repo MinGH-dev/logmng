@@ -2,6 +2,7 @@ package com.logmng.service;
 
 import com.logmng.dto.request.UserActivityLogSearchRequest;
 import com.logmng.dto.response.UserActivityLogResponse;
+import com.logmng.repository.UserActivityAccessAuditRepository;
 
 import javax.sql.DataSource;
 import java.util.Collections;
@@ -15,7 +16,7 @@ public class StubUserActivityLogServiceCapture extends UserActivityLogService {
     private UserActivityLogSearchRequest lastRequest;
 
     public StubUserActivityLogServiceCapture(DataSource dataSource) {
-        super(dataSource);
+        super(dataSource, new UserActivityAccessAuditRepository(dataSource));
     }
 
     @Override

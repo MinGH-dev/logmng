@@ -1,0 +1,27 @@
+name: Frontend screen access verify
+
+on:
+  push:
+    paths:
+      - 'frontend/**'
+      - 'backend/src/main/java/com/logmng/constants/ScreenConstants.java'
+      - 'backend/src/main/java/com/logmng/config/ScreenAccessInterceptor.java'
+      - 'scripts/verify-screen-access-consistency.js'
+  pull_request:
+    paths:
+      - 'frontend/**'
+      - 'backend/src/main/java/com/logmng/constants/ScreenConstants.java'
+      - 'backend/src/main/java/com/logmng/config/ScreenAccessInterceptor.java'
+      - 'scripts/verify-screen-access-consistency.js'
+
+jobs:
+  verify-screen-access:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: verify:screen-access (menu + interceptor drift)
+        run: npm run verify:screen-access
+        working-directory: frontend
