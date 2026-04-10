@@ -25,6 +25,7 @@ import { getErrorMessage } from '../../utils/errorMessage';
 import DataTable, { EmptyTableBody } from '../DataTable';
 import ScreenSelectionTree from './ScreenSelectionTree';
 import { MENU_TREE } from '../../constants/menuTree';
+import { hasPermissionGroupAdminFamilyAccess, hasPermissionGroupAdminWrite } from '../../constants/screenAccessPolicy';
 import logger from '../../utils/logger';
 import '../UserManagement/UserManagement.css';
 import './PermissionGroupManagement.css';
@@ -70,12 +71,8 @@ const PermissionGroupPanel = ({ user, onRefreshHierarchy, menuTree = MENU_TREE }
   const ids = getAllowedScreenIds(user);
   const screenFunctions = getScreenFunctions(user);
   const canAccessPermissionGroupManagement =
-    user?.isSystemAdmin === true ||
-    (Array.isArray(ids) &&
-      (ids.includes('permission-group-management') || ids.includes('user-permission-hierarchy')));
-  const canWrite =
-    screenFunctions?.['permission-group-management']?.write === true ||
-    screenFunctions?.['user-permission-hierarchy']?.write === true;
+    user?.isSystemAdmin === true || hasPermissionGroupAdminFamilyAccess(ids);
+  const canWrite = hasPermissionGroupAdminWrite(screenFunctions);
 
   const sortedGroups = useMemo(() => {
     if (!groups.length || !sortConfig.key) return groups;

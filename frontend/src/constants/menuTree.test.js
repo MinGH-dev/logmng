@@ -21,7 +21,12 @@ describe('menuTree permission allowlists (req 20260406 screen-display-labels)', 
   });
 
   test('TC-05 regression: core screen ids remain in ordered allowlist', () => {
-    for (const id of ['java-fw-imagelog', 'activity-log', 'permission-group-management']) {
+    for (const id of [
+      'java-fw-imagelog',
+      'activity-log',
+      'permission-group-management',
+      'permission-group-screen-matrix',
+    ]) {
       expect(ORDERED_SCREEN_IDS).toContain(id);
     }
   });

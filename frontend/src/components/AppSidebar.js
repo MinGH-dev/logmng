@@ -2,6 +2,7 @@ import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { Sidebar, Menu, MenuItem, SubMenu } from 'react-pro-sidebar';
 import { useTheme } from '@mui/material/styles';
 import { MENU_TREE, SECOND_ICONS } from '../constants/menuTree';
+import { canShowAdminSidebarChild } from '../constants/screenAccessPolicy';
 import { isHrSyncPocMenuEnabled } from '../config/hrSyncPocUi';
 import logger from '../utils/logger';
 
@@ -26,33 +27,13 @@ function AppSidebar({
 
   const filteredTree = useMemo(() => {
     const ids = Array.isArray(allowedScreenIds) ? allowedScreenIds : [];
-    /** Show child when user has access. user-management and permission-group-management also accept user-permission-hierarchy. */
-    const canShowChild = (c) => {
-      if (c.systemAdminOnly === true && !isAdmin) return false;
-      if (c.view === 'hr-sync-poc' && !isHrSyncPocMenuEnabled()) return false;
-      if (c.view === 'user-management-v2-poc' && !isHrSyncPocMenuEnabled()) return false;
-      if (!c?.view || !ids?.length) return false;
-      if (c.view === 'user-management') return ids.includes('user-management') || ids.includes('user-permission-hierarchy');
-      if (c.view === 'hr-sync-poc') {
-        return ids.includes('user-management') || ids.includes('user-permission-hierarchy');
-      }
-      if (c.view === 'user-management-v2') {
-        return ids.includes('user-management-v2') || ids.includes('user-management') || ids.includes('user-permission-hierarchy');
-      }
-      if (c.view === 'user-management-v2-poc') {
-        return (
-          ids.includes('user-management-v2-poc') ||
-          ids.includes('hr-sync-poc') ||
-          ids.includes('user-management-v2') ||
-          ids.includes('user-management') ||
-          ids.includes('user-permission-hierarchy')
-        );
-      }
-      if (c.view === 'permission-group-management' || c.view === 'permission-group-screen-matrix') {
-        return ids.includes('permission-group-management') || ids.includes('user-permission-hierarchy');
-      }
-      return ids.includes(c.view);
-    };
+    const pocMenu = isHrSyncPocMenuEnabled;
+    const canShowChild = (c) =>
+      canShowAdminSidebarChild(c, {
+        allowedScreenIds: ids,
+        isAdmin,
+        isHrSyncPocMenuEnabled: pocMenu,
+      });
     return menuTree.filter((node) => {
       if (node.adminOnly && !isAdmin) {
         const hasAnyAllowedChild = node.children?.some((c) => canShowChild(c));

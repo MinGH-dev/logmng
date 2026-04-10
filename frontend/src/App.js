@@ -18,6 +18,12 @@ import PendingApprovals from './components/PendingApprovals/PendingApprovals';
 import AppSidebar, { DRAWER_WIDTH_OPEN, DRAWER_WIDTH_COLLAPSED } from './components/AppSidebar';
 import AppBar from './components/AppBar';
 import { ORDERED_SCREEN_IDS } from './constants/menuTree';
+import {
+  canAccessView as policyCanAccessView,
+  canNonAdminAccessCurrentView,
+  canAccessDeepLinkHrSyncPoc,
+  canAccessDeepLinkUserManagementV2Poc,
+} from './constants/screenAccessPolicy';
 import { useScreenDisplayLabels } from './hooks/useScreenDisplayLabels';
 import ScreenDisplayLabelsSettings from './components/ScreenDisplayLabelsSettings/ScreenDisplayLabelsSettings';
 import {
@@ -59,33 +65,11 @@ function App() {
     user
   );
 
-  const canAccessView = (view) => {
-    if (user?.isSystemAdmin === true) return true;
-    const ids = getAllowedScreenIds(user);
-    if (!ids || ids.length === 0) return false;
-    if (view === 'user-management') {
-      return ids.includes('user-management') || ids.includes('user-permission-hierarchy');
-    }
-    if (view === 'hr-sync-poc') {
-      return ids.includes('user-management') || ids.includes('user-permission-hierarchy');
-    }
-    if (view === 'user-management-v2') {
-      return ids.includes('user-management-v2') || ids.includes('user-management') || ids.includes('user-permission-hierarchy');
-    }
-    if (view === 'user-management-v2-poc') {
-      return (
-        ids.includes('user-management-v2-poc') ||
-        ids.includes('hr-sync-poc') ||
-        ids.includes('user-management-v2') ||
-        ids.includes('user-management') ||
-        ids.includes('user-permission-hierarchy')
-      );
-    }
-    if (view === 'permission-group-management' || view === 'permission-group-screen-matrix') {
-      return ids.includes('permission-group-management') || ids.includes('user-permission-hierarchy');
-    }
-    return ids.includes(view);
-  };
+  const canAccessView = (view) =>
+    policyCanAccessView(view, {
+      allowedScreenIds: getAllowedScreenIds(user),
+      isSystemAdmin: user?.isSystemAdmin === true,
+    });
 
   const getFirstAllowedScreen = (u) => {
     if (u?.isSystemAdmin === true) return ORDERED_SCREEN_IDS[0];
@@ -106,22 +90,7 @@ function App() {
     const allowed = user?.isSystemAdmin === true || (ids && ids.length > 0);
     if (!allowed) return;
     const canAccess =
-      user?.isSystemAdmin === true ||
-      (currentView === 'user-management' || currentView === 'user-permission-hierarchy'
-        ? ids.includes('user-management') || ids.includes('user-permission-hierarchy')
-        : currentView === 'hr-sync-poc'
-          ? ids.includes('user-management') || ids.includes('user-permission-hierarchy')
-        : currentView === 'user-management-v2'
-          ? ids.includes('user-management-v2') || ids.includes('user-management') || ids.includes('user-permission-hierarchy')
-        : currentView === 'user-management-v2-poc'
-          ? ids.includes('user-management-v2-poc') ||
-            ids.includes('hr-sync-poc') ||
-            ids.includes('user-management-v2') ||
-            ids.includes('user-management') ||
-            ids.includes('user-permission-hierarchy')
-        : currentView === 'permission-group-management' || currentView === 'permission-group-screen-matrix'
-          ? ids.includes('permission-group-management') || ids.includes('user-permission-hierarchy')
-          : ids.includes(currentView));
+      user?.isSystemAdmin === true || canNonAdminAccessCurrentView(currentView, ids);
     if (!canAccess) setCurrentView(getFirstAllowedScreen(user));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isAuthenticated, user]);
@@ -132,10 +101,10 @@ function App() {
     const path = (window.location.pathname || '').replace(/\/$/, '');
     if (!path.endsWith('/user-management/hr-sync-poc')) return;
     const ids = getAllowedScreenIds(user) ?? [];
-    const ok =
-      user?.isSystemAdmin === true ||
-      ids.includes('user-management') ||
-      ids.includes('user-permission-hierarchy');
+    const ok = canAccessDeepLinkHrSyncPoc({
+      allowedScreenIds: ids,
+      isSystemAdmin: user?.isSystemAdmin === true,
+    });
     if (ok) setCurrentView('hr-sync-poc');
   }, [isAuthenticated, user]);
 
@@ -145,13 +114,10 @@ function App() {
     const path = (window.location.pathname || '').replace(/\/$/, '');
     if (!path.endsWith('/user-management/poc-v2')) return;
     const ids = getAllowedScreenIds(user) ?? [];
-    const ok =
-      user?.isSystemAdmin === true ||
-      ids.includes('user-management-v2-poc') ||
-      ids.includes('hr-sync-poc') ||
-      ids.includes('user-management-v2') ||
-      ids.includes('user-management') ||
-      ids.includes('user-permission-hierarchy');
+    const ok = canAccessDeepLinkUserManagementV2Poc({
+      allowedScreenIds: ids,
+      isSystemAdmin: user?.isSystemAdmin === true,
+    });
     if (ok) setCurrentView('user-management-v2-poc');
   }, [isAuthenticated, user]);
 
@@ -294,24 +260,7 @@ function App() {
     const isAdmin = user?.isSystemAdmin === true;
     const ids = getAllowedScreenIds(user);
     const hasAccess =
-      isAdmin ||
-      (ids &&
-        ids.length > 0 &&
-        (currentView === 'user-management' || currentView === 'user-permission-hierarchy'
-          ? ids.includes('user-management') || ids.includes('user-permission-hierarchy')
-          : currentView === 'hr-sync-poc'
-            ? ids.includes('user-management') || ids.includes('user-permission-hierarchy')
-          : currentView === 'user-management-v2'
-            ? ids.includes('user-management-v2') || ids.includes('user-management') || ids.includes('user-permission-hierarchy')
-          : currentView === 'user-management-v2-poc'
-            ? ids.includes('user-management-v2-poc') ||
-              ids.includes('hr-sync-poc') ||
-              ids.includes('user-management-v2') ||
-              ids.includes('user-management') ||
-              ids.includes('user-permission-hierarchy')
-          : currentView === 'permission-group-management' || currentView === 'permission-group-screen-matrix'
-            ? ids.includes('permission-group-management') || ids.includes('user-permission-hierarchy')
-            : ids.includes(currentView)));
+      isAdmin || (ids && ids.length > 0 && canNonAdminAccessCurrentView(currentView, ids));
     if (!hasAccess) setCurrentView(getFirstAllowedScreen(user));
   }, [isAuthenticated, user, currentView]);
 

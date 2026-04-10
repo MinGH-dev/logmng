@@ -78,7 +78,7 @@ public final class ScreenConstants {
                     PERMISSION_GROUP_SCREEN_MATRIX).stream().collect(Collectors.toSet())
     );
 
-    /** Screens that support approve (decrypt_approver). Per spec §4.4. */
+    /** Screens that support approve (permission group explicit approve; contract 「복호화 승인 자격」). Per spec §4.4. */
     private static final Set<String> SCREENS_WITH_APPROVE = Collections.unmodifiableSet(
             Arrays.asList(SEARCH_HISTORY, PENDING_APPROVALS).stream().collect(Collectors.toSet())
     );

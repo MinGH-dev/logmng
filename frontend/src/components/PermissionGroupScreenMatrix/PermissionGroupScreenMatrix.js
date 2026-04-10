@@ -18,6 +18,7 @@ import {
 } from '../../constants/screenFunctionDescriptions';
 import { getErrorMessage } from '../../utils/errorMessage';
 import { MENU_TREE } from '../../constants/menuTree';
+import { hasPermissionGroupAdminFamilyAccess, hasPermissionGroupAdminWrite } from '../../constants/screenAccessPolicy';
 import logger from '../../utils/logger';
 import '../UserManagement/UserManagement.css';
 import '../PermissionGroupManagement/PermissionGroupManagement.css';
@@ -48,13 +49,8 @@ const getItemForScreen = (normalized, screenId) =>
 const PermissionGroupScreenMatrix = ({ user, menuTree }) => {
   const ids = getAllowedScreenIds(user);
   const screenFunctions = getScreenFunctions(user);
-  const canAccess =
-    user?.isSystemAdmin === true ||
-    (Array.isArray(ids) &&
-      (ids.includes('permission-group-management') || ids.includes('user-permission-hierarchy')));
-  const canWrite =
-    screenFunctions?.['permission-group-management']?.write === true ||
-    screenFunctions?.['user-permission-hierarchy']?.write === true;
+  const canAccess = user?.isSystemAdmin === true || hasPermissionGroupAdminFamilyAccess(ids);
+  const canWrite = hasPermissionGroupAdminWrite(screenFunctions);
 
   const [groups, setGroups] = useState([]);
   const [groupsLoading, setGroupsLoading] = useState(false);

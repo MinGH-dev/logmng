@@ -20,13 +20,18 @@ import {
   CloudSync as CloudSyncIcon,
 } from '@mui/icons-material';
 
-/** 허용 화면 ID 목록 (spec §4.1). 로그 검색: pb-feplog, pb-fep-log-search, java-fw-imagelog. */
+/**
+ * 허용 화면 ID 목록 — aligned with backend {@code ScreenConstants.getAllAllowedScreens()}
+ * (req docs/requirements/20260410-screen-access-menu-api-consistency.md).
+ */
 export const ALLOWED_SCREEN_IDS = [
+  'main',
   'pb-feplog',
   'pb-fep-log-search',
   'java-fw-imagelog',
   'search-history',
   'activity-log',
+  'activity-log-detail',
   'activity-log-access-audit',
   'statistics',
   'pending-approvals',
@@ -34,8 +39,10 @@ export const ALLOWED_SCREEN_IDS = [
   'user-management-v2',
   'hr-sync-poc',
   'user-management-v2-poc',
+  'department-approvers',
   'user-permission-hierarchy',
   'permission-group-management',
+  'permission-group-screen-matrix',
   'screen-display-labels',
 ];
 
@@ -180,13 +187,18 @@ export function getDefaultSortOrderForScreenId(screenId) {
   return 0;
 }
 
-/** Ordered screen IDs for first-allowed-screen (menu order). req 20260318. */
+/**
+ * First-allowed-screen order — MENU_TREE leaf `view` ids plus spec-only navigational ids;
+ * aligned with backend screen set (req docs/requirements/20260410-screen-access-menu-api-consistency.md).
+ */
 export const ORDERED_SCREEN_IDS = [
+  'main',
   'pb-feplog',
   'pb-fep-log-search',
   'java-fw-imagelog',
   'search-history',
   'activity-log',
+  'activity-log-detail',
   'activity-log-access-audit',
   'pending-approvals',
   'statistics',
@@ -194,7 +206,9 @@ export const ORDERED_SCREEN_IDS = [
   'user-management-v2',
   'hr-sync-poc',
   'user-management-v2-poc',
+  'department-approvers',
   'user-permission-hierarchy',
   'permission-group-management',
+  'permission-group-screen-matrix',
   'screen-display-labels',
 ];

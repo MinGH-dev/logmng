@@ -21,8 +21,14 @@ Use this skill for questions about permissions, screen access, `is_system_admin`
 - Permission-group admin APIs record structured `permissionGroupAuditV1` in activity `action_detail` (allowlisted fields; `includeParams=false` on mutating endpoints — no raw body without a dedicated sanitizer). See `specs/activity-permission-group-audit.spec.yaml`.
 - Approval-only roles must stay aligned with approver business rules and screen-access limits.
 
+## Screen access policy (frontend)
+
+- Documented menu/view alias rules live in **`frontend/src/constants/screenAccessPolicy.js`** (see `docs/requirements/20260410-screen-access-menu-api-consistency.md`). Do not add ad-hoc `|| ids.includes(...)` in `AppSidebar`, `App`, or permission-group panels.
+- **`PERMISSION_GROUPS_API_EXPECTED_SCREEN_IDS`** must stay aligned with **`ScreenAccessInterceptor`** `/api/permission-groups.*` once Backend updates land; drift is caught by **`npm run verify:screen-access`** (repo root via `frontend/package.json` script).
+
 ## References
 
 - `docs/contract.md`
 - `specs/permission-group-hierarchy.spec.yaml`
 - `docs/requirements/TOPIC-INDEX.md`
+- `docs/requirements/20260410-screen-access-menu-api-consistency.md`

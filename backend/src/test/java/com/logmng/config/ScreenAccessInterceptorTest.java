@@ -202,6 +202,35 @@ class ScreenAccessInterceptorTest {
         assertThat(interceptor.preHandle(req, res, null)).isTrue();
     }
 
+    /** TC-01 req 20260410: matrix screen only must pass interceptor for GET /api/permission-groups. */
+    @Test
+    void getPermissionGroups_allowedWithPermissionGroupScreenMatrixOnly() throws Exception {
+        LoginResponse user = new LoginResponse();
+        user.setUsername("pgmatrix");
+        user.setIsSystemAdmin(false);
+        user.setAllowedScreenIds(List.of(ScreenConstants.PERMISSION_GROUP_SCREEN_MATRIX));
+        auth.setUser(user);
+
+        MockHttpServletRequest req = new MockHttpServletRequest("GET", "/api/permission-groups");
+        MockHttpServletResponse res = new MockHttpServletResponse();
+        assertThat(interceptor.preHandle(req, res, null)).isTrue();
+    }
+
+    /** TC-02 req 20260410: permission-group-management only must pass interceptor for GET /api/permission-groups. */
+    @Test
+    void getPermissionGroups_allowedWithPermissionGroupManagementOnly() throws Exception {
+        LoginResponse user = new LoginResponse();
+        user.setUsername("pgmgmt");
+        user.setIsSystemAdmin(false);
+        user.setAllowedScreenIds(List.of(ScreenConstants.PERMISSION_GROUP_MANAGEMENT));
+        auth.setUser(user);
+
+        MockHttpServletRequest req = new MockHttpServletRequest("GET", "/api/permission-groups");
+        MockHttpServletResponse res = new MockHttpServletResponse();
+        assertThat(interceptor.preHandle(req, res, null)).isTrue();
+    }
+
+    /** TC-03 req 20260410: neither PG admin screens nor UM family → 403. */
     @Test
     void getPermissionGroups_deniedWithoutManagementFamilyScreens() throws Exception {
         LoginResponse user = new LoginResponse();
@@ -234,7 +263,7 @@ class ScreenAccessInterceptorTest {
         private LoginResponse user;
 
         CapturingAuth() {
-            super(null, null, null, null, null, new com.logmng.config.AuthProperties(), null, null);
+            super(null, null, null, null, new com.logmng.config.AuthProperties(), null, null);
         }
 
         void setUser(LoginResponse user) {

@@ -1,13 +1,14 @@
 # Permission group management & user-permission hierarchy
 # Requirement: docs/requirements/20250227-user-permission-hierarchy-group.md
 # Screen access: docs/requirements/20250227-permission-group-screen-menu-access.md
+# Path OR for /api/permission-groups.*: docs/requirements/20260410-screen-access-menu-api-consistency.md (§4.3.1)
 # Contract step: Step 3 — API/DB contract only; no code.
 
 ---
 metadata:
   title: "Permission group CRUD, user-group assignment, user-permission hierarchy, screen access"
-  version: "1.11"
-  requirement: "20250227-user-permission-hierarchy-group, 20250227-permission-group-screen-menu-access, 20250303-activity-statistics-self-only-scope, 20250303-screen-function-availability, explicit-read-write-approve-per-screen, 20260323-approver-eligibility-from-permission-group-only, 20260330-activity-types-user-mgmt-permission-group, 20260330-permission-group-activity-detail-audit, 20260406-permission-group-invalid-screen-id-screen-display-labels, 20260407-pending-approvals-history-search-readonly-requester, 20260408-poc-user-management-v2-isolated-clone, 20260409-user-management-v2-read-scope"
+  version: "1.12"
+  requirement: "20250227-user-permission-hierarchy-group, 20250227-permission-group-screen-menu-access, 20250303-activity-statistics-self-only-scope, 20250303-screen-function-availability, explicit-read-write-approve-per-screen, 20260323-approver-eligibility-from-permission-group-only, 20260330-activity-types-user-mgmt-permission-group, 20260330-permission-group-activity-detail-audit, 20260406-permission-group-invalid-screen-id-screen-display-labels, 20260407-pending-approvals-history-search-readonly-requester, 20260408-poc-user-management-v2-isolated-clone, 20260409-user-management-v2-read-scope, 20260410-screen-access-menu-api-consistency"
   status: "draft"
 
 ---
@@ -82,6 +83,7 @@ On POST/PUT permission-groups, validate each `allowedScreens` item against per-s
 | department-approvers | ✓ | ✓ | — | — | read required; write optional. approve/decrypt must be false or omitted |
 | user-permission-hierarchy | ✓ | ✓ | — | — | read required; write optional. approve/decrypt must be false or omitted |
 | permission-group-management | ✓ | ✓ | — | — | same as user-permission-hierarchy |
+| permission-group-screen-matrix | ✓ | ✓ | — | — | same as permission-group-management — 화면–권한 매트릭스(v2) admin; **`permission-group-management`과 동일한 API·인터셉터 게이트** (req `20260410-screen-access-menu-api-consistency`) |
 | screen-display-labels | ✓ | — | — | — | read only (menu/navigation grant for the Screen display names admin view). write/approve/decrypt must be false or omitted. **PUT /api/screen-display-labels** (persist label config) remains **system-admin-only** (`is_system_admin=true`); permission-group does not grant that write path. |
 
 **Defaults when omitted** (backward compat): read=true; write/approve = per-screen default (main: false; search-history/pending-approvals: **approve default false** when omitted; management screens: write=true when screen supports it). decrypt: only for main; default false when omitted (req 20260306). **Legacy `decrypt_approver` is not used** for derivation after req 20260323 migration.
@@ -286,6 +288,7 @@ Existing: USER_NOT_FOUND, FORBIDDEN, INVALID_INPUT, SELF_DEMOTION_BLOCKED, LAST_
 | department-approvers | 부서별 결재자 |
 | user-permission-hierarchy | 사용자 권한 계층 |
 | permission-group-management | 권한 그룹 관리 (same as user-permission-hierarchy) |
+| permission-group-screen-matrix | 권한 그룹 화면–권한 매트릭스 (v2 admin; same API access family as permission-group-management — req `20260410-screen-access-menu-api-consistency`) |
 | screen-display-labels | 화면 표시 이름 (Screen display names — admin settings view; MENU_TREE `screen-display-labels`) |
 
 Validation: PUT/POST permission-groups with `allowedScreens` must have each value in this list; otherwise 400 `INVALID_SCREEN_ID`.
@@ -310,6 +313,26 @@ APIs that correspond to screens must validate: user has is_system_admin=true **o
 - scope='all': Pass request params as-is; no override. For `GET /api/search-history`, requester filters narrow the full visible set and never expand scope (for the effective scope key).
 - scope null/omitted: Treated as 'team' (default for scope-supporting screens).
 - is_system_admin=true: Always full scope; ignore permission group scope.
+
+### 4.3.1 Permission-group family APIs (`/api/permission-groups` and subpaths)
+
+**Requirement**: `docs/requirements/20260410-screen-access-menu-api-consistency.md` §1 expected outcome — **`permission-group-screen-matrix`** is honored **everywhere** **`permission-group-management`** is for this API family (interceptor path rule + controller entry + write checks).
+
+For **non–system-admin** callers, **`ScreenAccessInterceptor`** MUST treat **`^/api/permission-groups.*`** as requiring **any one** of the following in `allowedScreenIds` (OR list):
+
+- `user-management`
+- `user-permission-hierarchy`
+- `user-management-v2`
+- `permission-group-management`
+- `permission-group-screen-matrix`
+
+**`PermissionGroupController`** entry (`requireUserManagementAccess` or successor helper) MUST use the **same** screen-id OR set as the interceptor for `/api/permission-groups` (no case where the interceptor passes but the controller denies solely because only `permission-group-management` / `permission-group-screen-matrix` is present).
+
+**Mutations** (POST/PUT/DELETE and user assign/unassign under `/api/permission-groups/**`): require **effective `write: true`** in `screenFunctions` for **at least one** screen that satisfies the list above and supports write in §1.1.1 — i.e. include **`permission-group-management`** and **`permission-group-screen-matrix`** in the same write check family as `user-management`, `user-management-v2`, and `user-permission-hierarchy` (`hasWriteForManagementScreens` or equivalent).
+
+**UM v2 read scope** for shared GETs (`GET /api/permission-groups`, `GET /api/departments/user-permission-hierarchy`, etc.) is unchanged: when the operator uses UM v2 data paths, **`screenScopes['user-management-v2']`** still applies per rows below; holding **only** `permission-group-management` or **only** `permission-group-screen-matrix` does **not** imply UM v2 scope keys unless those screens are also granted.
+
+**DOC-CODE-SYNC**: `ScreenAccessInterceptor` PATH_SCREEN_RULES for `/api/permission-groups.*` and `AuthService.canAccessUserManagementView` / `hasWriteForManagementScreens` include **`permission-group-management`** and **`permission-group-screen-matrix`** per §4.3.1 (Backend req `20260410-screen-access-menu-api-consistency`).
 
 **Scope enforcement (user-management-v2)** — req `20260409-user-management-v2-read-scope`. When `is_system_admin=false` and the session is authorized for **`user-management-v2`**, apply **`screenScopes['user-management-v2']`** to **read/list** paths used by the UM v2 UI. Default when null/omitted in stored permission rows: **`team`** (same as other scope screens, req `20250304-team-scope-default`).
 - **`self`**: **`GET /api/users`** returns **only** the authenticated user's row. **`GET /api/departments/user-permission-hierarchy`** must not reveal unrelated departments/users beyond minimal display context for that operator (implementation-defined redaction: e.g. single department chain without sibling departments — DOC-CODE-SYNC with `specs/user-management-v2.spec.yaml`). **`GET /api/user-management-v2/quick-entry/options`** must not leak other users' data; values are operator-scoped only. Any client-supplied query parameters that would widen visibility **must** be ignored or server-overridden (no client-trusted widening).
@@ -336,12 +359,13 @@ APIs that correspond to screens must validate: user has is_system_admin=true **o
 | activity-log | /api/activity-log/*, **GET** `/api/activity-log/action-types` (optional; activity-type filter options), /api/filter-options/departments?screen=activity-log | Use scope: self → override `userId`, ignore or safely override `username`, `department`, `departmentCode`, `ipAddress`, and equivalent "all" inputs so the result remains current-user-only, and show visible locked self-context from auth/current-user `selfContext`; shared filter-options endpoint is not the source of those locked values and may return `[]`; team → same department and shared filter-options endpoint returns only the current user's own department option; all → pass params as-is. Canonical **`action_type`** codes for `user_activity_log` and optional `action-types` response: `specs/activity-action-types.spec.yaml`. |
 | statistics | /api/statistics/*, /api/filter-options/departments?screen=statistics | Use scope: self → override userId, ignore dept/ip, and show visible locked self-context from auth/current-user `selfContext`; shared filter-options endpoint is not the source of those locked values and may return `[]`; team → same department and shared filter-options endpoint returns only the current user's own department option; all → pass params as-is |
 | user-management | /api/users, /api/users/approvers, /api/users/approvers/{userId} | No **`scope`** field for this screen_id in **`AllowedScreenItem`**; list behavior unchanged by `screenScopes['user-management']` in this contract. |
-| user-management-v2 | **`GET`** `/api/users`, **`GET`** `/api/departments/user-permission-hierarchy`, **`GET`** `/api/permission-groups` (and **`/api/permission-groups/**`** — same `ScreenAccessInterceptor` rule as legacy management screens; UM v2 shell list/dropdown; req `20260409-user-management-v2-permission-groups-api-access-bugfix`), **`GET`** `/api/user-management-v2/quick-entry/options`, and **`/api/user-management-v2/**`** mutations as in `specs/user-management-v2.spec.yaml` | **`screenScopes['user-management-v2']`** for non-admins: **self** / **team** / **all**, default **team**; see **Scope enforcement (user-management-v2)** above. Screen access for shared GETs: caller must have **`user-management-v2`** (or system admin) per interceptor / `canAccessUserManagementView` family — **first-class** with `user-management` / `user-permission-hierarchy` (req 20260409). |
+| user-management-v2 | **`GET`** `/api/users`, **`GET`** `/api/departments/user-permission-hierarchy`, **`GET`** `/api/permission-groups` (and **`/api/permission-groups/**`** — same `ScreenAccessInterceptor` rule as permission-group / legacy management family; req `20260409-user-management-v2-permission-groups-api-access-bugfix`; req `20260410-screen-access-menu-api-consistency` — **`permission-group-management`** and **`permission-group-screen-matrix`** in **§4.3.1**), **`GET`** `/api/user-management-v2/quick-entry/options`, and **`/api/user-management-v2/**`** mutations as in `specs/user-management-v2.spec.yaml` | **`screenScopes['user-management-v2']`** for non-admins: **self** / **team** / **all**, default **team**; see **Scope enforcement (user-management-v2)** above. That scope applies to the shared GETs in the first column **only when** the session includes **`user-management-v2`**; sessions with **only** `permission-group-management` or **only** `permission-group-screen-matrix` (and no UM v2) use **§4.3.1** for `/api/permission-groups.*` but **do not** apply **`screenScopes['user-management-v2']`**. |
 | hr-sync-poc | /api/hr-sync/poc/config, /api/hr-sync/poc/preview, /api/hr-sync/poc/snapshots, /api/hr-sync/poc/snapshots/{snapshotId}/employees (`specs/hr-sync-poc.spec.yaml` §4.1–4.4) | — |
 | user-management-v2-poc | /api/hr-sync/poc/user-mgmt/replica-departments/tree, /api/hr-sync/poc/user-mgmt/replica-users, /api/hr-sync/poc/user-mgmt/actions/migrate-preview (`specs/hr-sync-poc.spec.yaml` §4.5–4.7) | — |
 | department-approvers | /api/departments, /api/departments/{code}/approvers, /api/departments/{code}/members, /api/departments/{code}/approvers/default | — |
 | user-permission-hierarchy | /api/permission-groups/*, /api/departments/user-permission-hierarchy | — |
-| permission-group-management | Same as user-permission-hierarchy | — |
+| permission-group-management | Same as user-permission-hierarchy (**§4.3.1** — OR with `user-management`, `user-management-v2`, `permission-group-screen-matrix` for `/api/permission-groups.*`) | — |
+| permission-group-screen-matrix | Same as permission-group-management (**§4.3.1**) | — |
 | screen-display-labels | **GET** `/api/screen-display-labels` — any authenticated user may call (menu/display metadata; see `specs/menu-display-labels.spec.yaml`). **PUT** `/api/screen-display-labels` — **system admin only**; not gated by permission-group `write` (§1.1.1: this screen has no write flag in `allowedScreens`). Route/menu visibility may still require `systemAdminOnly` in the client. | — |
 
 ## 4.4 screenFunctions (per-screen function availability)
@@ -398,6 +422,7 @@ screenFunctions: Record<screenId, ScreenFunctionCapability>
 | department-approvers | ✓ | ✓ | — | — | read + write optional | write from group or derived |
 | user-permission-hierarchy | ✓ | ✓ | — | — | read + write optional | write from group or derived |
 | permission-group-management | ✓ | ✓ | — | — | same as user-permission-hierarchy | same |
+| permission-group-screen-matrix | ✓ | ✓ | — | — | same as permission-group-management | same |
 | screen-display-labels | ✓ | — | — | — | read only | `{ read: true }` when in allowedScreenIds (no write/approve/decrypt in group config) |
 
 ### Log search screens (pb-feplog, pb-fep-log-search, java-fw-imagelog) — req 20260318

@@ -61,18 +61,23 @@ public class PermissionGroupController {
         return null;
     }
 
-    /** Allows isSystemAdmin OR allowedScreenIds contains user-management or user-permission-hierarchy. Per spec §4.3. */
+    /**
+     * Allows system admin or any screen id enumerated for permission-group APIs in
+     * {@code AuthService#canAccessUserManagementView} (incl. {@code permission-group-management},
+     * {@code permission-group-screen-matrix}). Per specs/permission-group-hierarchy.spec.yaml §4.3;
+     * {@code docs/requirements/20260410-screen-access-menu-api-consistency.md}.
+     */
     private void requireUserManagementAccess(HttpServletRequest request) {
         if (!authService.checkAuth(request)) {
             throw CustomException.unauthorized("로그인이 필요합니다.", "UNAUTHORIZED");
         }
         if (!authService.canAccessUserManagementView(request)) {
-            log.info("Permission group API access denied: no user-management or user-permission-hierarchy");
+            log.info("Permission group API access denied: no screen in permission-group admin family (see AuthService#canAccessUserManagementView)");
             throw CustomException.forbidden("관리자만 권한 그룹을 관리할 수 있습니다.", "FORBIDDEN");
         }
     }
 
-    /** Requires write function for user-management or user-permission-hierarchy. Per spec §4.4. */
+    /** Requires write per {@code AuthService#hasWriteForManagementScreens} (permission-group admin family). Per spec §4.4. */
     private void requireWriteForManagement(HttpServletRequest request) {
         if (!authService.hasWriteForManagementScreens(request)) {
             log.info("Permission group write API denied: no write function");

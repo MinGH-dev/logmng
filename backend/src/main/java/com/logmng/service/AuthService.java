@@ -42,7 +42,6 @@ public class AuthService {
     private final IpUtil ipUtil;
     private final DataSource dataSource;
     private final PermissionGroupService permissionGroupService;
-    private final DecryptApproverService decryptApproverService;
     private final AppUserResolver appUserResolver;
     private final AuthProperties authProperties;
     private final ExternalIdentityService externalIdentityService;
@@ -52,13 +51,12 @@ public class AuthService {
     private String authorizedIPs;
 
     public AuthService(IpUtil ipUtil, DataSource dataSource, PermissionGroupService permissionGroupService,
-                      DecryptApproverService decryptApproverService, AppUserResolver appUserResolver,
+                      AppUserResolver appUserResolver,
                       AuthProperties authProperties, ExternalIdentityService externalIdentityService,
                       @Autowired(required = false) LdapBindAuthenticator ldapBindAuthenticator) {
         this.ipUtil = ipUtil;
         this.dataSource = dataSource;
         this.permissionGroupService = permissionGroupService;
-        this.decryptApproverService = decryptApproverService;
         this.appUserResolver = appUserResolver;
         this.authProperties = authProperties;
         this.externalIdentityService = externalIdentityService;
@@ -424,9 +422,9 @@ public class AuthService {
     }
 
     /**
-     * Computes screenFunctions from allowedScreenIds, permission_group_screen, decrypt_approver.
-     * Per spec §4.4: when pgs.read/write/approve non-null, use them; else use derivation.
-     * approve = (pgs.approve OR null) AND (decrypt_approver canApproveForRequester OR is_system_admin).
+     * Computes screenFunctions from allowedScreenIds and permission_group_screen.
+     * Per spec §4.4 / contract 「복호화 승인 자격」: decrypt screens — explicit {@code approve=true} or derived false when null;
+     * then {@code is_system_admin} forces effective approve false. {@code decrypt_approver} is not read.
      */
     protected Map<String, ScreenFunctionCapability> resolveScreenFunctions(String username, boolean isSystemAdmin) {
         Map<String, ScreenFunctionCapability> result = new LinkedHashMap<>();
@@ -437,8 +435,6 @@ public class AuthService {
         if (allowed == null || allowed.isEmpty()) {
             return result;
         }
-        Long userId = appUserResolver.getIdByUsername(username);
-        boolean isApprover = userId != null && decryptApproverService.isApprover(userId);
         Map<String, PermissionGroupService.ScreenFunctionFromDb> pgsMap = permissionGroupService.getScreenFunctionsForUser(username);
         for (String screenId : allowed) {
             if (screenId == null || screenId.isBlank()) continue;
@@ -455,11 +451,13 @@ public class AuthService {
                 }
             }
             if (ScreenConstants.supportsApprove(screenId)) {
-                boolean approverOrAdmin = isSystemAdmin || isApprover;
+                boolean groupApprove = pgs != null && Boolean.TRUE.equals(pgs.approve);
                 if (pgs != null && Boolean.FALSE.equals(pgs.approve)) {
-                    approve = false; // explicit deny
+                    approve = false;
+                } else if (groupApprove) {
+                    approve = !isSystemAdmin;
                 } else {
-                    approve = approverOrAdmin; // pgs.approve true or null -> gate by decrypt_approver
+                    approve = false; // null or missing → §1.1.1 default false
                 }
             }
             if (ScreenConstants.supportsDecrypt(screenId)) {
@@ -506,9 +504,15 @@ public class AuthService {
     }
 
     /**
-     * Returns true if the current user can access the user-management view.
-     * Per specs/permission-group-hierarchy.spec.yaml §4.3: is_system_admin OR
-     * allowedScreenIds contains user-management OR user-permission-hierarchy.
+     * Returns true if the current user can access the user-management <em>family</em> views and
+     * the same controller gate used by {@link com.logmng.controller.PermissionGroupController}
+     * (aligned with {@code ScreenAccessInterceptor} for {@code /api/permission-groups.*}).
+     * <p>
+     * Enumerated {@code allowedScreenIds} (any one is sufficient; system admin bypasses):
+     * {@code user-management}, {@code user-permission-hierarchy}, {@code user-management-v2},
+     * {@code permission-group-management}, {@code permission-group-screen-matrix}.
+     * See {@code docs/requirements/20260410-screen-access-menu-api-consistency.md} and
+     * {@code specs/permission-group-hierarchy.spec.yaml} §4.3.
      */
     public boolean canAccessUserManagementView(HttpServletRequest request) {
         LoginResponse user = getCurrentUserInfo(request);
@@ -517,12 +521,19 @@ public class AuthService {
         List<String> allowed = user.getAllowedScreenIds();
         return allowed != null && (allowed.contains(ScreenConstants.USER_MANAGEMENT)
                 || allowed.contains(ScreenConstants.USER_PERMISSION_HIERARCHY)
-                || allowed.contains(ScreenConstants.USER_MANAGEMENT_V2));
+                || allowed.contains(ScreenConstants.USER_MANAGEMENT_V2)
+                || allowed.contains(ScreenConstants.PERMISSION_GROUP_MANAGEMENT)
+                || allowed.contains(ScreenConstants.PERMISSION_GROUP_SCREEN_MATRIX));
     }
 
     /**
-     * Returns true if the current user has write permission for user-management or user-permission-hierarchy.
-     * Per spec §4.4: write from group or derived. Return 403 FUNCTION_NOT_ALLOWED when write=false.
+     * Returns true if the current user has write on any management screen that may mutate permission-group
+     * admin APIs ({@link com.logmng.controller.PermissionGroupController}), same family as
+     * {@link #canAccessUserManagementView(HttpServletRequest)} for {@code permission-group-management} /
+     * {@code permission-group-screen-matrix}. Per spec §4.4: write from group or derived.
+     * Enumerated keys: {@code user-management}, {@code user-management-v2}, {@code user-permission-hierarchy},
+     * {@code permission-group-management}, {@code permission-group-screen-matrix}.
+     * Ref: {@code docs/requirements/20260410-screen-access-menu-api-consistency.md}.
      */
     public boolean hasWriteForManagementScreens(HttpServletRequest request) {
         LoginResponse user = getCurrentUserInfo(request);
@@ -533,19 +544,22 @@ public class AuthService {
         ScreenFunctionCapability um = sf.get(ScreenConstants.USER_MANAGEMENT);
         ScreenFunctionCapability umv2 = sf.get(ScreenConstants.USER_MANAGEMENT_V2);
         ScreenFunctionCapability uph = sf.get(ScreenConstants.USER_PERMISSION_HIERARCHY);
+        ScreenFunctionCapability pgm = sf.get(ScreenConstants.PERMISSION_GROUP_MANAGEMENT);
+        ScreenFunctionCapability pgsm = sf.get(ScreenConstants.PERMISSION_GROUP_SCREEN_MATRIX);
         return (um != null && Boolean.TRUE.equals(um.getWrite()))
                 || (umv2 != null && Boolean.TRUE.equals(umv2.getWrite()))
-                || (uph != null && Boolean.TRUE.equals(uph.getWrite()));
+                || (uph != null && Boolean.TRUE.equals(uph.getWrite()))
+                || (pgm != null && Boolean.TRUE.equals(pgm.getWrite()))
+                || (pgsm != null && Boolean.TRUE.equals(pgsm.getWrite()));
     }
 
     /**
-     * Returns true if the current user has approve for search-history or pending-approvals.
-     * Per spec §4.4: approve = (pgs.approve) AND (decrypt_approver or is_system_admin).
+     * Returns true if the current user has effective approve on search-history or pending-approvals
+     * (session {@code screenFunctions}; no {@code decrypt_approver}; system admin never true per contract).
      */
     public boolean hasApproveForSearchHistory(HttpServletRequest request) {
         LoginResponse user = getCurrentUserInfo(request);
         if (user == null) return false;
-        if (Boolean.TRUE.equals(user.getIsSystemAdmin())) return true;
         Map<String, ScreenFunctionCapability> sf = user.getScreenFunctions();
         if (sf == null) return false;
         ScreenFunctionCapability sh = sf.get(ScreenConstants.SEARCH_HISTORY);

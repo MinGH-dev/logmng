@@ -1,9 +1,11 @@
 package com.logmng.service;
 
 import com.logmng.config.AuthProperties;
+import com.logmng.constants.ScreenConstants;
 import com.logmng.dto.request.ChangeMyPasswordRequest;
 import com.logmng.dto.request.LoginRequest;
 import com.logmng.dto.response.LoginResponse;
+import com.logmng.dto.response.ScreenFunctionCapability;
 import com.logmng.util.IpUtil;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -11,6 +13,8 @@ import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.mock.web.MockHttpSession;
 
 import javax.sql.DataSource;
+import java.util.List;
+import java.util.Map;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -30,12 +34,13 @@ class AuthServiceTest {
     void setUp() throws Exception {
         dataSource = createH2DataSource();
         clearAllTables();
+        AppUserResolver resolver = new AppUserResolver(dataSource);
+        PermissionGroupService permissionGroupService = new PermissionGroupService(dataSource, resolver);
         authService = new AuthService(
                 new IpUtil(),
                 dataSource,
-                new PermissionGroupService(dataSource, new AppUserResolver(dataSource)),
-                new DecryptApproverService(dataSource, new DepartmentService(dataSource), null),
-                new AppUserResolver(dataSource),
+                permissionGroupService,
+                resolver,
                 new AuthProperties(),
                 new ExternalIdentityService(dataSource, new AuthProperties()),
                 null);
@@ -138,12 +143,12 @@ class AuthServiceTest {
     private AuthService authServiceWithLoginMode(String mode) {
         AuthProperties props = new AuthProperties();
         props.getLogin().setMode(mode);
+        AppUserResolver resolver = new AppUserResolver(dataSource);
         return new AuthService(
                 new IpUtil(),
                 dataSource,
-                new PermissionGroupService(dataSource, new AppUserResolver(dataSource)),
-                new DecryptApproverService(dataSource, new DepartmentService(dataSource), null),
-                new AppUserResolver(dataSource),
+                new PermissionGroupService(dataSource, resolver),
+                resolver,
                 props,
                 new ExternalIdentityService(dataSource, props),
                 null);
@@ -445,5 +450,72 @@ class AuthServiceTest {
         assertThatThrownBy(() -> authService.changeOwnPassword(requestWithSessionUserId(20260015L), req))
                 .isInstanceOf(com.logmng.exception.CustomException.class)
                 .satisfies(ex -> assertThat(((com.logmng.exception.CustomException) ex).getErrorCode()).isEqualTo("PASSWORD_CHANGE_NOT_ALLOWED"));
+    }
+
+    /** TC-01/02 (AuthService gate mirrors interceptor): permission-group screens satisfy canAccessUserManagementView. */
+    @Test
+    void canAccessUserManagementView_permissionGroupScreenMatrixOnly_returnsTrue() {
+        LoginResponse user = new LoginResponse();
+        user.setIsSystemAdmin(false);
+        user.setAllowedScreenIds(List.of(ScreenConstants.PERMISSION_GROUP_SCREEN_MATRIX));
+        AuthService auth = new FixedLoginUserAuthService(user);
+        assertThat(auth.canAccessUserManagementView(new MockHttpServletRequest())).isTrue();
+    }
+
+    @Test
+    void canAccessUserManagementView_permissionGroupManagementOnly_returnsTrue() {
+        LoginResponse user = new LoginResponse();
+        user.setIsSystemAdmin(false);
+        user.setAllowedScreenIds(List.of(ScreenConstants.PERMISSION_GROUP_MANAGEMENT));
+        AuthService auth = new FixedLoginUserAuthService(user);
+        assertThat(auth.canAccessUserManagementView(new MockHttpServletRequest())).isTrue();
+    }
+
+    @Test
+    void canAccessUserManagementView_searchHistoryOnly_returnsFalse() {
+        LoginResponse user = new LoginResponse();
+        user.setIsSystemAdmin(false);
+        user.setAllowedScreenIds(List.of(ScreenConstants.SEARCH_HISTORY));
+        AuthService auth = new FixedLoginUserAuthService(user);
+        assertThat(auth.canAccessUserManagementView(new MockHttpServletRequest())).isFalse();
+    }
+
+    @Test
+    void hasWriteForManagementScreens_permissionGroupScreenMatrixWrite_returnsTrue() {
+        LoginResponse user = new LoginResponse();
+        user.setIsSystemAdmin(false);
+        user.setScreenFunctions(Map.of(
+                ScreenConstants.PERMISSION_GROUP_SCREEN_MATRIX,
+                new ScreenFunctionCapability(true, true, false)));
+        AuthService auth = new FixedLoginUserAuthService(user);
+        assertThat(auth.hasWriteForManagementScreens(new MockHttpServletRequest())).isTrue();
+    }
+
+    @Test
+    void hasWriteForManagementScreens_permissionGroupScreenMatrixReadOnly_returnsFalse() {
+        LoginResponse user = new LoginResponse();
+        user.setIsSystemAdmin(false);
+        user.setScreenFunctions(Map.of(
+                ScreenConstants.PERMISSION_GROUP_SCREEN_MATRIX,
+                new ScreenFunctionCapability(true, false, false)));
+        AuthService auth = new FixedLoginUserAuthService(user);
+        assertThat(auth.hasWriteForManagementScreens(new MockHttpServletRequest())).isFalse();
+    }
+
+    /**
+     * Minimal AuthService for policy unit tests: returns a fixed {@link LoginResponse} from {@link #getCurrentUserInfo}.
+     */
+    private static final class FixedLoginUserAuthService extends AuthService {
+        private final LoginResponse loginUser;
+
+        FixedLoginUserAuthService(LoginResponse loginUser) {
+            super(null, null, null, null, new AuthProperties(), null, null);
+            this.loginUser = loginUser;
+        }
+
+        @Override
+        public LoginResponse getCurrentUserInfo(jakarta.servlet.http.HttpServletRequest request) {
+            return loginUser;
+        }
     }
 }

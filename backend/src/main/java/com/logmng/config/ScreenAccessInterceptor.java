@@ -23,6 +23,10 @@ import java.util.regex.Pattern;
  * Screen-based access validation per specs/permission-group-hierarchy.spec.yaml §4.3.
  * Validates that non-ADMIN users have the required screen for the API path.
  * ADMIN bypasses; paths without mapping are allowed.
+ * <p>
+ * Permission-group admin API path {@code /api/permission-groups.*}: required screen ids are the
+ * <strong>enumerated</strong> set documented in {@code PATH_SCREEN_RULES} for that pattern and in
+ * {@code docs/requirements/20260410-screen-access-menu-api-consistency.md} (fail-closed; no widening beyond listed ids).
  */
 @Component
 public class ScreenAccessInterceptor implements HandlerInterceptor {
@@ -43,7 +47,12 @@ public class ScreenAccessInterceptor implements HandlerInterceptor {
                     List.of(ScreenConstants.USER_MANAGEMENT, ScreenConstants.USER_PERMISSION_HIERARCHY, ScreenConstants.USER_MANAGEMENT_V2)),
             new PathScreenRule("^/api/departments.*", List.of(ScreenConstants.DEPARTMENT_APPROVERS, ScreenConstants.USER_PERMISSION_HIERARCHY)),
             new PathScreenRule("^/api/permission-groups.*",
-                    List.of(ScreenConstants.USER_MANAGEMENT, ScreenConstants.USER_PERMISSION_HIERARCHY, ScreenConstants.USER_MANAGEMENT_V2)),
+                    List.of(
+                            ScreenConstants.USER_MANAGEMENT,
+                            ScreenConstants.USER_PERMISSION_HIERARCHY,
+                            ScreenConstants.USER_MANAGEMENT_V2,
+                            ScreenConstants.PERMISSION_GROUP_MANAGEMENT,
+                            ScreenConstants.PERMISSION_GROUP_SCREEN_MATRIX)),
             new PathScreenRule("^/api/search-history/pending.*", List.of(ScreenConstants.PENDING_APPROVALS)),
             new PathScreenRule("^/api/search-history/[^/]+/approve.*",
                     List.of(ScreenConstants.PENDING_APPROVALS, ScreenConstants.SEARCH_HISTORY)),

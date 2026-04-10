@@ -8,6 +8,7 @@ import com.logmng.dto.response.LoginResponse;
 import com.logmng.service.AuthService;
 import com.logmng.service.PermissionGroupService;
 import com.logmng.service.UserActivityLogService;
+import com.logmng.util.IpUtil;
 import jakarta.servlet.ServletRequest;
 import jakarta.servlet.ServletResponse;
 import jakarta.servlet.http.HttpServletRequest;
@@ -41,15 +42,18 @@ public class ActivityLogAspect {
     private final UserActivityLogService userActivityLogService;
     private final AuthService authService;
     private final PermissionGroupService permissionGroupService;
+    private final IpUtil ipUtil;
     private final ObjectMapper objectMapper;
     
     public ActivityLogAspect(
             UserActivityLogService userActivityLogService,
             AuthService authService,
-            PermissionGroupService permissionGroupService) {
+            PermissionGroupService permissionGroupService,
+            IpUtil ipUtil) {
         this.userActivityLogService = userActivityLogService;
         this.authService = authService;
         this.permissionGroupService = permissionGroupService;
+        this.ipUtil = ipUtil;
         this.objectMapper = new ObjectMapper();
     }
     
@@ -346,8 +350,8 @@ public class ActivityLogAspect {
                 log.debug("요청 파라미터 직렬화 실패: {}", e.getMessage());
             }
             
-            // IP 주소 가져오기
-            String ipAddress = getClientIpAddress(request);
+            // IP 주소 가져오기 (헤더 비리터럴은 저장하지 않음; IpUtil과 동일 체인 + 검증)
+            String ipAddress = resolveClientIpForActivityLog(request);
             
             // User-Agent 가져오기
             String userAgent = request.getHeader("User-Agent");
@@ -417,151 +421,22 @@ public class ActivityLogAspect {
     }
     
     /**
-     * 클라이언트 IP 주소 가져오기 (사설 IP 우선)
+     * Activity log persistence: validated IP literals only (see req 20260410). DEBUG diagnostic traces
+     * header inputs and resolution outcome; disabled at INFO in production by default.
      */
-    private String getClientIpAddress(HttpServletRequest request) {
-        java.util.List<String> ipCandidates = new java.util.ArrayList<>();
-        
-        // 1. X-Forwarded-For 헤더 확인 (프록시 환경)
-        String xForwardedFor = request.getHeader("X-Forwarded-For");
-        if (xForwardedFor != null && !xForwardedFor.isEmpty() && !"unknown".equalsIgnoreCase(xForwardedFor)) {
-            // X-Forwarded-For는 여러 IP가 콤마로 구분될 수 있음 (프록시 체인)
-            String[] ips = xForwardedFor.split(",");
-            for (String ip : ips) {
-                ip = ip.trim();
-                if (!ip.isEmpty() && !"unknown".equalsIgnoreCase(ip)) {
-                    ipCandidates.add(ip);
-                }
-            }
-        }
-        
-        // 2. X-Real-IP 헤더 확인
-        String xRealIp = request.getHeader("X-Real-IP");
-        if (xRealIp != null && !xRealIp.isEmpty() && !"unknown".equalsIgnoreCase(xRealIp)) {
-            if (!ipCandidates.contains(xRealIp.trim())) {
-                ipCandidates.add(xRealIp.trim());
-            }
-        }
-        
-        // 3. RemoteAddr 확인
-        String remoteAddr = request.getRemoteAddr();
-        // IPv6 localhost를 IPv4로 변환
-        if ("0:0:0:0:0:0:0:1".equals(remoteAddr) || "::1".equals(remoteAddr)) {
-            remoteAddr = "127.0.0.1";
-        }
-        if (!ipCandidates.contains(remoteAddr)) {
-            ipCandidates.add(remoteAddr);
-        }
-        
-        // 3-1. localhost인 경우 실제 네트워크 인터페이스 IP 확인
-        if ("127.0.0.1".equals(remoteAddr) || "localhost".equals(remoteAddr)) {
-            try {
-                java.util.Enumeration<java.net.NetworkInterface> networkInterfaces = 
-                    java.net.NetworkInterface.getNetworkInterfaces();
-                while (networkInterfaces.hasMoreElements()) {
-                    java.net.NetworkInterface ni = networkInterfaces.nextElement();
-                    if (ni.isUp() && !ni.isLoopback() && !ni.isVirtual()) {
-                        java.util.Enumeration<java.net.InetAddress> addresses = ni.getInetAddresses();
-                        while (addresses.hasMoreElements()) {
-                            java.net.InetAddress addr = addresses.nextElement();
-                            if (addr instanceof java.net.Inet4Address && !addr.isLoopbackAddress()) {
-                                String interfaceIp = addr.getHostAddress();
-                                if (isPrivateIp(interfaceIp)) {
-                                    if (!ipCandidates.contains(interfaceIp)) {
-                                        ipCandidates.add(interfaceIp);
-                                        log.debug("✅ 네트워크 인터페이스에서 IP 발견: {} (interface: {})", 
-                                                interfaceIp, ni.getName());
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            } catch (Exception e) {
-                log.debug("네트워크 인터페이스 확인 실패: {}", e.getMessage());
-            }
-        }
-        
-        // 4. 사설 IP 우선 선택
-        String selectedIp = null;
-        for (String ip : ipCandidates) {
-            if (isPrivateIp(ip) && !"127.0.0.1".equals(ip)) {
-                selectedIp = ip;
-                log.info("✅ 사설 IP 선택: {} (from candidates: {})", ip, ipCandidates);
-                break;
-            }
-        }
-        
-        // 5. 사설 IP가 없으면 첫 번째 IP 사용 (127.0.0.1 제외)
-        if (selectedIp == null && !ipCandidates.isEmpty()) {
-            for (String ip : ipCandidates) {
-                if (!"127.0.0.1".equals(ip)) {
-                    selectedIp = ip;
-                    log.info("✅ 첫 번째 IP 선택: {} (from candidates: {})", selectedIp, ipCandidates);
-                    break;
-                }
-            }
-        }
-        
-        // 6. 모든 후보가 없거나 모두 127.0.0.1이면 RemoteAddr 사용
-        if (selectedIp == null) {
-            selectedIp = remoteAddr;
-            log.info("✅ RemoteAddr 사용: {} (candidates: {})", selectedIp, ipCandidates);
-        }
-        
-        return selectedIp;
-    }
-    
-    /**
-     * 사설 IP 주소인지 확인
-     */
-    private boolean isPrivateIp(String ip) {
-        if (ip == null || ip.isEmpty()) {
-            return false;
-        }
-        
-        // IPv6 localhost 체크
-        if ("0:0:0:0:0:0:0:1".equals(ip) || "::1".equals(ip)) {
-            return true;
-        }
-        
-        try {
-            // IPv4 주소 파싱
-            String[] parts = ip.split("\\.");
-            if (parts.length != 4) {
-                return false;
-            }
-            
-            int[] octets = new int[4];
-            for (int i = 0; i < 4; i++) {
-                octets[i] = Integer.parseInt(parts[i]);
-            }
-            
-            // 10.0.0.0/8 (10.0.0.0 ~ 10.255.255.255)
-            if (octets[0] == 10) {
-                return true;
-            }
-            
-            // 172.16.0.0/12 (172.16.0.0 ~ 172.31.255.255)
-            if (octets[0] == 172 && octets[1] >= 16 && octets[1] <= 31) {
-                return true;
-            }
-            
-            // 192.168.0.0/16 (192.168.0.0 ~ 192.168.255.255)
-            if (octets[0] == 192 && octets[1] == 168) {
-                return true;
-            }
-            
-            // 127.0.0.0/8 (127.0.0.0 ~ 127.255.255.255) - localhost
-            if (octets[0] == 127) {
-                return true;
-            }
-            
-        } catch (Exception e) {
-            log.debug("IP 주소 파싱 실패: {}", ip);
-        }
-        
-        return false;
+    private String resolveClientIpForActivityLog(HttpServletRequest request) {
+        String xff = request.getHeader("X-Forwarded-For");
+        String xReal = request.getHeader("X-Real-IP");
+        String remoteRaw = request.getRemoteAddr();
+        String remoteNorm = IpUtil.normalizeServletRemoteAddr(remoteRaw);
+        String getClientIp = ipUtil.getClientIP(request);
+        List<String> ordered = ipUtil.collectIpCandidatesInTrustOrder(request);
+        String resolved = ipUtil.getResolvedClientIpForActivityLog(request);
+        log.debug(
+                "activity client IP diagnostic: X-Forwarded-For={}, X-Real-IP={}, remoteAddr(raw)={}, "
+                        + "remoteAddr(normalized)={}, getClientIP(raw)={}, orderedCandidates={}, resolved(validated)={}",
+                xff, xReal, remoteRaw, remoteNorm, getClientIp, ordered, resolved);
+        return resolved;
     }
     
     /**

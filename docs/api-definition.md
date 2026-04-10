@@ -557,7 +557,7 @@
 
 **Base path**: `/api/users`
 
-**접근**: 시스템 관리자 **`is_system_admin=true`** 또는 사용자 관리 계열 화면 권한(**`user-management`**, **`user-permission-hierarchy`**, **`user-management-v2`** 등 — `specs/permission-group-hierarchy.spec.yaml` §4.3, `AuthService.canAccessUserManagementView` 정합). 단순히 “관리자”라고 해서 **시스템 관리자만** 의미하지 않음; 권한 그룹으로 부여된 운영자도 해당 화면이 있으면 호출 가능. 그 외 **403**. (req 20250303, 20260409)
+**접근**: 시스템 관리자 **`is_system_admin=true`** 또는 사용자 관리 계열 화면 권한(**`user-management`**, **`user-permission-hierarchy`**, **`user-management-v2`**, **`permission-group-management`**, **`permission-group-screen-matrix`** 등 — `specs/permission-group-hierarchy.spec.yaml` §4.3·§4.3.1, `AuthService.canAccessUserManagementView`(또는 동등 게이트) 정합; 요건 **`20260410-screen-access-menu-api-consistency`**). 단순히 “관리자”라고 해서 **시스템 관리자만** 의미하지 않음; 권한 그룹으로 부여된 운영자도 해당 화면이 있으면 호출 가능. 그 외 **403**. (req 20250303, 20260409, 20260410)
 
 ### 7.1 사용자 목록 조회
 
@@ -671,6 +671,7 @@
 
 - **Response (data)**: `UserActivityLogResponse`
   - `data`: object[] (활동 이력 목록)
+  - **`ip_address` (semantic)**: Persisted value is a **validated client IP literal** (IPv4/IPv6) resolved server-side from trusted header chain + `RemoteAddr`; allowlist **pattern strings** (e.g. `172.23.111.*`) and other non-literals from headers are **not** stored. If no valid literal is available, **null** / empty per DB contract. Ref: `docs/requirements/20260410-activity-log-client-ip-wildcard-pattern-stored.md`.
   - `pagination`: `{ currentPage, totalPages, totalCount }`
 
 ### 8.2 활동 이력 상세 조회
@@ -940,10 +941,10 @@
 **Base path (권한 그룹)**: `/api/permission-groups`  
 **사용자 권한 계층**: `GET /api/departments/user-permission-hierarchy`
 
-요건: `docs/requirements/20250227-user-permission-hierarchy-group.md`, `docs/requirements/20250227-permission-group-screen-menu-access.md`, `docs/requirements/20250303-activity-statistics-self-only-scope.md`, `docs/requirements/20260406-permission-group-invalid-screen-id-screen-display-labels.md`. 상세 스펙: `specs/permission-group-hierarchy.spec.yaml`.  
+요건: `docs/requirements/20250227-user-permission-hierarchy-group.md`, `docs/requirements/20250227-permission-group-screen-menu-access.md`, `docs/requirements/20250303-activity-statistics-self-only-scope.md`, `docs/requirements/20260406-permission-group-invalid-screen-id-screen-display-labels.md`, `docs/requirements/20260410-screen-access-menu-api-consistency.md`. 상세 스펙: `specs/permission-group-hierarchy.spec.yaml`.  
 **권한 그룹 `allowedScreens.screenId` 허용 목록**에 **`screen-display-labels`**(화면 표시 이름)가 포함되며, 그룹 설정상 **읽기만** 허용(`specs/permission-group-hierarchy.spec.yaml` §1.1.1); **`PUT /api/screen-display-labels`** 본문 저장은 **`is_system_admin=true`**만(표시용 **GET**은 모든 인증 사용자 — 본 문서 **§8.4**, `docs/contract.md`).  
-모든 API는 **관리자(is_system_admin=true)** 만 호출 가능. 그 외 403, `code: "FORBIDDEN"`.  
-**화면 기반 접근**: 화면에 대응하는 API는 사용자가 해당 화면을 권한 그룹으로 허용받았거나 is_system_admin=true이어야 함. 그 외 403. 화면↔API 매핑: `specs/permission-group-hierarchy.spec.yaml` §4.3. **`/api/permission-groups`** (`ScreenAccessInterceptor`): **`user-management`** 또는 **`user-permission-hierarchy`** 또는 **`user-management-v2`** 중 하나가 `allowedScreenIds`에 있으면 통과(UM v2 전용 운영자 포함; 요건 **`20260409-user-management-v2-permission-groups-api-access-bugfix`**). POST/PUT/DELETE 등 변경 API는 기존처럼 `canAccessUserManagementView` + 쓰기 권한 규칙을 따름.  
+**시스템 관리자**: **`is_system_admin=true`** 는 별도 화면 없이 이 API 패밀리 전체 허용.  
+**화면 기반 접근**: 화면에 대응하는 API는 사용자가 해당 화면을 권한 그룹으로 허용받았거나 is_system_admin=true이어야 함. 그 외 403. 화면↔API 매핑: `specs/permission-group-hierarchy.spec.yaml` §4.3·**§4.3.1**. **`/api/permission-groups` 및 `/api/permission-groups/**`** (`ScreenAccessInterceptor` + `PermissionGroupController` 게이트): `allowedScreenIds`에 **`user-management`**, **`user-permission-hierarchy`**, **`user-management-v2`**, **`permission-group-management`**, **`permission-group-screen-matrix`** 중 **하나 이상**이면 통과해야 함(요건 **`20260409-user-management-v2-permission-groups-api-access-bugfix`**, **`20260410-screen-access-menu-api-consistency`**). POST/PUT/DELETE·사용자 배정/해제 등 변경 API는 동일 OR 집합에 속하는 화면의 **`screenFunctions.write`**(및 컨트롤러 `hasWriteForManagementScreens` 또는 동등 로직)와 정렬. **`ScreenAccessInterceptor`**의 `^/api/permission-groups.*` 규칙과 **`AuthService.canAccessUserManagementView`** / **`hasWriteForManagementScreens`**는 위 다섯 화면 ID(UM 세 개 + permission-group 두 개)를 동일 OR 집합에 포함한다(요건 **`20260410-screen-access-menu-api-consistency`**).  
 **화면별 범위(scope)**: activity-log, statistics, search-history, pending-approvals, **`user-management-v2`** 화면은 권한 그룹에서 화면별 scope('self'|'team'|'all') 설정 가능(기본 `team`). **`user-management-v2`** 는 **`GET /api/users`**, **`GET /api/departments/user-permission-hierarchy`**, v2 읽기 API에 적용 — 요건 **`docs/requirements/20260409-user-management-v2-read-scope.md`**. scope='self' → 본인 데이터만(또는 본인 요청만)이며 applicable shared-pattern 화면에서는 user/requester block을 숨기지 않고 `department -> username -> userId`의 visible locked self-context를 표시한다. 이 표시값의 권위 소스는 auth/current-user payload의 `selfContext`이고, **`userId`**는 **numeric** **`app_user.id`**이다. search-history requester filter는 `scope=self`에서 무시된다. **`GET /api/search-history`·`GET /api/search-history/{id}`**는 **`listContext`**로 `search-history` vs `pending-approvals` 중 어느 `screenScopes`를 적용할지 선택한다(§6.1.2). scope='team' → 동일 부서 범위; scope='all' → 전체. is_system_admin=false일 때만 적용. 상세: `specs/permission-group-hierarchy.spec.yaml` §4.2, §4.3.
 
 ### 14.1 권한 그룹 목록 조회

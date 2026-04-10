@@ -13,6 +13,7 @@ Use this skill for questions about menu structure, screen visibility, `adminOnly
 - Non-admin access depends on `allowedScreenIds` and screen-specific rules.
 - Admin-only menu groups should remain hidden for non-admin users.
 - Menu and view access must stay aligned with `docs/contract.md` and frontend menu definitions.
+- **Sidebar / view gates**: use **`frontend/src/constants/screenAccessPolicy.js`** (`canShowAdminSidebarChild`, `canAccessView`, etc.) together with **`frontend/src/constants/menuTree.js`**. Run **`npm run verify:screen-access`** from `frontend/` to catch allowlist drift vs `ScreenConstants` (req `20260410-screen-access-menu-api-consistency`).
 
 ## Login entry points
 
@@ -25,3 +26,4 @@ Use this skill for questions about menu structure, screen visibility, `adminOnly
 - `docs/design/search-fields-by-screen.md`
 - `docs/design/search-field-definition-items.md`
 - `frontend/src/constants/menuTree.js`
+- `frontend/src/constants/screenAccessPolicy.js`
