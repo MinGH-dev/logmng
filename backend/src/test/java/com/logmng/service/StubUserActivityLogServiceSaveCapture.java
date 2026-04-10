@@ -12,6 +12,7 @@ import java.util.Map;
 public class StubUserActivityLogServiceSaveCapture extends UserActivityLogService {
 
     private Map<String, Object> lastActionDetail;
+    private String lastIpAddress;
 
     public StubUserActivityLogServiceSaveCapture(DataSource dataSource) {
         super(dataSource, new UserActivityAccessAuditRepository(dataSource));
@@ -24,9 +25,14 @@ public class StubUserActivityLogServiceSaveCapture extends UserActivityLogServic
                                 String requestParamsJson, Integer responseStatus,
                                 Integer responseTimeMs, Boolean success, String errorMessage) {
         this.lastActionDetail = actionDetail;
+        this.lastIpAddress = ipAddress;
     }
 
     public Map<String, Object> getLastActionDetail() {
         return lastActionDetail;
+    }
+
+    public String getLastIpAddress() {
+        return lastIpAddress;
     }
 }
