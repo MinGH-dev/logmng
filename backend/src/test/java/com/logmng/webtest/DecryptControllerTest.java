@@ -172,7 +172,7 @@ class DecryptControllerTest {
         private String currentUsername = "user1";
 
         StubAuthServiceDecryptAllowed() {
-            super(null, null, null, null, null, new com.logmng.config.AuthProperties(), null, null);
+            super(null, null, null, null, new com.logmng.config.AuthProperties(), null, null);
         }
 
         void setCurrentUserId(long userId) {

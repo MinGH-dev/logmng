@@ -10,7 +10,6 @@ import com.logmng.dto.response.UserActivityLogResponse;
 import com.logmng.exception.CustomException;
 import com.logmng.service.AppUserResolver;
 import com.logmng.service.AuthService;
-import com.logmng.service.DecryptApproverService;
 import com.logmng.service.SearchHistoryService;
 import com.logmng.service.StubAppUserResolver;
 import com.logmng.service.StubDecryptApproverService;
@@ -42,13 +41,11 @@ class SearchHistoryControllerTest {
     void setUp() {
         stubService = new CapturingSearchHistoryService();
         stubService.setApproveThrowable(null);
-        DecryptApproverService decryptApproverService = new StubDecryptApproverService();
         AuthService authService = new NoopAuthService();
         StubAppUserResolver resolver = new StubAppUserResolver(new StubDataSource());
         resolver.map(20260001L, "requester-1");
         SearchHistoryController controller = new SearchHistoryController(
                 stubService,
-                decryptApproverService,
                 authService,
                 new StubDataSource(),
                 resolver,
@@ -122,7 +119,6 @@ class SearchHistoryControllerTest {
         };
         SearchHistoryController controller = new SearchHistoryController(
                 throwingService,
-                new StubDecryptApproverService(),
                 new NoopAuthService(),
                 new StubDataSource(),
                 new StubAppUserResolver(new StubDataSource()),
@@ -176,7 +172,7 @@ class SearchHistoryControllerTest {
     /** TC-04: When current user resolution throws (e.g. getCurrentUserInfo throws), list returns 401 not 500 */
     @Test
     void list_whenGetCurrentUserInfoThrows_returns401() throws Exception {
-        AuthService throwingAuthService = new AuthService(null, null, null, null, null, new com.logmng.config.AuthProperties(), null, null) {
+        AuthService throwingAuthService = new AuthService(null, null, null, null, new com.logmng.config.AuthProperties(), null, null) {
             @Override
             public com.logmng.dto.response.LoginResponse getCurrentUserInfo(jakarta.servlet.http.HttpServletRequest request) {
                 throw new RuntimeException("simulated auth failure");
@@ -184,7 +180,6 @@ class SearchHistoryControllerTest {
         };
         SearchHistoryController controller = new SearchHistoryController(
                 stubService,
-                new StubDecryptApproverService(),
                 throwingAuthService,
                 new StubDataSource(),
                 new StubAppUserResolver(new StubDataSource()),
@@ -201,7 +196,7 @@ class SearchHistoryControllerTest {
     /** TC-05: When getCurrentUserInfo returns null (no/invalid session), list returns 401 */
     @Test
     void list_whenGetCurrentUserInfoReturnsNull_returns401() throws Exception {
-        AuthService nullUserAuthService = new AuthService(null, null, null, null, null, new com.logmng.config.AuthProperties(), null, null) {
+        AuthService nullUserAuthService = new AuthService(null, null, null, null, new com.logmng.config.AuthProperties(), null, null) {
             @Override
             public com.logmng.dto.response.LoginResponse getCurrentUserInfo(jakarta.servlet.http.HttpServletRequest request) {
                 return null;
@@ -214,7 +209,6 @@ class SearchHistoryControllerTest {
         };
         SearchHistoryController controller = new SearchHistoryController(
                 stubService,
-                new StubDecryptApproverService(),
                 nullUserAuthService,
                 new StubDataSource(),
                 new StubAppUserResolver(new StubDataSource()),
@@ -357,7 +351,6 @@ class SearchHistoryControllerTest {
         };
         SearchHistoryController ctrl = new SearchHistoryController(
                 throwingService,
-                new StubDecryptApproverService(),
                 new NoopAuthService(),
                 new StubDataSource(),
                 new StubAppUserResolver(new StubDataSource()),
@@ -432,7 +425,7 @@ class SearchHistoryControllerTest {
     /** TC-BE-02: read-only (approve false) → POST approve 403 FUNCTION_NOT_ALLOWED. */
     @Test
     void approve_whenReadOnly_returns403() throws Exception {
-        AuthService readOnlyAuth = new AuthService(null, null, null, null, null, new com.logmng.config.AuthProperties(), null, null) {
+        AuthService readOnlyAuth = new AuthService(null, null, null, null, new com.logmng.config.AuthProperties(), null, null) {
             @Override
             public LoginResponse getCurrentUserInfo(jakarta.servlet.http.HttpServletRequest request) {
                 LoginResponse r = new LoginResponse();
@@ -447,7 +440,6 @@ class SearchHistoryControllerTest {
         };
         SearchHistoryController ctrl = new SearchHistoryController(
                 stubService,
-                new StubDecryptApproverService(),
                 readOnlyAuth,
                 new StubDataSource(),
                 new StubAppUserResolver(new StubDataSource()),
@@ -465,7 +457,7 @@ class SearchHistoryControllerTest {
     /** TC-05: non-approver direct API call to reject must be denied with 403 FUNCTION_NOT_ALLOWED. */
     @Test
     void reject_whenReadOnly_returns403() throws Exception {
-        AuthService readOnlyAuth = new AuthService(null, null, null, null, null, new com.logmng.config.AuthProperties(), null, null) {
+        AuthService readOnlyAuth = new AuthService(null, null, null, null, new com.logmng.config.AuthProperties(), null, null) {
             @Override
             public LoginResponse getCurrentUserInfo(jakarta.servlet.http.HttpServletRequest request) {
                 LoginResponse r = new LoginResponse();
@@ -480,7 +472,6 @@ class SearchHistoryControllerTest {
         };
         SearchHistoryController ctrl = new SearchHistoryController(
                 stubService,
-                new StubDecryptApproverService(),
                 readOnlyAuth,
                 new StubDataSource(),
                 new StubAppUserResolver(new StubDataSource()),
@@ -513,7 +504,6 @@ class SearchHistoryControllerTest {
         };
         SearchHistoryController ctrl = new SearchHistoryController(
                 successOnlyService,
-                new StubDecryptApproverService(),
                 new NoopAuthService(),
                 new StubDataSource(),
                 new StubAppUserResolver(new StubDataSource()),
@@ -523,7 +513,7 @@ class SearchHistoryControllerTest {
                 .build();
         mvc.perform(post("/api/search-history/1/approve")
                         .sessionAttr("userId", 20260001L)
-                        .sessionAttr("isSystemAdmin", true))
+                        .sessionAttr("isSystemAdmin", false))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success").value(true))
                 .andExpect(jsonPath("$.data.approvalStatus").value("APPROVED"))
@@ -541,7 +531,6 @@ class SearchHistoryControllerTest {
         };
         SearchHistoryController ctrl = new SearchHistoryController(
                 forbiddenService,
-                new StubDecryptApproverService(),
                 new NoopAuthService(),
                 new StubDataSource(),
                 new StubAppUserResolver(new StubDataSource()),
@@ -551,7 +540,7 @@ class SearchHistoryControllerTest {
                 .build();
         mvc.perform(post("/api/search-history/1/approve")
                         .sessionAttr("userId", 20260001L)
-                        .sessionAttr("isSystemAdmin", true))
+                        .sessionAttr("isSystemAdmin", false))
                 .andExpect(status().isForbidden())
                 .andExpect(jsonPath("$.success").value(false))
                 .andExpect(jsonPath("$.error").exists());
@@ -568,7 +557,6 @@ class SearchHistoryControllerTest {
         };
         SearchHistoryController ctrl = new SearchHistoryController(
                 forbiddenService,
-                new StubDecryptApproverService(),
                 new NoopAuthService(),
                 new StubDataSource(),
                 new StubAppUserResolver(new StubDataSource()),
@@ -580,7 +568,7 @@ class SearchHistoryControllerTest {
                         .contentType("application/json")
                         .content("{\"rejectionReason\":\"cross-dept\"}")
                         .sessionAttr("userId", 20260001L)
-                        .sessionAttr("isSystemAdmin", true))
+                        .sessionAttr("isSystemAdmin", false))
                 .andExpect(status().isForbidden())
                 .andExpect(jsonPath("$.success").value(false))
                 .andExpect(jsonPath("$.code").value("FUNCTION_NOT_ALLOWED"));
@@ -597,7 +585,6 @@ class SearchHistoryControllerTest {
         };
         SearchHistoryController ctrl = new SearchHistoryController(
                 throwingService,
-                new StubDecryptApproverService(),
                 new NoopAuthService(),
                 new StubDataSource(),
                 new StubAppUserResolver(new StubDataSource()),
@@ -607,7 +594,7 @@ class SearchHistoryControllerTest {
                 .build();
         mvc.perform(post("/api/search-history/1/approve")
                         .sessionAttr("userId", 20260001L)
-                        .sessionAttr("isSystemAdmin", true))
+                        .sessionAttr("isSystemAdmin", false))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.success").value(false))
                 .andExpect(jsonPath("$.error").exists());
@@ -615,7 +602,7 @@ class SearchHistoryControllerTest {
 
     @Test
     void approve_whenGetCurrentUserInfoThrows_returns401() throws Exception {
-        AuthService throwingAuthService = new AuthService(null, null, null, null, null, new com.logmng.config.AuthProperties(), null, null) {
+        AuthService throwingAuthService = new AuthService(null, null, null, null, new com.logmng.config.AuthProperties(), null, null) {
             @Override
             public com.logmng.dto.response.LoginResponse getCurrentUserInfo(jakarta.servlet.http.HttpServletRequest request) {
                 throw new RuntimeException("simulated auth failure");
@@ -623,7 +610,6 @@ class SearchHistoryControllerTest {
         };
         SearchHistoryController controller = new SearchHistoryController(
                 stubService,
-                new StubDecryptApproverService(),
                 throwingAuthService,
                 new StubDataSource(),
                 new StubAppUserResolver(new StubDataSource()),
@@ -714,7 +700,7 @@ class SearchHistoryControllerTest {
     private static final class NoopAuthService extends AuthService {
 
         private NoopAuthService() {
-            super(null, null, null, null, null, new com.logmng.config.AuthProperties(), null, null);
+            super(null, null, null, null, new com.logmng.config.AuthProperties(), null, null);
         }
 
         @Override
@@ -722,6 +708,14 @@ class SearchHistoryControllerTest {
             com.logmng.dto.response.LoginResponse r = new com.logmng.dto.response.LoginResponse();
             r.setUsername("currentUser");
             r.setUserId(20260001L);
+            jakarta.servlet.http.HttpSession session = request.getSession(false);
+            boolean sysAdmin = session != null && Boolean.TRUE.equals(session.getAttribute("isSystemAdmin"));
+            r.setIsSystemAdmin(sysAdmin);
+            java.util.Map<String, com.logmng.dto.response.ScreenFunctionCapability> sf = new java.util.HashMap<>();
+            boolean approveEligible = !sysAdmin;
+            sf.put(ScreenConstants.PENDING_APPROVALS, new com.logmng.dto.response.ScreenFunctionCapability(true, null, approveEligible));
+            sf.put(ScreenConstants.SEARCH_HISTORY, new com.logmng.dto.response.ScreenFunctionCapability(true, null, approveEligible));
+            r.setScreenFunctions(sf);
             r.setSelfContext(new com.logmng.dto.response.LoginResponse.SelfContext("D01", "currentUser", 20260001L, "EMP-0001"));
             return r;
         }

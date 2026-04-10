@@ -11,7 +11,6 @@ import com.logmng.dto.response.UserActivityLogResponse;
 import com.logmng.exception.CustomException;
 import com.logmng.service.AppUserResolver;
 import com.logmng.service.AuthService;
-import com.logmng.service.DecryptApproverService;
 import com.logmng.service.SearchHistoryService;
 import com.logmng.util.DepartmentScopeHelper;
 import com.logmng.util.ScopeHelper;
@@ -42,20 +41,17 @@ public class SearchHistoryController {
     private static final Logger log = LoggerFactory.getLogger(SearchHistoryController.class);
 
     private final SearchHistoryService searchHistoryService;
-    private final DecryptApproverService decryptApproverService;
     private final AuthService authService;
     private final DataSource dataSource;
     private final AppUserResolver appUserResolver;
     private final boolean diagnosticApprovalFlow;
 
     public SearchHistoryController(SearchHistoryService searchHistoryService,
-                                   DecryptApproverService decryptApproverService,
                                    AuthService authService,
                                    DataSource dataSource,
                                    AppUserResolver appUserResolver,
                                    @Value("${app.diagnostic.approval-flow:false}") boolean diagnosticApprovalFlow) {
         this.searchHistoryService = searchHistoryService;
-        this.decryptApproverService = decryptApproverService;
         this.authService = authService;
         this.dataSource = dataSource;
         this.appUserResolver = appUserResolver;
@@ -174,21 +170,16 @@ public class SearchHistoryController {
         ApprovalFlowDiagnosticLog.debug(diagnosticApprovalFlow, searchHistoryId != null ? searchHistoryId : -1L, "AUTHZ_DECISION", detail);
     }
 
-    /** Requires (isAdmin or isApprover) AND (isAdmin or screenFunctions.approve for search-history/pending-approvals). Per spec §4.4. Req 20260316: isApprover by Long. */
+    /** Requires effective screenFunctions.approve for search-history or pending-approvals (contract 「복호화 승인 자격」; no decrypt_approver; system admin never approves). */
     private void requireApproverOrAdmin(HttpServletRequest request, Long searchHistoryId, String action) {
         Long userId = getCurrentUserId(request);
         String username = getCurrentUsername(request);
         boolean sysAdmin = isSystemAdmin(request);
-        boolean isAdmin = decryptApproverService.isAdmin(sysAdmin);
         if (userId == null) {
             logApprovalAuthzDecision(request, searchHistoryId, action, null, username, sysAdmin, false, "DENY", "UNAUTHORIZED");
             throw CustomException.unauthorized("로그인이 필요합니다.", "UNAUTHORIZED");
         }
-        boolean canApprove = isAdmin || authService.hasApproveForSearchHistory(request);
-        if (!isAdmin && !decryptApproverService.isApprover(userId)) {
-            logApprovalAuthzDecision(request, searchHistoryId, action, userId, username, sysAdmin, canApprove, "DENY", "FUNCTION_NOT_ALLOWED");
-            throw CustomException.forbidden("해당 기능에 대한 권한이 없습니다.", "FUNCTION_NOT_ALLOWED");
-        }
+        boolean canApprove = authService.hasApproveForSearchHistory(request);
         if (!canApprove) {
             logApprovalAuthzDecision(request, searchHistoryId, action, userId, username, sysAdmin, false, "DENY", "FUNCTION_NOT_ALLOWED");
             throw CustomException.forbidden("해당 기능에 대한 권한이 없습니다.", "FUNCTION_NOT_ALLOWED");

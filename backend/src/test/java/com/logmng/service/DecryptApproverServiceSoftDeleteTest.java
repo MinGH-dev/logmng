@@ -41,7 +41,9 @@ class DecryptApproverServiceSoftDeleteTest {
                 lastActionType.set(actionType);
             }
         };
-        service = new DecryptApproverService(dataSource, new DepartmentService(dataSource), captureLog);
+        AppUserResolver resolver = new AppUserResolver(dataSource);
+        service = new DecryptApproverService(dataSource, new DepartmentService(dataSource), captureLog,
+                new PermissionGroupService(dataSource, resolver), resolver);
         seed();
     }
 

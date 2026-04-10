@@ -3,11 +3,9 @@ import { render, screen, waitFor } from '@testing-library/react';
 import { ThemeProvider } from '@mui/material';
 import { appTheme } from '../../theme';
 import UserManagementLegacy from './UserManagementLegacy';
-import { getUsers } from '../../services/userService';
 import { getUserPermissionHierarchy, listPermissionGroups } from '../../services/permissionGroupService';
 
 jest.mock('../../services/userService', () => ({
-  getUsers: jest.fn(),
   deleteUser: jest.fn(),
 }));
 
@@ -26,7 +24,6 @@ jest.mock('./ExternalProvisioning', () => () => null);
 describe('UserManagementLegacy', () => {
   test('기존 사용자 관리 헤더/액션을 유지한다', async () => {
     getUserPermissionHierarchy.mockResolvedValue({ data: [] });
-    getUsers.mockResolvedValue({ data: [] });
     listPermissionGroups.mockResolvedValue([]);
 
     render(

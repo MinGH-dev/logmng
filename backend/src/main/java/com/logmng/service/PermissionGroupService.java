@@ -430,8 +430,7 @@ public class PermissionGroupService {
                         String rank = rs.getString("rank");
                         boolean isSystemAdmin = Boolean.TRUE.equals(rs.getObject("is_system_admin", Boolean.class));
                         String employeeNumber = rs.getString("employee_number");
-                        boolean isApprover = false; // not loaded here; hierarchy uses DecryptApproverService for approver
-                        list.add(new UserListItemResponse(id, username, role, departmentCode, isApprover, position, rank, isSystemAdmin, employeeNumber));
+                        list.add(new UserListItemResponse(id, username, role, departmentCode, position, rank, isSystemAdmin, employeeNumber));
                     }
                 }
             }

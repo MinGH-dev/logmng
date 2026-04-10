@@ -29,7 +29,9 @@ class DecryptApproverServiceUpdateRoleTest {
     void setUp() throws Exception {
         dataSource = createH2DataSource();
         departmentService = new DepartmentService(dataSource);
-        decryptApproverService = new DecryptApproverService(dataSource, departmentService, null);
+        AppUserResolver resolver = new AppUserResolver(dataSource);
+        decryptApproverService = new DecryptApproverService(dataSource, departmentService, null,
+                new PermissionGroupService(dataSource, resolver), resolver);
     }
 
     private static DataSource createH2DataSource() throws Exception {

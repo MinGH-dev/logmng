@@ -111,7 +111,7 @@ class AuthControllerTest {
     private static final class StubAuthService extends AuthService {
 
         private StubAuthService() {
-            super(null, null, null, null, null, new com.logmng.config.AuthProperties(), null, null);
+            super(null, null, null, null, new com.logmng.config.AuthProperties(), null, null);
         }
 
         @Override
@@ -143,7 +143,7 @@ class AuthControllerTest {
     /** Service stub: password change is not exercised; controller + validation only. */
     private static final class StubAuthPasswordNoOp extends AuthService {
         StubAuthPasswordNoOp() {
-            super(null, null, null, null, null, new com.logmng.config.AuthProperties(), null, null);
+            super(null, null, null, null, new com.logmng.config.AuthProperties(), null, null);
         }
 
         @Override
@@ -154,7 +154,7 @@ class AuthControllerTest {
 
     private static final class StubAuthServiceNoSession extends AuthService {
         private StubAuthServiceNoSession() {
-            super(null, null, null, null, null, new com.logmng.config.AuthProperties(), null, null);
+            super(null, null, null, null, new com.logmng.config.AuthProperties(), null, null);
         }
 
         @Override

@@ -506,7 +506,6 @@ public class SearchHistoryService {
                                                 boolean scopeAll, List<Long> allowedUserIds) {
         if (page < 1) page = 1;
         if (pageSize < 1 || pageSize > 100) pageSize = 20;
-        boolean isAdmin = decryptApproverService.isAdmin(isSystemAdmin);
         List<Map<String, Object>> allFiltered = new ArrayList<>();
         try (Connection conn = dataSource.getConnection()) {
             String sql = "SELECT id, user_id, search_params, requested_at, search_result_total_count, decryption_target_count FROM search_history WHERE approval_status = 'PENDING' ORDER BY requested_at DESC";
@@ -514,7 +513,7 @@ public class SearchHistoryService {
                 try (ResultSet rs = ps.executeQuery()) {
                     while (rs.next()) {
                         Long requesterId = toLongUserId(rs.getObject("user_id"));
-                        if (isAdmin || (approverUserId != null && requesterId != null && decryptApproverService.canApproveForRequester(approverUserId, requesterId))) {
+                        if (approverUserId != null && requesterId != null && decryptApproverService.canApproveForRequester(approverUserId, requesterId)) {
                             Map<String, Object> row = new LinkedHashMap<>();
                             row.put("id", rs.getLong("id"));
                             row.put("requester", requesterId != null ? appUserResolver.getUsernameById(requesterId) : null);

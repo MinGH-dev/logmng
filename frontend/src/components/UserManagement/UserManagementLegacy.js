@@ -8,7 +8,7 @@ import {
   Typography,
   TextField,
 } from '@mui/material';
-import { getUsers, deleteUser } from '../../services/userService';
+import { deleteUser } from '../../services/userService';
 import { getUserPermissionHierarchy, listPermissionGroups } from '../../services/permissionGroupService';
 import { getErrorMessage } from '../../utils/errorMessage';
 import { getAllowedScreenIds, getScreenFunctions } from '../../utils/security';
@@ -27,7 +27,6 @@ const HierarchyTree = ({
   level = 0,
   isRoot = false,
   renderUserRow,
-  usersWithApprover,
   allGroups,
   onRefresh,
 }) => {
@@ -83,16 +82,11 @@ const HierarchyTree = ({
                           <th scope="col">직급</th>
                           <th scope="col">직책</th>
                           <th scope="col">권한 그룹</th>
-                          <th scope="col">결재자 여부</th>
                           <th scope="col">작업</th>
                         </tr>
                       </thead>
                       <tbody>
-                        {users.map((u) => {
-                          const uid = u.userId ?? u.username;
-                          const isApprover = usersWithApprover?.get(uid) === true;
-                          return renderUserRow(u, isApprover, allGroups, onRefresh);
-                        })}
+                        {users.map((u) => renderUserRow(u, allGroups, onRefresh))}
                       </tbody>
                     </table>
                   </div>
@@ -106,7 +100,6 @@ const HierarchyTree = ({
                     level={level + 1}
                     isRoot={false}
                     renderUserRow={renderUserRow}
-                    usersWithApprover={usersWithApprover}
                     allGroups={allGroups}
                     onRefresh={onRefresh}
                   />
@@ -122,7 +115,6 @@ const HierarchyTree = ({
 
 const UserManagementLegacy = ({ user }) => {
   const [tree, setTree] = useState([]);
-  const [usersWithApprover, setUsersWithApprover] = useState(new Map());
   const [allGroups, setAllGroups] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -147,22 +139,12 @@ const UserManagementLegacy = ({ user }) => {
     setLoading(true);
     setError(null);
     try {
-      const [hierarchyRes, usersRes, groupsRes] = await Promise.all([
+      const [hierarchyRes, groupsRes] = await Promise.all([
         getUserPermissionHierarchy('tree'),
-        getUsers(),
         listPermissionGroups(),
       ]);
       const hierarchyData = hierarchyRes.data;
       setTree(Array.isArray(hierarchyData) ? hierarchyData : (hierarchyData?.data || []));
-
-      const usersData = usersRes.data;
-      const usersList = Array.isArray(usersData) ? usersData : (usersData?.data || []);
-      const approverMap = new Map();
-      usersList.forEach((u) => {
-        const id = u.userId ?? u.username;
-        if (id) approverMap.set(id, u.isApprover === true);
-      });
-      setUsersWithApprover(approverMap);
 
       const groups = Array.isArray(groupsRes) ? groupsRes : (groupsRes?.data || []);
       setAllGroups(Array.isArray(groups) ? groups : []);
@@ -170,7 +152,6 @@ const UserManagementLegacy = ({ user }) => {
       logger.error('사용자 관리 데이터 조회 실패:', e);
       setError(e?.status === 403 ? '관리자만 접근할 수 있습니다.' : getErrorMessage(e, '목록을 불러오지 못했습니다.'));
       setTree([]);
-      setUsersWithApprover(new Map());
     } finally {
       setLoading(false);
     }
@@ -234,7 +215,7 @@ const UserManagementLegacy = ({ user }) => {
     }
   };
 
-  const renderUserRow = (u, isApprover, groups, onRefresh) => {
+  const renderUserRow = (u, groups, onRefresh) => {
     const userId = u.userId ?? u.username;
     const displayUserId = u.employeeNumber ?? u.employee_number ?? userId;
     const displayName = u.userName ?? userId;
@@ -266,7 +247,6 @@ const UserManagementLegacy = ({ user }) => {
             disabled={!canWrite}
           />
         </td>
-        <td>{isApprover ? '예' : '아니오'}</td>
         <td>
           {canWrite && (
             <button
@@ -312,7 +292,7 @@ const UserManagementLegacy = ({ user }) => {
         )}
       </div>
       <p className="user-permission-hierarchy-hint">
-        부서를 펼치면 해당 부서의 사용자를 볼 수 있습니다. 권한 그룹, 결재자 여부를 편집할 수 있습니다.
+        부서를 펼치면 해당 부서의 사용자를 볼 수 있습니다. 권한 그룹을 편집할 수 있습니다.
       </p>
       {error && <div className="user-management-error" role="alert">{error}</div>}
       <div className="user-permission-hierarchy-layout">
@@ -328,7 +308,6 @@ const UserManagementLegacy = ({ user }) => {
               onToggle={handleToggle}
               isRoot
               renderUserRow={renderUserRow}
-              usersWithApprover={usersWithApprover}
               allGroups={allGroups}
               onRefresh={loadHierarchy}
             />

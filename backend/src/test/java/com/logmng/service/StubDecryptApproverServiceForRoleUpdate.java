@@ -19,7 +19,7 @@ public class StubDecryptApproverServiceForRoleUpdate extends DecryptApproverServ
     private boolean admin = true;
 
     public StubDecryptApproverServiceForRoleUpdate() {
-        super(null, null, null);
+        super(null, null, null, null, null);
     }
 
     public void setAdmin(boolean admin) {
@@ -70,7 +70,7 @@ public class StubDecryptApproverServiceForRoleUpdate extends DecryptApproverServ
         if (result != null) {
             return result;
         }
-        return new UserListItemResponse(20260001L, targetUserId, role, null, false, null, null, false);
+        return new UserListItemResponse(20260001L, targetUserId, role, null, null, null, false);
     }
 
     @Override

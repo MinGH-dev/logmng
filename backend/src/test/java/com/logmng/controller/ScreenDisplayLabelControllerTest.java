@@ -157,7 +157,7 @@ class ScreenDisplayLabelControllerTest {
         private LoginResponse current;
 
         private StubAuthScreenLabels() {
-            super(null, null, null, null, null, new com.logmng.config.AuthProperties(), null, null);
+            super(null, null, null, null, new com.logmng.config.AuthProperties(), null, null);
         }
 
         private void setCurrent(LoginResponse current) {

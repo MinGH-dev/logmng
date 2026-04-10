@@ -1,6 +1,7 @@
 package com.logmng.service;
 
 import com.logmng.constants.ActivityActionType;
+import com.logmng.constants.ScreenConstants;
 import com.logmng.dto.response.UserListItemResponse;
 import com.logmng.exception.CustomException;
 import com.logmng.util.ChangeReasonValidator;
@@ -20,8 +21,9 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * 복호화 결재자: isAdmin, isApprover, listUsers, canApproveForRequester.
- * 결재자는 팀장(position) 자동 지정으로 관리; addApprover/removeApprover 및 부서별 결재자 API 제거됨.
+ * 복호화 승인 자격: 권한 그룹 화면의 명시 {@code approve=true} + {@code is_system_admin} 상쇄 + 동일 부서(P2-2).
+ * 레거시 {@code decrypt_approver} 는 승인 자격 판단에 사용하지 않음 (req 20260323, docs/contract.md).
+ * {@link #isAdmin(boolean)} 는 시스템 관리자 UI 게이트용. {@link DepartmentService} 는 빈 호환용으로 유지.
  */
 @Service
 public class DecryptApproverService {
@@ -29,14 +31,21 @@ public class DecryptApproverService {
     private static final Logger log = LoggerFactory.getLogger(DecryptApproverService.class);
 
     private final DataSource dataSource;
+    @SuppressWarnings("unused")
     private final DepartmentService departmentService;
     private final UserActivityLogService userActivityLogService;
+    private final PermissionGroupService permissionGroupService;
+    private final AppUserResolver appUserResolver;
 
     public DecryptApproverService(DataSource dataSource, DepartmentService departmentService,
-                                  @Autowired(required = false) UserActivityLogService userActivityLogService) {
+                                  @Autowired(required = false) UserActivityLogService userActivityLogService,
+                                  PermissionGroupService permissionGroupService,
+                                  AppUserResolver appUserResolver) {
         this.dataSource = dataSource;
         this.departmentService = departmentService;
         this.userActivityLogService = userActivityLogService;
+        this.permissionGroupService = permissionGroupService;
+        this.appUserResolver = appUserResolver;
     }
 
     /** @deprecated Use {@link #isAdmin(boolean)} with isSystemAdmin from session. */
@@ -51,69 +60,54 @@ public class DecryptApproverService {
     }
 
     /**
-     * appUserId (numeric app_user.id)가 decrypt_approver에 한 건이라도 있으면 true (전역 또는 부서별).
-     * Req 20260316: permission checks use app_user_id.
+     * Effective decrypt-approver eligibility (numeric app_user.id): group {@code approve=true} on
+     * {@code search-history} or {@code pending-approvals}, then {@code is_system_admin} overrides to false.
      */
-    public boolean isApprover(Long appUserId) {
-        if (appUserId == null) {
+    public boolean effectiveDecryptApprove(Long appUserId) {
+        if (appUserId == null || permissionGroupService == null || appUserResolver == null) {
             return false;
         }
-        try (Connection conn = dataSource.getConnection()) {
-            String sql = "SELECT 1 FROM decrypt_approver WHERE app_user_id = ? LIMIT 1";
-            try (PreparedStatement ps = conn.prepareStatement(sql)) {
-                ps.setLong(1, appUserId);
-                try (ResultSet rs = ps.executeQuery()) {
-                    return rs.next();
-                }
+        try {
+            Boolean sys = loadIsSystemAdminById(appUserId);
+            if (sys == null || Boolean.TRUE.equals(sys)) {
+                return false;
             }
         } catch (SQLException e) {
-            log.error("결재자 여부 조회 실패: appUserId={}", appUserId, e);
+            log.error("effectiveDecryptApprove: is_system_admin 조회 실패 appUserId={}", appUserId, e);
             return false;
         }
+        String username = appUserResolver.getUsernameById(appUserId);
+        if (username == null || username.isBlank()) {
+            return false;
+        }
+        return rawGroupDecryptApproveOnEitherScreen(username);
     }
 
     /**
-     * approverUserId가 requesterUserId의 검색 이력에 대해 승인/반려할 수 있는지.
-     * 전역 결재자(department_code NULL) 또는 요청자 소속 부서(및 상위 부서)의 결재자이면 true.
-     * Req 20260316: both params are numeric app_user.id; query decrypt_approver by app_user_id; requester department by app_user.id.
+     * Legacy name: decrypt 승인 <em>자격</em> (권한 그룹 + 시스템관리자 상쇄). {@code decrypt_approver} 미사용.
+     */
+    public boolean isApprover(Long appUserId) {
+        return effectiveDecryptApprove(appUserId);
+    }
+
+    /**
+     * approverUserId가 requesterUserId 요청에 대해 승인/반려 가능한지: effective decrypt approve + 동일 {@code department_code} (P2-2).
      * Non-SQL throws are caught and result in false so approval path never surfaces 500.
      */
     public boolean canApproveForRequester(Long approverUserId, Long requesterUserId) {
         if (approverUserId == null || requesterUserId == null) {
             return false;
         }
-        try (Connection conn = dataSource.getConnection()) {
-            // 전역 결재자 여부
-            String sqlGlobal = "SELECT 1 FROM decrypt_approver WHERE app_user_id = ? AND department_code IS NULL LIMIT 1";
-            try (PreparedStatement ps = conn.prepareStatement(sqlGlobal)) {
-                ps.setLong(1, approverUserId);
-                try (ResultSet rs = ps.executeQuery()) {
-                    if (rs.next()) return true;
-                }
-            }
-            // 요청자 부서 (by app_user.id)
-            String requesterDept = null;
-            String sqlUser = "SELECT department_code FROM app_user WHERE id = ? AND deleted_at IS NULL LIMIT 1";
-            try (PreparedStatement ps = conn.prepareStatement(sqlUser)) {
-                ps.setLong(1, requesterUserId);
-                try (ResultSet rs = ps.executeQuery()) {
-                    if (rs.next()) requesterDept = rs.getString("department_code");
-                }
-            }
-            if (requesterDept == null || requesterDept.isBlank()) {
+        if (!effectiveDecryptApprove(approverUserId)) {
+            return false;
+        }
+        try {
+            String approverDept = loadDepartmentCodeByUserId(approverUserId);
+            String requesterDept = loadDepartmentCodeByUserId(requesterUserId);
+            if (approverDept == null || approverDept.isBlank() || requesterDept == null || requesterDept.isBlank()) {
                 return false;
             }
-            List<String> allowedDepts = departmentService.getAncestorCodesIncludingSelf(requesterDept);
-            String sqlDept = "SELECT 1 FROM decrypt_approver WHERE app_user_id = ? AND department_code = ? LIMIT 1";
-            try (PreparedStatement ps = conn.prepareStatement(sqlDept)) {
-                ps.setLong(1, approverUserId);
-                for (String dept : allowedDepts) {
-                    ps.setString(2, dept);
-                    try (ResultSet rs = ps.executeQuery()) {
-                        if (rs.next()) return true;
-                    }
-                }
-            }
+            return approverDept.equals(requesterDept);
         } catch (SQLException e) {
             log.error("승인 권한 판단 실패: approver={}, requester={}", approverUserId, requesterUserId, e);
             return false;
@@ -121,11 +115,52 @@ public class DecryptApproverService {
             log.warn("승인 권한 판단 중 예외(비-SQL): approver={}, requester={}, type={}", approverUserId, requesterUserId, t.getClass().getName(), t);
             return false;
         }
-        return false;
+    }
+
+    private Boolean loadIsSystemAdminById(Long appUserId) throws SQLException {
+        try (Connection conn = dataSource.getConnection()) {
+            String sql = "SELECT is_system_admin FROM app_user WHERE id = ? AND deleted_at IS NULL LIMIT 1";
+            try (PreparedStatement ps = conn.prepareStatement(sql)) {
+                ps.setLong(1, appUserId);
+                try (ResultSet rs = ps.executeQuery()) {
+                    if (!rs.next()) {
+                        return null;
+                    }
+                    return rs.getObject("is_system_admin", Boolean.class);
+                }
+            }
+        }
+    }
+
+    private String loadDepartmentCodeByUserId(Long appUserId) throws SQLException {
+        try (Connection conn = dataSource.getConnection()) {
+            String sql = "SELECT department_code FROM app_user WHERE id = ? AND deleted_at IS NULL LIMIT 1";
+            try (PreparedStatement ps = conn.prepareStatement(sql)) {
+                ps.setLong(1, appUserId);
+                try (ResultSet rs = ps.executeQuery()) {
+                    return rs.next() ? rs.getString("department_code") : null;
+                }
+            }
+        }
+    }
+
+    private boolean rawGroupDecryptApproveOnEitherScreen(String username) {
+        Map<String, PermissionGroupService.ScreenFunctionFromDb> pgs = permissionGroupService.getScreenFunctionsForUser(username);
+        return screenHasExplicitApprove(pgs, ScreenConstants.SEARCH_HISTORY)
+                || screenHasExplicitApprove(pgs, ScreenConstants.PENDING_APPROVALS);
+    }
+
+    /** Explicit {@code approve=true} from merged permission_group_screen; null/false → false (§1.1.1 default). */
+    private static boolean screenHasExplicitApprove(Map<String, PermissionGroupService.ScreenFunctionFromDb> pgs, String screenId) {
+        if (pgs == null) {
+            return false;
+        }
+        PermissionGroupService.ScreenFunctionFromDb row = pgs.get(screenId);
+        return row != null && Boolean.TRUE.equals(row.approve);
     }
 
     /**
-     * app_user 목록 + 각 사용자별 isApprover, position, rank, isSystemAdmin. §7.1. userId = numeric app_user.id (req 20260316).
+     * app_user 목록 + position, rank, isSystemAdmin. §7.1. userId = numeric app_user.id (req 20260316). Approver capability not listed (req 20260323).
      */
     public List<UserListItemResponse> listUsers() {
         return listUsers(null);
@@ -171,8 +206,7 @@ public class DecryptApproverService {
                         String rank = rs.getString("rank");
                         boolean isSystemAdmin = Boolean.TRUE.equals(rs.getObject("is_system_admin", Boolean.class));
                         String employeeNumber = rs.getString("employee_number");
-                        boolean isApprover = isApprover(id);
-                        list.add(new UserListItemResponse(id, username, role, departmentCode, isApprover, position, rank, isSystemAdmin, employeeNumber));
+                        list.add(new UserListItemResponse(id, username, role, departmentCode, position, rank, isSystemAdmin, employeeNumber));
                     }
                 }
             }
@@ -394,8 +428,7 @@ public class DecryptApproverService {
                         String rank = rs.getString("rank");
                         boolean isSystemAdmin = Boolean.TRUE.equals(rs.getObject("is_system_admin", Boolean.class));
                         String employeeNumber = rs.getString("employee_number");
-                        boolean isApprover = isApprover(id);
-                        return new UserListItemResponse(id, uname, role, departmentCode, isApprover, position, rank, isSystemAdmin, employeeNumber);
+                        return new UserListItemResponse(id, uname, role, departmentCode, position, rank, isSystemAdmin, employeeNumber);
                     }
                 }
             }

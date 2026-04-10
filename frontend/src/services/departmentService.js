@@ -34,7 +34,7 @@ export const getDepartments = async (format = 'tree') => {
 /**
  * 해당 부서 멤버 목록 (department_code = code)
  * @param {string} code - 부서코드
- * @returns {Promise<Array<{userId, username, role, departmentCode, position, isApprover}>>}
+ * @returns {Promise<Array<{userId, username, role, departmentCode, position}>>}
  */
 export const getDepartmentMembers = async (code) => {
   const response = await fetchWithCreds(`${getApiBaseUrl()}/departments/${encodeURIComponent(code)}/members`);

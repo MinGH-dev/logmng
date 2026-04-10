@@ -136,7 +136,7 @@ class FilterOptionsControllerTest {
                                                 boolean isSystemAdmin,
                                                 List<String> allowedScreenIds,
                                                 Map<String, String> screenScopes) {
-            super(null, null, null, null, null, new com.logmng.config.AuthProperties(), null, null);
+            super(null, null, null, null, new com.logmng.config.AuthProperties(), null, null);
             this.username = username;
             this.isSystemAdmin = isSystemAdmin;
             this.allowedScreenIds = allowedScreenIds;

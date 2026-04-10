@@ -203,7 +203,9 @@ class SearchHistoryServiceTest {
         insertAppUser(dataSource, 20260001L, "requester1", "D01");
         insertAppUser(dataSource, 20260002L, "approver1", "D02");
         createSearchHistoryTableAndInsertPending(dataSource, 11L, 20260001L, "java_fw_imglog", "{}");
-        DecryptApproverService noApprovalService = new DecryptApproverService(dataSource, new DepartmentService(dataSource), null) {
+        AppUserResolver r = new AppUserResolver(dataSource);
+        DecryptApproverService noApprovalService = new DecryptApproverService(dataSource, new DepartmentService(dataSource), null,
+                new PermissionGroupService(dataSource, r), r) {
             @Override
             public boolean canApproveForRequester(Long approverUserId, Long requesterUserId) {
                 return false;
@@ -226,7 +228,9 @@ class SearchHistoryServiceTest {
         insertAppUser(dataSource, 20260001L, "requester1", "D01");
         createSearchHistoryTableAndInsertPending(dataSource, 12L, 20260001L, "java_fw_imglog", "{}");
         long unknownApproverId = 999999L;
-        DecryptApproverService noApprovalStub = new DecryptApproverService(dataSource, new DepartmentService(dataSource), null) {
+        AppUserResolver r2 = new AppUserResolver(dataSource);
+        DecryptApproverService noApprovalStub = new DecryptApproverService(dataSource, new DepartmentService(dataSource), null,
+                new PermissionGroupService(dataSource, r2), r2) {
             @Override
             public boolean canApproveForRequester(Long approverUserId, Long requesterUserId) {
                 return approverUserId != null && approverUserId != 999999L;

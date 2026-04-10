@@ -4,7 +4,6 @@ import userEvent from '@testing-library/user-event';
 import { ThemeProvider } from '@mui/material';
 import UserManagement from './UserManagement';
 import {
-  getUsers,
   deleteUser,
   createChildDepartmentV2,
   updateDepartmentV2,
@@ -16,7 +15,6 @@ import { getUserPermissionHierarchy, listPermissionGroups } from '../../services
 import { appTheme } from '../../theme';
 
 jest.mock('../../services/userService', () => ({
-  getUsers: jest.fn(),
   deleteUser: jest.fn(),
   createChildDepartmentV2: jest.fn(),
   updateDepartmentV2: jest.fn(),
@@ -57,7 +55,6 @@ describe('UserManagement', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
-    getUsers.mockResolvedValue({ data: [{ userId: 20260001, isApprover: false }] });
     listPermissionGroups.mockResolvedValue([]);
     createChildDepartmentV2.mockResolvedValue({ success: true, data: { id: 502 } });
     updateDepartmentV2.mockResolvedValue({ success: true, data: { id: 502 } });
@@ -570,7 +567,6 @@ describe('UserManagement', () => {
 
       await waitFor(() => {
         expect(getUserPermissionHierarchy).toHaveBeenCalled();
-        expect(getUsers).toHaveBeenCalled();
         expect(listPermissionGroups).toHaveBeenCalled();
       });
       expect(screen.queryByText('관리자만 접근할 수 있습니다.')).not.toBeInTheDocument();

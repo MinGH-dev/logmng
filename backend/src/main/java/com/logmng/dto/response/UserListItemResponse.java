@@ -5,8 +5,9 @@ import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 /**
- * 사용자 목록 항목 (§7.1): userId (numeric app_user.id), username, departmentCode, position, rank, isApprover, isSystemAdmin.
+ * 사용자 목록 항목 (§7.1): userId (numeric app_user.id), username, departmentCode, position, rank, isSystemAdmin.
  * role is internal only, not exposed in JSON (req 20250303). Req 20260316: userId = Long.
+ * Decrypt approver capability is not exposed here (req 20260323 — derive from permission groups / screenFunctions).
  */
 public class UserListItemResponse {
 
@@ -18,36 +19,33 @@ public class UserListItemResponse {
     private String rank;
     @JsonInclude(JsonInclude.Include.NON_NULL)
     private String employeeNumber;
-    @JsonProperty("isApprover")
-    private boolean approver;
     @JsonProperty("isSystemAdmin")
     private boolean systemAdmin;
 
     public UserListItemResponse() {
     }
 
-    public UserListItemResponse(Long userId, String username, String role, String departmentCode, boolean approver) {
-        this(userId, username, role, departmentCode, approver, null, null, false);
+    public UserListItemResponse(Long userId, String username, String role, String departmentCode) {
+        this(userId, username, role, departmentCode, null, null, false, null);
     }
 
-    public UserListItemResponse(Long userId, String username, String role, String departmentCode, boolean approver, String position) {
-        this(userId, username, role, departmentCode, approver, position, null, false);
+    public UserListItemResponse(Long userId, String username, String role, String departmentCode, String position) {
+        this(userId, username, role, departmentCode, position, null, false, null);
     }
 
-    public UserListItemResponse(Long userId, String username, String role, String departmentCode, boolean approver, String position, String rank) {
-        this(userId, username, role, departmentCode, approver, position, rank, false);
+    public UserListItemResponse(Long userId, String username, String role, String departmentCode, String position, String rank) {
+        this(userId, username, role, departmentCode, position, rank, false, null);
     }
 
-    public UserListItemResponse(Long userId, String username, String role, String departmentCode, boolean approver, String position, String rank, boolean isSystemAdmin) {
-        this(userId, username, role, departmentCode, approver, position, rank, isSystemAdmin, null);
+    public UserListItemResponse(Long userId, String username, String role, String departmentCode, String position, String rank, boolean isSystemAdmin) {
+        this(userId, username, role, departmentCode, position, rank, isSystemAdmin, null);
     }
 
-    public UserListItemResponse(Long userId, String username, String role, String departmentCode, boolean approver, String position, String rank, boolean isSystemAdmin, String employeeNumber) {
+    public UserListItemResponse(Long userId, String username, String role, String departmentCode, String position, String rank, boolean isSystemAdmin, String employeeNumber) {
         this.userId = userId;
         this.username = username;
         this.role = role;
         this.departmentCode = departmentCode;
-        this.approver = approver;
         this.position = position;
         this.rank = rank;
         this.systemAdmin = isSystemAdmin;
@@ -101,14 +99,6 @@ public class UserListItemResponse {
 
     public void setRank(String rank) {
         this.rank = rank;
-    }
-
-    public boolean isApprover() {
-        return approver;
-    }
-
-    public void setApprover(boolean approver) {
-        this.approver = approver;
     }
 
     public boolean isSystemAdmin() {

@@ -59,7 +59,7 @@ public class UserController {
     }
 
     /**
-     * GET /api/users — 관리자 전용. 사용자 목록(departmentCode, isApprover, isSystemAdmin).
+     * GET /api/users — 관리자 전용. 사용자 목록(departmentCode, isSystemAdmin). Approver capability not in payload (req 20260323).
      */
     @GetMapping
     public ResponseEntity<ApiResponse<List<UserListItemResponse>>> listUsers(HttpServletRequest request) {

@@ -17,7 +17,7 @@ const fetchWithCreds = async (url, options = {}) => {
 
 /**
  * 사용자 목록 조회 (관리자 전용)
- * @returns {Promise<{ success: boolean, data: Array<{ userId, isSystemAdmin, departmentCode, isApprover }> }>}
+ * @returns {Promise<{ success: boolean, data: Array<{ userId, isSystemAdmin, departmentCode }> }>}
  */
 export const getUsers = async () => {
   const response = await fetchWithCreds(`${getApiBaseUrl()}/users`);
