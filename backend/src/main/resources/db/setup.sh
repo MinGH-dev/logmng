@@ -6,39 +6,117 @@
 # 그 경우: DB_SUPERUSER=$USER ./setup.sh
 #
 # --- Multi-database / multi-schema (요구: 20260320-multi-datasource-schema-configuration) ---
-# DB A: 시스템(SCHEMA_SYS) + PB FEP(SCHEMA_PB). DB B: ImageLog(SCHEMA_IMAGELOG).
+# DB A (Primary / logmng sys): SCHEMA_SYS. PB FEP: SCHEMA_PB on DB A or separate PB DB. DB B: ImageLog (SCHEMA_IMAGELOG).
 # 새 변수를 설정하지 않으면 기존과 동일: 단일 DB(logmng)·스키마 public.
 #
-# 환경 변수 (선택, 기본값은 단일 DB public 흐름):
-#   DB_NAME          레거시 DB 이름 (기본: logmng). DB_A_NAME 미설정 시 사용.
-#   DB_A_NAME        데이터베이스 A (시스템+PB). 기본: DB_NAME 또는 logmng
-#   DB_B_NAME        데이터베이스 B (ImageLog). 기본: DB_A_NAME (단일 DB)
-#   SCHEMA_SYS       A 위 시스템 DDL 대상 스키마 (기본: public)
-#   SCHEMA_PB        A 위 PB FEP DDL 대상 스키마 (기본: public)
-#   SCHEMA_IMAGELOG  B 위 imagelog DDL 대상 스키마 (기본: public)
-#   DB_SUPERUSER     슈퍼유저 (기본: postgres)
-#   DB_USER / DB_PASSWORD / DB_HOST / DB_PORT  애플리케이션 DB 역할 (기본: logmng / logmng123 / localhost / 5432)
+# --- Contract: docs/contract.md (DB 설치·부트스트랩) ---
+# 슈퍼유저 OS 역할: DB_SUPERUSER (기본 postgres). 클라이언트 비밀번호는 PGPASSWORD 또는
+# PGPASSWORD_SUPER(설정 시 내부에서 PGPASSWORD로 전달) — 값은 절대 stdout/stderr에 출력하지 않음.
+# Primary/ImageLog 클러스터: DB_HOST, DB_PORT, DB_NAME(레거시), DB_A_NAME, DB_B_NAME, DB_USER, DB_PASSWORD,
+# DB_ETL_USER, DB_ETL_PASSWORD, SCHEMA_*.
+# Split-PB 클러스터: DB_PB_NAME, DB_PB_HOST, DB_PB_PORT, DB_PB_SUPERUSER(기본 DB_SUPERUSER와 동일).
 #
-#   SETUP_MODE         full(기본) | sys_only — sys_only일 때 schema_pb_fep.sql·init-data.sql 생략
-#                      (PB는 이미 SCHEMA_PB에 있음, SCHEMA_SYS만 신규 적용). DB_SETUP_GUIDE.md 주의 참고.
-#   SYS_ONLY_LOAD_INIT_DATA  1이면 sys_only에서도 init-data.sql 실행(데이터 중복 주의)
+# --- PB FEP 별도 PostgreSQL database (split-PB) ---
+# DB_PB_NAME이 비어 있거나 DB_A_NAME과 같으면 레거시: PB DDL·마이그레이션이 A에 적용됨.
+# DB_PB_NAME이 설정되고 DB_A_NAME과 다르면 split-PB: PB DDL(schema_pb_fep, PB 전용 마이그레이션)은
+# DB_PB_NAME DB에만 적용(psql_pb_admin = DB_PB_HOST/DB_PB_PORT/DB_PB_SUPERUSER, 기본은 primary와 동일).
+# Spring 런타임 URL은 contract의 APP_DATASOURCE_PB_* / SPRING_DATASOURCE_* 참고(본 스크립트는 JDBC 전체 URL을 로그에 찍지 않음).
 #
-# 예: A에 logmng_sys + logmng, B는 별도 DB imagelog_store, ImageLog는 public
-#   DB_A_NAME=logmng DB_B_NAME=imagelog_store SCHEMA_SYS=logmng_sys SCHEMA_PB=logmng SCHEMA_IMAGELOG=public ./setup.sh
+# SETUP_MODE (기본 full); 허용 값: full | sys_only | pb_only
+#   full(기본)     A/B + (split 시 PB DB). sys_only+split 시 PB 자동 DDL 없음 → pb_only로 PB 클러스터 실행 권장.
+#   sys_only       schema_pb_fep·초기 데이터 등 생략(기존과 동일). split 시 A는 SYS만; PB DDL은 실행하지 않음.
+#   pb_only        PB DB만: DB_PB_NAME 생성·앱 역할 CONNECT/grants·SCHEMA_PB·schema_pb_fep·PB 마이그레이션만.
+#                  A/B/ImageLog 단계 없음. DB_PB_NAME 필수(비어 있으면 exit 1).
 #
-# setup.sh 4h (permission_group_screen 컬럼 마이그레이션):
-#   신규 설치는 schema_sys.sql에 이미 scope·read·write·approve·decrypt가 있어 해당 SQL은 no-op.
-#   예전 DDL로 만든 레거시 테이블은 컬럼이 없을 수 있음 — 4h를 건너뛰면 5a/5a-1 및 앱 쿼리가 실패할 수 있음(req 20260320-permission-group-screen-entry-error-migration-check).
+# --- Non-interactive (.env-driven install, req 20260410) ---
+# install 래퍼는 set -a && source .env && set +a 후 본 스크립트를 호출할 수 있다.
+# INSTALL_NONINTERACTIVE=1 또는 SETUP_NONINTERACTIVE=1 이면(대소문자 true/yes/y 허용) 스크립트 기본값으로
+# 비밀번호·호스트를 채우지 않도록 **기본값 적용 전에** 필수 변수가 설정·비어 있지 않은지 검사한다.
+#   full / sys_only: DB_HOST, DB_PORT, DB_USER, DB_PASSWORD, DB_ETL_USER, DB_ETL_PASSWORD
+#   pb_only: DB_PB_NAME, DB_USER, DB_PASSWORD 및 (DB_PB_HOST·DB_PB_PORT 가 모두 설정되어 있거나
+#            대체로 DB_HOST·DB_PORT 가 모두 설정)
+# 누락/빈 값 오류 메시지는 변수 **이름만** 나열한다. trust 인증이면 PGPASSWORD/PGPASSWORD_SUPER 생략 가능.
 #
-# 수동 적용 예 (sys → logmng_sys, PB → logmng, imagelog → B):
-#   psql -U postgres -d logmng -c "CREATE SCHEMA IF NOT EXISTS logmng_sys; CREATE SCHEMA IF NOT EXISTS logmng;"
-#   psql -U postgres -d logmng -v ON_ERROR_STOP=1 -c "SET search_path TO logmng, public;" -f schema_pb_fep.sql
-#   psql -U postgres -d logmng -v ON_ERROR_STOP=1 -c "SET search_path TO logmng_sys, logmng, public;" -f schema_sys.sql
-#   psql -U postgres -d imagelog_store -v ON_ERROR_STOP=1 -c "SET search_path TO public;" -f schema_imagelog.sql
+# --- Security (stdout/stderr) ---
+# 비밀번호, PGPASSWORD, PGPASSWORD_SUPER, 자격 증명이 포함된 JDBC URL, .env 원문을 출력하지 않는다.
+# 기본 경로에서 set -x를 켜지 않는다. 디버그 시 SETUP_BASH_XTRACE=1 이면 set -x 활성(로그에 비밀 유출 가능 — 운영 금지).
+#
+#   SYS_ONLY_LOAD_INIT_DATA  1이면 sys_only에서도 INIT_DATA_FILE 실행
+#   SKIP_INIT_DATA       1이면 INIT_DATA_FILE 실행 생략(full·sys_only 공통; DDL·마이그레이션은 유지)
+#   INIT_DATA_FILE     기본: init-data.sql
+#   CLOSED_NETWORK_MINIMAL  1이면 PB pagination/bmsg 샘플·imagelog 샘플 등 생략(DDL 마이그레이션은 유지)
+#
+# 예: A에 logmng_sys + PB는 별도 DB logmng_pb (동일 클러스터)
+#   DB_A_NAME=logmng DB_PB_NAME=logmng_pb SCHEMA_SYS=logmng_sys SCHEMA_PB=public ./setup.sh
+#
+# setup.sh 4h (permission_group_screen): 신규 설치는 schema_sys.sql에 컬럼 포함; 레거시는 4h 필요.
 #
 set -e
 
+if [ "${SETUP_BASH_XTRACE:-0}" = "1" ]; then
+  set -x
+fi
+
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+
+# --- Non-interactive: validate before applying script defaults (TC-01 / TC-05) ---
+noninteractive_enabled() {
+  case "${INSTALL_NONINTERACTIVE:-}" in 1|true|TRUE|yes|YES|y|Y) return 0 ;; esac
+  case "${SETUP_NONINTERACTIVE:-}" in 1|true|TRUE|yes|YES|y|Y) return 0 ;; esac
+  return 1
+}
+
+_validate_noninteractive_env() {
+  local mode="${SETUP_MODE:-full}"
+  local bad=""
+  local n
+
+  case "$mode" in
+    pb_only)
+      n="DB_PB_NAME"
+      if ! eval "[ -n \"\${${n}+x}\" ]" || ! eval "[ -n \"\$$n\" ]"; then bad="${bad}${bad:+ }DB_PB_NAME"; fi
+      n="DB_USER"
+      if ! eval "[ -n \"\${${n}+x}\" ]" || ! eval "[ -n \"\$$n\" ]"; then bad="${bad}${bad:+ }DB_USER"; fi
+      n="DB_PASSWORD"
+      if ! eval "[ -n \"\${${n}+x}\" ]" || ! eval "[ -n \"\$$n\" ]"; then bad="${bad}${bad:+ }DB_PASSWORD"; fi
+      if eval "[ -n \"\${DB_PB_HOST+x}\" ]" && eval "[ -n \"\${DB_PB_PORT+x}\" ]"; then
+        :
+      else
+        n="DB_HOST"
+        if ! eval "[ -n \"\${${n}+x}\" ]"; then bad="${bad}${bad:+ }DB_HOST"; fi
+        n="DB_PORT"
+        if ! eval "[ -n \"\${${n}+x}\" ]"; then bad="${bad}${bad:+ }DB_PORT"; fi
+      fi
+      ;;
+    full|sys_only)
+      n="DB_HOST"
+      if ! eval "[ -n \"\${${n}+x}\" ]"; then bad="${bad}${bad:+ }DB_HOST"; fi
+      n="DB_PORT"
+      if ! eval "[ -n \"\${${n}+x}\" ]"; then bad="${bad}${bad:+ }DB_PORT"; fi
+      n="DB_USER"
+      if ! eval "[ -n \"\${${n}+x}\" ]" || ! eval "[ -n \"\$$n\" ]"; then bad="${bad}${bad:+ }DB_USER"; fi
+      n="DB_PASSWORD"
+      if ! eval "[ -n \"\${${n}+x}\" ]" || ! eval "[ -n \"\$$n\" ]"; then bad="${bad}${bad:+ }DB_PASSWORD"; fi
+      n="DB_ETL_USER"
+      if ! eval "[ -n \"\${${n}+x}\" ]" || ! eval "[ -n \"\$$n\" ]"; then bad="${bad}${bad:+ }DB_ETL_USER"; fi
+      n="DB_ETL_PASSWORD"
+      if ! eval "[ -n \"\${${n}+x}\" ]" || ! eval "[ -n \"\$$n\" ]"; then bad="${bad}${bad:+ }DB_ETL_PASSWORD"; fi
+      ;;
+    *)
+      echo "Error: invalid SETUP_MODE (expected full, sys_only, or pb_only)." >&2
+      exit 2
+      ;;
+  esac
+
+  if [ -n "$bad" ]; then
+    echo "Error: non-interactive install: missing or empty required variables: $bad" >&2
+    exit 2
+  fi
+}
+
+if noninteractive_enabled; then
+  _validate_noninteractive_env
+fi
 
 DB_SUPERUSER="${DB_SUPERUSER:-postgres}"
 DB_NAME="${DB_NAME:-logmng}"
@@ -51,19 +129,54 @@ SCHEMA_IMAGELOG="${SCHEMA_IMAGELOG:-public}"
 
 DB_USER="${DB_USER:-logmng}"
 DB_PASSWORD="${DB_PASSWORD:-logmng123}"
-# ETL/레플리카 작업 전용: ext_department / ext_employee 에만 INSERT·UPDATE·DELETE (앱 역할은 SELECT-only)
 DB_ETL_USER="${DB_ETL_USER:-logmng_etl}"
 DB_ETL_PASSWORD="${DB_ETL_PASSWORD:-logmng_etl123}"
 DB_HOST="${DB_HOST:-localhost}"
 DB_PORT="${DB_PORT:-5432}"
 
-SETUP_MODE="${SETUP_MODE:-full}"
+DB_PB_NAME="${DB_PB_NAME:-}"
+DB_PB_HOST="${DB_PB_HOST:-$DB_HOST}"
+DB_PB_PORT="${DB_PB_PORT:-$DB_PORT}"
+DB_PB_SUPERUSER="${DB_PB_SUPERUSER:-$DB_SUPERUSER}"
 
-# 슈퍼유저 비밀번호(로컬 trust면 불필요). 예: PGPASSWORD_SUPER=secret
+SETUP_MODE="${SETUP_MODE:-full}"
+INIT_DATA_FILE="${INIT_DATA_FILE:-init-data.sql}"
+CLOSED_NETWORK_MINIMAL="${CLOSED_NETWORK_MINIMAL:-0}"
+SKIP_INIT_DATA="${SKIP_INIT_DATA:-0}"
+
+case "$SETUP_MODE" in full|sys_only|pb_only) ;; *)
+  echo "Error: invalid SETUP_MODE (expected full, sys_only, or pb_only)." >&2
+  exit 2
+  ;;
+esac
+
+SPLIT_PB=0
+if [ -n "$DB_PB_NAME" ] && [ "$DB_PB_NAME" != "$DB_A_NAME" ]; then
+  SPLIT_PB=1
+fi
+
+PB_CLUSTER_DIFFERS=0
+if [ "$DB_PB_HOST" != "$DB_HOST" ] || [ "$DB_PB_PORT" != "$DB_PORT" ]; then
+  PB_CLUSTER_DIFFERS=1
+fi
+
+if [ "$SPLIT_PB" = "1" ]; then
+  SP_A_DDL="${SCHEMA_SYS}, public"
+  SP_APP="${SCHEMA_SYS}, public"
+else
+  SP_A_DDL="${SCHEMA_SYS}, ${SCHEMA_PB}, public"
+  SP_APP="${SCHEMA_SYS}, ${SCHEMA_PB}, public"
+fi
+
+# 슈퍼유저 클라이언트 비밀번호(로컬 trust면 불필요). PGPASSWORD_SUPER 또는 PGPASSWORD로만 전달.
 export PGPASSWORD="${PGPASSWORD_SUPER:-${PGPASSWORD:-}}"
 
 psql_admin() {
   psql -U "$DB_SUPERUSER" -h "$DB_HOST" -p "$DB_PORT" "$@"
+}
+
+psql_pb_admin() {
+  psql -U "$DB_PB_SUPERUSER" -h "$DB_PB_HOST" -p "$DB_PB_PORT" "$@"
 }
 
 ensure_schema() {
@@ -73,6 +186,15 @@ ensure_schema() {
     return 0
   fi
   psql_admin -d "$db" -v ON_ERROR_STOP=1 -c "CREATE SCHEMA IF NOT EXISTS ${sch};"
+}
+
+ensure_schema_pb() {
+  local db="$1"
+  local sch="$2"
+  if [ "$sch" = "public" ]; then
+    return 0
+  fi
+  psql_pb_admin -d "$db" -v ON_ERROR_STOP=1 -c "CREATE SCHEMA IF NOT EXISTS ${sch};"
 }
 
 grant_schema_objects() {
@@ -86,6 +208,17 @@ grant_schema_objects() {
   psql_admin -d "$db" -v ON_ERROR_STOP=1 -c "ALTER DEFAULT PRIVILEGES IN SCHEMA ${sch} GRANT ALL ON SEQUENCES TO ${user};"
 }
 
+grant_schema_objects_pb() {
+  local db="$1"
+  local sch="$2"
+  local user="$3"
+  psql_pb_admin -d "$db" -v ON_ERROR_STOP=1 -c "GRANT USAGE ON SCHEMA ${sch} TO ${user};"
+  psql_pb_admin -d "$db" -v ON_ERROR_STOP=1 -c "GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA ${sch} TO ${user};"
+  psql_pb_admin -d "$db" -v ON_ERROR_STOP=1 -c "GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA ${sch} TO ${user};"
+  psql_pb_admin -d "$db" -v ON_ERROR_STOP=1 -c "ALTER DEFAULT PRIVILEGES IN SCHEMA ${sch} GRANT ALL ON TABLES TO ${user};"
+  psql_pb_admin -d "$db" -v ON_ERROR_STOP=1 -c "ALTER DEFAULT PRIVILEGES IN SCHEMA ${sch} GRANT ALL ON SEQUENCES TO ${user};"
+}
+
 run_sql_file_sp() {
   local db="$1"
   local search_path_csv="$2"
@@ -95,10 +228,81 @@ run_sql_file_sp() {
     -f "$file"
 }
 
-echo "=== PostgreSQL 데이터베이스 설정 (MODE=${SETUP_MODE}, A=${DB_A_NAME}, B=${DB_B_NAME}, SCHEMA_SYS=${SCHEMA_SYS}, SCHEMA_PB=${SCHEMA_PB}, SCHEMA_IMAGELOG=${SCHEMA_IMAGELOG}) ==="
+run_sql_file_sp_pb() {
+  local db="$1"
+  local search_path_csv="$2"
+  local file="$3"
+  psql_pb_admin -d "$db" -v ON_ERROR_STOP=1 \
+    -c "SET search_path TO ${search_path_csv};" \
+    -f "$file"
+}
+
+grant_connect_pb_db() {
+  psql_pb_admin -d postgres -v ON_ERROR_STOP=1 -c "GRANT CONNECT ON DATABASE ${DB_PB_NAME} TO ${DB_USER};"
+}
+
+apply_split_pb_migrations_and_grants() {
+  local sp_pb="${SCHEMA_PB}, public"
+  if [ "${CLOSED_NETWORK_MINIMAL}" = "1" ]; then
+    echo "5-pb-fep. PB FEP pagination/bmsg 샘플 ⏭️  생략 (CLOSED_NETWORK_MINIMAL=1, DB=${DB_PB_NAME})"
+  else
+    echo "5-pb-fep. PB FEP pagination / bmsg 샘플 (split, DB=${DB_PB_NAME})..."
+    run_sql_file_sp_pb "$DB_PB_NAME" "$sp_pb" "$SCRIPT_DIR/migrate-pb-fep-pagination-bmsg-sample-20260330.sql"
+    echo "   ✅ PB FEP pagination/bmsg 샘플(PB DB)"
+  fi
+  echo "5-pb-fep-partition. PB FEP(pb_send/pb_recv) 파티셔닝(split, DB=${DB_PB_NAME})..."
+  run_sql_file_sp_pb "$DB_PB_NAME" "$sp_pb" "$SCRIPT_DIR/migrate-pb-send-recv-partitioning-20260408.sql"
+  echo "   ✅ PB FEP 파티셔닝 마이그레이션(PB DB)"
+  echo "5-pb-split-grant. PB 스키마 GRANT (${SCHEMA_PB} → ${DB_USER})..."
+  grant_schema_objects_pb "$DB_PB_NAME" "$SCHEMA_PB" "$DB_USER"
+  psql_pb_admin -d "$DB_PB_NAME" -c "GRANT ALL PRIVILEGES ON SCHEMA public TO $DB_USER;" 2>/dev/null || true
+}
+
+# --- PB-only provisioning (no A/B imagelog) ---
+if [ "$SETUP_MODE" = "pb_only" ]; then
+  if [ -z "$DB_PB_NAME" ]; then
+    echo "Error: SETUP_MODE=pb_only requires DB_PB_NAME." >&2
+    exit 1
+  fi
+  echo "=== PostgreSQL PB-only (DB_PB_NAME=${DB_PB_NAME}, host=${DB_PB_HOST}:${DB_PB_PORT}, SCHEMA_PB=${SCHEMA_PB}) ==="
+  echo ""
+  if ! pg_isready -h "$DB_PB_HOST" -p "$DB_PB_PORT" >/dev/null 2>&1; then
+    echo "경고: pg_isready 실패 — PB 클러스터 ${DB_PB_HOST}:${DB_PB_PORT} 가 응답하지 않습니다. 계속 시도합니다."
+  fi
+  echo "1-pb. PB database 생성..."
+  psql_pb_admin -tc "SELECT 1 FROM pg_database WHERE datname = '${DB_PB_NAME}'" | grep -q 1 || \
+    psql_pb_admin -c "CREATE DATABASE ${DB_PB_NAME};"
+  echo "   ✅ database '${DB_PB_NAME}' 확인됨"
+
+  echo "2-pb. PB 클러스터에 앱 사용자 확인(없으면 CREATE)..."
+  psql_pb_admin -d postgres -tc "SELECT 1 FROM pg_roles WHERE rolname = '${DB_USER}'" | grep -q 1 || \
+    psql_pb_admin -d postgres -c "CREATE USER ${DB_USER} WITH PASSWORD '${DB_PASSWORD}';"
+  echo "   ✅ 사용자 '${DB_USER}' 확인됨(PB 클러스터)"
+  if [ "$PB_CLUSTER_DIFFERS" != "1" ]; then
+    echo "      (PB 클러스터 = primary — 이미 역할이 있으면 위 CREATE는 건너뜀)"
+  fi
+
+  echo "3-pb. CONNECT 및 SCHEMA_PB 준비..."
+  grant_connect_pb_db
+  ensure_schema_pb "$DB_PB_NAME" "$SCHEMA_PB"
+
+  echo "4-pb. schema_pb_fep.sql (PB DB)..."
+  run_sql_file_sp_pb "$DB_PB_NAME" "${SCHEMA_PB}, public" "$SCRIPT_DIR/schema_pb_fep.sql"
+  echo "   ✅ schema_pb_fep 적용"
+
+  apply_split_pb_migrations_and_grants
+
+  echo ""
+  echo "=== PB-only 설정 완료 ==="
+  echo "데이터베이스(PB): $DB_PB_NAME (SCHEMA_PB=$SCHEMA_PB)"
+  echo "앱 역할(이름만): $DB_USER"
+  echo "PB 엔드포인트: ${DB_PB_HOST}:${DB_PB_PORT} (런타임 URL은 contract APP_DATASOURCE_PB_* 참고)"
+  exit 0
+fi
+
+echo "=== PostgreSQL 데이터베이스 설정 (MODE=${SETUP_MODE}, SPLIT_PB=${SPLIT_PB}, INIT_DATA_FILE=${INIT_DATA_FILE}, SKIP_INIT_DATA=${SKIP_INIT_DATA}, CLOSED_NETWORK_MINIMAL=${CLOSED_NETWORK_MINIMAL}, A=${DB_A_NAME}, B=${DB_B_NAME}, PB=${DB_PB_NAME:-'(on A)'}, SCHEMA_SYS=${SCHEMA_SYS}, SCHEMA_PB=${SCHEMA_PB}, SCHEMA_IMAGELOG=${SCHEMA_IMAGELOG}) ==="
 echo ""
 
-# PostgreSQL 서비스 시작 확인 (macOS Homebrew)
 if command -v brew >/dev/null 2>&1 && ! pg_isready -h "$DB_HOST" -p "$DB_PORT" >/dev/null 2>&1; then
   echo "PostgreSQL 서비스를 시작합니다..."
   brew services start postgresql@16 2>/dev/null || true
@@ -109,61 +313,97 @@ if ! pg_isready -h "$DB_HOST" -p "$DB_PORT" >/dev/null 2>&1; then
   echo "경고: pg_isready 실패 — PostgreSQL이 ${DB_HOST}:${DB_PORT} 에서 응답하지 않습니다. 계속 시도합니다."
 fi
 
+if [ "$SPLIT_PB" = "1" ]; then
+  if ! pg_isready -h "$DB_PB_HOST" -p "$DB_PB_PORT" >/dev/null 2>&1; then
+    echo "경고: pg_isready 실패 — PB 클러스터 ${DB_PB_HOST}:${DB_PB_PORT} 가 응답하지 않습니다. 계속 시도합니다."
+  fi
+fi
+
+if [ "$SETUP_MODE" = "sys_only" ] && [ "$SPLIT_PB" = "1" ]; then
+  echo "참고: split-PB + sys_only — PB DDL/마이그레이션은 이 실행에서 생략합니다. PB DB는 SETUP_MODE=pb_only 로 별도 실행하세요."
+fi
+
 echo "1. 데이터베이스 생성 중..."
 for dbname in "$DB_A_NAME" "$DB_B_NAME"; do
   psql_admin -tc "SELECT 1 FROM pg_database WHERE datname = '$dbname'" | grep -q 1 || \
     psql_admin -c "CREATE DATABASE $dbname;"
   echo "   ✅ 데이터베이스 '$dbname' 확인됨"
 done
+if [ "$SPLIT_PB" = "1" ]; then
+  psql_pb_admin -tc "SELECT 1 FROM pg_database WHERE datname = '${DB_PB_NAME}'" | grep -q 1 || \
+    psql_pb_admin -c "CREATE DATABASE ${DB_PB_NAME};"
+  echo "   ✅ 데이터베이스(PB) '${DB_PB_NAME}' 확인됨"
+fi
 
 echo "2. 사용자 생성 중..."
 psql_admin -d "$DB_A_NAME" -tc "SELECT 1 FROM pg_user WHERE usename = '$DB_USER'" | grep -q 1 || \
   psql_admin -d "$DB_A_NAME" -c "CREATE USER $DB_USER WITH PASSWORD '$DB_PASSWORD';"
-echo "   ✅ 사용자 '$DB_USER' 확인됨"
+echo "   ✅ 사용자 '$DB_USER' 확인됨(primary)"
+
+if [ "$SPLIT_PB" = "1" ] && [ "$PB_CLUSTER_DIFFERS" = "1" ]; then
+  psql_pb_admin -d postgres -tc "SELECT 1 FROM pg_roles WHERE rolname = '${DB_USER}'" | grep -q 1 || \
+    psql_pb_admin -d postgres -c "CREATE USER ${DB_USER} WITH PASSWORD '${DB_PASSWORD}';"
+  echo "   ✅ 사용자 '$DB_USER' 확인됨(PB 클러스터)"
+fi
 
 echo "3. DB 연결 권한 및 스키마 준비..."
 psql_admin -d "$DB_A_NAME" -c "GRANT ALL PRIVILEGES ON DATABASE $DB_A_NAME TO $DB_USER;"
 if [ "$DB_B_NAME" != "$DB_A_NAME" ]; then
   psql_admin -d "$DB_B_NAME" -c "GRANT ALL PRIVILEGES ON DATABASE $DB_B_NAME TO $DB_USER;"
 fi
+if [ "$SPLIT_PB" = "1" ]; then
+  grant_connect_pb_db
+fi
 
 ensure_schema "$DB_A_NAME" "$SCHEMA_SYS"
-ensure_schema "$DB_A_NAME" "$SCHEMA_PB"
+if [ "$SPLIT_PB" != "1" ]; then
+  ensure_schema "$DB_A_NAME" "$SCHEMA_PB"
+fi
 ensure_schema "$DB_B_NAME" "$SCHEMA_IMAGELOG"
 
-# 레거시: public 단일 스키마 시 기존과 동일
 psql_admin -d "$DB_A_NAME" -c "GRANT ALL PRIVILEGES ON SCHEMA public TO $DB_USER;" 2>/dev/null || true
+
+if [ "$SPLIT_PB" = "1" ] && [ "$SETUP_MODE" = "full" ]; then
+  echo "3-split-pb. PB database에 schema_pb_fep 선적용 (SYS DDL 전, DB=${DB_PB_NAME})..."
+  ensure_schema_pb "$DB_PB_NAME" "$SCHEMA_PB"
+  run_sql_file_sp_pb "$DB_PB_NAME" "${SCHEMA_PB}, public" "$SCRIPT_DIR/schema_pb_fep.sql"
+  echo "   ✅ schema_pb_fep(PB DB) 적용"
+fi
 
 echo "4. DDL 적용 (PB → SYS → user_activity → ImageLog on B)..."
 if [ "$SETUP_MODE" = "sys_only" ]; then
   echo "   ⏭️  SETUP_MODE=sys_only: schema_pb_fep.sql 생략 (기존 PB는 SCHEMA_PB=${SCHEMA_PB}에 있다고 가정)"
 else
-  run_sql_file_sp "$DB_A_NAME" "${SCHEMA_PB}, public" "$SCRIPT_DIR/schema_pb_fep.sql"
+  if [ "$SPLIT_PB" = "1" ]; then
+    echo "   ⏭️  split-PB: schema_pb_fep 는 A가 아닌 DB_PB_NAME(${DB_PB_NAME})에만 적용됨"
+  else
+    run_sql_file_sp "$DB_A_NAME" "${SCHEMA_PB}, public" "$SCRIPT_DIR/schema_pb_fep.sql"
+  fi
 fi
-run_sql_file_sp "$DB_A_NAME" "${SCHEMA_SYS}, ${SCHEMA_PB}, public" "$SCRIPT_DIR/schema_sys.sql"
+run_sql_file_sp "$DB_A_NAME" "$SP_A_DDL" "$SCRIPT_DIR/schema_sys.sql"
 echo "4-ext. 외부 복제 ext_* / app_user_external_identity (레거시 DB 정렬, req 20260407)..."
-run_sql_file_sp "$DB_A_NAME" "${SCHEMA_SYS}, ${SCHEMA_PB}, public" "$SCRIPT_DIR/migrate-external-identity-tables-20260407.sql"
+run_sql_file_sp "$DB_A_NAME" "$SP_A_DDL" "$SCRIPT_DIR/migrate-external-identity-tables-20260407.sql"
 echo "   ✅ migrate-external-identity-tables-20260407.sql 적용(또는 신규 스키마와 동일·no-op)"
 echo "4-ext-1. department_org_link (복제 부서키 → department.code, 20260407)..."
-run_sql_file_sp "$DB_A_NAME" "${SCHEMA_SYS}, ${SCHEMA_PB}, public" "$SCRIPT_DIR/migrate-department-org-link-20260407.sql"
+run_sql_file_sp "$DB_A_NAME" "$SP_A_DDL" "$SCRIPT_DIR/migrate-department-org-link-20260407.sql"
 echo "   ✅ migrate-department-org-link-20260407.sql 적용(또는 신규 스키마와 동일·no-op)"
 echo "4-ext-1b. app_user.employee_number (인사정보 사번, 프로비저닝/ext_employee 동기화, 20260407)..."
-run_sql_file_sp "$DB_A_NAME" "${SCHEMA_SYS}, ${SCHEMA_PB}, public" "$SCRIPT_DIR/migrate-app-user-employee-number-20260407.sql"
+run_sql_file_sp "$DB_A_NAME" "$SP_A_DDL" "$SCRIPT_DIR/migrate-app-user-employee-number-20260407.sql"
 echo "   ✅ migrate-app-user-employee-number-20260407.sql 적용(또는 신규 스키마와 동일·no-op)"
 echo "4-ext-1c. app_user.deleted_at (소프트 삭제, DBA·req 20260407)..."
-run_sql_file_sp "$DB_A_NAME" "${SCHEMA_SYS}, ${SCHEMA_PB}, public" "$SCRIPT_DIR/migrate-app-user-soft-delete-20260407.sql"
+run_sql_file_sp "$DB_A_NAME" "$SP_A_DDL" "$SCRIPT_DIR/migrate-app-user-soft-delete-20260407.sql"
 echo "   ✅ migrate-app-user-soft-delete-20260407.sql 적용(또는 신규 스키마와 동일·no-op)"
 echo "4-ext-2. HR_SAMPLE ext_employee.employee_number → 8자리 사용자 ID 형식 (20260407)..."
-run_sql_file_sp "$DB_A_NAME" "${SCHEMA_SYS}, ${SCHEMA_PB}, public" "$SCRIPT_DIR/migrate-hr-sample-employee-number-userid-format-20260407.sql"
+run_sql_file_sp "$DB_A_NAME" "$SP_A_DDL" "$SCRIPT_DIR/migrate-hr-sample-employee-number-userid-format-20260407.sql"
 echo "   ✅ migrate-hr-sample-employee-number-userid-format-20260407.sql 적용(구 시드만 갱신, 재실행 no-op)"
 echo "4-ext-3. HR Sync PoC ext_employee.snapshot_id + index + HR_SAMPLE snapshot 백필 (req 20260408)..."
 echo "   순서: ext_employee 존재 후 · init-data(5단계) 전에 실행 — 신규 컬럼·시드 정합."
-run_sql_file_sp "$DB_A_NAME" "${SCHEMA_SYS}, ${SCHEMA_PB}, public" "$SCRIPT_DIR/migrate-hr-sync-poc-ext-employee-snapshot-id-20260408.sql"
+run_sql_file_sp "$DB_A_NAME" "$SP_A_DDL" "$SCRIPT_DIR/migrate-hr-sync-poc-ext-employee-snapshot-id-20260408.sql"
 echo "   ✅ migrate-hr-sync-poc-ext-employee-snapshot-id-20260408.sql 적용(재실행 idempotent)"
-run_sql_file_sp "$DB_A_NAME" "${SCHEMA_SYS}, ${SCHEMA_PB}, public" "$SCRIPT_DIR/schema_user_activity_log.sql"
+run_sql_file_sp "$DB_A_NAME" "$SP_A_DDL" "$SCRIPT_DIR/schema_user_activity_log.sql"
 
 echo "4a-user-activity-access-audit. user_activity_access_audit (append-only access audit, req 20260330 audit evidence)..."
-run_sql_file_sp "$DB_A_NAME" "${SCHEMA_SYS}, ${SCHEMA_PB}, public" "$SCRIPT_DIR/migrate-user-activity-access-audit-20260406.sql"
+run_sql_file_sp "$DB_A_NAME" "$SP_A_DDL" "$SCRIPT_DIR/migrate-user-activity-access-audit-20260406.sql"
 echo "   ✅ user_activity_access_audit 적용(또는 이미 존재)"
 
 run_sql_file_sp "$DB_B_NAME" "${SCHEMA_IMAGELOG}, public" "$SCRIPT_DIR/schema_imagelog.sql"
@@ -176,7 +416,9 @@ echo "   ✅ 스키마 파일 적용 완료"
 
 echo "4b. 스키마별 GRANT (앱 사용자)..."
 grant_schema_objects "$DB_A_NAME" "$SCHEMA_SYS" "$DB_USER"
-grant_schema_objects "$DB_A_NAME" "$SCHEMA_PB" "$DB_USER"
+if [ "$SPLIT_PB" != "1" ]; then
+  grant_schema_objects "$DB_A_NAME" "$SCHEMA_PB" "$DB_USER"
+fi
 grant_schema_objects "$DB_B_NAME" "$SCHEMA_IMAGELOG" "$DB_USER"
 
 echo "4b-ext. ext_department / ext_employee: 앱 역할(${DB_USER}) SELECT-only, ETL 역할(${DB_ETL_USER}) 쓰기 (req 20260407)..."
@@ -201,14 +443,10 @@ else
   echo "   ⚠️  ${SCHEMA_SYS}.ext_department 없음 — migrate-external-identity-tables-20260407.sql 확인"
 fi
 
-SP_APP="${SCHEMA_SYS}, ${SCHEMA_PB}, public"
-
-# app_user.name 컬럼 추가 (요건 20260316-login-id-user-name-display). 기존 DB에만 적용; idempotent.
 echo "4c. app_user name 컬럼 마이그레이션 적용 중..."
 run_sql_file_sp "$DB_A_NAME" "$SP_APP" "$SCRIPT_DIR/migrate-app-user-name-2026.sql"
 echo "   ✅ app_user name 마이그레이션 완료"
 
-# search_history.user_id VARCHAR -> BIGINT NOT NULL FK to app_user(id).
 echo "4d. search_history user_id 마이그레이션 (BIGINT, FK) 적용 중..."
 run_sql_file_sp "$DB_A_NAME" "$SP_APP" "$SCRIPT_DIR/migrate-search-history-user-id-to-bigint.sql"
 echo "   ✅ search_history user_id 마이그레이션 완료"
@@ -221,12 +459,10 @@ echo "4f. search_history 결과/복호화 대상 건수 컬럼 마이그레이�
 run_sql_file_sp "$DB_A_NAME" "$SP_APP" "$SCRIPT_DIR/migrate-search-history-result-counts.sql"
 echo "   ✅ search_history 결과 건수 마이그레이션 완료"
 
-# 4g: 레거시 DB는 예전 DDL로 테이블만 있고 row_status가 없을 수 있음(schema 재적용만으로는 ADD COLUMN 안 됨). 매 실행 idempotent.
 echo "4g. 승인 스냅샷·decryption-allowed 복합 PK (row_status, req 20260320)..."
 run_sql_file_sp "$DB_A_NAME" "$SP_APP" "$SCRIPT_DIR/migrate-sys-decryption-composite-pk-20260320.sql"
 echo "   ✅ search_history_approved_row / user_decryption_allowed 복합 PK 적용(또는 이미 신규 스키마)"
 
-# 4h: 레거시 permission_group_screen에 scope/read/write/approve/decrypt 누락 시 보정 (idempotent). 신규 스키마는 no-op.
 echo "4h. permission_group_screen 컬럼 마이그레이션 (scope → functions → decrypt → scope-team, req 20260320)..."
 run_sql_file_sp "$DB_A_NAME" "$SP_APP" "$SCRIPT_DIR/migrate-permission-group-screen-scope.sql"
 run_sql_file_sp "$DB_A_NAME" "$SP_APP" "$SCRIPT_DIR/migrate-permission-group-screen-functions.sql"
@@ -234,11 +470,13 @@ run_sql_file_sp "$DB_A_NAME" "$SP_APP" "$SCRIPT_DIR/migrate-permission-group-scr
 run_sql_file_sp "$DB_A_NAME" "$SP_APP" "$SCRIPT_DIR/migrate-permission-group-screen-scope-team.sql"
 echo "   ✅ permission_group_screen 컬럼·제약 정렬 완료(또는 이미 신규 스키마)"
 
-if [ "$SETUP_MODE" = "sys_only" ] && [ "${SYS_ONLY_LOAD_INIT_DATA:-0}" != "1" ]; then
+if [ "${SKIP_INIT_DATA:-0}" = "1" ]; then
+  echo "5. 초기 샘플 데이터 ⏭️  생략 (SKIP_INIT_DATA=1)"
+elif [ "$SETUP_MODE" = "sys_only" ] && [ "${SYS_ONLY_LOAD_INIT_DATA:-0}" != "1" ]; then
   echo "5. 초기 샘플 데이터 ⏭️  생략 (sys_only; SYS_ONLY_LOAD_INIT_DATA=1 로 재실행 가능)"
 else
-  echo "5. 초기 샘플 데이터 삽입 중..."
-  run_sql_file_sp "$DB_A_NAME" "$SP_APP" "$SCRIPT_DIR/init-data.sql"
+  echo "5. 초기 샘플 데이터 삽입 중... (${INIT_DATA_FILE})"
+  run_sql_file_sp "$DB_A_NAME" "$SP_APP" "$SCRIPT_DIR/${INIT_DATA_FILE}"
   echo "   ✅ 초기 데이터 삽입 완료"
 fi
 
@@ -250,13 +488,25 @@ echo "5-poc-um-v2-screen. ADMIN_EXT → hr-sync-poc / user-management-v2-poc (in
 run_sql_file_sp "$DB_A_NAME" "$SP_APP" "$SCRIPT_DIR/migrate-poc-user-mgmt-v2-screen-grant-20260408.sql"
 echo "   ✅ migrate-poc-user-mgmt-v2-screen-grant-20260408.sql (idempotent)"
 
-echo "5-pb-fep. PB FEP pagination / bmsg 샘플 (migrate-pb-fep-pagination-bmsg-sample-20260330)..."
-run_sql_file_sp "$DB_A_NAME" "$SP_APP" "$SCRIPT_DIR/migrate-pb-fep-pagination-bmsg-sample-20260330.sql"
-echo "   ✅ PB FEP pagination/bmsg 샘플 적용(재실행 시 seed 행만 삭제 후 재삽입)"
+if [ "$SPLIT_PB" = "1" ]; then
+  if [ "$SETUP_MODE" = "full" ]; then
+    apply_split_pb_migrations_and_grants
+  else
+    echo "5-pb-fep / 5-pb-fep-partition ⏭️  split-PB + sys_only — PB DB 마이그레이션 생략(pb_only 로 실행)"
+  fi
+else
+  if [ "${CLOSED_NETWORK_MINIMAL}" = "1" ]; then
+    echo "5-pb-fep. PB FEP pagination/bmsg 샘플 ⏭️  생략 (CLOSED_NETWORK_MINIMAL=1)"
+  else
+    echo "5-pb-fep. PB FEP pagination / bmsg 샘플 (migrate-pb-fep-pagination-bmsg-sample-20260330)..."
+    run_sql_file_sp "$DB_A_NAME" "$SP_APP" "$SCRIPT_DIR/migrate-pb-fep-pagination-bmsg-sample-20260330.sql"
+    echo "   ✅ PB FEP pagination/bmsg 샘플 적용(재실행 시 seed 행만 삭제 후 재삽입)"
+  fi
 
-echo "5-pb-fep-partition. PB FEP(pb_send/pb_recv) 파티셔닝 전환(데이터 보존형, 20260408)..."
-run_sql_file_sp "$DB_A_NAME" "$SP_APP" "$SCRIPT_DIR/migrate-pb-send-recv-partitioning-20260408.sql"
-echo "   ✅ PB FEP 파티셔닝 마이그레이션 적용(이미 파티셔닝이면 no-op)"
+  echo "5-pb-fep-partition. PB FEP(pb_send/pb_recv) 파티셔닝 전환(데이터 보존형, 20260408)..."
+  run_sql_file_sp "$DB_A_NAME" "$SP_APP" "$SCRIPT_DIR/migrate-pb-send-recv-partitioning-20260408.sql"
+  echo "   ✅ PB FEP 파티셔닝 마이그레이션 적용(이미 파티셔닝이면 no-op)"
+fi
 
 echo "5a. permission_group_screen main → pb-feplog/java-fw-imagelog 마이그레이션 적용 중..."
 run_sql_file_sp "$DB_A_NAME" "$SP_APP" "$SCRIPT_DIR/migrate-main-to-pb-feplog-java-fw-imagelog.sql"
@@ -266,17 +516,21 @@ echo "5a-1. permission_group_screen java-fw_imagelog → java-fw-imagelog 정규
 run_sql_file_sp "$DB_A_NAME" "$SP_APP" "$SCRIPT_DIR/migrate-permission-group-screen-imagelog-canonical.sql"
 echo "   ✅ java-fw_imagelog 정규화 완료"
 
-echo "5b. imagelog 샘플 데이터 삽입 중 (비어 있을 때만)..."
-run_sql_file_sp "$DB_B_NAME" "${SCHEMA_IMAGELOG}, public" "$SCRIPT_DIR/init-data-imagelog.sql"
-echo "   ✅ imagelog 샘플 데이터 완료"
+if [ "${CLOSED_NETWORK_MINIMAL}" = "1" ]; then
+  echo "5b / 5b-1 / 5b-2. imagelog 샘플·데모 마이그레이션 ⏭️  생략 (CLOSED_NETWORK_MINIMAL=1)"
+else
+  echo "5b. imagelog 샘플 데이터 삽입 중 (비어 있을 때만)..."
+  run_sql_file_sp "$DB_B_NAME" "${SCHEMA_IMAGELOG}, public" "$SCRIPT_DIR/init-data-imagelog.sql"
+  echo "   ✅ imagelog 샘플 데이터 완료"
 
-echo "5b-1. imagelog 동일 GUID·상이 status 샘플 행 마이그레이션 (req 20260330)..."
-run_sql_file_sp "$DB_B_NAME" "${SCHEMA_IMAGELOG}, public" "$SCRIPT_DIR/migrate-imagelog-dup-guid-sample-20260330.sql"
-echo "   ✅ imagelog duplicate-GUID sample 적용(또는 이미 존재)"
+  echo "5b-1. imagelog 동일 GUID·상이 status 샘플 행 마이그레이션 (req 20260330)..."
+  run_sql_file_sp "$DB_B_NAME" "${SCHEMA_IMAGELOG}, public" "$SCRIPT_DIR/migrate-imagelog-dup-guid-sample-20260330.sql"
+  echo "   ✅ imagelog duplicate-GUID sample 적용(또는 이미 존재)"
 
-echo "5b-2. imagelog 단일-status guid 동반 행 (input↔output/error→input) 마이그레이션 (req 20260330)..."
-run_sql_file_sp "$DB_B_NAME" "${SCHEMA_IMAGELOG}, public" "$SCRIPT_DIR/migrate-imagelog-companion-status-20260330.sql"
-echo "   ✅ imagelog companion-status 적용(또는 이미 존재)"
+  echo "5b-2. imagelog 단일-status guid 동반 행 (input↔output/error→input) 마이그레이션 (req 20260330)..."
+  run_sql_file_sp "$DB_B_NAME" "${SCHEMA_IMAGELOG}, public" "$SCRIPT_DIR/migrate-imagelog-companion-status-20260330.sql"
+  echo "   ✅ imagelog companion-status 적용(또는 이미 존재)"
+fi
 
 echo "6. app_user id 마이그레이션 (admin=20269999, 기타=20260001~) 적용 중..."
 run_sql_file_sp "$DB_A_NAME" "$SP_APP" "$SCRIPT_DIR/migrate-app-user-id-2026.sql"
@@ -289,12 +543,13 @@ echo "   ✅ app_user_permission_group user_id 정규화 완료(또는 이미 us
 echo ""
 echo "=== 설정 완료 ==="
 echo "데이터베이스 A: $DB_A_NAME  (SYS=$SCHEMA_SYS, PB=$SCHEMA_PB)"
+if [ "$SPLIT_PB" = "1" ]; then
+  echo "데이터베이스 PB: $DB_PB_NAME @ ${DB_PB_HOST}:${DB_PB_PORT} (런타임: APP_DATASOURCE_PB_*)"
+fi
 echo "데이터베이스 B: $DB_B_NAME  (ImageLog schema=$SCHEMA_IMAGELOG)"
-echo "사용자: $DB_USER"
-echo "비밀번호: (설정값; 프로덕션에서는 환경 변수로 덮어쓰기)"
-echo "호스트: $DB_HOST"
-echo "포트: $DB_PORT"
+echo "앱 역할(이름만): $DB_USER"
+echo "Primary 엔드포인트: ${DB_HOST}:${DB_PORT}"
+echo "자격 증명은 DB_USER / DB_PASSWORD 등 환경 변수로만 설정(값은 로그에 출력하지 않음)"
 echo ""
-echo "Primary JDBC 예: jdbc:postgresql://$DB_HOST:$DB_PORT/$DB_A_NAME"
-echo "ImageLog JDBC 예: jdbc:postgresql://$DB_HOST:$DB_PORT/$DB_B_NAME"
-echo "search_path(앱): 운영 시 SCHEMA_SYS, SCHEMA_PB 또는 백엔드 설정에 따름 — DB_SETUP_GUIDE.md 참고"
+echo "런타임 JDBC·스키마 매핑: docs/contract.md (SPRING_DATASOURCE_*, APP_DATASOURCE_PB_*, APP_DATASOURCE_IMAGELOG_*)"
+echo "search_path(앱): SCHEMA_SYS, SCHEMA_PB 및 백엔드 설정 — DB_SETUP_GUIDE.md 참고"

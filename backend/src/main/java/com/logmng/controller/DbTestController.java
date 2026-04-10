@@ -28,15 +28,18 @@ public class DbTestController {
     private static final Logger log = LoggerFactory.getLogger(DbTestController.class);
 
     private final DataSource primaryDataSource;
+    private final DataSource pbDataSource;
     private final DataSource imagelogDataSource;
     private final String pbSchema;
     private final String imagelogSchema;
 
     public DbTestController(@Qualifier("dataSource") DataSource primaryDataSource,
+                           @Qualifier("pbDataSource") DataSource pbDataSource,
                            @Qualifier("imagelogDataSource") DataSource imagelogDataSource,
                            @Value("${app.db.schema.pb:public}") String pbSchema,
                            @Value("${app.db.schema.imagelog:public}") String imagelogSchema) {
         this.primaryDataSource = primaryDataSource;
+        this.pbDataSource = pbDataSource;
         this.imagelogDataSource = imagelogDataSource;
         this.pbSchema = PgSchemaSupport.requireValidSchemaName(pbSchema);
         this.imagelogSchema = PgSchemaSupport.requireValidSchemaName(imagelogSchema);
@@ -65,29 +68,7 @@ public class DbTestController {
             result.put("username", metaData.getUserName());
             result.put("readOnly", connection.isReadOnly());
             result.put("autoCommit", connection.getAutoCommit());
-            
-            try (ResultSet tables = metaData.getTables(null, pbSchema, "pb_send", null)) {
-                result.put("pb_send_table_exists", tables.next());
-            }
-            
-            try (ResultSet tables = metaData.getTables(null, pbSchema, "pb_recv", null)) {
-                result.put("pb_recv_table_exists", tables.next());
-            }
-            
-            try (var stmt = connection.createStatement();
-                 var rs = stmt.executeQuery("SELECT COUNT(*) FROM pb_send")) {
-                if (rs.next()) {
-                    result.put("pb_send_count", rs.getInt(1));
-                }
-            }
-            
-            try (var stmt = connection.createStatement();
-                 var rs = stmt.executeQuery("SELECT COUNT(*) FROM pb_recv")) {
-                if (rs.next()) {
-                    result.put("pb_recv_count", rs.getInt(1));
-                }
-            }
-            
+
             log.debug("Primary DB connection OK: {}", metaData.getDatabaseProductName());
             
         } catch (Exception e) {
@@ -95,6 +76,35 @@ public class DbTestController {
             result.put("connected", false);
             result.put("error", e.getMessage());
             result.put("errorClass", e.getClass().getName());
+        }
+
+        boolean pbUsesPrimaryFallback = primaryDataSource == pbDataSource;
+        result.put("pbUsesPrimaryFallback", pbUsesPrimaryFallback);
+        try (Connection pbConn = pbDataSource.getConnection()) {
+            DatabaseMetaData pbMeta = pbConn.getMetaData();
+            try (ResultSet tables = pbMeta.getTables(null, pbSchema, "pb_send", null)) {
+                result.put("pb_send_table_exists", tables.next());
+            }
+            try (ResultSet tables = pbMeta.getTables(null, pbSchema, "pb_recv", null)) {
+                result.put("pb_recv_table_exists", tables.next());
+            }
+            try (var stmt = pbConn.createStatement();
+                 var rs = stmt.executeQuery("SELECT COUNT(*) FROM pb_send")) {
+                if (rs.next()) {
+                    result.put("pb_send_count", rs.getInt(1));
+                }
+            }
+            try (var stmt = pbConn.createStatement();
+                 var rs = stmt.executeQuery("SELECT COUNT(*) FROM pb_recv")) {
+                if (rs.next()) {
+                    result.put("pb_recv_count", rs.getInt(1));
+                }
+            }
+        } catch (Exception e) {
+            log.warn("PB FEP datasource probe failed (non-fatal for this endpoint): {}", e.getMessage());
+            result.put("pb_send_table_exists", false);
+            result.put("pb_recv_table_exists", false);
+            result.put("pb_probe_error", e.getMessage());
         }
 
         boolean imagelogUsesPrimaryFallback = primaryDataSource == imagelogDataSource;
@@ -149,7 +159,7 @@ public class DbTestController {
         
         Map<String, Object> result = new HashMap<>();
         
-        try (Connection connection = primaryDataSource.getConnection()) {
+        try (Connection connection = pbDataSource.getConnection()) {
             DatabaseMetaData metaData = connection.getMetaData();
             
             Map<String, Object> sendColumns = new HashMap<>();

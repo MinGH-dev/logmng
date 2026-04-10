@@ -40,6 +40,7 @@ public class LogDbService {
     private static final Logger log = LoggerFactory.getLogger(LogDbService.class);
 
     private final DataSource primaryDataSource;
+    private final DataSource pbDataSource;
     private final DataSource imagelogDataSource;
     private final CryptoUtil cryptoUtil;
     private final ObjectMapper objectMapper;
@@ -53,9 +54,11 @@ public class LogDbService {
     )));
     
     public LogDbService(@Qualifier("dataSource") DataSource primaryDataSource,
+                        @Qualifier("pbDataSource") DataSource pbDataSource,
                         @Qualifier("imagelogDataSource") DataSource imagelogDataSource,
                         CryptoUtil cryptoUtil) {
         this.primaryDataSource = primaryDataSource;
+        this.pbDataSource = pbDataSource;
         this.imagelogDataSource = imagelogDataSource;
         this.cryptoUtil = cryptoUtil;
         this.objectMapper = new ObjectMapper();
@@ -167,7 +170,7 @@ public class LogDbService {
     private LogDbSearchResponse executePbFeplogUnionSearch(LogDbSearchRequest request) {
         List<Map<String, Object>> results = new ArrayList<>();
         
-        try (Connection connection = primaryDataSource.getConnection()) {
+        try (Connection connection = pbDataSource.getConnection()) {
             // SQL 쿼리 구성
             StringBuilder sql = new StringBuilder();
             sql.append("SELECT id, log_timestamp, media_code, tr_code, user_id, ip_address, ");
@@ -918,7 +921,7 @@ public class LogDbService {
     private Map<String, Object> getPbFeplogDetail(String type, Long id) {
         String tableName = "send".equalsIgnoreCase(type) ? "pb_send" : "pb_recv";
         
-        try (Connection connection = primaryDataSource.getConnection()) {
+        try (Connection connection = pbDataSource.getConnection()) {
             String sql = "SELECT id, log_timestamp, media_code, tr_code, user_id, ip_address, " +
                         "user_agent, request_data, response_data, status_code, response_time, " +
                         "error_message, session_id, device_type, created_at, updated_at " +

@@ -1,0 +1,3 @@
+TRUNCATE TABLE imagelog;
+TRUNCATE TABLE pb_send;
+TRUNCATE TABLE pb_recv;

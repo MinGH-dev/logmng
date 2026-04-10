@@ -61,7 +61,8 @@ logging:
     console: "%d{yyyy-MM-dd HH:mm:ss} - %msg%n"
     file: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
   file:
-    name: logs/application.log
+    # Spring Boot 2.7: env LOGGING_FILE_NAME → logging.file.name (docs/contract.md)
+    name: ${LOGGING_FILE_NAME:logs/application.log}
     max-size: 10MB
     max-history: 30
 
@@ -117,8 +118,15 @@ app:
       sys: ${APP_DB_SCHEMA_SYS:public}
       pb: ${APP_DB_SCHEMA_PB:public}
       imagelog: ${APP_DB_SCHEMA_IMAGELOG:public}
-  # Secondary JDBC (B) for ImageLog only. Omit url (or leave empty) to reuse primary pool — single-database dev fallback.
+  # Optional dedicated PB FEP JDBC: pb_send / pb_recv. Blank URL → reuse primary pool (same as ImageLog fallback).
   datasource:
+    pb:
+      url: ${APP_DATASOURCE_PB_URL:}
+      username: ${APP_DATASOURCE_PB_USERNAME:}
+      password: ${APP_DATASOURCE_PB_PASSWORD:}
+      driver-class-name: ${APP_DATASOURCE_PB_DRIVER:}
+      fail-fast: ${APP_DATASOURCE_PB_FAIL_FAST:true}
+      initialization-fail-timeout-ms: ${APP_DATASOURCE_PB_INIT_FAIL_TIMEOUT_MS:30000}
     imagelog:
       url: ${APP_DATASOURCE_IMAGELOG_URL:}
       username: ${APP_DATASOURCE_IMAGELOG_USERNAME:}

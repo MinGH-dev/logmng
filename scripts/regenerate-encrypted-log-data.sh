@@ -1,23 +1,17 @@
 #!/usr/bin/env bash
-# Re-seed log DB payloads with current ProObject-compatible crypto:
-# - pb_send / pb_recv: UPDATE all rows (request_data, response_data) via RegeneratePbFepEncryptedSeedMain
-# - imagelog: DELETE all rows; backend restart triggers GenerateSampleDataScript when table is empty
+# Previously ran a Java main to UPDATE pb_send/pb_recv and reloaded imagelog via psql.
+# The backend no longer ships Java utilities that mutate pb_send, pb_recv, or imagelog.
 #
-# To keep existing imagelog rows and only add encrypted sample row(s) (idempotent), use instead:
-#   ./scripts/append-imagelog-encrypted-samples.sh
+# Operators who need to refresh ciphertext or samples should use SQL and psql (or DBA tooling)
+# against the log database, for example:
+#   export PGPASSWORD="${PGPASSWORD:-logmng123}"
+#   # Optional: reload imagelog samples (PostgreSQL; see file header for idempotency rules)
+#   psql -h localhost -U logmng -d logmng -v ON_ERROR_STOP=1 -f backend/src/main/resources/db/init-data-imagelog.sql
 #
-# Env (optional): ENCRYPTION_KEY, JDBC_URL, JDBC_USER, JDBC_PASSWORD (defaults match dev application.yml)
+# Do not reintroduce application or test Java code that performs INSERT/UPDATE/DELETE/TRUNCATE
+# on pb_send, pb_recv, or imagelog.
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-cd "$ROOT/backend"
-mvn -q test-compile
-CP="target/test-classes:target/classes:$(mvn -q dependency:build-classpath -Dmdep.outputFile=/dev/stdout -q)"
-java -cp "$CP" com.logmng.util.RegeneratePbFepEncryptedSeedMain
-
-export PGPASSWORD="${PGPASSWORD:-logmng123}"
-psql -h localhost -U logmng -d logmng -v ON_ERROR_STOP=1 -c "DELETE FROM imagelog;"
-
-cd "$ROOT"
-./scripts/dev-services.sh backend restart
-echo "Done. Wait ~10s then: curl -s http://localhost:9200/api/health"
-echo "imagelog count: psql -U logmng -d logmng -tAc \"SELECT COUNT(*) FROM imagelog;\""
+echo "Java regeneration helpers were removed. See comments in this script for SQL-only options." >&2
+echo "Project root: $ROOT" >&2
+exit 0

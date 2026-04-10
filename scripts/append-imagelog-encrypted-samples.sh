@@ -1,13 +1,14 @@
 #!/usr/bin/env bash
-# Idempotently append encrypted imagelog row(s) for java-fw-imagelog UI decrypt tests.
-# Does NOT delete existing rows. Re-run safe: skips rows that already exist (guid + status).
+# Previously ran a Java main to append encrypted imagelog rows. The application and backend tests
+# no longer ship Java utilities that INSERT into imagelog / PB FEP tables.
 #
-# Env (optional): ENCRYPTION_KEY, APP_SECURITY_ENCRYPTION_KEY;
-# ImageLog JDBC: APP_DATASOURCE_IMAGELOG_URL, APP_DATASOURCE_IMAGELOG_USERNAME, APP_DATASOURCE_IMAGELOG_PASSWORD
-# (fallback: JDBC_URL, JDBC_USER, JDBC_PASSWORD — defaults match dev application.yml)
+# To load or refresh ImageLog sample data, use PostgreSQL tooling only, for example:
+#   export PGPASSWORD="${PGPASSWORD:-logmng123}"
+#   psql -h localhost -U logmng -d logmng -v ON_ERROR_STOP=1 -f backend/src/main/resources/db/init-data-imagelog.sql
+#
+# That script is idempotent when the table is already populated (see comments inside the SQL file).
+# For encrypted one-off rows, maintain a standalone .sql file and apply it with psql; do not add
+# Java mains that mutate pb_send, pb_recv, or imagelog.
 set -euo pipefail
-ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-cd "$ROOT/backend"
-mvn -q test-compile
-CP="target/test-classes:target/classes:$(mvn -q dependency:build-classpath -Dmdep.outputFile=/dev/stdout -q)"
-java -cp "$CP" com.logmng.util.AppendEncryptedImagelogSamplesMain
+echo "This script no longer invokes Java. See comments inside for psql / SQL-only workflows." >&2
+exit 0

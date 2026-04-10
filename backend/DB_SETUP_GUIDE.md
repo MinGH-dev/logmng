@@ -6,7 +6,66 @@
 
 ## 기존 imagelog가 있는 DB에 암호화 샘플만 추가 (로컬/UI 복호화 테스트)
 
-`imagelog`에 이미 행이 있으면 앱 기동 시 `GenerateSampleDataScript`가 시드를 건너뜁니다. 암호화 필드가 없는 DB에 **삭제 없이** 암호화 테스트용 행만 넣으려면 저장소 루트에서 `./scripts/append-imagelog-encrypted-samples.sh`를 실행합니다. 동일 guid·status가 이미 있으면 다시 실행해도 삽입하지 않습니다. ImageLog 전용 DB를 쓰는 경우 `APP_DATASOURCE_IMAGELOG_URL`(및 USER/PASSWORD)을 `application.yml`과 맞춥니다.
+앱 기동 시 `imagelog`에 자동 시드를 넣지 않으며, **런타임 Java 코드는 `pb_send` / `pb_recv` / `imagelog`에 대한 INSERT·UPDATE·DELETE·TRUNCATE를 수행하지 않습니다.** 개발·테스트용 데이터는 `setup.sh`가 적용하는 `init-data-imagelog.sql`(또는 폐쇄망 최소 모드 생략 시 수동 적용), 필요 시 운영자가 직접 실행하는 **`psql -f …` 등 순수 SQL**로 적재합니다. 예: `backend/src/main/resources/db/init-data-imagelog.sql`(파일 상단 주석의 멱등 규칙 참고). 저장소의 `./scripts/append-imagelog-encrypted-samples.sh`는 더 이상 Java를 호출하지 않으며, 스크립트 안 주석만 참고용입니다. ImageLog 전용 DB를 쓰는 경우 `APP_DATASOURCE_IMAGELOG_URL`(및 USER/PASSWORD)을 `application.yml`과 맞춥니다.
+
+## 운영: DB 인스턴스 분리 (System / PB FEP / ImageLog)
+
+운영에서 PostgreSQL을 **물리 인스턴스(호스트·포트·DB 이름) 단위**로 나눌 수 있습니다. 런타임 JDBC 환경 변수의 **정식 이름·추가 옵션(드라이버, fail-fast 등)** 은 배포본의 **`docs/contract.md`** 및 `application.yml`을 따릅니다(백엔드에 PB 전용 데이터소스가 반영된 이후 contract가 최종 권위).
+
+### 풀(연결)별 JDBC 설정 요약
+
+| 역할 | 용도 | 대표 설정 (환경 변수 예) |
+|------|------|---------------------------|
+| **Primary** | 시스템 테이블(`app_user`, `search_history`, 권한 등). PB URL을 비운 구성에서는 **PB FEP(`pb_send`/`pb_recv`)도 동일 풀**에서 조회합니다. | `spring.datasource.*` — 운영에선 보통 `SPRING_DATASOURCE_URL` / `SPRING_DATASOURCE_USERNAME` / `SPRING_DATASOURCE_PASSWORD`(및 드라이버)로 덮어씀 |
+| **PB FEP (선택)** | PB FEP 로그만 **별도 인스턴스**에 둘 때. URL을 **비우면** Primary 풀을 그대로 쓰고, 아래 스키마 변수로만 나눕니다(단일 DB·개발/폐쇄망 단순 구성). | `APP_DATASOURCE_PB_URL` 및 선택적 `APP_DATASOURCE_PB_USERNAME`, `APP_DATASOURCE_PB_PASSWORD`(이미지로그와 동일한 패턴의 부가 키가 있으면 contract 표 참고) |
+| **ImageLog (선택)** | `java_fw_imglog` / `imagelog` 테이블이 있는 DB B. URL이 비면 **Primary 풀 재사용**. | `APP_DATASOURCE_IMAGELOG_URL`, `APP_DATASOURCE_IMAGELOG_USERNAME`, `APP_DATASOURCE_IMAGELOG_PASSWORD` 등(contract 표) |
+
+PB·ImageLog 전용 URL을 **모두** 설정하면 백엔드는 Primary·PB·ImageLog에 대해 **서로 다른 HikariCP 풀**(별도 JDBC 연결)을 사용합니다. URL을 비우면 해당 역할은 Primary와 **같은 풀**로 합쳐집니다.
+
+### 동일 호스트에서 스키마만 분리 (단일 DB)
+
+DB 프로비저닝은 **`backend/src/main/resources/db/setup.sh`** 가 담당합니다. 애플리케이션 쪽 스키마 이름은 다음과 **`setup.sh` 변수**를 맞춥니다.
+
+| 애플리케이션 (backend `app.db.schema.*`) | 환경 변수 | `setup.sh` / `check-db.sh` 변수 |
+|------------------------------------------|-----------|----------------------------------|
+| 시스템 | `APP_DB_SCHEMA_SYS` | `SCHEMA_SYS` |
+| PB FEP | `APP_DB_SCHEMA_PB` | `SCHEMA_PB` |
+| ImageLog | `APP_DB_SCHEMA_IMAGELOG` | `SCHEMA_IMAGELOG` (DB **B** 위) |
+
+- **`DB_A_NAME`**: 시스템 + PB DDL·시드가 올라가는 DB 이름. Primary JDBC의 DB 이름과 일치해야 합니다.
+- **`DB_B_NAME`**: ImageLog DDL·시드 대상 DB. ImageLog 전용 URL을 쓰지 않는 단일 DB 구성에서는 `DB_B_NAME`을 `DB_A_NAME`과 같게 두면 됩니다.
+
+**PB FEP를 시스템 DB(A)와 다른 database로 둘 때**( `DB_PB_NAME` 및 선택적 `DB_PB_HOST`·`DB_PB_PORT`·`DB_PB_SUPERUSER`): `setup.sh`는 A에서 PB DDL을 적용하지 않고 PB database에서 `schema_pb_fep.sql` 등 PB 쪽 DDL·마이그레이션을 적용합니다. 전체 프로비저닝은 한 번의 `SETUP_MODE=full`(또는 설치 스크립트 기본)로 처리하고, **A만 이미 적용된 환경에서 PB DB만 채울 때**는 `SETUP_MODE=pb_only`로 동일 `DB_PB_*`를 넘겨 실행합니다. Spring은 `APP_DATASOURCE_PB_URL`을 해당 PB JDBC와 맞춥니다. split 모드에서 DB A 쪽 `search_path`는 시스템용(`SCHEMA_SYS`, `public`)만 쓰고, `schema_sys.sql`이 `update_updated_at_column()`을 SYS에 정의하므로 PB 스키마를 path에 넣지 않아도 됩니다. **`SETUP_MODE=sys_only`+split**이면 이 스크립트 실행만으로는 PB DB DDL이 돌아가지 않으므로 PB는 `SETUP_MODE=pb_only`로 별도 실행합니다.
+
+스키마·DB 이름을 바꾼 뒤에는 `setup.sh`와 백엔드 env를 **같은 값**으로 유지하고, 점검은 동일 변수를 넘긴 `check-db.sh`로 검증합니다.
+
+## 비대화형 설치·검증·멱등·독립 실행
+
+### `scripts/install_linux.sh` (비대화형)
+
+- **`INSTALL_NONINTERACTIVE=1`** (또는 `true` / `yes`): 대화형 메뉴 없이 `backend/src/main/resources/db/setup.sh`만 실행합니다.
+- **Env 로드**: 기본은 저장소 루트 **`.env`**. 다른 파일이면 **`INSTALL_ENV_FILE`** 로 경로 지정.
+- **install_linux 사전 검증**: `SETUP_MODE`, `DB_HOST`, `DB_PORT`, `DB_USER`, `DB_PASSWORD`, `DB_NAME` 또는 `DB_A_NAME`; `pb_only`일 때 **`DB_PB_NAME`**. 누락·무효 시 stderr에 **변수 이름만** 한 줄씩 출력하고 비0 종료(비밀번호 값은 출력하지 않음).
+- **주의**: **`DB_ETL_USER` / `DB_ETL_PASSWORD`** 는 **`setup.sh` 비대화형**에서 `full`·`sys_only` 시 **필수**이나, `install_linux.sh` 단계에서는 검사하지 않습니다. `.env`에 반드시 넣으세요([`.env.example`](../.env.example), [`docs/contract.md`](../docs/contract.md)).
+
+### `setup.sh` 직접 호출·비대화형 검증
+
+- **`INSTALL_NONINTERACTIVE=1`** 또는 **`SETUP_NONINTERACTIVE=1`** (대소문자 `true`/`yes`/`y` 등 허용)이면, 스크립트가 기본값을 덮어쓰기 **전에** 필수 변수 존재·비어 있지 않음을 검사합니다.
+- **`pb_only`**: `DB_PB_NAME`, `DB_USER`, `DB_PASSWORD` 필수; 연결 대상은 **`DB_PB_HOST`·`DB_PB_PORT` 둘 다 설정** 또는 **`DB_HOST`·`DB_PORT` 둘 다 설정** 중 하나.
+- **`full` / `sys_only`**: `DB_HOST`, `DB_PORT`, `DB_USER`, `DB_PASSWORD`, **`DB_ETL_USER`**, **`DB_ETL_PASSWORD`** 필수.
+
+### 멱등성(idempotency)
+
+- DDL·대부분의 마이그레이션은 **재실행 안전**(`IF NOT EXISTS` 등)으로 설계되어 있습니다. 문제 해결 절(예: `42703`)에서도 `setup.sh` 재실행을 권장하는 경우가 있습니다.
+- **`init-data*.sql`** 는 환경에 따라 **중복 키** 등이 날 수 있으므로, 재적용 전 **`SKIP_INIT_DATA=1`** 등을 검토하세요. `sys_only`에서 초기 데이터까지 넣을 때는 **`SYS_ONLY_LOAD_INIT_DATA=1`** (중복 주의).
+
+### 운영 3분할에서의 **독립** 실행 순서 예
+
+1. **시스템·ImageLog 쪽만** (`SETUP_MODE=full` 또는 `sys_only`) — Primary 호스트에서 A/B 및 split 시 정책에 맞게 실행.
+2. **PB DB가 별도 database**이고 `sys_only`만 돌린 경우: PB DDL은 자동으로 포함되지 않으므로 **같은 `.env`로 `SETUP_MODE=pb_only`** 를 한 번 더 실행해 PB 인스턴스만 프로비저닝합니다.
+3. 런타임 JDBC는 [`docs/contract.md`](../docs/contract.md)에 맞게 `SPRING_DATASOURCE_*`, `APP_DATASOURCE_PB_*`, `APP_DATASOURCE_IMAGELOG_*` 를 설정합니다.
+
+슈퍼유저 클라이언트 비밀번호는 **`PGPASSWORD`** 또는 **`PGPASSWORD_SUPER`**(설정 시 내부에서 `PGPASSWORD`로 전달)를 사용합니다. 값은 로그에 출력되지 않습니다.
 
 ## 🔀 멀티 데이터베이스·멀티 스키마 (선택)
 
@@ -55,7 +114,7 @@ ETL·레플리카 작업은 전용 DB 역할 **`logmng_etl`**(기본; 환경 변
 
 **`SETUP_MODE=sys_only`** (`setup.sh`): `schema_pb_fep.sql`과 `init-data.sql`을 건너뜁니다. 초기 데이터까지 넣으려면(중복 주의) `SYS_ONLY_LOAD_INIT_DATA=1`을 함께 설정합니다.
 
-**Linux 대화형 도구**: 저장소 루트에서 `./scripts/install_linux.sh` — 메뉴에서 전체 설치(1), sys_only(2), export 파일만 생성(3)을 선택합니다. 생성 파일 기본 경로는 `backend/.env.logmng.generated`(`.gitignore` 대상, 커밋 금지).
+**Linux 설치 도구**: 저장소 루트에서 `./scripts/install_linux.sh` — **대화형**(기본): 메뉴에서 전체 설치(1), `sys_only`(2), export 파일만 생성(3). **비대화형**: `INSTALL_NONINTERACTIVE=1` 과 채워진 `.env`([`.env.example`](../.env.example)). 생성 파일 기본 경로는 `backend/.env.logmng.generated`(`.gitignore` 대상, 커밋 금지). **`.env` 권한**: `chmod 600` 권장, 커밋 금지.
 
 ## 🔧 사전 요구사항
 
@@ -107,7 +166,7 @@ GRANT ALL PRIVILEGES ON SCHEMA public TO logmng;
 
 ```bash
 # 스키마 파일 실행 (schema.sql → schema_pb_fep.sql + schema_sys.sql)
-cd dev/backend/src/main/resources/db
+cd backend/src/main/resources/db
 psql -U postgres -d logmng -f schema.sql
 # 멀티 스키마는 setup.sh 사용 권장 (search_path·GRANT·마이그레이션 일괄)
 ```

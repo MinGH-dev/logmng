@@ -31,4 +31,18 @@ class PgSchemaSupportTest {
         assertThat(PgSchemaSupport.buildPrimarySearchPathInitSql("public", "public"))
                 .isEqualTo("SET search_path TO public");
     }
+
+    @Test
+    void buildSysOnlySearchPathInitSql_ordersSysPublic() {
+        assertThat(PgSchemaSupport.buildSysOnlySearchPathInitSql("logmng_sys"))
+                .isEqualTo("SET search_path TO logmng_sys, public");
+    }
+
+    @Test
+    void buildPbSearchPathInitSql_matchesImagelogStyle() {
+        assertThat(PgSchemaSupport.buildPbSearchPathInitSql("logmng"))
+                .isEqualTo("SET search_path TO logmng, public");
+        assertThat(PgSchemaSupport.buildImagelogSearchPathInitSql("logmng"))
+                .isEqualTo(PgSchemaSupport.buildPbSearchPathInitSql("logmng"));
+    }
 }

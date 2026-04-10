@@ -23,6 +23,8 @@ dist/
 
 # PostgreSQL client .debs for bundle (scripts/download-psql-for-bundle.sh)
 third_party/psql-deb/
+# PostgreSQL client RPMs for RHEL 9.6 bundle (scripts/download-psql-rpm-el9.sh)
+third_party/psql-rpm-el9/
 
 # Logs
 logs/

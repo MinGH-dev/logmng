@@ -29,7 +29,7 @@ public class StubLogDbService extends LogDbService {
     private List<Map<String, Object>> createSnapshotRows = Collections.emptyList();
 
     public StubLogDbService(DataSource primaryDataSource, DataSource imagelogDataSource, CryptoUtil cryptoUtil) {
-        super(primaryDataSource, imagelogDataSource, cryptoUtil);
+        super(primaryDataSource, primaryDataSource, imagelogDataSource, cryptoUtil);
     }
 
     public void setSearchLogsResponse(LogDbSearchResponse response) {

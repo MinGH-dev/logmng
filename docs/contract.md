@@ -8,16 +8,19 @@
 |------|-----|-----------|
 | 백엔드 API | http://localhost:9200/api | backend `spring` / env; browser base URL: frontend `REACT_APP_API_BASE_URL` at build, **or runtime** `window.__LOGMNG_RUNTIME_CONFIG__.apiBaseUrl` from `/runtime-config.js` (JDK static server: env **`LOGMNG_API_BASE_URL`** or `REACT_APP_API_BASE_URL`) |
 | 프론트엔드 | http://localhost:3001 | frontend/.env PORT |
-| DB — Primary (A) | 예: `localhost:5432`, DB `logmng` (배포마다 상이) | `spring.datasource.*` — 시스템 데이터 + PB FEP 로그 동일 JDBC 풀 |
-| DB — Secondary ImageLog (B) | 별도 DB·풀 또는 Primary와 동일 | `app.datasource.imagelog.*` — Java FW ImageLog(`imagelog`) 전용 풀 |
+| DB — Primary (A, logmng / system) | 예: `localhost:5432`, DB `logmng` (배포마다 상이) | **런타임:** `spring.datasource.*` / `SPRING_DATASOURCE_URL`·`SPRING_DATASOURCE_USERNAME`·`SPRING_DATASOURCE_PASSWORD`. **설치(`setup.sh`):** `DB_HOST`, `DB_PORT`, `DB_A_NAME`(미설정 시 레거시 `DB_NAME`), `DB_SUPERUSER`, 앱 역할 `DB_USER`·`DB_PASSWORD` 등. PB URL이 비어 있거나 Primary와 같으면 PB FEP도 동일 풀(sys+pb `search_path`) |
+| DB — PB FEP (선택, 물리 분리 가능) | 별도 DB·인스턴스 또는 A와 동일 | **런타임:** `app.datasource.pb.*` / `APP_DATASOURCE_PB_*` — `pb_send`·`pb_recv` 전용 풀. **설치:** `DB_PB_NAME`, `DB_PB_HOST`, `DB_PB_PORT`, `DB_PB_SUPERUSER`(기본은 Primary 슈퍼유저와 동일). `DB_PB_NAME`이 비거나 `DB_A_NAME`과 같으면 PB DDL은 A에 적용(레거시 단일 DB) |
+| DB — ImageLog (B, 물리 분리 가능) | 별도 DB 이름 또는 A와 동일 | **런타임:** `app.datasource.imagelog.*` / `APP_DATASOURCE_IMAGELOG_*` — Java FW ImageLog(`imagelog`). **설치:** `DB_B_NAME`(기본 `DB_A_NAME`), `SCHEMA_IMAGELOG`; B는 Primary와 **동일 호스트·포트**에서 DB 이름만 분리하는 모델(`setup.sh`의 `psql_admin`). JDBC는 `jdbc:postgresql://<DB_HOST>:<DB_PORT>/<DB_B_NAME>` |
 
 ### DB 다중 데이터소스·스키마
 
-요건: `docs/requirements/20260320-multi-datasource-schema-configuration.md`.
+요건: `docs/requirements/20260320-multi-datasource-schema-configuration.md`(스키마·풀·A/B 모델), `docs/requirements/20260410-install-deploy-three-db-noninteractive.md`(3물리 DB·비대화형 설치·로그 경로·운영 스크립트 정렬).
 
-- **Primary (A)**: `spring.datasource.*` 의미는 기존과 같다. 애플리케이션 시스템 데이터와 PB FEP 로그가 **동일 DB A**에서 이 풀로 접근한다.
-- **Secondary ImageLog (B)**: ImageLog 전용 두 번째 Hikari 풀. 아래 `app.datasource.imagelog.*` 및 스키마 속성으로 구성한다.
-- **단일 DB 개발**: `app.datasource.imagelog.url`이 비어 있으면 애플리케이션은 **Primary 데이터소스를 재사용**한다(로컬 단일 DB). JDBC URL·비밀번호 등 민감값은 문서/저장소에 실제 값을 적지 말고 환경 변수로만 설정한다.
+- **Primary (A)**: `spring.datasource.*`. 시스템 테이블은 항상 이 풀에서 접근한다.
+- **PB FEP (선택, A′)**: `app.datasource.pb.url`(환경 변수 `APP_DATASOURCE_PB_URL`)이 **비어 있거나** Primary JDBC URL과 **같으면** PB도 Primary 풀을 재사용하고 Hikari `connectionInitSql`는 **sys + pb + public**(`search_path`)을 유지한다(레거시 단일 DB·동일 호스트 멀티 스키마). URL이 Primary와 **다르면** Primary 풀은 **sys + public**만 두고, `pb_send`/`pb_recv`는 전용 Hikari 풀 `LogMngHikariPool-pb`에서 **pb 스키마 + public**으로 접근한다.
+- **ImageLog (B)**: ImageLog 전용 Hikari 풀. 아래 `app.datasource.imagelog.*` 및 스키마 속성으로 구성한다.
+- **운영 3분할 예**: 인스턴스(또는 DB) 세 개 — (1) 시스템 Primary, (2) PB FEP, (3) ImageLog — 각각 `spring.datasource.url`, `APP_DATASOURCE_PB_URL`, `APP_DATASOURCE_IMAGELOG_URL`로 지정 가능.
+- **단일 DB 개발**: `app.datasource.pb.url`·`app.datasource.imagelog.url`이 비어 있으면 해당 도메인은 **Primary 풀 재사용**(로컬 단일 DB). JDBC URL·비밀번호 등 민감값은 문서/저장소에 실제 값을 적지 말고 환경 변수로만 설정한다.
 
 **스키마 이름 (backend `application.yml` / env)**
 
@@ -26,6 +29,17 @@
 | `app.db.schema.sys` | `APP_DB_SCHEMA_SYS` | `public` |
 | `app.db.schema.pb` | `APP_DB_SCHEMA_PB` | `public` |
 | `app.db.schema.imagelog` | `APP_DB_SCHEMA_IMAGELOG` | `public` |
+
+**Optional PB FEP JDBC (`app.datasource.pb.*` / env)**
+
+| 속성 | 환경 변수 |
+|------|-----------|
+| `app.datasource.pb.url` | `APP_DATASOURCE_PB_URL` |
+| `app.datasource.pb.username` | `APP_DATASOURCE_PB_USERNAME` |
+| `app.datasource.pb.password` | `APP_DATASOURCE_PB_PASSWORD` |
+| `app.datasource.pb.driver-class-name` | `APP_DATASOURCE_PB_DRIVER` |
+| `app.datasource.pb.fail-fast` | `APP_DATASOURCE_PB_FAIL_FAST` |
+| `app.datasource.pb.initialization-fail-timeout-ms` | `APP_DATASOURCE_PB_INIT_FAIL_TIMEOUT_MS` |
 
 **Secondary ImageLog JDBC (`app.datasource.imagelog.*` / env)**
 
@@ -38,6 +52,67 @@
 | `app.datasource.imagelog.fail-fast` | `APP_DATASOURCE_IMAGELOG_FAIL_FAST` |
 | `app.datasource.imagelog.initialization-fail-timeout-ms` | `APP_DATASOURCE_IMAGELOG_INIT_FAIL_TIMEOUT_MS` |
 | `app.cors.allowed-origins` (comma-separated UI origins) | `CORS_ALLOWED_ORIGINS` |
+
+### DB 설치·부트스트랩 환경 변수 (`backend/src/main/resources/db/setup.sh`)
+
+비대화형 설치는 **필수 값을 환경(또는 `.env`에서 `set -a` … `source`)으로 export**한 뒤 `setup.sh`를 호출한다. PostgreSQL 클라이언트 비밀번호는 표준 **`PGPASSWORD`** 또는 스크립트가 읽는 **`PGPASSWORD_SUPER`**(설정 시 내부에서 `PGPASSWORD`로 전달)로 공급한다. **슈퍼유저 OS 사용자**는 **`DB_SUPERUSER`**(기본 `postgres`).
+
+**`SETUP_MODE`** (기본 `full`)
+
+| 값 | 의미 |
+|------|------|
+| `full` | Primary A·ImageLog B·(split-PB 시) PB DB까지 스크립트가 담당하는 전체 단계 |
+| `sys_only` | 시스템 쪽 DDL/마이그레이션 위주; PB FEP 전용 DDL은 생략(split-PB일 때). 초기 데이터는 기본 생략 — 필요 시 `SYS_ONLY_LOAD_INIT_DATA=1` |
+| `pb_only` | PB 전용 DB만 프로비저닝·PB DDL/마이그레이션; **`DB_PB_NAME` 필수**. A/ImageLog 단계 없음 |
+
+**Primary / ImageLog 대상 클러스터 (동일 `DB_HOST`·`DB_PORT`)**
+
+| 변수 | 기본(스크립트) | 설명 |
+|------|----------------|------|
+| `DB_HOST` | `localhost` | |
+| `DB_PORT` | `5432` | |
+| `DB_NAME` | `logmng` | 레거시; `DB_A_NAME` 미지정 시 A 이름으로 사용 |
+| `DB_A_NAME` | `$DB_NAME` | 시스템 스키마 및(non-split 시) PB DDL이 붙는 DB |
+| `DB_B_NAME` | `$DB_A_NAME` | ImageLog DB; A와 다르면 **물리 DB 분리** |
+| `DB_USER` / `DB_PASSWORD` | `logmng` / … | 애플리케이션 역할 |
+| `DB_ETL_USER` / `DB_ETL_PASSWORD` | `logmng_etl` / … | ETL 역할(스크립트가 생성·그랜트) |
+| `SCHEMA_SYS` / `SCHEMA_PB` / `SCHEMA_IMAGELOG` | `public` | `APP_DB_SCHEMA_*`와 맞출 것 |
+
+**PB 전용 클러스터·DB (split-PB)**
+
+| 변수 | 설명 |
+|------|------|
+| `DB_PB_NAME` | 비어 있거나 `DB_A_NAME`과 같으면 PB는 A에 적용 |
+| `DB_PB_HOST` / `DB_PB_PORT` | 기본 `DB_HOST` / `DB_PORT` |
+| `DB_PB_SUPERUSER` | 기본 `DB_SUPERUSER` |
+
+**초기 데이터·폐쇄망 옵션**
+
+| 변수 | 설명 |
+|------|------|
+| `INIT_DATA_FILE` | 기본 `init-data.sql` |
+| `SKIP_INIT_DATA` | `1`이면 init-data 실행 생략(DDL·마이그레이션은 유지) |
+| `SYS_ONLY_LOAD_INIT_DATA` | `sys_only`에서도 init-data 실행하려면 `1` |
+| `CLOSED_NETWORK_MINIMAL` | `1`이면 일부 샘플·선택 마이그레이션 생략(스크립트 주석 참고) |
+
+### 애플리케이션 로그 파일 (Spring Boot 2.7)
+
+배포 시 로그 파일 경로는 **외부화 속성**으로 지정한다. Spring Boot 2.7 **relaxed binding**: 환경 변수 **`LOGGING_FILE_NAME`** → `logging.file.name`. **기본값(미설정):** `logs/application.log` — 저장소 `application.yml` 기본과 동일하여 로컬·기존 배포와 하위 호환.
+
+### `scripts/install_linux.sh` 비대화형 경로
+
+대화형 메뉴·`read`는 **기본**; **`INSTALL_NONINTERACTIVE=1`**(또는 `true`/`yes`)이면 메뉴 없이 **`backend/src/main/resources/db/setup.sh`** 만 실행한다. 저장소 루트 **`.env`**는 `INSTALL_ENV_FILE`로 경로를 바꿀 수 있으며, 스크립트 시작 시 해당 파일이 있으면 `set -a && source && set +a`로 로드한다. 누락·무효 시 **stderr에 변수 이름만** 한 줄씩 출력하고 비0 종료(TC-05); 비밀번호·`PGPASSWORD` 값은 출력하지 않는다.
+
+| 변수 | 설명 |
+|------|------|
+| `INSTALL_NONINTERACTIVE` | `1` / `true` / `yes` — 비대화형 경로 |
+| `INSTALL_ENV_FILE` | 기본 `$REPO_ROOT/.env` |
+| `INSTALL_WRITE_APP_ENV` | `1`이면 setup 성공 후 JDBC export 파일 생성(기본 `backend/.env.logmng.generated`, 경로는 `INSTALL_APP_ENV_OUT`) |
+| 필수(비대화형) | `SETUP_MODE`(full\|sys_only\|pb_only), `DB_HOST`, `DB_PORT`, `DB_USER`, `DB_PASSWORD`, `DB_NAME` 또는 `DB_A_NAME`; `pb_only`일 때 `DB_PB_NAME` |
+| `setup.sh` 호출 시 | 위 **DB 설치·부트스트랩** 표의 변수·`SETUP_MODE`를 그대로 export |
+| 생성 export 키 | `write_env_file`: `SPRING_DATASOURCE_*`, `APP_DB_SCHEMA_*`, `APP_DATASOURCE_PB_*`, `APP_DATASOURCE_IMAGELOG_*`, **`LOGGING_FILE_NAME`**(선택) |
+
+**오프라인 번들** `install-offline.sh`: 동일하게 **`INSTALL_NONINTERACTIVE=1`**이면 `db` / `configure` / `all`에서 프롬프트를 생략한다. 번들 루트 **`.env`**를 먼저 로드한 뒤 **`var/logmng.env`**를 로드한다(둘 다 있으면 후자가 덮어씀). `all` 단계는 `INSTALL_RUN_DB`, `INSTALL_RUN_CONFIGURE`, `INSTALL_RUN_START`(기본 각 `1`), `INSTALL_DB_SKIP`으로 구성을 줄일 수 있다. `configure` 비대화형 필수: `SERVER_PORT`, `FRONTEND_PORT`, `SPRING_DATASOURCE_URL`, `SPRING_DATASOURCE_USERNAME`, `SPRING_DATASOURCE_PASSWORD`, `APP_DB_SCHEMA_SYS`, `APP_DB_SCHEMA_PB`, `APP_DB_SCHEMA_IMAGELOG`, `CORS_ALLOWED_ORIGINS`, `ENCRYPTION_KEY`.
 
 ### 인증 모드·디렉터리 (요건 `docs/requirements/20260407-external-dept-employee-ad-login.md`)
 
@@ -116,7 +191,7 @@
 
 **Static UI browser→API base (no rebuild)** — env `LOGMNG_API_BASE_URL` (preferred) or `REACT_APP_API_BASE_URL` on the JDK static-server process; served as `/runtime-config.js`. See `scripts/offline-bundle/README-OFFLINE.md` § API URL.
 
-**Air-gap bundle**: `scripts/package-airgap-bin.sh` fills `bin/` with backend fat JAR, static UI (`www/`), and JDK-only static server JAR; see `bin/README.md`. **Full offline server package** (DB scripts + installer): `scripts/release-build.sh` (default, no args) or `scripts/build-offline-bundle.sh` → `dist/logmng-offline-*.tar.gz`; optionally run `scripts/download-psql-for-bundle.sh` first to bundle `psql` debs. On the target host extract and run `./install-offline.sh all` (see `scripts/offline-bundle/README-OFFLINE.md`).
+**Air-gap bundle**: `scripts/package-airgap-bin.sh` (default `AIRGAP_BIN_ROOT` = repo `bin/`) fills that directory with backend fat JAR, static UI (`www/`), and JDK-only static server JAR; see `bin/README.md`. **Full offline server package** (DB scripts + installer): `scripts/release-build.sh` (default, no args) or `scripts/build-offline-bundle.sh` builds the same binaries **into** `dist/logmng-offline-*/bin/` (no copy to repo `bin/`) → `dist/logmng-offline-*.tar.gz`; optionally run `scripts/download-psql-for-bundle.sh` first to bundle PostgreSQL **16** `psql` client `.deb` files (PGDG bookworm amd64; see script header). On the target host extract and run `./install-offline.sh all` (see `scripts/offline-bundle/README-OFFLINE.md`).
 
 ## API 규격
 

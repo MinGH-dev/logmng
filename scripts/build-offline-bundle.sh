@@ -2,38 +2,31 @@
 #
 # Build a self-contained offline deployment tree + gzip tarball for air-gapped servers.
 # Includes: backend fat JAR, static UI, JDK static-server JAR, all db/*.sql + *.sh, installer, docs,
-#           optional tools/psql-deb/*.deb if third_party/psql-deb/ was populated (download-psql-for-bundle.sh).
+#           optional tools/psql-deb/*.deb and tools/psql-rpm-el9/*.rpm (see download-psql-* scripts).
 # Run ONLY on a machine with Internet (npm, Maven) — the resulting .tar.gz needs no network.
 #
 # Usage (repo root):
 #   ./scripts/build-offline-bundle.sh
 #   REACT_APP_API_BASE_URL=http://백엔드:9200/api ./scripts/build-offline-bundle.sh
-#   VERSION=1.0.0 NO_TAR=1 ./scripts/build-offline-bundle.sh   # directory only, skip tar (dev)
+#   VERSION=1.0.1 NO_TAR=1 ./scripts/build-offline-bundle.sh   # directory only, skip tar (dev)
 #
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
 
-VERSION="${VERSION:-1.0.0}"
+VERSION="${VERSION:-1.0.1}"
 OUT_NAME="logmng-offline-${VERSION}"
 OUT="$ROOT/dist/${OUT_NAME}"
 TAR_NAME="${OUT_NAME}.tar.gz"
 TAR_PATH="$ROOT/dist/${TAR_NAME}"
 
-echo "[build-offline-bundle] Packaging bin (npm + mvn)..."
-"$ROOT/scripts/package-airgap-bin.sh"
-
 echo "[build-offline-bundle] Assembling $OUT ..."
 rm -rf "$OUT"
-mkdir -p "$OUT/bin/backend" "$OUT/bin/frontend/www" "$OUT/db" "$OUT/docs" "$OUT/tools/psql-deb"
+mkdir -p "$OUT/db" "$OUT/docs" "$OUT/tools/psql-deb" "$OUT/tools/psql-rpm-el9"
 
-# --- Application binaries (libraries embedded in JARs) ---
-cp "$ROOT/bin/backend/logmng-backend-1.0.0.jar" "$OUT/bin/backend/"
-cp "$ROOT/bin/backend/run.sh" "$OUT/bin/backend/"
-cp "$ROOT/bin/frontend/logmng-static-server-1.0.0.jar" "$OUT/bin/frontend/"
-cp "$ROOT/bin/frontend/run.sh" "$OUT/bin/frontend/"
-cp -R "$ROOT/bin/frontend/www/." "$OUT/bin/frontend/www/"
+echo "[build-offline-bundle] Packaging bin into $OUT/bin (npm + mvn)..."
+AIRGAP_BIN_ROOT="$OUT/bin" "$ROOT/scripts/package-airgap-bin.sh"
 
 # --- Database: all DDL, migrations, seeds, shell helpers ---
 cp -R "$ROOT/backend/src/main/resources/db/." "$OUT/db/"
@@ -57,6 +50,20 @@ if [[ ${#PSQL_DEBS[@]} -gt 0 ]]; then
 else
   cp "$ROOT/scripts/offline-bundle/bundle-psql-deb-README.no-debs.txt" "$OUT/tools/psql-deb/README.txt"
   echo "[build-offline-bundle] WARN: tools/psql-deb/ has no .deb — run scripts/download-psql-for-bundle.sh on a build PC with Internet to bundle psql."
+fi
+
+# Optional: bundled psql (RPM) for RHEL / Rocky / Alma 9.6 x86_64 (see download-psql-rpm-el9.sh)
+PSQL_RPM_SRC="$ROOT/third_party/psql-rpm-el9"
+shopt -s nullglob
+PSQL_RPMS=( "$PSQL_RPM_SRC"/*.rpm )
+shopt -u nullglob
+if [[ ${#PSQL_RPMS[@]} -gt 0 ]]; then
+  cp "${PSQL_RPMS[@]}" "$OUT/tools/psql-rpm-el9/"
+  [[ -f "$PSQL_RPM_SRC/README.txt" ]] && cp "$PSQL_RPM_SRC/README.txt" "$OUT/tools/psql-rpm-el9/README.txt"
+  echo "[build-offline-bundle] Included ${#PSQL_RPMS[@]} file(s) in tools/psql-rpm-el9/"
+else
+  cp "$ROOT/scripts/offline-bundle/bundle-psql-rpm-README.no-rpms.txt" "$OUT/tools/psql-rpm-el9/README.txt"
+  echo "[build-offline-bundle] WARN: tools/psql-rpm-el9/ has no .rpm — for RHEL 9.6 app servers run scripts/download-psql-rpm-el9.sh then rebuild."
 fi
 
 chmod +x "$OUT/install-offline.sh" "$OUT/bin/backend/run.sh" "$OUT/bin/frontend/run.sh"

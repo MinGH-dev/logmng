@@ -6,6 +6,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [1.0.1] - 2026-04-10
+
+### Changed
+
+- **backend**: Remove startup `imagelog` sample seeding (`GenerateSampleDataScript` removed). Load imagelog data via DB setup (`init-data-imagelog.sql`), `append-imagelog-encrypted-samples.sh`, or other explicit paths.
+- **chore (release)**: Backend artifact and offline bundle default version **1.0.1** (`pom.xml`, `package-airgap-bin.sh`, `dev-services.sh`, `build-offline-bundle.sh`, `bin/` run scripts, `install-offline.sh`).
+- **scripts**: `regenerate-encrypted-log-data.sh` reloads `init-data-imagelog.sql` after truncating `imagelog` (replacing restart-only refill).
+- **fix**: `package-airgap-bin.sh` — skip copying `run.sh` when source and destination are the same file (default `AIRGAP_BIN_ROOT=$ROOT/bin`).
+
 ### 2026-03-31 (요구사항 문서·DB 샘플 SQL·보안 감사 증적 초안)
 
 - **docs (requirements)**: 이미지로그 복호화 행 키 정리 — `docs/requirements/20260330-image-log-pretty-decrypt-row-key.md`. 이미지로그 중복 guid 샘플 데이터 — `docs/requirements/20260330-imagelog-dup-guid-sample-data.md`. PB FEP 전체 펼치기·페이지 경계 — `docs/requirements/20260330-pb-fep-expand-all-cross-page.md`.
