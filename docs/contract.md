@@ -12,6 +12,8 @@
 | DB — PB FEP (선택, 물리 분리 가능) | 별도 DB·인스턴스 또는 A와 동일 | **런타임:** `app.datasource.pb.*` / `APP_DATASOURCE_PB_*` — `pb_send`·`pb_recv` 전용 풀. **설치:** `DB_PB_NAME`, `DB_PB_HOST`, `DB_PB_PORT`, `DB_PB_SUPERUSER`(기본은 Primary 슈퍼유저와 동일). `DB_PB_NAME`이 비거나 `DB_A_NAME`과 같으면 PB DDL은 A에 적용(레거시 단일 DB) |
 | DB — ImageLog (B, 물리 분리 가능) | 별도 DB 이름 또는 A와 동일 | **런타임:** `app.datasource.imagelog.*` / `APP_DATASOURCE_IMAGELOG_*` — Java FW ImageLog(`imagelog`). **설치:** `DB_B_NAME`(기본 `DB_A_NAME`), `SCHEMA_IMAGELOG`; B는 Primary와 **동일 호스트·포트**에서 DB 이름만 분리하는 모델(`setup.sh`의 `psql_admin`). JDBC는 `jdbc:postgresql://<DB_HOST>:<DB_PORT>/<DB_B_NAME>` |
 
+**Docker 로컬(dist 번들)**: `dist/logmng-offline-<VERSION>/`와 PostgreSQL 16·다중 DB를 `docker compose`로 맞추는 절차는 저장소 루트 **[docker/README.md](../docker/README.md)**; 예시 env 키는 **[.env.docker.example](../.env.docker.example)**. 컨테이너 간 JDBC 호스트는 Compose 서비스 이름(예: `postgres`). 변수 이름·포트는 위 표와 동일하게 맞춘다(API 계약 변경 아님).
+
 ### DB 다중 데이터소스·스키마
 
 요건: `docs/requirements/20260320-multi-datasource-schema-configuration.md`(스키마·풀·A/B 모델), `docs/requirements/20260410-install-deploy-three-db-noninteractive.md`(3물리 DB·비대화형 설치·로그 경로·운영 스크립트 정렬).

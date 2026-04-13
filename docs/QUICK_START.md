@@ -29,6 +29,8 @@
 
 4. **배포 번들·폐쇄망** → [`DEPLOY.md`](DEPLOY.md), [`../bin/README.md`](../bin/README.md), [`../scripts/offline-bundle/README-OFFLINE.md`](../scripts/offline-bundle/README-OFFLINE.md).
 
+**Docker로 로컬 스택**을 올릴 때는 오프라인 번들 트리 `dist/logmng-offline-<VERSION>/`를 기준으로 `docker compose`를 사용합니다. 절차·헬스 확인·테스트 이미지(`mvn test`, TC-08)는 **[docker/README.md](docker/README.md)** 를 따릅니다.
+
 ---
 
 ## 개발 시작하기
