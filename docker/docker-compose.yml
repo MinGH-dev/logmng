@@ -2,13 +2,13 @@
 # Prerequisite: ./scripts/build-offline-bundle.sh  →  dist/logmng-offline-<VERSION>/
 # From repo root (use `docker compose` if your Docker CLI includes the Compose V2 plugin; else `docker-compose`):
 #   cp .env.docker.example .env.docker   # edit secrets
-#   docker-compose -f docker/docker-compose.yml --project-directory . up -d postgres
-#   docker-compose -f docker/docker-compose.yml --project-directory . --profile init run --rm db-init
-#   docker-compose -f docker/docker-compose.yml --project-directory . up -d --build backend frontend
+#   docker-compose --env-file .env.docker -f docker/docker-compose.yml --project-directory . up -d postgres
+#   docker-compose --env-file .env.docker -f docker/docker-compose.yml --project-directory . --profile init run --rm db-init
+#   docker-compose --env-file .env.docker -f docker/docker-compose.yml --project-directory . up -d --build backend frontend
 #
 # TC-08 (mvn test in EL 9.6 + JDK 17):
-#   docker-compose -f docker/docker-compose.yml --project-directory . --profile mvn-test build mvn-test
-#   docker-compose -f docker/docker-compose.yml --project-directory . --profile mvn-test run --rm mvn-test
+#   docker-compose --env-file .env.docker -f docker/docker-compose.yml --project-directory . --profile mvn-test build mvn-test
+#   docker-compose --env-file .env.docker -f docker/docker-compose.yml --project-directory . --profile mvn-test run --rm mvn-test
 
 name: logmng-local
 
@@ -21,7 +21,8 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-changeme}
       POSTGRES_DB: postgres
     ports:
-      - "${POSTGRES_PUBLISH_PORT:-5432}:5432"
+      # Default host port 5433 avoids clashing with a local PostgreSQL on 5432; override via POSTGRES_PUBLISH_PORT in .env.docker.
+      - "${POSTGRES_PUBLISH_PORT:-5433}:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
@@ -52,6 +53,10 @@ services:
       INSTALL_NONINTERACTIVE: "1"
       SETUP_NONINTERACTIVE: "1"
       SETUP_MODE: full
+      # Default seed matches UNIQUE(user_id) on app_user_permission_group (one group row per user).
+      # Full dev seed init-data.sql expects multiple groups per user and fails; use closed-network minimal or set INIT_DATA_FILE / SKIP_INIT_DATA in .env.docker.
+      INIT_DATA_FILE: ${INIT_DATA_FILE:-init-data-closed-network-admin-only.sql}
+      CLOSED_NETWORK_MINIMAL: ${CLOSED_NETWORK_MINIMAL:-1}
     volumes:
       - ${OFFLINE_ROOT:-./dist/logmng-offline-1.0.1}/db:/db:ro
       - ./docker/db-init-entrypoint.sh:/entrypoint.sh:ro

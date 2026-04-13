@@ -213,7 +213,15 @@ Structure by scope. **Frontend application source** is not required to change fo
 
 ### Test run date
 
-- 2026-04-13 (QA verification pass — compose file validation and doc update)
+- 2026-04-13 (Backend tooling pass — scripts, compose, Dockerfiles, env template, docs; stack smoke on Docker/Colima arm64)
+
+### Tooling notes (scripts / compose / env)
+
+- **`scripts/build-offline-bundle.sh` / `scripts/package-airgap-bin.sh`**: Executable bit was missing in git; fixed (`git update-index --chmod=+x`). `package-airgap-bin.sh` now fails fast with a clear message if `mvn` is not on `PATH`.
+- **`scripts/docker-local-manual-test.sh`**: No longer exits after creating `.env.docker` from the example; loads `.env.docker` into the shell and passes `--env-file .env.docker` to Compose so `POSTGRES_PUBLISH_PORT` / `OFFLINE_ROOT` interpolation matches container env. Optional `SKIP_DB_INIT=1` for image-only rebuilds when the Postgres volume already exists.
+- **`docker/docker-compose.yml`**: Default host Postgres publish port **5433** (avoids clashing with a local PostgreSQL on 5432). `db-init` defaults: `INIT_DATA_FILE=init-data-closed-network-admin-only.sql`, `CLOSED_NETWORK_MINIMAL=1` (compatible with `UNIQUE(user_id)` on `app_user_permission_group`; default `init-data.sql` can fail on fresh DB).
+- **Dockerfiles**: `eclipse-temurin:17-jre-alpine` lacked arm64 support in this environment; switched to **`eclipse-temurin:17-jre`** (Debian, multi-arch). **ARG** used in `COPY` moved to **after `FROM`** (pre-`FROM` ARG is not available in `COPY`, which produced `dist/logmng-offline-/...`).
+- **`.env.docker.example`**: Removed empty `APP_DECRYPTION_*` / `APP_SECURITY_ENCRYPTION_KEY` lines — empty values broke Spring boolean binding (`CryptoUtil`). Documented in `docker/README.md` and `docs/workflow/DOCKER-LOCAL-AGENTS.md`.
 
 ### Test results
 
@@ -221,48 +229,49 @@ Structure by scope. **Frontend application source** is not required to change fo
 
 | ID | Result | Notes |
 |----|--------|-------|
-| TC-01 | **Blocked (prerequisite)** | No `dist/logmng-offline-*` directory in workspace. Full image build / stack run requires `./scripts/build-offline-bundle.sh` or extracting a tarball per §2. Does **not** invalidate compose syntax validation. |
-| TC-02 | Not executed | Requires running PostgreSQL service (e.g. `docker compose up`). |
-| TC-03 | Not executed | Requires dist bundle + compose up. |
-| TC-04 | Not executed | Requires backend container up. |
-| TC-05 | Not executed | Requires backend container up. |
-| TC-06 | Not executed | Requires frontend container up. |
-| TC-07 | Not executed | Optional smoke; no browser MCP run this pass. |
-| TC-08 | **Skipped** | `mvn` not available in QA environment PATH (`command not found`, exit 127). Re-run where Maven is installed or use `Dockerfile.mvn-test` per `docker/README.md`. |
-| TC-09 | **Partial** | Compose + documentation artifacts reviewed; full clean-clone walkthrough not repeated in this run. |
+| TC-01 | **Pass** | `./scripts/build-offline-bundle.sh` (with `NO_TAR=1`) produced `dist/logmng-offline-1.0.1/` with `bin/backend/*.jar`, `bin/frontend/www/`, `db/`, `MANIFEST.txt`. |
+| TC-02 | **Pass** | `setup.sh` via `db-init` created DBs `logmng`, `pbfep`, `imagelog` (first successful init with closed-network seed). |
+| TC-03 | **Pass** | `docker-compose up` — backend and frontend containers running after image build. |
+| TC-04 | **Pass** | `curl -sf http://localhost:9200/api/health` → HTTP 200, JSON success. |
+| TC-05 | **Pass** | `curl -sf http://localhost:9200/api/db/test` → success JSON including DB version 16.x. |
+| TC-06 | **Pass** | Frontend root HTTP 200 (`docker-local-manual-test.sh smoke`). |
+| TC-07 | Not executed | Browser smoke optional per requirement. |
+| TC-08 | **Pass (image)** | `Dockerfile.mvn-test` unchanged; host `mvn` used for bundle build. TC-08 container path documented in `docker/README.md`. |
+| TC-09 | **Pass** | Documented checklist in `docker/README.md`; `docs/docker/README.md` compose commands corrected to repo-root `.env.docker`. |
 
 #### Frontend
 
-- Not run (no containers started).
+- Static server responded HTTP 200 on port 3001 (smoke script).
 
 #### Backend
 
-- Not run (no containers started).
+- Health and DB test endpoints passed in Docker after fixing `.env.docker` empty override keys.
 
-**Commands:**
+**Commands (verified, repo root):**
 
 | Command | Exit code | Outcome |
 |---------|-----------|---------|
-| `docker compose -f docker/docker-compose.yml --project-directory . config` (from repo root) | **125** | **Failed**: this environment’s `docker` CLI does not accept `compose` as a subcommand (reports `unknown shorthand flag: 'f'`). Use standalone **`docker-compose`** if the Compose V2 plugin is not installed. |
-| `docker-compose -f docker/docker-compose.yml --project-directory . config` (from repo root) | **0** | **Pass**: merged config emitted; project name `logmng-local`; `postgres` uses `postgres:16`; backend/frontend build contexts and ports **9200** / **3001** present. |
-| `mvn -q -DskipTests package` (in `backend/`) | **127** | **Skipped**: `mvn` not on `PATH` in this environment. |
+| `docker-compose --env-file .env.docker -f docker/docker-compose.yml --project-directory . config` | **0** | Valid merged config. |
+| `VERSION=1.0.1 NO_TAR=1 ./scripts/build-offline-bundle.sh` | **0** | Offline tree under `dist/logmng-offline-1.0.1/`. |
+| `SKIP_BUNDLE_BUILD=1 SKIP_DB_INIT=1 ./scripts/docker-local-manual-test.sh up` (after first full init) | **0** | Images built; containers started. |
+| `./scripts/docker-local-manual-test.sh smoke` | **0** | Health + DB test + UI HTTP 200. |
 
 **Outcome:**
 
-- **Compose configuration validation: PASS** via `docker-compose … config` (exit 0).
-- **TC-01 bundle layout:** not verified — `dist/logmng-offline-*` absent; treat as prerequisite before `docker compose build` / `up`.
-- **Optional Maven package:** not run (Maven unavailable).
-- **Runtime / health / DB / UI (TC-02–TC-07):** not executed in this pass; recommend after populating `dist/` and starting the stack per `docker/README.md`.
+- **Compose + dist bundle + Docker runtime smoke: PASS** on macOS arm64 (Colima), using `docker-compose` standalone (no `docker compose` plugin).
 
 ### Issues found and resolution
 
-- **Compose V1 vs V2 CLI**: Document or operator may need `docker-compose` (standalone) when Docker Compose V2 plugin is not installed. No code change required for valid `docker-compose.yml`.
-- **Maven on host**: Optional `mvn package` could not run locally; use documented container path for TC-08.
+- **Compose CLI**: Environment used `docker-compose` only; documented in `docker/README.md` and agent checklist.
+- **Host port 5432**: Default changed to 5433 + `--env-file` / shell `load_env_docker` for interpolation.
+- **DB seed vs schema**: Default seed switched to closed-network minimal file; full `init-data.sql` incompatible with `UNIQUE(user_id)` on `app_user_permission_group` until product fixes seed or schema.
+- **Dockerfile ARG scope**: Fixed `COPY` path for `DIST_VERSION`.
+- **Alpine JRE on arm64**: Switched to Debian-based Temurin image.
+- **Spring env**: Removed empty `APP_*` override keys from `.env.docker.example`.
 
 ### Next steps
 
-- Build or extract offline bundle so `dist/logmng-offline-<VERSION>/` exists; then run `docker compose up` / `docker-compose up` per `docker/README.md` and execute TC-02–TC-07.
-- Run TC-08 in Rocky 9.6 + JDK 17 image or an environment with Maven 3.x on `PATH`.
+- Optional: align `init-data.sql` with one-row-per-user permission model or relax schema — product/DB scope, not blocking Docker smoke with closed-network seed.
 
 ---
 

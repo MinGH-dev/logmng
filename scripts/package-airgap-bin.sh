@@ -14,6 +14,13 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
 
+if ! command -v mvn >/dev/null 2>&1; then
+  echo "[package-airgap-bin] ERROR: Apache Maven (mvn) not found on PATH." >&2
+  echo "  Install Maven 3.x (e.g. macOS: brew install maven) and retry." >&2
+  echo "  See docker/README.md → Build prerequisites (host)." >&2
+  exit 127
+fi
+
 AIRGAP_BIN_ROOT="${AIRGAP_BIN_ROOT:-$ROOT/bin}"
 
 BACKEND_JAR_NAME="logmng-backend-1.0.1.jar"

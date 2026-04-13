@@ -58,6 +58,7 @@ Cursor에서 **브라우저 자동화 검증**(`/verify` 시 프론트 변경 TC
 
 ## 🐳 로컬 Docker (dist 번들)
 
+- **한 번에 빌드·기동(수동 테스트)**: `./scripts/docker-local-manual-test.sh up` — 상세 [`docker/README.md`](docker/README.md)
 - **가이드**: [docs/docker/README.md](docs/docker/README.md) — `./scripts/build-offline-bundle.sh`로 `dist/logmng-offline-<VERSION>/` 준비, `docker/`의 compose·환경 예시로 기동, PostgreSQL 16과 DB 세 개(`logmng`, `pbfep`, `imagelog`), 헬스·DB 테스트·정적 UI 확인(TC-04~TC-06), Linux 9.6 + JDK 17 환경의 `mvn test`(TC-08).
 
 ## 🚀 빠른 시작

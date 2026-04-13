@@ -1,7 +1,17 @@
 # Docker로 로컬 실행 (dist 오프라인 번들 · PostgreSQL 16 · 3 DB)
 
 이 문서는 **소스 트리에서 임시 빌드하지 않고**, 릴리스와 동일한 **`dist/logmng-offline-<VERSION>/`** 산출물을 기준으로 `docker compose`로 스택을 띄우는 절차를 설명합니다.  
-Compose·Dockerfile·환경 예시 파일의 **정확한 파일명**은 저장소 루트의 **`docker/`** 디렉터리를 확인하세요(예: `docker-compose.yml`, 런타임용 `Dockerfile`, `.env.docker.example`, `mvn test`용 테스트 이미지 `Dockerfile` 등).
+Compose·Dockerfile은 **`docker/`** 에 있고, 환경 예시 **`.env.docker.example`** 은 **저장소 루트**에 있습니다(복사본 `.env.docker` 동일).
+
+### 수동 테스트 한 번에 (권장)
+
+LDAP·브라우저 E2E 자동화 없이 **직접 브라우저로 확인**할 때:
+
+```bash
+./scripts/docker-local-manual-test.sh up
+```
+
+최초 실행 시 `.env.docker`가 없으면 `.env.docker.example`이 **자동 복사**되고 같은 실행에서 계속 진행합니다(로컬 플레이스홀더). 비밀·키는 필요 시 수정하세요. **에이전트/CI 검증 단계**는 [`docker/README.md`](../../docker/README.md) 의 **Agent / CI checklist** 를 따릅니다. 상세·트러블슈팅: 같은 문서의 *One-shot*·*Prerequisites* 절.
 
 ## 전제 (dist 레이아웃 단일 진실)
 
@@ -29,7 +39,7 @@ Compose나 빌드 인자에서 **동일 버전**을 가리키는 이름(예: `DI
 
 ## 2. 환경 변수 (예시 파일)
 
-- **`docker/`** 안의 **`.env.docker.example`** 또는 문서화된 예시 파일을 복사해 로컬 전용 값을 넣습니다. **예시만 커밋**하고, 비밀번호·`ENCRYPTION_KEY` 등은 커밋하지 않습니다.
+- **루트**의 **`.env.docker.example`** 을 복사해 `.env.docker` 를 만들고 로컬 전용 값을 넣습니다. **예시만 커밋**하고, 비밀번호·`ENCRYPTION_KEY` 등은 커밋하지 않습니다.
 - Spring Boot·다중 데이터소스에 필요한 키는 [`docs/contract.md`](../contract.md)와 `backend/src/main/resources/application.yml`과 일치해야 합니다. 예:
   - `SPRING_DATASOURCE_*` (Primary → DB **`logmng`**)
   - `APP_DATASOURCE_PB_*` (PB FEP → **`pbfep`**)
@@ -41,14 +51,19 @@ PostgreSQL 16 위에 **물리 DB 세 개** `logmng`, `pbfep`, `imagelog`가 있�
 
 ## 3. Compose 기동
 
-저장소 루트에서 **`docker/`** 의 compose 파일을 지정합니다(파일명은 리포지토리 실제 이름을 따름).
+저장소 **루트**에서 compose 파일을 지정합니다. 변수 치환(`POSTGRES_PUBLISH_PORT`, `OFFLINE_ROOT` 등)을 맞추려면 **루트의 `.env.docker`** 를 사용하세요.
 
 ```bash
-# 예시 — 실제 파일명은 docker/ 디렉터리 확인
-docker compose -f docker/docker-compose.yml --env-file docker/.env.docker.local up -d
+# docker compose V2 플러그인이 있을 때
+docker compose --env-file .env.docker -f docker/docker-compose.yml --project-directory . up -d
+
+# 또는 standalone docker-compose (플러그인 없이 자주 쓰임)
+docker-compose --env-file .env.docker -f docker/docker-compose.yml --project-directory . up -d
 ```
 
-- 백엔드·프론트·DB **게시 포트**는 compose와 `docker/.env` 예시에 맞춥니다. 계약상 기본은 백엔드 **9200**, 정적 UI **3001** 입니다([`docs/contract.md`](../contract.md)).
+한 번에 기동·번들 빌드는 `./scripts/docker-local-manual-test.sh up` 권장(`.env.docker` 로드 및 `DIST_VERSION`/`OFFLINE_ROOT` 정렬).
+
+- 백엔드·프론트·DB **게시 포트**: 계약상 백엔드 **9200**, 정적 UI **3001**([`docs/contract.md`](../contract.md)). Postgres **호스트** 포트는 기본 **5433**(`POSTGRES_PUBLISH_PORT`)이며, 컨테이너 내부는 5432입니다.
 
 ## 4. 헬스·스모크 (QA TC-04 ~ TC-06)
 
