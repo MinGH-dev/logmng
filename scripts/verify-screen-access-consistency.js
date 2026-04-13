@@ -9,6 +9,12 @@ const path = require('path');
 
 const REPO_ROOT = path.join(__dirname, '..');
 
+/**
+ * Backend ALL_ALLOWED_SCREENS entries that the frontend deliberately omits from
+ * ALLOWED_SCREEN_IDS (no menu/route; backend may still use for API authorization).
+ */
+const BACKEND_SCREEN_IDS_ALLOWED_MISSING_ON_FRONTEND = ['activity-log-access-audit'];
+
 function readUtf8(rel) {
   return fs.readFileSync(path.join(REPO_ROOT, rel), 'utf8');
 }
@@ -132,10 +138,13 @@ function verifyMenuAndAllowlists() {
 
   const feSet = new Set(frontendAllowed);
   const { onlyA: missingInFrontend, onlyB: extraInFrontend } = setDiff(backendAllowed, frontendAllowed);
-  if (missingInFrontend.length || extraInFrontend.length) {
+  const missingUnexpected = missingInFrontend.filter(
+    (id) => !BACKEND_SCREEN_IDS_ALLOWED_MISSING_ON_FRONTEND.includes(id),
+  );
+  if (missingUnexpected.length || extraInFrontend.length) {
     errors.push(
       `ALLOWED_SCREEN_IDS must match ScreenConstants ALL_ALLOWED_SCREENS (as sets). ` +
-        `Only in backend: ${missingInFrontend.join(', ') || '(none)'}; ` +
+        `Only in backend: ${missingUnexpected.join(', ') || '(none)'}; ` +
         `Only in frontend: ${extraInFrontend.join(', ') || '(none)'}`
     );
   }

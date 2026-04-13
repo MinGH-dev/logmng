@@ -325,10 +325,10 @@
 | application | string | | 이미지로그 |
 | servicegroup | string | | 이미지로그 |
 | service | string | | 이미지로그 |
-| datastring | string | | 이미지로그 |
-| headerstring | string | | 이미지로그 |
-| keywords | string[] | | 이미지로그 |
-| decryptData | boolean | | 기본 false |
+| datastring | string | | **`logType = java_fw_imglog`**: 필드 파생 검색어에 참여(비어 있지 않을 때). 필드 절(field clause)은 **`datastring`**·**`headerstring`**에서 나온 **모든** 필드 파생 토큰을 **대소문자 무시 중복 제거**한 뒤, **각 토큰마다 AND**로 만족해야 한다(계약). **필드 절 매칭 범위(고정):** 해당 **텍스트 컬럼** 값에 대해서만 **평문 부분일치** 또는 그 문자열의 **`[...]`** 래핑 JSON **decrypt-for-match**. 바이너리 **`data`** / **`header`** 컬럼은 필드 절에서 **조회·복호화·부분일치 스캔하지 않음** — **`docs/contract.md`** 동일 소절, 요건 **`20260414-imagelog-keyword-or-field-and-ui.md`**, **`20260413-imagelog-search-decrypt-display-separation.md`**. |
+| headerstring | string | | **`java_fw_imglog`**: 위 **`datastring`**과 동일한 필드 절 규칙의 일부(두 필드의 토큰이 한 집합으로 합쳐진 뒤 AND). **바이너리 `data` / `header`는 필드 절에서 사용하지 않음**(위와 동일). |
+| keywords | string[] | | **`logType = java_fw_imglog`**: UI는 쉼표 구분 입력을 보통 **`keywords`** 배열 요소로 전달한다. 키워드 절은 요소(토큰) 중 **하나라도** 매치하면 만족(**OR**). **토큰당 매칭:** (1) 필드 절과 **동일한** **`datastring` / `headerstring`** 표면(평문 + 해당 문자열의 bracket **decrypt-for-match**), **또는** (2) **추가**로 바이너리 **`data`** / **`header`** 페이로드에 대한 인메모리 **decrypt-for-match**(java_fw_imglog / IMAGE_LOG 변형). 검색 응답에 페이로드 평문을 넣지 **않음**. **키워드 절**과 **필드 절**이 **동시에** 있으면 **`(필드 절) AND (키워드 절)`** — **`docs/contract.md`**, DOC-CODE-SYNC. |
+| decryptData | boolean | | 기본 false. **`logType = java_fw_imglog`**: 검색 응답에 평문을 채우는 플래그가 **아님**. **`decryptData`로** bracket **`datastring`/`headerstring`** 매칭이나 **키워드용 바이너리 `data`/`header` decrypt-for-match**를 **켜거나 끄지 않는다** — 서버 정책으로 매칭에 필요 시 적용, 응답에는 평문 미포함. UI 체크박스 없음 — 계약 **`docs/contract.md`** 동일 소절, **`docs/requirements/20260413-imagelog-search-decrypt-display-separation.md`**, **`20260414-imagelog-keyword-or-field-and-ui.md`**, **`docs/workflow/DOC-CODE-SYNC.md`**. |
 | page | integer | | 기본 1 |
 | pageSize | integer | | 기본 10 |
 | sortField | string | | 기본 "log_timestamp" |
@@ -338,6 +338,13 @@
 
 - **Response (data)**: `LogDbSearchResponse`
   - `data`: object[] (로그 행 목록)
+  - **`logType = java_fw_imglog` (검색 응답 행, 계약 기본)**:
+    - **금지**: **`decrypted_*`** 접두 키 전부(예: **`decrypted_data`**, **`decrypted_header`**, **`decrypted_datastring`**, **`decrypted_headerstring`**) 및 **계약에 없는** **`_`로 시작하는 키**(예: 레거시 **`_datastring_has_encrypted_match`**, **`_headerstring_has_encrypted_match`** — DOC–CODE–SYNC로 **`hasEncryptedMatch*`** 로만 송신).
+    - **허용(선택, 표시/UI 메타데이터만 — 평문·암호문 아님)**:
+      - **`hasEncryptedMatchDatastring`**, **`hasEncryptedMatchHeaderstring`**: 필드 또는 키워드 매칭이 해당 **텍스트 컬럼**의 **`[...]`** 구간 **decrypt-for-match**로 행 포함에 기여한 경우 **`true`**(평문 비노출). 미적용 시 생략 또는 **`false`**.
+      - **`hasEncryptedMatchData`**, **`hasEncryptedMatchHeader`**: 백엔드가 보낼 때 — **`keywords`** 토큰이 바이너리 **`data`** 또는 **`header`** **decrypt-for-match**로 행 포함에 기여한 경우 각각 **`true`**. 미구현 시 생략(DOC–CODE–SYNC).
+      - 근거: **`docs/contract.md`** 동일 소절, 요건 **`20260413-imagelog-search-decrypt-display-separation.md`**, **`20260414-imagelog-keyword-or-field-and-ui.md`**.
+    - PB FEP(`pb_feplog`) 행 규칙은 위 Image Log 제한과 별개로 기존 PB 표시·복호화 규칙을 따름 — **`docs/contract.md`** 동일 소절.
   - `pagination`: `{ currentPage, totalPages, totalCount }`
 
 ### 5.1.1 PB FEP wireframe log search (`pb-fep-log-search`)
@@ -422,9 +429,10 @@
 | filters | FilterCondition[] | field, operator, value |
 | sort | SortCondition[] | field, direction ("asc"\|"desc") |
 | pagination | { page, pageSize } | 기본 page=1, pageSize=50 |
-| decryptData | boolean | 기본 false |
+| decryptData | boolean | 기본 false. **의미는 §5.1 `LogDbSearchRequest.decryptData`와 동일** (`logType = java_fw_imglog`): 검색 응답 평문 채움 금지; **`datastring`/`headerstring` bracket 매칭 및 키워드용 바이너리 `data`/`header` decrypt-for-match**는 **`decryptData`와 무관**(§5.1 동일). 요건·계약·DOC-CODE-SYNC: §5.1 및 **`docs/contract.md`** 「Java FW Image Log (`java_fw_imglog`) — search match vs plaintext display」. |
 
-- **Response (data)**: `LogDbSearchResponse` (5.1과 동일)
+- **Response (data)**: `LogDbSearchResponse` (5.1과 동일) — **`java_fw_imglog` 행에 대한 `decrypted_*` 금지·문서화되지 않은 `_` 접두 키 금지·선택 `hasEncryptedMatch*`** 규칙은 §5.1 응답 설명과 동일.
+- **텍스트 필터**: 최종 검색이 §5.1과 동일 축(**`keywords`**, **`datastring`**, **`headerstring`**)을 쓰는 경우, **키워드 OR·필드 토큰 AND·동시 활성 시 `(필드 절) AND (키워드 절)`**은 §5.1·**`docs/contract.md`** 와 같다. **필드 절**은 **`datastring`/`headerstring` 텍스트만**; **키워드 토큰**은 동일 표면 **또는** 바이너리 **`data`/`header`** decrypt-for-match(§5.1). 구현·AST 매핑은 DOC-CODE-SYNC.
 - **에러**: java_fw_imglog 외 타입 시 `code: "UNSUPPORTED_LOG_TYPE"`
 
 ---
@@ -928,6 +936,7 @@
 ## 13. 참고
 
 - **환경·포트**: `docs/contract.md`
+- **Image Log (`java_fw_imglog`) 검색 응답 vs 명시적 복호화**: `docs/contract.md` § API 규격 「Java FW Image Log (`java_fw_imglog`) — search match vs plaintext display」, 요건 `docs/requirements/20260413-imagelog-search-decrypt-display-separation.md`, 동기화 절차 `docs/workflow/DOC-CODE-SYNC.md`.
 - **사용자 관리·전산요청서·인사배치 등 (미구현 API)**: `specs/user-management.spec.yaml`
 - **PB FEP 와이어프레임 검색 (`pb-fep-log-search`)**: `specs/log-db-pb-fep-log-search.spec.yaml`, 본 문서 §5.1.1.
 - **정의 위치**: 이 문서는 현재 구현 기준. API 추가/변경 시 이 문서와 `specs/*.spec.yaml`을 먼저 갱신할 것.

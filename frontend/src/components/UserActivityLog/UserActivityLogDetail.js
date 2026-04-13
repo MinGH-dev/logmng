@@ -262,9 +262,6 @@ const UserActivityLogDetail = ({
   actionTypeLabelMap = {},
   loading = false,
   error = null,
-  onNavigateToAccessAudit,
-  canOpenAccessAudit = false,
-  accessAuditState = null,
 }) => {
   const [revealedCopyBody, setRevealedCopyBody] = useState(null);
   const [revealLoading, setRevealLoading] = useState(false);
@@ -379,15 +376,6 @@ const UserActivityLogDetail = ({
     !!log && (isInAppCopyActionType(log.action_type) || copyPayload != null);
 
   const normalizedRequestParams = log ? normalizeRequestParamsForDisplay(log.request_params) : null;
-
-  const formatAccessAuditTime = (v) => {
-    if (v == null || v === '') return '-';
-    try {
-      return new Date(v).toLocaleString('ko-KR');
-    } catch {
-      return String(v);
-    }
-  };
 
   const renderAllowedScreensTable = (title, screens) => {
     if (!Array.isArray(screens) || screens.length === 0) {
@@ -1255,63 +1243,11 @@ const UserActivityLogDetail = ({
               )}
             </div>
           )}
-
-          {canOpenAccessAudit && accessAuditState?.status === 'success' && (
-            <div className="detail-section activity-log-embedded-access-audit-section">
-              <details className="activity-log-embedded-access-audit">
-                <summary>
-                  이 로그에 대한 접근 감사 ({accessAuditState.rows.length}건)
-                </summary>
-                {accessAuditState.rows.length === 0 ? (
-                  <p className="pg-audit-empty">접근 기록이 없습니다.</p>
-                ) : (
-                  <div className="activity-log-access-audit-embed-wrap">
-                    <table className="summary-table activity-log-access-audit-embed-table">
-                      <thead>
-                        <tr>
-                          <th scope="col">접근자 ID</th>
-                          <th scope="col">접근자 이름</th>
-                          <th scope="col">일시</th>
-                          <th scope="col">대상 로그 ID</th>
-                          <th scope="col">접근 유형</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {accessAuditState.rows.map((row, idx) => (
-                          <tr
-                            key={`${String(row.accessedAt ?? row.accessed_at ?? idx)}-${String(row.accessorUserId ?? row.accessor_user_id ?? '')}-${idx}`}
-                          >
-                            <td>{plainText(row.accessorUserId ?? row.accessor_user_id)}</td>
-                            <td>{plainText(row.accessorDisplayName ?? row.accessor_display_name)}</td>
-                            <td>{formatAccessAuditTime(row.accessedAt ?? row.accessed_at)}</td>
-                            <td>{plainText(row.targetActivityLogId ?? row.target_activity_log_id)}</td>
-                            <td>{plainText(row.accessType ?? row.access_type)}</td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                )}
-              </details>
-              <p className="activity-log-embedded-access-audit-hint">
-                필터·검색이 필요하면 하단 링크로 전체 화면을 이용할 수 있습니다.
-              </p>
-            </div>
-          )}
             </>
           )}
           </div>
         </div>
         <div className="activity-log-detail-footer">
-          {canOpenAccessAudit && onNavigateToAccessAudit && log?.id != null && (
-            <button
-              type="button"
-              className="btn btn-link activity-log-open-access-audit-link"
-              onClick={() => onNavigateToAccessAudit(log.id)}
-            >
-              접근 감사 전체 화면으로 이동
-            </button>
-          )}
           <button type="button" className="btn btn-primary" onClick={onClose}>
             닫기
           </button>

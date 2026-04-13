@@ -227,7 +227,6 @@ const LogGrid = ({
       datastring: params.datastring != null ? String(params.datastring) : '',
       headerstring: params.headerstring != null ? String(params.headerstring) : '',
       keywords: keywordsStr,
-      showDecryptOption: Boolean(keywordsStr && keywordsStr.trim())
     };
   };
 

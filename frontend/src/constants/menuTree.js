@@ -16,7 +16,6 @@ import {
   GroupWork as GroupWorkIcon,
   TableChart as TableChartIcon,
   LabelOutlined,
-  FactCheck as FactCheckIcon,
   CloudSync as CloudSyncIcon,
 } from '@mui/icons-material';
 
@@ -32,7 +31,6 @@ export const ALLOWED_SCREEN_IDS = [
   'search-history',
   'activity-log',
   'activity-log-detail',
-  'activity-log-access-audit',
   'statistics',
   'pending-approvals',
   'user-management',
@@ -64,11 +62,6 @@ export const MENU_TREE = [
     icon: HistoryIcon,
     children: [
       { id: 'activity-log', label: '활동 이력', view: 'activity-log' },
-      {
-        id: 'activity-log-access-audit',
-        label: '활동 로그 접근 감사',
-        view: 'activity-log-access-audit',
-      },
       { id: 'search-history', label: '검색 이력', view: 'search-history' },
       { id: 'pending-approvals', label: '복호화 승인 관리', view: 'pending-approvals' },
     ],
@@ -110,7 +103,6 @@ export const SECOND_ICONS = {
   'java-fw-imagelog': SearchSecondIcon,
   'search-history': HistorySecondIcon,
   'activity-log': ListIcon,
-  'activity-log-access-audit': FactCheckIcon,
   'pending-approvals': PendingIcon,
   'statistics-view': AssessmentIcon,
   'user-management': PeopleIcon,
@@ -133,7 +125,6 @@ export const SCREEN_DISPLAY_LABEL_FORM_IDS = [
   'java-fw-imagelog',
   'search-history',
   'activity-log',
-  'activity-log-access-audit',
   'statistics',
   'pending-approvals',
   'user-management',
@@ -199,7 +190,6 @@ export const ORDERED_SCREEN_IDS = [
   'search-history',
   'activity-log',
   'activity-log-detail',
-  'activity-log-access-audit',
   'pending-approvals',
   'statistics',
   'user-management',

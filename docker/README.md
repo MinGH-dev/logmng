@@ -4,6 +4,20 @@ Requirement: `docs/requirements/20260413-docker-local-dist-multidb.md`.
 
 Use **`docker-compose`** (standalone) or **`docker compose`** (Compose V2 plugin) — examples below use `docker-compose` for environments where the plugin is not installed (macOS Homebrew `docker` often has **no** `compose` subcommand; the helper script tries both).
 
+## Dev sync (rebuild dist + Docker)
+
+**Running containers do not auto-update when you edit source.** Backend and frontend images are built from **`dist/logmng-offline-<VERSION>/`** (JAR + static `www/`), not bind-mounted source trees. After **`frontend/` or `backend/`** changes, you must rebuild that bundle and recreate images:
+
+```bash
+./scripts/docker-dev-sync.sh
+# same as:
+./scripts/docker-local-manual-test.sh sync
+```
+
+**`./scripts/docker-local-manual-test.sh restart`** only rebuilds Docker images from the **existing** `dist/` tree. If you skipped a bundle rebuild, you will still run **old** JAR/static files — use **`sync`** (or `docker-dev-sync.sh`) after code changes.
+
+Optional: `VERSION=1.0.1` (default), `NO_TAR=0` to also produce the gzip tarball (slower). See `docs/workflow/DOCKER-LOCAL-AGENTS.md` items 11–12.
+
 ## Agent / CI checklist (validate build + deploy)
 
 Run from the **repository root** (`/path/to/logmng`).
@@ -34,11 +48,17 @@ VERSION=1.0.1 SKIP_BUNDLE_BUILD=1 ./scripts/docker-local-manual-test.sh up
 
 중지: `./scripts/docker-local-manual-test.sh down` — 헬스 확인: `./scripts/docker-local-manual-test.sh smoke`
 
+**재시작(번들·이미지만 갱신, DB 유지)**: `dist/logmng-offline-<VERSION>/` 가 있을 때 `./scripts/docker-local-manual-test.sh restart` — 기본으로 db-init은 생략하고 backend·frontend만 `--build` 후 재기동합니다. Postgres를 내리지 않습니다. 스키마/시드를 다시 넣어야 하면 `RESTART_DB_INIT=1 ./scripts/docker-local-manual-test.sh restart`.
+
+**컨테이너에서 테스트**: `./scripts/docker-local-manual-test.sh test-backend`(Compose 프로필 `mvn-test`, 이미지 `Dockerfile.mvn-test`) → `./scripts/docker-local-manual-test.sh test-frontend`(프로필 `npm-test`, `Dockerfile.npm-test`, `npm ci && npm test`). 한 번에: `./scripts/docker-local-manual-test.sh test-all`. 모두 `docker compose` / `docker-compose`로 기동하며 호스트의 `mvn`/`npm test`를 직접 호출하지 않습니다. 백엔드만 돌릴 때: `MVN_ARGS='-Dtest=LogDbServiceTest' ./scripts/docker-local-manual-test.sh test-backend`. `npm-test`는 `node_modules`를 명명 볼륨 `npm_test_node_modules`로 두어 호스트 `node_modules`와 `npm ci` 충돌(ENOTEMPTY)을 피합니다. `frontend` 외에 `scripts/`·`backend/` 소스는 읽기 전용 마운트(`verify-screen-access-consistency.js` 등).
+
 **DB 초기화 재실패**: 이미 초기화된 볼륨에서 `db-init`이 다시 돌면 `setup.sh`가 실패할 수 있습니다. 그때는 Postgres 볼륨을 지우고 다시 `up` 하거나, 수동으로 `docker compose ... --profile init run --rm db-init` 만 생략하고 백엔드만 재기동하세요. 깨끗한 재시도: `./scripts/docker-local-manual-test.sh down` 후 `docker-compose --env-file .env.docker -f docker/docker-compose.yml --project-directory . down -v` (볼륨 삭제).
 
-**시드 데이터**: compose 기본값은 `INIT_DATA_FILE=init-data-closed-network-admin-only.sql` + `CLOSED_NETWORK_MINIMAL=1` 입니다. (`app_user_permission_group` 스키마가 사용자당 한 행만 허용하므로, 리포지토리의 풀 `init-data.sql`은 동일 트랜잭션에서 실패할 수 있습니다.) 로컬 로그인 스모크는 시드의 `admin` 계정을 사용하세요.
+**시드 데이터**: compose 기본값은 `INIT_DATA_FILE=init-data-closed-network-admin-only.sql` + `CLOSED_NETWORK_MINIMAL=1` 입니다. (`app_user_permission_group` 스키마가 사용자당 한 행만 허용하므로, 리포지토리의 풀 `init-data.sql`은 동일 트랜잭션에서 실패할 수 있습니다.) 로컬 로그인 스모크는 시드의 `admin` 계정을 사용하세요. `CLOSED_NETWORK_MINIMAL=1`이면 대량 imagelog 샘플은 생략되지만, 기본으로 `LOAD_LOCAL_DECRYPT_TEST_DATA=1`(`.env.docker` / `docker-compose.yml`의 `db-init`)이 켜져 있어 `setup.sh` 6b 단계에서 복호화 연습용 소량 시드(`init-data-local-decrypt-test-*.sql`)가 적재됩니다. 끄려면 `.env.docker`에 `LOAD_LOCAL_DECRYPT_TEST_DATA=0`을 넣으세요. 폐쇄망 `install-offline.sh` 경로는 이 플래그를 켜지 않습니다(`setup.sh` 기본 0).
 
 **Host port 5432 busy**: 기본 **호스트** Postgres 포트는 **5433**(`POSTGRES_PUBLISH_PORT`)입니다. 로컬에 이미 PostgreSQL이 5432를 쓰는 경우를 피합니다. 필요 시 `.env.docker`에서 변경하세요.
+
+**로그인 시 "접근이 제한된 IP 주소"**: API는 `AuthService`가 `IpUtil`로 클라이언트 IP를 검사합니다. 호스트 브라우저→게시 포트로 들어오는 연결은 컨테이너에서 **127.0.0.1이 아니라 Docker 브리지(예: `172.17.0.1`)** 로 보일 수 있어 기본 허용 목록에 없으면 거절됩니다. `.env.docker`에 `APP_SECURITY_AUTHORIZED_IPS`를 설정하세요(`.env.docker.example` 참고 — 예: `172.*`, `192.168.*` 와일드카드). 변경 후 백엔드 컨테이너 재시작.
 
 ## Prerequisites
 

@@ -332,6 +332,393 @@ describe('ImageLogTable (req 20260318 decryption-allowed store and decrypt UI)',
   });
 });
 
+describe('ImageLogTable (req 20260413 search vs decrypt display)', () => {
+  test('grid uses datastring/headerstring for display, not search response decrypted_* / raw columns', () => {
+    const logs = [
+      {
+        guid: 'g-search',
+        status: 'OK',
+        insert_time: '2026-04-13 10:00:00',
+        application: 'app',
+        servicegroup: 'sg',
+        service: 'svc',
+        datastring: '{"k":"[cipher-only]"}',
+        headerstring: '{"h":"x"}',
+        decrypted_datastring: '{"k":"LEAK_FROM_SEARCH"}',
+        decrypted_headerstring: '{"h":"LEAK_HEADER"}',
+        decrypted_data: 'BINARY_LEAK',
+        decrypted_header: 'HEADER_LEAK',
+        data: 'RAW_DATA',
+        header: 'RAW_HEADER',
+      },
+    ];
+    const { container } = render(<ImageLogTable {...defaultProps} logs={logs} totalCount={1} />);
+    const row = container.querySelector('tbody tr');
+    expect(row.textContent).toContain('[cipher-only]');
+    expect(row.textContent).not.toContain('LEAK_FROM_SEARCH');
+    expect(row.textContent).not.toContain('LEAK_HEADER');
+    expect(row.textContent).not.toContain('BINARY_LEAK');
+    expect(row.textContent).not.toContain('RAW_DATA');
+  });
+
+  describe('encrypted-region highlight metadata (API rename + legacy)', () => {
+    test('hasEncryptedMatchDatastring true + keywords-only search wraps quoted bracket value in encrypted-highlight', () => {
+      const logs = [
+        {
+          guid: 'g-enc-meta',
+          status: 'OK',
+          insert_time: '2026-04-13 10:00:00',
+          application: 'app',
+          servicegroup: 'sg',
+          service: 'svc',
+          datastring: '{"k":"[cipher-blob]"}',
+          headerstring: '{}',
+          hasEncryptedMatchDatastring: true,
+        },
+      ];
+      const { container } = render(
+        <ImageLogTable {...defaultProps} logs={logs} totalCount={1} keywords={['kw']} searchParams={{}} />
+      );
+      const marks = container.querySelectorAll('mark.encrypted-highlight');
+      expect(marks.length).toBeGreaterThan(0);
+      expect(Array.from(marks).some((el) => el.textContent.includes('[cipher-blob]'))).toBe(true);
+    });
+
+    test('legacy _datastring_has_encrypted_match still enables encrypted-highlight', () => {
+      const logs = [
+        {
+          guid: 'g-legacy-ds',
+          status: 'OK',
+          insert_time: '2026-04-13 10:00:00',
+          application: 'app',
+          servicegroup: 'sg',
+          service: 'svc',
+          datastring: '{"k":"[legacy-cipher]"}',
+          headerstring: '{}',
+          _datastring_has_encrypted_match: true,
+        },
+      ];
+      const { container } = render(
+        <ImageLogTable {...defaultProps} logs={logs} totalCount={1} keywords={['x']} searchParams={{}} />
+      );
+      expect(container.querySelector('mark.encrypted-highlight')).toBeInTheDocument();
+    });
+
+    test('hasEncryptedMatchHeaderstring true + keywords-only search wraps quoted bracket value in header cell', () => {
+      const logs = [
+        {
+          guid: 'g-hdr-meta',
+          status: 'OK',
+          insert_time: '2026-04-13 10:00:00',
+          application: 'app',
+          servicegroup: 'sg',
+          service: 'svc',
+          datastring: '{}',
+          headerstring: '{"h":"[hdr-cipher]"}',
+          hasEncryptedMatchHeaderstring: true,
+        },
+      ];
+      const { container } = render(
+        <ImageLogTable {...defaultProps} logs={logs} totalCount={1} keywords={['q']} searchParams={{}} />
+      );
+      const row = container.querySelector('tbody tr');
+      const cells = row.querySelectorAll('td');
+      const headerCell = cells[7];
+      expect(headerCell.querySelector('mark.encrypted-highlight')).toBeInTheDocument();
+    });
+
+    test('keywords-only LOCAL inside quoted bracket datastring: encrypted-highlight without field search or enc metadata', () => {
+      const logs = [
+        {
+          guid: 'g-kw-in-bracket-ds',
+          status: 'OK',
+          insert_time: '2026-04-14 10:00:00',
+          application: 'app',
+          servicegroup: 'sg',
+          service: 'svc',
+          datastring: '{"payload":"[ENC_OUT_PAYLOAD_LOCAL_0001]"}',
+          headerstring: '{}',
+        },
+      ];
+      const { container } = render(
+        <ImageLogTable
+          {...defaultProps}
+          logs={logs}
+          totalCount={1}
+          keywords={['LOCAL']}
+          searchParams={{}}
+        />
+      );
+      const row = container.querySelector('tbody tr');
+      const cells = row.querySelectorAll('td');
+      const dataCell = cells[6];
+      const marks = dataCell.querySelectorAll('mark.encrypted-highlight');
+      expect(marks.length).toBeGreaterThan(0);
+      expect(
+        Array.from(marks).some((el) => el.textContent.includes('ENC_OUT_PAYLOAD_LOCAL_0001'))
+      ).toBe(true);
+    });
+
+    test('keywords-only LOCAL inside quoted bracket headerstring: encrypted-highlight in header cell', () => {
+      const logs = [
+        {
+          guid: 'g-kw-in-bracket-hdr',
+          status: 'OK',
+          insert_time: '2026-04-14 10:00:00',
+          application: 'app',
+          servicegroup: 'sg',
+          service: 'svc',
+          datastring: '{}',
+          headerstring: '{"x":"[ENC_HDR_LOCAL_0001]"}',
+        },
+      ];
+      const { container } = render(
+        <ImageLogTable
+          {...defaultProps}
+          logs={logs}
+          totalCount={1}
+          keywords={['local']}
+          searchParams={{}}
+        />
+      );
+      const row = container.querySelector('tbody tr');
+      const cells = row.querySelectorAll('td');
+      const headerCell = cells[7];
+      const marks = headerCell.querySelectorAll('mark.encrypted-highlight');
+      expect(marks.length).toBeGreaterThan(0);
+      expect(Array.from(marks).some((el) => el.textContent.includes('ENC_HDR_LOCAL_0001'))).toBe(
+        true
+      );
+    });
+
+    test('hasEncryptedMatchData without hasEncryptedMatchDatastring + LOCAL: quoted bracket in datastring cell gets encrypted-highlight', () => {
+      const logs = [
+        {
+          guid: 'g-bin-data-match',
+          status: 'OK',
+          insert_time: '2026-04-13 10:00:00',
+          application: 'app',
+          servicegroup: 'sg',
+          service: 'svc',
+          datastring: '{"k":"[E002X9ABC]"}',
+          headerstring: '{}',
+          hasEncryptedMatchData: true,
+        },
+      ];
+      const { container } = render(
+        <ImageLogTable
+          {...defaultProps}
+          logs={logs}
+          totalCount={1}
+          keywords={['LOCAL']}
+          searchParams={{}}
+        />
+      );
+      const row = container.querySelector('tbody tr');
+      const cells = row.querySelectorAll('td');
+      const dataCell = cells[6];
+      const marks = dataCell.querySelectorAll('mark.encrypted-highlight');
+      expect(marks.length).toBeGreaterThan(0);
+      expect(
+        Array.from(marks).some((el) => el.textContent.includes('[E002X9ABC]'))
+      ).toBe(true);
+    });
+
+    test('hasEncryptedMatchData true, hasEncryptedMatchDatastring false + LOCAL: [ENC_ONLY_IN_DECRYPT] gets encrypted-highlight in datastring cell', () => {
+      const logs = [
+        {
+          guid: 'LOCAL-DECRYPT-TST-IM-0001',
+          status: 'OK',
+          insert_time: '2026-04-13 10:00:00',
+          application: 'app',
+          servicegroup: 'sg',
+          service: 'svc',
+          datastring: '{"payload":"[ENC_ONLY_IN_DECRYPT]"}',
+          headerstring: '{}',
+          hasEncryptedMatchData: true,
+          hasEncryptedMatchDatastring: false,
+        },
+      ];
+      const { container } = render(
+        <ImageLogTable
+          {...defaultProps}
+          logs={logs}
+          totalCount={1}
+          keywords={['LOCAL']}
+          searchParams={{}}
+        />
+      );
+      const row = container.querySelector('tbody tr');
+      const dataCell = row.querySelectorAll('td')[6];
+      const marks = dataCell.querySelectorAll('mark.encrypted-highlight');
+      expect(marks.length).toBeGreaterThan(0);
+      expect(
+        Array.from(marks).some((el) => el.textContent.includes('[ENC_ONLY_IN_DECRYPT]'))
+      ).toBe(true);
+    });
+
+    test('keywords-only LOCAL: ciphertext without literal LOCAL (no enc metadata) + plain LOCAL in headerstring — data encrypted-highlight and header plain mark', () => {
+      const logs = [
+        {
+          guid: 'LOCAL-DECRYPT-TST-IM-0001',
+          status: 'OK',
+          insert_time: '2026-04-14 10:00:00',
+          application: 'app',
+          servicegroup: 'sg',
+          service: 'svc',
+          datastring: '{"payload":"[ENC_CIPHER_NO_LOCAL_SUBSTR_0001]"}',
+          headerstring: '{"guid":"LOCAL-DECRYPT-TST-IM-0001","other":"v"}',
+        },
+      ];
+      const { container } = render(
+        <ImageLogTable
+          {...defaultProps}
+          logs={logs}
+          totalCount={1}
+          keywords={['LOCAL']}
+          searchParams={{}}
+        />
+      );
+      const row = container.querySelector('tbody tr');
+      const cells = row.querySelectorAll('td');
+      const dataCell = cells[6];
+      const headerCell = cells[7];
+      const encMarks = dataCell.querySelectorAll('mark.encrypted-highlight');
+      expect(encMarks.length).toBeGreaterThan(0);
+      expect(
+        Array.from(encMarks).some((el) =>
+          el.textContent.includes('[ENC_CIPHER_NO_LOCAL_SUBSTR_0001]')
+        )
+      ).toBe(true);
+      const plainMarks = headerCell.querySelectorAll('mark:not(.encrypted-highlight)');
+      expect(plainMarks.length).toBeGreaterThan(0);
+      expect(Array.from(plainMarks).some((el) => el.textContent.includes('LOCAL'))).toBe(true);
+    });
+
+    test('Pretty mode: hasEncryptedMatchData + LOCAL still wraps quoted bracket in datastring pre with encrypted-highlight', async () => {
+      const logs = [
+        {
+          guid: 'g-pretty-bin-ds',
+          status: 'OK',
+          insert_time: '2026-04-13 10:00:00',
+          application: 'app',
+          servicegroup: 'sg',
+          service: 'svc',
+          datastring: '{"k":"[PRETTY_BIN_DS]"}',
+          headerstring: '{}',
+          hasEncryptedMatchData: true,
+          hasEncryptedMatchDatastring: false,
+        },
+      ];
+      const { container } = render(
+        <ImageLogTable
+          {...defaultProps}
+          logs={logs}
+          totalCount={1}
+          keywords={['LOCAL']}
+          searchParams={{}}
+        />
+      );
+      const row = container.querySelector('tbody tr');
+      await userEvent.click(
+        within(row.querySelector('td.pretty-action-cell')).getByRole('button', { name: /Pretty 출력/ })
+      );
+      const dataCell = row.querySelectorAll('td')[6];
+      const pre = dataCell.querySelector('pre.json-pretty-text');
+      expect(pre).toBeInTheDocument();
+      expect(pre.querySelectorAll('mark.encrypted-highlight').length).toBeGreaterThan(0);
+    });
+
+    test('hasEncryptedMatchHeader without hasEncryptedMatchHeaderstring + LOCAL: quoted bracket in header cell gets encrypted-highlight', () => {
+      const logs = [
+        {
+          guid: 'g-bin-hdr-match',
+          status: 'OK',
+          insert_time: '2026-04-13 10:00:00',
+          application: 'app',
+          servicegroup: 'sg',
+          service: 'svc',
+          datastring: '{}',
+          headerstring: '{"h":"[E002H9XYZ]"}',
+          hasEncryptedMatchHeader: true,
+        },
+      ];
+      const { container } = render(
+        <ImageLogTable
+          {...defaultProps}
+          logs={logs}
+          totalCount={1}
+          keywords={['LOCAL']}
+          searchParams={{}}
+        />
+      );
+      const row = container.querySelector('tbody tr');
+      const cells = row.querySelectorAll('td');
+      const headerCell = cells[7];
+      const marks = headerCell.querySelectorAll('mark.encrypted-highlight');
+      expect(marks.length).toBeGreaterThan(0);
+      expect(
+        Array.from(marks).some((el) => el.textContent.includes('[E002H9XYZ]'))
+      ).toBe(true);
+    });
+
+    test('hasEncryptedMatchHeader true, hasEncryptedMatchHeaderstring false + LOCAL: [ENC_ONLY_IN_DECRYPT_HDR] gets encrypted-highlight in header cell', () => {
+      const logs = [
+        {
+          guid: 'g-hdr-bin-only',
+          status: 'OK',
+          insert_time: '2026-04-13 10:00:00',
+          application: 'app',
+          servicegroup: 'sg',
+          service: 'svc',
+          datastring: '{}',
+          headerstring: '{"h":"[ENC_ONLY_IN_DECRYPT_HDR]"}',
+          hasEncryptedMatchHeader: true,
+          hasEncryptedMatchHeaderstring: false,
+        },
+      ];
+      const { container } = render(
+        <ImageLogTable
+          {...defaultProps}
+          logs={logs}
+          totalCount={1}
+          keywords={['LOCAL']}
+          searchParams={{}}
+        />
+      );
+      const row = container.querySelector('tbody tr');
+      const headerCell = row.querySelectorAll('td')[7];
+      const marks = headerCell.querySelectorAll('mark.encrypted-highlight');
+      expect(marks.length).toBeGreaterThan(0);
+      expect(
+        Array.from(marks).some((el) => el.textContent.includes('[ENC_ONLY_IN_DECRYPT_HDR]'))
+      ).toBe(true);
+    });
+  });
+
+  /** TC-06: decrypt UI without permission — no alternate plaintext path */
+  test('encrypted row with hasDecryptPermission false shows permission message, no decrypt button', () => {
+    const logs = [
+      {
+        guid: 'g-no-perm',
+        status: 'OK',
+        insert_time: '2026-04-13 10:00:00',
+        application: 'app',
+        servicegroup: 'sg',
+        service: 'svc',
+        datastring: '{"k":"[enc]"}',
+        headerstring: '{}',
+      },
+    ];
+    const { container } = render(
+      <ImageLogTable {...defaultProps} logs={logs} totalCount={1} hasDecryptPermission={false} />
+    );
+    const decryptCell = container.querySelector('td.decrypt-action-cell');
+    expect(decryptCell).toHaveTextContent('복호화 권한이 없습니다.');
+    expect(within(decryptCell).queryByRole('button', { name: /복호화/ })).not.toBeInTheDocument();
+  });
+});
+
 describe('ImageLogTable (req 20260330 Pretty per guid+status)', () => {
   beforeEach(() => {
     jest.clearAllMocks();

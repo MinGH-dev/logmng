@@ -45,6 +45,7 @@
 #   SKIP_INIT_DATA       1이면 INIT_DATA_FILE 실행 생략(full·sys_only 공통; DDL·마이그레이션은 유지)
 #   INIT_DATA_FILE     기본: init-data.sql
 #   CLOSED_NETWORK_MINIMAL  1이면 PB pagination/bmsg 샘플·imagelog 샘플 등 생략(DDL 마이그레이션은 유지)
+#   LOAD_LOCAL_DECRYPT_TEST_DATA  1이면 로컬 복호화 연습용 소량 시드(init-data-local-decrypt-test-*.sql, dev/local only; DDL·마이그레이션 이후 실행, CLOSED_NETWORK_MINIMAL과 무관)
 #
 # 예: A에 logmng_sys + PB는 별도 DB logmng_pb (동일 클러스터)
 #   DB_A_NAME=logmng DB_PB_NAME=logmng_pb SCHEMA_SYS=logmng_sys SCHEMA_PB=public ./setup.sh
@@ -143,6 +144,7 @@ SETUP_MODE="${SETUP_MODE:-full}"
 INIT_DATA_FILE="${INIT_DATA_FILE:-init-data.sql}"
 CLOSED_NETWORK_MINIMAL="${CLOSED_NETWORK_MINIMAL:-0}"
 SKIP_INIT_DATA="${SKIP_INIT_DATA:-0}"
+LOAD_LOCAL_DECRYPT_TEST_DATA="${LOAD_LOCAL_DECRYPT_TEST_DATA:-0}"
 
 case "$SETUP_MODE" in full|sys_only|pb_only) ;; *)
   echo "Error: invalid SETUP_MODE (expected full, sys_only, or pb_only)." >&2
@@ -300,7 +302,7 @@ if [ "$SETUP_MODE" = "pb_only" ]; then
   exit 0
 fi
 
-echo "=== PostgreSQL 데이터베이스 설정 (MODE=${SETUP_MODE}, SPLIT_PB=${SPLIT_PB}, INIT_DATA_FILE=${INIT_DATA_FILE}, SKIP_INIT_DATA=${SKIP_INIT_DATA}, CLOSED_NETWORK_MINIMAL=${CLOSED_NETWORK_MINIMAL}, A=${DB_A_NAME}, B=${DB_B_NAME}, PB=${DB_PB_NAME:-'(on A)'}, SCHEMA_SYS=${SCHEMA_SYS}, SCHEMA_PB=${SCHEMA_PB}, SCHEMA_IMAGELOG=${SCHEMA_IMAGELOG}) ==="
+echo "=== PostgreSQL 데이터베이스 설정 (MODE=${SETUP_MODE}, SPLIT_PB=${SPLIT_PB}, INIT_DATA_FILE=${INIT_DATA_FILE}, SKIP_INIT_DATA=${SKIP_INIT_DATA}, CLOSED_NETWORK_MINIMAL=${CLOSED_NETWORK_MINIMAL}, LOAD_LOCAL_DECRYPT_TEST_DATA=${LOAD_LOCAL_DECRYPT_TEST_DATA}, A=${DB_A_NAME}, B=${DB_B_NAME}, PB=${DB_PB_NAME:-'(on A)'}, SCHEMA_SYS=${SCHEMA_SYS}, SCHEMA_PB=${SCHEMA_PB}, SCHEMA_IMAGELOG=${SCHEMA_IMAGELOG}) ==="
 echo ""
 
 if command -v brew >/dev/null 2>&1 && ! pg_isready -h "$DB_HOST" -p "$DB_PORT" >/dev/null 2>&1; then
@@ -539,6 +541,19 @@ echo "   ✅ app_user id 마이그레이션 완료"
 echo "6a. app_user_permission_group.user_id 정규화 (레거시 id::text → username, FK·감사 조회 정합, req 20260316·20260407)..."
 run_sql_file_sp "$DB_A_NAME" "$SP_APP" "$SCRIPT_DIR/migrate-app-user-permission-group-user-id-to-username-20260407.sql"
 echo "   ✅ app_user_permission_group user_id 정규화 완료(또는 이미 username)"
+
+if [ "${LOAD_LOCAL_DECRYPT_TEST_DATA:-0}" = "1" ]; then
+  echo "6b-local-decrypt-test. 로컬 복호화 연습용 시드 (LOAD_LOCAL_DECRYPT_TEST_DATA=1, dev/local only)..."
+  run_sql_file_sp "$DB_B_NAME" "${SCHEMA_IMAGELOG}, public" "$SCRIPT_DIR/init-data-local-decrypt-test-imagelog.sql"
+  echo "   ✅ init-data-local-decrypt-test-imagelog.sql"
+  if [ "$SPLIT_PB" = "1" ]; then
+    run_sql_file_sp_pb "$DB_PB_NAME" "${SCHEMA_PB}, public" "$SCRIPT_DIR/init-data-local-decrypt-test-pbfep.sql"
+    echo "   ✅ init-data-local-decrypt-test-pbfep.sql (PB DB=${DB_PB_NAME})"
+  else
+    run_sql_file_sp "$DB_A_NAME" "${SCHEMA_PB}, public" "$SCRIPT_DIR/init-data-local-decrypt-test-pbfep.sql"
+    echo "   ✅ init-data-local-decrypt-test-pbfep.sql (DB A, SCHEMA_PB)"
+  fi
+fi
 
 echo ""
 echo "=== 설정 완료 ==="

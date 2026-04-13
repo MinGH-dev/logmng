@@ -16,7 +16,6 @@ jest.mock('./components/LogGrid', () => {
   return Mock;
 });
 jest.mock('./components/UserActivityLog/UserActivityLogList', () => () => null);
-jest.mock('./components/ActivityLogAccessAudit/ActivityLogAccessAuditList', () => () => null);
 jest.mock('./components/ActivityStatistics', () => () => null);
 jest.mock('./components/SearchHistory/SearchHistoryList', () => () => null);
 jest.mock('./components/UserManagement/UserManagement', () => () => null);

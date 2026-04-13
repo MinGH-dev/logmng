@@ -9,6 +9,10 @@
 # TC-08 (mvn test in EL 9.6 + JDK 17):
 #   docker-compose --env-file .env.docker -f docker/docker-compose.yml --project-directory . --profile mvn-test build mvn-test
 #   docker-compose --env-file .env.docker -f docker/docker-compose.yml --project-directory . --profile mvn-test run --rm mvn-test
+#
+# Frontend tests (Node 20 + npm ci / npm test):
+#   docker-compose --env-file .env.docker -f docker/docker-compose.yml --project-directory . --profile npm-test build npm-test
+#   docker-compose --env-file .env.docker -f docker/docker-compose.yml --project-directory . --profile npm-test run --rm npm-test
 
 name: logmng-local
 
@@ -57,6 +61,8 @@ services:
       # Full dev seed init-data.sql expects multiple groups per user and fails; use closed-network minimal or set INIT_DATA_FILE / SKIP_INIT_DATA in .env.docker.
       INIT_DATA_FILE: ${INIT_DATA_FILE:-init-data-closed-network-admin-only.sql}
       CLOSED_NETWORK_MINIMAL: ${CLOSED_NETWORK_MINIMAL:-1}
+      # Default 1 for local compose: apply decrypt-practice seeds when unset in env file (override in .env.docker).
+      LOAD_LOCAL_DECRYPT_TEST_DATA: ${LOAD_LOCAL_DECRYPT_TEST_DATA:-1}
     volumes:
       - ${OFFLINE_ROOT:-./dist/logmng-offline-1.0.1}/db:/db:ro
       - ./docker/db-init-entrypoint.sh:/entrypoint.sh:ro
@@ -109,12 +115,35 @@ services:
     volumes:
       - ./backend:/work/backend
     working_dir: /work/backend
-    command: ["mvn", "-q", "test"]
+    # Host: MVN_ARGS='-Dtest=LogDbServiceTest' ./scripts/docker-local-manual-test.sh test-backend
+    environment:
+      MVN_ARGS: ${MVN_ARGS:-}
+    command: ["/bin/bash", "-lc", "mvn -q test ${MVN_ARGS:-}"]
+    networks:
+      - logmng-net
+
+  npm-test:
+    profiles: ["npm-test"]
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.npm-test
+    volumes:
+      - ./frontend:/work/frontend
+      # Isolate node_modules from host bind-mount (avoids npm ci ENOTEMPTY / mixed OS).
+      - npm_test_node_modules:/work/frontend/node_modules
+      - ./backend:/work/backend:ro
+      # Tests resolve repo-root scripts (e.g. src/constants/*.test.js → ../../../scripts/…).
+      - ./scripts:/work/scripts:ro
+    working_dir: /work/frontend
+    environment:
+      CI: "true"
+    command: ["/bin/bash", "-lc", "npm ci && npm test -- --watchAll=false"]
     networks:
       - logmng-net
 
 volumes:
   pgdata:
+  npm_test_node_modules:
 
 networks:
   logmng-net:
