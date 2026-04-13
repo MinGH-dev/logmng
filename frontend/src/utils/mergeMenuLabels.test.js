@@ -68,7 +68,6 @@ describe('buildMergedMenuTree', () => {
     const history = merged.find((n) => n.id === 'history');
     expect(history.children.map((c) => c.view)).toEqual([
       'activity-log',
-      'activity-log-access-audit',
       'search-history',
       'pending-approvals',
     ]);

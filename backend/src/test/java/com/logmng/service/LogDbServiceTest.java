@@ -11,6 +11,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.test.util.ReflectionTestUtils;
 
 import javax.sql.DataSource;
+import java.nio.charset.StandardCharsets;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.Timestamp;
@@ -26,7 +27,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /**
  * Unit tests for LogDbService (image log search data/header/keyword filters and pb_feplog smoke).
- * Per req 20260318-image-log-search-data-header-keyword-fix: TC-01–TC-04, TC-07.
+ * Per req 20260318-image-log-search-data-header-keyword-fix: TC-01–TC-04, TC-07; java_fw_imglog field terms AND, keyword terms OR.
  * PB FEP / imagelog DML lives in classpath SQL under {@code sql/logdb-service/} (not in Java literals).
  */
 class LogDbServiceTest {
@@ -63,6 +64,13 @@ class LogDbServiceTest {
 
     private void insertImageLog(String application, String servicegroup, String service, String status,
                                 String datastring, String headerstring, long insertTime) throws Exception {
+        insertImageLogWithGuid(application, servicegroup, service, status, datastring, "guid-" + insertTime,
+                headerstring, insertTime);
+    }
+
+    /** Same as {@link #insertImageLog} but sets {@code guid} explicitly (e.g. seed-aligned regression rows). */
+    private void insertImageLogWithGuid(String application, String servicegroup, String service, String status,
+                                        String datastring, String guid, String headerstring, long insertTime) throws Exception {
         try (Connection conn = dataSource.getConnection();
              PreparedStatement ps = H2ClasspathSql.prepareFromResource(conn, "/sql/logdb-service/insert-imagelog.sql")) {
             ps.setString(1, application);
@@ -70,9 +78,29 @@ class LogDbServiceTest {
             ps.setString(3, service);
             ps.setString(4, status);
             ps.setString(5, datastring != null ? datastring : "");
-            ps.setString(6, "guid-" + insertTime);
+            ps.setString(6, guid != null ? guid : "guid-" + insertTime);
             ps.setString(7, headerstring != null ? headerstring : "");
             ps.setLong(8, insertTime);
+            ps.executeUpdate();
+        }
+    }
+
+    /** Sets {@code data} and {@code header} columns (not only {@code datastring}/{@code headerstring}). */
+    private void insertImageLogFull(String application, String servicegroup, String service, String status,
+            String dataCol, String datastring, String guid, String headerCol, String headerstring, long insertTime)
+            throws Exception {
+        try (Connection conn = dataSource.getConnection();
+             PreparedStatement ps = H2ClasspathSql.prepareFromResource(conn, "/sql/logdb-service/insert-imagelog-full.sql")) {
+            ps.setString(1, application);
+            ps.setString(2, servicegroup);
+            ps.setString(3, service);
+            ps.setString(4, status);
+            ps.setString(5, dataCol != null ? dataCol : "");
+            ps.setString(6, datastring != null ? datastring : "");
+            ps.setString(7, guid != null ? guid : "guid-" + insertTime);
+            ps.setString(8, headerCol != null ? headerCol : "");
+            ps.setString(9, headerstring != null ? headerstring : "");
+            ps.setLong(10, insertTime);
             ps.executeUpdate();
         }
     }
@@ -137,22 +165,29 @@ class LogDbServiceTest {
         assertThat(res.getPagination().getTotalCount()).isEqualTo(1L);
     }
 
-    /** TC-03: keywords (OR) search returns rows matching at least one keyword in datastring or headerstring. */
+    /**
+     * TC-03: multiple keywords are OR — row matches if any keyword matches (data/header plaintext or bracket decrypt).
+     * Row with only t1 matches keyword t1; row with neither is excluded.
+     */
     @Test
-    void searchJavaFwImglog_keywordsOnly_returnsRowsMatchingAnyKeyword() throws Exception {
+    void searchJavaFwImglog_keywordsMultipleTerms_orSemanticsAnyKeyword() throws Exception {
         long ts = ILOG_BASE_MS;
-        insertImageLog("A", "B", "C", "ok", "data with kw1 inside", "h1", ts);
-        insertImageLog("A", "B", "C", "ok", "no match", "header has kw2", ts + 1);
-        insertImageLog("A", "B", "C", "ok", "x", "y", ts + 2);
+        // Distinct tokens (avoid accidental substring match, e.g. "no kw2" contains "kw2").
+        String t1 = "TERM_K1X";
+        String t2 = "TERM_K2Y";
+        insertImageLog("A", "B", "C", "ok", "both " + t1 + " and " + t2 + " here", "h1", ts);
+        insertImageLog("A", "B", "C", "ok", "has " + t1 + " in data", "header carries " + t2 + " value", ts + 1);
+        insertImageLog("A", "B", "C", "ok", "only " + t1 + " alone", "no second token", ts + 2);
+        insertImageLog("A", "B", "C", "ok", "x", "y", ts + 3);
 
         LogDbSearchRequest req = imageLogRequestAroundBase();
-        req.setKeywords(List.of("kw1", "kw2"));
+        req.setKeywords(List.of(t1, t2));
 
         LogDbSearchResponse res = logDbService.searchLogs(req);
 
-        assertThat(res.getData()).hasSize(2);
+        assertThat(res.getData()).hasSize(3);
         long total = res.getPagination() != null ? res.getPagination().getTotalCount() : 0;
-        assertThat(total).isEqualTo(2L);
+        assertThat(total).isEqualTo(3L);
     }
 
     /** TC-04: empty/null datastring, headerstring, keywords — no in-memory filter applied; no NPE. */
@@ -171,6 +206,269 @@ class LogDbServiceTest {
 
         assertThat(res.getData()).hasSize(2);
         assertThat(res.getPagination().getTotalCount()).isEqualTo(2L);
+    }
+
+    /**
+     * TC-01 (req 20260413 §3): datastring matches only after bracket JSON decrypt; search still returns row with no
+     * {@code decrypted_*} or {@code _*} keys; {@code hasEncryptedMatchDatastring} is true for UI bracket highlight.
+     */
+    @Test
+    void searchJavaFwImglog_bracketDecryptMatch_hasNoDecryptedOrInternalKeys() throws Exception {
+        CryptoUtil enc = new CryptoUtil();
+        ReflectionTestUtils.setField(enc, "encryptionKey", "test-key-32-bytes-long!!!!!!!!!");
+        ReflectionTestUtils.setField(enc, "decryptionEnabled", true);
+        String secretPlain = "MATCH_BRACKET_" + ILOG_BASE_MS;
+        String encPayload = enc.encryptImageLogPayload(secretPlain);
+        String datastring = String.format("{\"field\":\"[%s]\"}", encPayload);
+
+        long ts = ILOG_BASE_MS;
+        insertImageLog("A", "B", "C", "ok", datastring, "h1", ts);
+
+        LogDbSearchRequest req = imageLogRequestAroundBase();
+        req.setDatastring(secretPlain);
+
+        LogDbSearchResponse res = logDbService.searchLogs(req);
+
+        assertThat(res.getData()).hasSize(1);
+        Map<String, Object> row = res.getData().get(0);
+        assertJavaFwImglogSearchRowHasNoForbiddenKeys(row);
+        assertThat(row).containsEntry("hasEncryptedMatchDatastring", true);
+    }
+
+    /**
+     * Regression (seed LOCAL-DECRYPT-TST-IM-0001 / {@link com.logmng.util.LocalDecryptSampleSeedGenerator}):
+     * keyword "LOCAL" matches plaintext {@code guid} in {@code headerstring}; {@code datastring} mirrors seed (LD1, Korean name, bracket {@code p}) with no substring "LOCAL" in stored JSON.
+     */
+    @Test
+    void searchJavaFwImglog_keywordLocal_matchesHeaderGuidLikeSeedIm0001() throws Exception {
+        insertLocalDecryptRegressionRowIm0001Like();
+
+        LogDbSearchRequest req = imageLogRequestAroundBase();
+        req.setKeywords(List.of("LOCAL"));
+        req.setDatastring("");
+        req.setHeaderstring("");
+
+        LogDbSearchResponse res = logDbService.searchLogs(req);
+
+        assertThat(res.getData()).hasSize(1);
+        assertThat(res.getPagination().getTotalCount()).isEqualTo(1L);
+        assertThat(res.getData().get(0).get("guid")).isEqualTo("LOCAL-DECRYPT-TST-IM-0001");
+    }
+
+    /**
+     * Unified text filter: {@code datastring} "LOCAL" alone becomes one term; it matches via {@code headerstring}
+     * plaintext (guid substring) like the keyword path — seed row must not be dropped.
+     */
+    @Test
+    void searchJavaFwImglog_datastringLocal_matchesSeedIm0001ViaHeaderPlaintext() throws Exception {
+        insertLocalDecryptRegressionRowIm0001Like();
+
+        LogDbSearchRequest req = imageLogRequestAroundBase();
+        req.setDatastring("LOCAL");
+        req.setKeywords(List.of());
+        req.setHeaderstring("");
+
+        LogDbSearchResponse res = logDbService.searchLogs(req);
+
+        assertThat(res.getData()).hasSize(1);
+        assertThat(res.getPagination().getTotalCount()).isEqualTo(1L);
+        assertThat(res.getData().get(0).get("guid")).isEqualTo("LOCAL-DECRYPT-TST-IM-0001");
+    }
+
+    /** datastring term LOCAL matches header; second term OTHER is absent everywhere → row excluded. */
+    @Test
+    void searchJavaFwImglog_datastringLocalPlusKeywordOther_noMatchWhenOtherAbsent() throws Exception {
+        insertLocalDecryptRegressionRowIm0001Like();
+
+        LogDbSearchRequest req = imageLogRequestAroundBase();
+        req.setDatastring("LOCAL");
+        req.setKeywords(List.of("OTHER"));
+        req.setHeaderstring("");
+
+        LogDbSearchResponse res = logDbService.searchLogs(req);
+
+        assertThat(res.getData()).isEmpty();
+        assertThat(res.getPagination().getTotalCount()).isEqualTo(0L);
+    }
+
+    /** Duplicate LOCAL from datastring + headerstring dedupes to one term; still matches seed row once. */
+    @Test
+    void searchJavaFwImglog_datastringAndHeaderstringLocal_deduped_matchesSeedIm0001() throws Exception {
+        insertLocalDecryptRegressionRowIm0001Like();
+
+        LogDbSearchRequest req = imageLogRequestAroundBase();
+        req.setDatastring("LOCAL");
+        req.setHeaderstring("LOCAL");
+
+        LogDbSearchResponse res = logDbService.searchLogs(req);
+
+        assertThat(res.getData()).hasSize(1);
+        assertThat(res.getPagination().getTotalCount()).isEqualTo(1L);
+    }
+
+    /** Two field terms both required (datastring + headerstring): termA in data, termB in header on the same row. */
+    @Test
+    void searchJavaFwImglog_twoFieldTermsAnd_oneInDataOneInHeader_matches() throws Exception {
+        long ts = ILOG_BASE_MS;
+        insertImageLog("A", "B", "C", "ok", "termA in datastring", "header has termB value", ts);
+        insertImageLog("A", "B", "C", "ok", "only termA", "no b", ts + 1);
+
+        LogDbSearchRequest req = imageLogRequestAroundBase();
+        req.setDatastring("termA");
+        req.setHeaderstring("termB");
+        req.setKeywords(List.of());
+
+        LogDbSearchResponse res = logDbService.searchLogs(req);
+
+        assertThat(res.getData()).hasSize(1);
+        assertThat(res.getPagination().getTotalCount()).isEqualTo(1L);
+        assertThat((String) res.getData().get(0).get("datastring")).contains("termA");
+    }
+
+    /** Field term AND keyword OR: datastring must match "needX"; keywords OR — row has needX and kwAlpha only. */
+    @Test
+    void searchJavaFwImglog_fieldTermAndKeywordOr_rowMustSatisfyBothGroups() throws Exception {
+        long ts = ILOG_BASE_MS;
+        insertImageLog("A", "B", "C", "ok", "prefix needX suffix", "h has kwAlpha", ts);
+        insertImageLog("A", "B", "C", "ok", "needX only", "no keyword here", ts + 1);
+        // Avoid substring "needX" in datastring (e.g. "no needX" would false-match the field term).
+        insertImageLog("A", "B", "C", "ok", "payload without token", "kwAlpha", ts + 2);
+
+        LogDbSearchRequest req = imageLogRequestAroundBase();
+        req.setDatastring("needX");
+        req.setKeywords(List.of("kwBeta", "kwAlpha"));
+
+        LogDbSearchResponse res = logDbService.searchLogs(req);
+
+        assertThat(res.getData()).hasSize(1);
+        assertThat(res.getPagination().getTotalCount()).isEqualTo(1L);
+        assertThat((String) res.getData().get(0).get("datastring")).contains("needX");
+    }
+
+    private void insertLocalDecryptRegressionRowIm0001Like() throws Exception {
+        CryptoUtil enc = new CryptoUtil();
+        ReflectionTestUtils.setField(enc, "encryptionKey", "test-key-32-bytes-long!!!!!!!!!");
+        ReflectionTestUtils.setField(enc, "decryptionEnabled", true);
+        String datastring = buildImagelogDatastringLikeSeedIm0001Input(enc);
+        assertThat(datastring).doesNotContain("LOCAL");
+        String headerstring = "{\"flag\":\"\\u0000\",\"inputMsgType\":\"JSON\",\"guid\":\"LOCAL-DECRYPT-TST-IM-0001\"}";
+        long ts = ILOG_BASE_MS;
+        insertImageLogWithGuid("LDP", "EduSG", "SE10002_select", "input", datastring,
+                "LOCAL-DECRYPT-TST-IM-0001", headerstring, ts);
+    }
+
+    /**
+     * Same shape as {@code init-data-local-decrypt-test-imagelog.sql} IM-0001 input row; retry encrypt if ciphertext makes full JSON contain "LOCAL" (would false-trigger datastring-only filter).
+     */
+    private static String buildImagelogDatastringLikeSeedIm0001Input(CryptoUtil enc) {
+        String pPlainBase = "한글복호화검증-필드p-0001";
+        for (int attempt = 0; attempt < 200; attempt++) {
+            String pPlain = attempt == 0 ? pPlainBase : pPlainBase + "-" + attempt;
+            String encPayload = enc.encryptImageLogPayload(pPlain);
+            String datastring = String.format("{\"id\":\"LD1\",\"name\":\"시드평문이름\",\"p\":\"[%s]\"}", encPayload);
+            if (!datastring.contains("LOCAL")) {
+                return datastring;
+            }
+        }
+        throw new IllegalStateException("could not encrypt p without substring LOCAL in JSON");
+    }
+
+    /**
+     * TC-02 (req 20260413 §3): legacy decryptData + keywords must not attach decrypted_data/decrypted_header on search.
+     */
+    @Test
+    void searchJavaFwImglog_decryptDataTrueWithKeywords_doesNotLeakDecryptedKeys() throws Exception {
+        long ts = ILOG_BASE_MS;
+        insertImageLog("A", "B", "C", "ok", "visible kw marker", "h1", ts);
+
+        LogDbSearchRequest req = imageLogRequestAroundBase();
+        req.setDecryptData(true);
+        req.setKeywords(List.of("marker"));
+
+        LogDbSearchResponse res = logDbService.searchLogs(req);
+
+        assertThat(res.getData()).hasSize(1);
+        assertJavaFwImglogSearchRowHasNoForbiddenKeys(res.getData().get(0));
+    }
+
+    /** Forbids {@code decrypted_*} and keys starting with {@code _}; allows {@code hasEncryptedMatchDatastring} / {@code hasEncryptedMatchHeaderstring}. */
+    private static void assertJavaFwImglogSearchRowHasNoForbiddenKeys(Map<String, Object> row) {
+        assertThat(row.keySet()).noneMatch(k -> k != null && (k.startsWith("_") || k.startsWith("decrypted_")));
+    }
+
+    /**
+     * Keyword OR: match via decrypted {@code data} column only — {@code datastring}/{@code headerstring} omit the token;
+     * optional {@code hasEncryptedMatchData} for UI parity.
+     */
+    @Test
+    void searchJavaFwImglog_keywordMatchesBinaryDataColumn_plainStringsMiss() throws Exception {
+        CryptoUtil enc = new CryptoUtil();
+        ReflectionTestUtils.setField(enc, "encryptionKey", "test-key-32-bytes-long!!!!!!!!!");
+        ReflectionTestUtils.setField(enc, "decryptionEnabled", true);
+        String token = "BINCOL_KW_" + ILOG_BASE_MS;
+        String encPayload = enc.encryptImageLogPayload("prefix " + token + " suffix");
+        long ts = ILOG_BASE_MS;
+        insertImageLogFull("A", "B", "C", "ok", encPayload, "plain datastring without token", "g-bin-" + ts, "{}", "plain header", ts);
+
+        LogDbSearchRequest req = imageLogRequestAroundBase();
+        req.setKeywords(List.of(token));
+        req.setDatastring("");
+        req.setHeaderstring("");
+
+        LogDbSearchResponse res = logDbService.searchLogs(req);
+
+        assertThat(res.getData()).hasSize(1);
+        assertJavaFwImglogSearchRowHasNoForbiddenKeys(res.getData().get(0));
+        assertThat(res.getData().get(0)).containsEntry("hasEncryptedMatchData", true);
+    }
+
+    /**
+     * Field clause must not use binary {@code data}/{@code header}: term appears only inside encrypted payload, not in {@code datastring}.
+     */
+    @Test
+    void searchJavaFwImglog_fieldOnly_doesNotMatchKeywordInsideBinaryDataColumn() throws Exception {
+        CryptoUtil enc = new CryptoUtil();
+        ReflectionTestUtils.setField(enc, "encryptionKey", "test-key-32-bytes-long!!!!!!!!!");
+        ReflectionTestUtils.setField(enc, "decryptionEnabled", true);
+        String token = "FIELD_SKIP_BIN_" + ILOG_BASE_MS;
+        String encPayload = enc.encryptImageLogPayload("only inside cipher " + token);
+        long ts = ILOG_BASE_MS;
+        insertImageLogFull("A", "B", "C", "ok", encPayload, "visible plain ds", "g-fskip-" + ts, "{}", "visible plain hs", ts);
+
+        LogDbSearchRequest req = imageLogRequestAroundBase();
+        req.setDatastring(token);
+        req.setHeaderstring("");
+        req.setKeywords(List.of());
+
+        LogDbSearchResponse res = logDbService.searchLogs(req);
+
+        assertThat(res.getData()).isEmpty();
+        assertThat(res.getPagination().getTotalCount()).isEqualTo(0L);
+    }
+
+    /** Keyword binary path: decrypt throws → no match from that column (garbage ciphertext). */
+    @Test
+    void searchJavaFwImglog_keywordBinaryDecryptFailure_noMatch() throws Exception {
+        long ts = ILOG_BASE_MS;
+        String kw = "KW_FAIL_DECRYPT_" + ts;
+        insertImageLogFull("A", "B", "C", "ok", "not-a-valid-image-log-payload-!!!", "plain ds without token", "g-bad-" + ts, "{}", "plain hs", ts);
+
+        LogDbSearchRequest req = imageLogRequestAroundBase();
+        req.setKeywords(List.of(kw));
+        req.setDatastring("");
+        req.setHeaderstring("");
+
+        LogDbSearchResponse res = logDbService.searchLogs(req);
+
+        assertThat(res.getData()).isEmpty();
+    }
+
+    @Test
+    void coerceImagelogBinaryColumn_byteArrayUtf8_preservesCiphertextForDecrypt() {
+        String cipher = "E002-test-bytes";
+        byte[] raw = cipher.getBytes(StandardCharsets.UTF_8);
+        String coerced = (String) ReflectionTestUtils.invokeMethod(logDbService, "coerceImagelogBinaryColumnToDecryptString", raw);
+        assertThat(coerced).isEqualTo(cipher);
     }
 
     /** TC-07: pb_feplog search unchanged (no regression from image-log fix). */

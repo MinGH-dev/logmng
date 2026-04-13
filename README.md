@@ -56,6 +56,12 @@ Cursor에서 **브라우저 자동화 검증**(`/verify` 시 프론트 변경 TC
 - **bin 모듈**: [bin/README.md](bin/README.md) — `package-airgap-bin.sh` 결과물 실행
 - **한 번에 빌드**: `./scripts/release-build.sh` (기본 = 폐쇄망 tarball + `bin/`), 빠른 `bin/` 만은 `./scripts/release-build.sh bin`
 
+## 🐳 로컬 Docker (dist 번들)
+
+- **한 번에 빌드·기동(수동 테스트)**: `./scripts/docker-local-manual-test.sh up` — 상세 [`docker/README.md`](docker/README.md)
+- **소스 변경 후 Docker 스택 동기화**: `./scripts/docker-dev-sync.sh` (`dist` 재빌드 + 백엔드·프론트 이미지 재생성, DB init 생략)
+- **가이드**: [docs/docker/README.md](docs/docker/README.md) — `./scripts/build-offline-bundle.sh`로 `dist/logmng-offline-<VERSION>/` 준비, `docker/`의 compose·환경 예시로 기동, PostgreSQL 16과 DB 세 개(`logmng`, `pbfep`, `imagelog`), 헬스·DB 테스트·정적 UI 확인(TC-04~TC-06), Linux 9.6 + JDK 17 환경의 `mvn test`(TC-08).
+
 ## 🚀 빠른 시작
 
 - **문서**: [docs/QUICK_START.md](docs/QUICK_START.md)

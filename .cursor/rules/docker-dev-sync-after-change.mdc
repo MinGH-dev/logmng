@@ -1,0 +1,13 @@
+---
+description: After frontend/backend changes, sync local Docker dist + images when the operator uses the compose stack
+alwaysApply: false
+globs:
+  - frontend/src/**
+  - backend/src/**
+---
+
+# Docker dev sync after source change
+
+When finishing work that changes **frontend/** or **backend/** sources **and** the user relies on the **local Docker** stack (`docker-compose` / Compose V2 with this repo’s `docker/docker-compose.yml`), the **implementing agent** should run **`./scripts/docker-dev-sync.sh`** from the repository root **after** unit tests (or document why it failed / was skipped), so `dist/logmng-offline-<VERSION>/` and the backend/frontend containers stay in sync with the working tree.
+
+Details and caveats (schema-only DB work, two-step equivalent): `docs/workflow/DOCKER-LOCAL-AGENTS.md` (item 11).

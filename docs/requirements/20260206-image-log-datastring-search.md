@@ -1,5 +1,7 @@
 # 20260206 - Image Log datastring 검색 기능 개선
 
+> **Errata (2026-04-13):** The 「데이터」 UI field maps to API `datastring` only. Matching uses the **`datastring` text column** (including decrypt-for-match on bracket-wrapped ciphertext **inside that JSON string**), **not** substring or decrypt-for-match against binary **`data` / `header`** columns. Typing e.g. **`LOCAL`** in 「데이터」 therefore does **not** require (or guarantee) a hit on seed row **`LOCAL-DECRYPT-TST-IM-0001`**; that seed’s layout and the correct fields (**keywords** / **headerstring**) are documented in `docs/requirements/20260413-imagelog-search-decrypt-display-separation.md` §1 (*Clarification: 「데이터」 vs binary `data`*). §1 *기대 결과* below remains valid for **datastring-scoped** encrypted JSON fragments, not for “all encrypted column content” via this field.
+
 ## 1. 사용자 요건 내용
 
 ### 요건 설명

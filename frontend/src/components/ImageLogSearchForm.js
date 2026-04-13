@@ -21,7 +21,6 @@ const ImageLogSearchForm = ({ onSearch, initialFormValues }) => {
     datastring: '',
     headerstring: '',
     keywords: '',
-    showDecryptOption: false
   });
 
   const [errors, setErrors] = useState({});
@@ -39,7 +38,6 @@ const ImageLogSearchForm = ({ onSearch, initialFormValues }) => {
         datastring: initialFormValues.datastring != null ? String(initialFormValues.datastring) : '',
         headerstring: initialFormValues.headerstring != null ? String(initialFormValues.headerstring) : '',
         keywords: initialFormValues.keywords != null ? String(initialFormValues.keywords) : '',
-        showDecryptOption: Boolean(initialFormValues.showDecryptOption)
       };
       return { ...prev, ...normalized };
     });
@@ -64,13 +62,11 @@ const ImageLogSearchForm = ({ onSearch, initialFormValues }) => {
     }
   };
 
-  // 키워드 입력 시 복호화 옵션 활성화
   const handleKeywordsChange = (e) => {
     const value = e.target.value;
     setFormData(prev => ({
       ...prev,
       keywords: value,
-      showDecryptOption: value.trim() !== ''
     }));
   };
 
@@ -122,7 +118,7 @@ const ImageLogSearchForm = ({ onSearch, initialFormValues }) => {
       application: formData.application ? String(formData.application).trim() : '',
       servicegroup: formData.servicegroup ? String(formData.servicegroup).trim() : '',
       service: formData.service ? String(formData.service).trim() : '',
-      decryptData: Boolean(formData.decryptData)
+      decryptData: false,
     };
 
     // Diagnostic (DEBUG only; req 20260318): confirm datastring, headerstring, keywords present — length/presence only, no values
@@ -156,7 +152,6 @@ const ImageLogSearchForm = ({ onSearch, initialFormValues }) => {
       datastring: '',
       headerstring: '',
       keywords: '',
-      showDecryptOption: false
     });
     setErrors({});
   };
@@ -275,22 +270,6 @@ const ImageLogSearchForm = ({ onSearch, initialFormValues }) => {
             />
           </div>
         </div>
-
-        {formData.showDecryptOption && (
-          <div className="form-row">
-            <div className="form-group checkbox-group">
-              <label>
-                <input
-                  type="checkbox"
-                  name="decryptData"
-                  checked={formData.decryptData || false}
-                  onChange={handleInputChange}
-                />
-                키워드 검색 시 복호화 여부 체크
-              </label>
-            </div>
-          </div>
-        )}
 
         <div className="form-actions">
           <button type="submit" className="btn btn-primary">

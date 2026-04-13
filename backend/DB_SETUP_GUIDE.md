@@ -8,6 +8,15 @@
 
 앱 기동 시 `imagelog`에 자동 시드를 넣지 않으며, **런타임 Java 코드는 `pb_send` / `pb_recv` / `imagelog`에 대한 INSERT·UPDATE·DELETE·TRUNCATE를 수행하지 않습니다.** 개발·테스트용 데이터는 `setup.sh`가 적용하는 `init-data-imagelog.sql`(또는 폐쇄망 최소 모드 생략 시 수동 적용), 필요 시 운영자가 직접 실행하는 **`psql -f …` 등 순수 SQL**로 적재합니다. 예: `backend/src/main/resources/db/init-data-imagelog.sql`(파일 상단 주석의 멱등 규칙 참고). 저장소의 `./scripts/append-imagelog-encrypted-samples.sh`는 더 이상 Java를 호출하지 않으며, 스크립트 안 주석만 참고용입니다. ImageLog 전용 DB를 쓰는 경우 `APP_DATASOURCE_IMAGELOG_URL`(및 USER/PASSWORD)을 `application.yml`과 맞춥니다.
 
+### 폐쇄망 최소(`CLOSED_NETWORK_MINIMAL=1`) 이후 로컬 복호화 연습 시드
+
+`INIT_DATA_FILE=init-data-closed-network-admin-only.sql` 등으로 imagelog 대량 샘플이 생략된 뒤에도, **로컬에서만** 앱 키(`ENCRYPTION_KEY` / dev 32바이트)로 **실제 복호화 가능한** ProObject 암호문 샘플을 넣으려면 `LOAD_LOCAL_DECRYPT_TEST_DATA=1`로 `setup.sh`를 실행합니다(기본값 unset/0). `init-data-local-decrypt-test-imagelog.sql`은 적용 전 `DELETE FROM imagelog WHERE guid LIKE 'LOCAL-DECRYPT-TST-IM-%'`로 기존 로컬 시드를 지우고 다시 넣습니다. 시드 내용 재생성: `backend/`에서 `LocalDecryptSampleSeedGenerator`(테스트 소스)로 두 SQL 파일을 덮어씁니다. 적용 파일: `init-data-local-decrypt-test-imagelog.sql`(DB B / `SCHEMA_IMAGELOG`), split PB 시 `init-data-local-decrypt-test-pbfep.sql`(PB DB 또는 A의 `SCHEMA_PB`). Docker 호스트에서 Postgres 포트가 매핑된 경우 `DB_HOST=127.0.0.1`, `DB_PORT=<POSTGRES_PUBLISH_PORT>`(예: 5433), 동일하게 `DB_PB_HOST`/`DB_PB_PORT`를 맞추고, 슈퍼유저 비밀번호는 `PGPASSWORD` 또는 `PGPASSWORD_SUPER`로만 전달합니다. 예:
+
+`LOAD_LOCAL_DECRYPT_TEST_DATA=1 INSTALL_NONINTERACTIVE=1 ./setup.sh`
+
+(`backend/src/main/resources/db`에서 실행; `.env` 또는 `.env.docker`를 미리 `set -a` / `source`한 뒤 위 변수만 추가해도 됩니다.) 호스트에 `psql`이 없으면 `setup.sh` 대신 Postgres 컨테이너에 SQL 파일을 복사한 뒤 `psql -U postgres -d imagelog`(및 split PB 시 `-d pbfep`)로 `-f` 실행해도 동일합니다.
+
+
 ## 운영: DB 인스턴스 분리 (System / PB FEP / ImageLog)
 
 운영에서 PostgreSQL을 **물리 인스턴스(호스트·포트·DB 이름) 단위**로 나눌 수 있습니다. 런타임 JDBC 환경 변수의 **정식 이름·추가 옵션(드라이버, fail-fast 등)** 은 배포본의 **`docs/contract.md`** 및 `application.yml`을 따릅니다(백엔드에 PB 전용 데이터소스가 반영된 이후 contract가 최종 권위).

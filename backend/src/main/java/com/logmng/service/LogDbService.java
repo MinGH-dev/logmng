@@ -18,6 +18,7 @@ import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
 
 import javax.sql.DataSource;
+import java.nio.charset.StandardCharsets;
 import java.sql.*;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
@@ -31,6 +32,32 @@ public class LogDbService {
 
     /** Max rows to fetch when data/header/keyword filters are present; filter in memory then paginate. Per req 20260318. */
     private static final int IMGLOG_FILTER_PREFETCH_CAP = 5000;
+
+    /**
+     * In-memory text filter terms for java_fw_imglog: field terms (datastring + headerstring, AND) vs keyword terms
+     * (keywords list, OR). See {@link #buildJavaFwImglogTextFilterTerms(LogDbSearchRequest)}.
+     */
+    private static final class JavaFwImglogTextFilterTerms {
+        private final List<String> fieldTerms;
+        private final List<String> keywordTerms;
+
+        private JavaFwImglogTextFilterTerms(List<String> fieldTerms, List<String> keywordTerms) {
+            this.fieldTerms = fieldTerms != null ? fieldTerms : Collections.emptyList();
+            this.keywordTerms = keywordTerms != null ? keywordTerms : Collections.emptyList();
+        }
+
+        boolean needsFiltering() {
+            return !fieldTerms.isEmpty() || !keywordTerms.isEmpty();
+        }
+
+        List<String> getFieldTerms() {
+            return fieldTerms;
+        }
+
+        List<String> getKeywordTerms() {
+            return keywordTerms;
+        }
+    }
 
     /**
      * When JSON bracket-wrapped ImageLog ciphertext cannot be decrypted, substitute this instead of echoing E002+Base64.
@@ -577,13 +604,10 @@ public class LogDbService {
                 params.add(request.getService());
             }
             
-            // datastring, headerstring, keywords 검색은 암호화된 값도 복호화하여 검색해야 하므로
-            // SQL에서는 제외하고 나중에 애플리케이션 레벨에서 필터링 처리
-            boolean hasDatastringSearch = request.getDatastring() != null && !request.getDatastring().trim().isEmpty();
-            boolean hasHeaderstringSearch = request.getHeaderstring() != null && !request.getHeaderstring().trim().isEmpty();
-            boolean hasKeywordsSearch = request.getKeywords() != null && !request.getKeywords().isEmpty();
-            log.debug("image log filter flags: hasDatastringSearch={}, hasHeaderstringSearch={}, hasKeywordsSearch={}",
-                    hasDatastringSearch, hasHeaderstringSearch, hasKeywordsSearch);
+            // datastring, headerstring, keywords: in-memory filter — field terms AND, keyword terms OR (req java_fw_imglog).
+            JavaFwImglogTextFilterTerms textFilterTerms = buildJavaFwImglogTextFilterTerms(request);
+            log.debug("image log text filter: fieldTermCount={}, keywordTermCount={}",
+                    textFilterTerms.getFieldTerms().size(), textFilterTerms.getKeywordTerms().size());
             
             // 정렬 (이미지로그는 insert_time 사용)
             String sortField = request.getSortField() != null ? request.getSortField() : "insert_time";
@@ -600,10 +624,10 @@ public class LogDbService {
             int page = request.getPage() != null ? request.getPage() : 1;
             int pageSize = request.getPageSize() != null ? request.getPageSize() : 10;
             int offset = (page - 1) * pageSize;
-            boolean needsFiltering = hasDatastringSearch || hasHeaderstringSearch || hasKeywordsSearch;
+            boolean needsFiltering = textFilterTerms.needsFiltering();
 
             if (needsFiltering) {
-                // Per req 20260318: when data/header/keyword filters present, fetch larger set (capped) then filter then paginate.
+                // Per req 20260318: when unified text filters present, fetch larger set (capped) then filter then paginate.
                 String prefetchSql = sql.toString() + " LIMIT ?";
                 List<Object> prefetchParams = new ArrayList<>(params);
                 prefetchParams.add(IMGLOG_FILTER_PREFETCH_CAP);
@@ -612,19 +636,16 @@ public class LogDbService {
                         stmt.setObject(i + 1, prefetchParams.get(i));
                     }
                     try (ResultSet rs = stmt.executeQuery()) {
-                        results = readImageLogResultSet(rs, request);
+                        results = readImageLogResultSet(rs);
                     }
                 }
                 int prefetchN = results.size();
                 log.debug("image log prefetch rows before in-memory filter: {}", prefetchN);
-                // Temporary INFO for diagnosis only: remove or downgrade to DEBUG after root cause found (req 20260318 follow-up).
-                log.info("[DIAG] image log filter path: prefetch SQL returned N={} rows", prefetchN);
 
-                List<Map<String, Object>> filteredResults = filterImageLogRowsByDataHeaderKeywords(results, request,
-                        hasDatastringSearch, hasHeaderstringSearch, hasKeywordsSearch);
+                List<Map<String, Object>> filteredResults = filterImageLogRowsByFieldAndKeywordTerms(results,
+                        textFilterTerms);
                 int filteredM = filteredResults.size();
                 log.debug("image log rows after in-memory filter: {}", filteredM);
-                log.info("[DIAG] image log filter path: filterImageLogRowsByDataHeaderKeywords returned M={} rows (if N>0 and M=0, check filter/decrypt or date range)", filteredM);
 
                 long finalCount = filteredResults.size();
                 int totalPages = (int) Math.ceil((double) finalCount / pageSize);
@@ -633,6 +654,9 @@ public class LogDbService {
                 List<Map<String, Object>> pageResults = fromIndex >= filteredResults.size()
                         ? new ArrayList<>()
                         : new ArrayList<>(filteredResults.subList(fromIndex, toIndex));
+                for (Map<String, Object> row : pageResults) {
+                    sanitizeJavaFwImglogSearchRow(row);
+                }
 
                 log.info("✅ 이미지로그 검색 완료 (필터 적용): {}건 중 {}건 반환 (페이지: {}/{})",
                         finalCount, pageResults.size(), page, totalPages);
@@ -665,8 +689,11 @@ public class LogDbService {
                     stmt.setObject(i + 1, params.get(i));
                 }
                 try (ResultSet rs = stmt.executeQuery()) {
-                    results = readImageLogResultSet(rs, request);
+                    results = readImageLogResultSet(rs);
                 }
+            }
+            for (Map<String, Object> row : results) {
+                sanitizeJavaFwImglogSearchRow(row);
             }
 
             long finalCount = totalCount;
@@ -681,9 +708,30 @@ public class LogDbService {
     }
 
     /**
-     * Reads imagelog ResultSet into list of row maps (insert_time formatted as string). Used by searchJavaFwImglog.
+     * Removes internal {@code _*} match flags and {@code decrypted_*} keys from java_fw_imglog search/advanced-search row maps.
+     * Public booleans {@code hasEncryptedMatchDatastring} / {@code hasEncryptedMatchHeaderstring} are kept (req imagelog highlight).
+     * Optional {@code hasEncryptedMatchData} / {@code hasEncryptedMatchHeader}: keyword matched only via in-memory decrypt of
+     * {@code data} / {@code header} columns (not {@code datastring}/{@code headerstring}); same sanitize rules — not stripped.
+     * Per req 20260413: responses must not expose plaintext via {@code decrypted_*}; decrypt-for-match stays in-memory only.
      */
-    private List<Map<String, Object>> readImageLogResultSet(ResultSet rs, LogDbSearchRequest request) throws SQLException {
+    private static void sanitizeJavaFwImglogSearchRow(Map<String, Object> row) {
+        if (row == null || row.isEmpty()) {
+            return;
+        }
+        row.entrySet().removeIf(e -> {
+            String k = e.getKey();
+            if (k == null) {
+                return false;
+            }
+            return k.startsWith("_") || k.startsWith("decrypted_");
+        });
+    }
+
+    /**
+     * Reads imagelog ResultSet into list of row maps (insert_time formatted as string). Used by searchJavaFwImglog.
+     * Does not attach decrypted_data/decrypted_header — search responses must not expose full payload plaintext (req 20260413).
+     */
+    private List<Map<String, Object>> readImageLogResultSet(ResultSet rs) throws SQLException {
         List<Map<String, Object>> list = new ArrayList<>();
         ResultSetMetaData metaData = rs.getMetaData();
         int columnCount = metaData.getColumnCount();
@@ -701,139 +749,198 @@ public class LogDbService {
                 }
                 row.put(columnName, value);
             }
-            if (request.getDecryptData() != null && request.getDecryptData()
-                    && request.getKeywords() != null && !request.getKeywords().isEmpty()) {
-                try {
-                    if (row.get("data") != null) {
-                        String encryptedData = (String) row.get("data");
-                        String decryptedData = cryptoUtil.decryptLogPayload(encryptedData, LogPayloadCryptoVariant.IMAGE_LOG);
-                        row.put("decrypted_data", decryptedData);
-                    }
-                    if (row.get("header") != null) {
-                        String encryptedHeader = (String) row.get("header");
-                        String decryptedHeader = cryptoUtil.decryptLogPayload(encryptedHeader, LogPayloadCryptoVariant.IMAGE_LOG);
-                        row.put("decrypted_header", decryptedHeader);
-                    }
-                } catch (Exception e) {
-                    log.warn("복호화 실패 (GUID: {}): {}", row.get("guid"), e.getMessage());
-                    row.put("decrypted_data", "복호화 실패");
-                    row.put("decrypted_header", "복호화 실패");
-                }
-            }
             list.add(row);
         }
         return list;
     }
 
     /**
-     * Filters imagelog rows by datastring, headerstring, and keywords (and decrypted content when present). Per req 20260318.
+     * Builds field + keyword term lists for java_fw_imglog in-memory filter: field terms from trim(datastring) and
+     * trim(headerstring) only (case-insensitive dedupe, first spelling wins); keyword terms from keywords list only
+     * (trim, skip empty; order preserved; not deduped against field terms).
      */
-    private List<Map<String, Object>> filterImageLogRowsByDataHeaderKeywords(List<Map<String, Object>> rows,
-            LogDbSearchRequest request, boolean hasDatastringSearch, boolean hasHeaderstringSearch, boolean hasKeywordsSearch) {
+    private JavaFwImglogTextFilterTerms buildJavaFwImglogTextFilterTerms(LogDbSearchRequest request) {
+        return new JavaFwImglogTextFilterTerms(
+                buildJavaFwImglogFieldTextTerms(request),
+                buildJavaFwImglogKeywordTerms(request));
+    }
+
+    /** Non-empty trim(datastring) and trim(headerstring), deduped case-insensitively (first wins); datastring before headerstring. */
+    private List<String> buildJavaFwImglogFieldTextTerms(LogDbSearchRequest request) {
+        Map<String, String> byLower = new LinkedHashMap<>();
+        if (request.getDatastring() != null) {
+            String t = request.getDatastring().trim();
+            if (!t.isEmpty()) {
+                byLower.putIfAbsent(t.toLowerCase(Locale.ROOT), t);
+            }
+        }
+        if (request.getHeaderstring() != null) {
+            String t = request.getHeaderstring().trim();
+            if (!t.isEmpty()) {
+                byLower.putIfAbsent(t.toLowerCase(Locale.ROOT), t);
+            }
+        }
+        return new ArrayList<>(byLower.values());
+    }
+
+    /** Trim each keyword; skip empty; preserve list order (no dedupe). */
+    private List<String> buildJavaFwImglogKeywordTerms(LogDbSearchRequest request) {
+        List<String> out = new ArrayList<>();
+        if (request.getKeywords() == null) {
+            return out;
+        }
+        for (String kw : request.getKeywords()) {
+            if (kw == null) {
+                continue;
+            }
+            String t = kw.trim();
+            if (!t.isEmpty()) {
+                out.add(t);
+            }
+        }
+        return out;
+    }
+
+    /**
+     * Plaintext datastring/headerstring contains term, or bracket-JSON decrypt-for-match on either column.
+     * Bracket decrypt-for-match is always attempted when {@code '['} is present (independent of {@code decryptData}).
+     * Sets {@code hasEncryptedMatch*} when the match is only via decrypted JSON text.
+     */
+    private boolean javaFwImglogTermMatchesForFilter(Map<String, Object> row,
+            String datastring, String headerstring,
+            String decryptedDatastring, String decryptedHeaderstring,
+            String term) {
+        boolean plainData = datastring != null && datastring.contains(term);
+        boolean plainHeader = headerstring != null && headerstring.contains(term);
+        boolean decDataMatch = decryptedDatastring != null && decryptedDatastring.contains(term);
+        boolean decHeaderMatch = decryptedHeaderstring != null && decryptedHeaderstring.contains(term);
+        boolean matches = plainData || plainHeader || decDataMatch || decHeaderMatch;
+        if (matches) {
+            if (!plainData && decDataMatch) {
+                row.put("hasEncryptedMatchDatastring", true);
+            }
+            if (!plainHeader && decHeaderMatch) {
+                row.put("hasEncryptedMatchHeaderstring", true);
+            }
+        }
+        return matches;
+    }
+
+    /**
+     * Keyword OR branch: same as {@link #javaFwImglogTermMatchesForFilter} on {@code datastring}/{@code headerstring}, or
+     * match inside decrypted {@code data}/{@code header} column ciphertext (IMAGE_LOG variant). Never puts decrypted payload on the row.
+     * Sets {@code hasEncryptedMatchData} / {@code hasEncryptedMatchHeader} when the keyword is satisfied solely via the binary column path
+     * (i.e. not via the term helper above).
+     */
+    private boolean javaFwImglogKeywordMatchesForFilter(Map<String, Object> row,
+            String datastring, String headerstring,
+            String decryptedDatastring, String decryptedHeaderstring,
+            String keyword) {
+        if (javaFwImglogTermMatchesForFilter(row, datastring, headerstring,
+                decryptedDatastring, decryptedHeaderstring, keyword)) {
+            return true;
+        }
+        boolean dataBin = javaFwImglogBinaryColumnDecryptContainsKeyword(row, keyword, "data");
+        boolean headerBin = javaFwImglogBinaryColumnDecryptContainsKeyword(row, keyword, "header");
+        if (dataBin) {
+            row.put("hasEncryptedMatchData", true);
+        }
+        if (headerBin) {
+            row.put("hasEncryptedMatchHeader", true);
+        }
+        return dataBin || headerBin;
+    }
+
+    /**
+     * @param columnKey {@code data} or {@code header} (row map keys from JDBC)
+     * @return true if ciphertext decrypts (IMAGE_LOG) and plaintext contains {@code keyword}; false on blank input or any failure
+     */
+    private boolean javaFwImglogBinaryColumnDecryptContainsKeyword(Map<String, Object> row, String keyword,
+            String columnKey) {
+        if (keyword == null || keyword.isEmpty()) {
+            return false;
+        }
+        String encrypted = coerceImagelogBinaryColumnToDecryptString(row != null ? row.get(columnKey) : null);
+        if (encrypted == null) {
+            return false;
+        }
+        try {
+            String plain = cryptoUtil.decryptLogPayload(encrypted, LogPayloadCryptoVariant.IMAGE_LOG);
+            return plain != null && plain.contains(keyword);
+        } catch (Exception e) {
+            log.debug("java_fw_imglog keyword binary decrypt: column={}, reason={}", columnKey, e.getClass().getSimpleName());
+            return false;
+        }
+    }
+
+    /**
+     * Non-blank string for {@link CryptoUtil#decryptLogPayload(String, LogPayloadCryptoVariant)}; {@code byte[]} as UTF-8 (best-effort).
+     * Unknown JDBC types are skipped.
+     */
+    private static String coerceImagelogBinaryColumnToDecryptString(Object value) {
+        if (value == null) {
+            return null;
+        }
+        if (value instanceof String) {
+            String s = ((String) value).trim();
+            return s.isEmpty() ? null : s;
+        }
+        if (value instanceof byte[]) {
+            byte[] bytes = (byte[]) value;
+            if (bytes.length == 0) {
+                return null;
+            }
+            return new String(bytes, StandardCharsets.UTF_8);
+        }
+        return null;
+    }
+
+    /**
+     * Field terms: AND (each must match). Keyword terms: OR (at least one must match if non-empty).
+     * Row included iff fieldOk and keywordOk.
+     */
+    private List<Map<String, Object>> filterImageLogRowsByFieldAndKeywordTerms(List<Map<String, Object>> rows,
+            JavaFwImglogTextFilterTerms terms) {
+        if (terms == null || !terms.needsFiltering()) {
+            return new ArrayList<>(rows);
+        }
+        List<String> fieldTerms = terms.getFieldTerms();
+        List<String> keywordTerms = terms.getKeywordTerms();
         List<Map<String, Object>> filteredResults = new ArrayList<>();
         for (Map<String, Object> row : rows) {
-            boolean matches = true;
             String datastring = (String) row.get("datastring");
             String headerstring = (String) row.get("headerstring");
 
-            if (hasDatastringSearch) {
-                String searchTerm = request.getDatastring().trim();
-                boolean datastringMatches = false;
-                boolean matchedInEncrypted = false;
-                if (datastring != null && datastring.contains(searchTerm)) {
-                    datastringMatches = true;
-                }
-                if (!datastringMatches && datastring != null && datastring.contains("[")) {
-                    try {
-                        String decryptedDatastring = decryptJsonStringValues(datastring);
-                        if (decryptedDatastring.contains(searchTerm)) {
-                            datastringMatches = true;
-                            matchedInEncrypted = true;
-                        }
-                    } catch (Exception e) {
-                        log.debug("datastring search decrypt failed: {}", e.getMessage());
-                    }
-                }
-                if (!datastringMatches) {
-                    matches = false;
-                } else if (matchedInEncrypted) {
-                    row.put("_datastring_has_encrypted_match", true);
+            String decryptedDatastring = null;
+            if (datastring != null && datastring.contains("[")) {
+                decryptedDatastring = decryptJsonStringValues(datastring);
+            }
+            String decryptedHeaderstring = null;
+            if (headerstring != null && headerstring.contains("[")) {
+                decryptedHeaderstring = decryptJsonStringValues(headerstring);
+            }
+
+            boolean fieldOk = true;
+            for (String t : fieldTerms) {
+                if (!javaFwImglogTermMatchesForFilter(row, datastring, headerstring,
+                        decryptedDatastring, decryptedHeaderstring, t)) {
+                    fieldOk = false;
+                    break;
                 }
             }
 
-            if (hasHeaderstringSearch && matches) {
-                String searchTerm = request.getHeaderstring().trim();
-                boolean headerstringMatches = false;
-                boolean matchedInEncrypted = false;
-                if (headerstring != null && headerstring.contains(searchTerm)) {
-                    headerstringMatches = true;
-                }
-                if (!headerstringMatches && headerstring != null && headerstring.contains("[")) {
-                    try {
-                        String decryptedHeaderstring = decryptJsonStringValues(headerstring);
-                        if (decryptedHeaderstring.contains(searchTerm)) {
-                            headerstringMatches = true;
-                            matchedInEncrypted = true;
-                        }
-                    } catch (Exception e) {
-                        log.debug("headerstring search decrypt failed: {}", e.getMessage());
-                    }
-                }
-                if (!headerstringMatches) {
-                    matches = false;
-                } else if (matchedInEncrypted) {
-                    row.put("_headerstring_has_encrypted_match", true);
-                }
-            }
-
-            if (hasKeywordsSearch && matches) {
-                boolean matchesKeyword = false;
-                boolean matchedInEncryptedDatastring = false;
-                boolean matchedInEncryptedHeaderstring = false;
-                for (String keyword : request.getKeywords()) {
-                    if ((datastring != null && datastring.contains(keyword))
-                            || (headerstring != null && headerstring.contains(keyword))) {
-                        matchesKeyword = true;
+            boolean keywordOk = keywordTerms.isEmpty();
+            if (!keywordOk) {
+                for (String k : keywordTerms) {
+                    if (javaFwImglogKeywordMatchesForFilter(row, datastring, headerstring,
+                            decryptedDatastring, decryptedHeaderstring, k)) {
+                        keywordOk = true;
                         break;
                     }
-                    if (datastring != null && datastring.contains("[")) {
-                        try {
-                            String decryptedDatastring = decryptJsonStringValues(datastring);
-                            if (decryptedDatastring.contains(keyword)) {
-                                matchesKeyword = true;
-                                matchedInEncryptedDatastring = true;
-                                break;
-                            }
-                        } catch (Exception e) {
-                            log.debug("keyword search decrypt failed: {}", e.getMessage());
-                        }
-                    }
-                    if (headerstring != null && headerstring.contains("[")) {
-                        try {
-                            String decryptedHeaderstring = decryptJsonStringValues(headerstring);
-                            if (decryptedHeaderstring.contains(keyword)) {
-                                matchesKeyword = true;
-                                matchedInEncryptedHeaderstring = true;
-                                break;
-                            }
-                        } catch (Exception e) {
-                            log.debug("keyword search decrypt failed: {}", e.getMessage());
-                        }
-                    }
-                }
-                if (!matchesKeyword) {
-                    matches = false;
-                } else {
-                    if (matchedInEncryptedDatastring) {
-                        row.put("_datastring_has_encrypted_match", true);
-                    }
-                    if (matchedInEncryptedHeaderstring) {
-                        row.put("_headerstring_has_encrypted_match", true);
-                    }
                 }
             }
 
-            if (matches) {
+            if (fieldOk && keywordOk) {
                 filteredResults.add(row);
             }
         }
@@ -1454,39 +1561,8 @@ public class LogDbService {
                             
                             row.put(columnName, value);
                         }
-                        
-                        // datastring과 headerstring의 JSON 내부 암호화 값 복호화
-                        if (row.get("datastring") != null) {
-                            String datastring = (String) row.get("datastring");
-                            String decryptedDatastring = decryptJsonStringValues(datastring);
-                            row.put("datastring", decryptedDatastring);
-                        }
-                        if (row.get("headerstring") != null) {
-                            String headerstring = (String) row.get("headerstring");
-                            String decryptedHeaderstring = decryptJsonStringValues(headerstring);
-                            row.put("headerstring", decryptedHeaderstring);
-                        }
-                        
-                        // 복호화 옵션이 활성화된 경우
-                        if (request.getDecryptData() != null && request.getDecryptData()) {
-                            try {
-                                if (row.get("data") != null) {
-                                    String encryptedData = (String) row.get("data");
-                                    String decryptedData = cryptoUtil.decryptLogPayload(encryptedData, LogPayloadCryptoVariant.IMAGE_LOG);
-                                    row.put("decrypted_data", decryptedData);
-                                }
-                                if (row.get("header") != null) {
-                                    String encryptedHeader = (String) row.get("header");
-                                    String decryptedHeader = cryptoUtil.decryptLogPayload(encryptedHeader, LogPayloadCryptoVariant.IMAGE_LOG);
-                                    row.put("decrypted_header", decryptedHeader);
-                                }
-                            } catch (Exception e) {
-                                log.warn("복호화 실패 (GUID: {}): {}", row.get("guid"), e.getMessage());
-                                row.put("decrypted_data", "복호화 실패: " + e.getMessage());
-                                row.put("decrypted_header", "복호화 실패: " + e.getMessage());
-                            }
-                        }
-                        
+                        // Keep DB ciphertext in datastring/headerstring; decrypt-for-match only elsewhere (req 20260413).
+                        sanitizeJavaFwImglogSearchRow(row);
                         results.add(row);
                     }
                 }

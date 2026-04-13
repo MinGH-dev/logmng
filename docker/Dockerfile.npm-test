@@ -1,0 +1,10 @@
+# Frontend unit tests in Node LTS (CI-style, no watch).
+# Compose mounts ./frontend at /work/frontend and runs npm ci && npm test.
+# Build: docker build -f docker/Dockerfile.npm-test -t logmng-npm-test:local .
+FROM node:20-bookworm-slim
+RUN apt-get update && apt-get install -y --no-install-recommends git ca-certificates \
+  && rm -rf /var/lib/apt/lists/*
+WORKDIR /work/frontend
+ENV CI=true
+# Default when running image without compose command override
+CMD ["npm", "test", "--", "--watchAll=false"]

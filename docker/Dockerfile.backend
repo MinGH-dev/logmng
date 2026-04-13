@@ -1,0 +1,17 @@
+# Runtime image: fat JAR from offline bundle only (no mvn package).
+# Build from repository root after: ./scripts/build-offline-bundle.sh
+#   docker compose -f docker/docker-compose.yml --project-directory . build backend
+# Args used in COPY must be declared *after* FROM (pre-FROM ARG is not available in COPY/RUN).
+FROM eclipse-temurin:17-jre
+ARG DIST_VERSION=1.0.1
+ARG BACKEND_JAR=logmng-backend-1.0.1.jar
+# Use Debian-based Temurin (multi-arch amd64/arm64). The -alpine tag may lack arm64 manifests on some registries.
+RUN apt-get update && apt-get install -y --no-install-recommends curl \
+  && rm -rf /var/lib/apt/lists/*
+WORKDIR /app
+COPY dist/logmng-offline-${DIST_VERSION}/bin/backend/${BACKEND_JAR} /app/logmng-backend.jar
+EXPOSE 9200
+ENV SERVER_PORT=9200
+HEALTHCHECK --interval=30s --timeout=5s --start-period=60s --retries=5 \
+  CMD curl -sf http://127.0.0.1:${SERVER_PORT}/api/health >/dev/null || exit 1
+ENTRYPOINT ["java","-jar","/app/logmng-backend.jar"]

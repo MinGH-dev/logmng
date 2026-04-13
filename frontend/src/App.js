@@ -5,7 +5,6 @@ import './App.css';
 import LoginForm from './components/LoginForm';
 import LogGrid from './components/LogGrid';
 import UserActivityLogList from './components/UserActivityLog/UserActivityLogList';
-import ActivityLogAccessAuditList from './components/ActivityLogAccessAudit/ActivityLogAccessAuditList';
 import ActivityStatistics from './components/ActivityStatistics';
 import SearchHistoryList from './components/SearchHistory/SearchHistoryList';
 import UserManagement from './components/UserManagement/UserManagement';
@@ -57,7 +56,6 @@ function App() {
   const [currentView, setCurrentView] = useState('pb-feplog'); // 'pb-feplog' | 'java-fw-imagelog' | 'activity-log' | ...
   const [initialSearchParams, setInitialSearchParams] = useState(null);
   const [initialSearchApprovalId, setInitialSearchApprovalId] = useState(null);
-  const [accessAuditInitialTargetId, setAccessAuditInitialTargetId] = useState(null);
   const [myPageOpen, setMyPageOpen] = useState(false);
 
   const { labelItems, setLabelItems, mergedMenuTree, logTypesByView } = useScreenDisplayLabels(
@@ -401,22 +399,7 @@ function App() {
             data-horizontal-scroll-enabled={isHorizontalScrollView ? 'true' : 'false'}
           >
             {currentView === 'activity-log' && (
-              <UserActivityLogList
-                user={user}
-                canOpenAccessAudit={canAccessView('activity-log-access-audit')}
-                onNavigateToAccessAudit={(targetLogId) => {
-                  setAccessAuditInitialTargetId(targetLogId);
-                  if (canAccessView('activity-log-access-audit')) {
-                    setCurrentView('activity-log-access-audit');
-                  }
-                }}
-              />
-            )}
-            {currentView === 'activity-log-access-audit' && canAccessView('activity-log-access-audit') && (
-              <ActivityLogAccessAuditList
-                initialTargetActivityLogId={accessAuditInitialTargetId}
-                onConsumedInitialTarget={() => setAccessAuditInitialTargetId(null)}
-              />
+              <UserActivityLogList user={user} />
             )}
             {currentView === 'statistics' && <ActivityStatistics user={user} />}
             {currentView === 'search-history' && (

@@ -54,12 +54,12 @@ describe('ImageLogSearchForm (req 20260318 image log search data/header/keyword 
       expect(payload.keywords).toEqual([]);
     });
 
-    test('payload includes decryptData as boolean', async () => {
+    test('payload includes decryptData false for API compatibility', async () => {
       render(<ImageLogSearchForm onSearch={onSearch} />);
       await userEvent.click(screen.getByRole('button', { name: '검색' }));
 
       const payload = onSearch.mock.calls[0][0];
-      expect(payload).toHaveProperty('decryptData');
+      expect(payload).toHaveProperty('decryptData', false);
       expect(typeof payload.decryptData).toBe('boolean');
     });
   });

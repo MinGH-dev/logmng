@@ -32,6 +32,7 @@ Reference: `docs/workflow/SUBAGENT-DELEGATION.md` (Step 5 → QA).
 - Read `.cursor/commands/verify.md` and follow its restart and check steps. For shortcuts: `.cursor/commands/restart-all.md`, `check-backend.md`, `check-frontend-backend.md`.
 - Restart: `./scripts/dev-services.sh {frontend|backend|all} restart` per scope. Wait 5–10s after backend restart.
 - **Health check**: Backend 9200 `curl -s http://localhost:9200/api/health` → 200 + JSON; frontend 3001 `curl -s -o /dev/null -w "%{http_code}" http://localhost:3001` → 2xx; if DB used, `curl -s http://localhost:9200/api/db/test` → `data.connected === true`.
+- **Local Docker stack**: If verification targets the **Docker Compose** dist-based stack (not `dev-services.sh` only), run `./scripts/docker-dev-sync.sh` after unit tests so `dist/` and backend/frontend images match the change (see `docs/workflow/DOCKER-LOCAL-AGENTS.md`).
 
 ## 3. On failure
 

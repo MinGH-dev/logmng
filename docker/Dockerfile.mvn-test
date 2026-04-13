@@ -1,0 +1,9 @@
+# TC-08: Linux 9.6 (EL-compatible) + JDK 17 for mvn test. Backend unit tests use H2 by default;
+# link to compose postgres on network logmng-net if integration tests need PostgreSQL 16.
+# Build: docker build -f docker/Dockerfile.mvn-test -t logmng-mvn-test:rocky96 .
+# Run:  docker run --rm -v "$PWD/backend:/work/backend" -w /work/backend logmng-mvn-test:rocky96 mvn -q test
+FROM rockylinux/rockylinux:9.6
+RUN dnf -y install java-17-openjdk-devel maven git \
+  && dnf clean all
+ENV JAVA_HOME=/usr/lib/jvm/java-17-openjdk
+WORKDIR /work/backend

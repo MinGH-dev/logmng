@@ -154,7 +154,14 @@ const ImageLogTable = ({
   
   // 키워드 하이라이트 HTML 문자열 생성 (암호화된 값 전체 하이라이트 포함)
   // 반환값: HTML 문자열 (React 컴포넌트가 아닌 순수 HTML 문자열)
-  const highlightKeywordsAsHtml = (text, keywords, originalText = null, hasEncryptedMatch = false, fieldKeyword = null) => {
+  const highlightKeywordsAsHtml = (
+    text,
+    keywords,
+    originalText = null,
+    hasEncryptedMatch = false,
+    fieldKeyword = null,
+    keywordBackedFieldHighlight = false
+  ) => {
     if (!text && !originalText) {
       return text || '';
     }
@@ -201,12 +208,23 @@ const ImageLogTable = ({
       if (!keyword || typeof keyword !== 'string' || keyword.trim() === '') return;
       const trimmedKeyword = keyword.trim();
       const escapedKeyword = trimmedKeyword.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+      const keywordInsideAnyBracket = encryptedMatches.some((em) =>
+        em.fullMatch.toLowerCase().includes(trimmedKeyword.toLowerCase())
+      );
       
       // 1. 암호화된 값 전체 하이라이트
       // 백엔드에서 메타데이터로 암호화된 값에서 매칭되었는지 알려주거나,
       // 검색 결과에 포함된 로우라면 암호화된 값에서 매칭되었을 가능성이 높으므로 하이라이트
       // 키워드가 있고 암호화된 값이 있으면 하이라이트 (hasEncryptedMatch가 false여도)
-      if (encryptedMatches.length > 0 && (hasEncryptedMatch || fieldKeyword)) {
+      // 키워드 전용 검색: 키워드가 따옴표 안 [...] 내용의 부분 문자열이면 동일 UX로 전체 블록 하이라이트
+      if (
+        encryptedMatches.length > 0 &&
+        (hasEncryptedMatch ||
+          fieldKeyword ||
+          keywordInsideAnyBracket ||
+          keywordBackedFieldHighlight)
+      ) {
         encryptedMatches.forEach(encryptedMatch => {
           const encryptedValue = encryptedMatch.fullMatch;
           // 이미 하이라이트되지 않은 경우에만 처리
@@ -256,8 +274,22 @@ const ImageLogTable = ({
   };
   
   // 키워드 하이라이트 (React 컴포넌트 반환)
-  const highlightKeywords = (text, keywords, originalText = null, hasEncryptedMatch = false, fieldKeyword = null) => {
-    const highlightedHtml = highlightKeywordsAsHtml(text, keywords, originalText, hasEncryptedMatch, fieldKeyword);
+  const highlightKeywords = (
+    text,
+    keywords,
+    originalText = null,
+    hasEncryptedMatch = false,
+    fieldKeyword = null,
+    keywordBackedFieldHighlight = false
+  ) => {
+    const highlightedHtml = highlightKeywordsAsHtml(
+      text,
+      keywords,
+      originalText,
+      hasEncryptedMatch,
+      fieldKeyword,
+      keywordBackedFieldHighlight
+    );
     return <span dangerouslySetInnerHTML={{ __html: highlightedHtml }} />;
   };
   
@@ -485,7 +517,21 @@ const ImageLogTable = ({
                 const decryptedData = getDecryptedData(logGuid, logStatus);
                 const isDecryptedRow = isDecrypted(logGuid, logStatus);
                 const isDecryptingRow = isDecrypting(logGuid, logStatus);
-                
+
+                const highlightEncryptedDatastring =
+                  log.hasEncryptedMatchDatastring === true ||
+                  log.hasEncryptedMatchData === true ||
+                  log._datastring_has_encrypted_match === true;
+                const highlightEncryptedHeaderstring =
+                  log.hasEncryptedMatchHeaderstring === true ||
+                  log.hasEncryptedMatchHeader === true ||
+                  log._headerstring_has_encrypted_match === true;
+
+                const datastringKeywordBackedFieldHighlight =
+                  Boolean(keywords?.length) && !String(searchParams?.datastring ?? '').trim();
+                const headerstringKeywordBackedFieldHighlight =
+                  Boolean(keywords?.length) && !String(searchParams?.headerstring ?? '').trim();
+
                 // 디버깅 로그
                 if (isDecryptedRow || decryptedData) {
                   logger.debug('🔓 복호화 상태 확인:', {
@@ -539,8 +585,9 @@ const ImageLogTable = ({
                               formatJsonString(datastringValue, true),
                               keywords,
                               formatJsonString(originalDatastring, true),
-                              log._datastring_has_encrypted_match === true,
-                              searchParams?.datastring // datastring 필드 검색 키워드 추가
+                              highlightEncryptedDatastring,
+                              searchParams?.datastring, // datastring 필드 검색 키워드 추가
+                              datastringKeywordBackedFieldHighlight
                             )
                           }}
                         />
@@ -550,8 +597,9 @@ const ImageLogTable = ({
                             datastringValue, 
                             keywords, 
                             originalDatastring,
-                            log._datastring_has_encrypted_match === true,
-                            searchParams?.datastring // datastring 필드 검색 키워드 추가
+                            highlightEncryptedDatastring,
+                            searchParams?.datastring, // datastring 필드 검색 키워드 추가
+                            datastringKeywordBackedFieldHighlight
                           )}
                         </span>
                       )}
@@ -565,8 +613,9 @@ const ImageLogTable = ({
                               formatJsonString(headerstringValue, true),
                               keywords,
                               formatJsonString(originalHeaderstring, true),
-                              log._headerstring_has_encrypted_match === true,
-                              searchParams?.headerstring // headerstring 필드 검색 키워드 추가
+                              highlightEncryptedHeaderstring,
+                              searchParams?.headerstring, // headerstring 필드 검색 키워드 추가
+                              headerstringKeywordBackedFieldHighlight
                             )
                           }}
                         />
@@ -576,8 +625,9 @@ const ImageLogTable = ({
                             headerstringValue, 
                             keywords, 
                             originalHeaderstring,
-                            log._headerstring_has_encrypted_match === true,
-                            searchParams?.headerstring // headerstring 필드 검색 키워드 추가
+                            highlightEncryptedHeaderstring,
+                            searchParams?.headerstring, // headerstring 필드 검색 키워드 추가
+                            headerstringKeywordBackedFieldHighlight
                           )}
                         </span>
                       )}
@@ -738,10 +788,9 @@ const ImageLogTable = ({
                     const selectedLogGuid = selectedLog.guid || '';
                     const selectedLogStatus = selectedLog.status || '';
                     const decryptedDataForSelected = getDecryptedData(selectedLogGuid, selectedLogStatus);
+                    // Plaintext for display: explicit decrypt API only — not search row decrypted_* / data / header
                     const datastringToShow = decryptedDataForSelected?.decrypted_datastring
                       || selectedLog.datastring
-                      || selectedLog.decrypted_data
-                      || selectedLog.data
                       || '';
                     const modalPretty = isPretty(selectedLogGuid, selectedLogStatus);
                     return formatJsonString(datastringToShow, modalPretty);
@@ -768,8 +817,6 @@ const ImageLogTable = ({
                     const decryptedDataForSelected = getDecryptedData(selectedLogGuid, selectedLogStatus);
                     const headerstringToShow = decryptedDataForSelected?.decrypted_headerstring
                       || selectedLog.headerstring
-                      || selectedLog.decrypted_header
-                      || selectedLog.header
                       || '';
                     const modalPretty = isPretty(selectedLogGuid, selectedLogStatus);
                     return formatJsonString(headerstringToShow, modalPretty);

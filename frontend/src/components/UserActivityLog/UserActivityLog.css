@@ -695,10 +695,6 @@
   margin-top: 8px;
 }
 
-.activity-log-open-access-audit-link {
-  margin-right: auto;
-}
-
 /* Generic mutation summary (before/after / delete / insert) */
 .activity-log-mutation-summary {
   margin-bottom: 20px;
@@ -724,36 +720,6 @@
 
 .activity-log-mutation-json-details {
   margin-top: 10px;
-}
-
-.activity-log-embedded-access-audit-section {
-  margin-top: 8px;
-}
-
-.activity-log-embedded-access-audit {
-  margin-top: 4px;
-}
-
-.activity-log-embedded-access-audit summary {
-  cursor: pointer;
-  font-weight: 600;
-  color: #334155;
-  padding: 6px 0;
-}
-
-.activity-log-access-audit-embed-wrap {
-  overflow-x: auto;
-  margin-top: 8px;
-}
-
-.activity-log-access-audit-embed-table {
-  min-width: 520px;
-}
-
-.activity-log-embedded-access-audit-hint {
-  margin: 8px 0 0;
-  font-size: 12px;
-  color: #64748b;
 }
 
 /* P9: Loading spinner next to "검색 중..." */

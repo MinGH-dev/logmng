@@ -148,13 +148,19 @@ For **RequirementsPastSearch** token optimization. Read this file first to find 
 - 20260320-imagelog-guid-status-composite-key | For **Java FW Image Log** (`java_fw_imglog`, table `imagelog`), a single **guid** value is **not** sufficient to identify a row: the business identity is the **pair (guid, status)**. The product must treat this pair as the **canonical row key** everywhere: search-result rows, detail fetch, decryption execution, decryption-approval snapshot, decryption-allowed authorization store, search-history payloads, and all related APIs and UI.
 - 20260408-pending-approvals-missing-reject-button-bugfix | Investigate and fix the bug where an approver user cannot see the **Reject** button on the `pending-approvals` screen while trying to process another user's decryption approval request.
 - 20260408-activity-statistics-decrypt-unique-rows-per-day | Activity statistics decrypt counts: **unique decrypted rows per day** from `user_activity_log` (`DECRYPT` only), dedup key aligned with imagelog composite key; exclude approval-only action types
+- 20260413-imagelog-search-decrypt-display-separation | java_fw_imglog: decrypt-for-match on datastring/headerstring for match; no search-response plaintext; clarifies datastring 「데이터」 does not scan data/header columns unless product extends (LOCAL seed / TC-09–TC-10).
+- 20260413-imagelog-unified-text-search | java_fw_imglog: unify datastring/headerstring/keywords into effectiveTerms; AND across terms, OR across surfaces per term; case-insensitive dedup; breaking change for old AND-across-fields; tests on LOCAL-DECRYPT-TST-IM-0001
+- 20260414-imagelog-keyword-or-field-and-ui | java_fw_imglog: match-only decrypt not UX-gated; keyword OR (incl. in-memory IMAGE_LOG match on binary data/header) vs field AND (string columns + bracket decrypt only); refines 20260413 unified merge semantics
 
 ## image-log | imagelog | datastring
 
+- 20260414-imagelog-keyword-or-field-and-ui | java_fw_imglog: keyword list OR across tokens (adds binary data/header decrypt-for-match); fieldTerms from datastring+headerstring AND (no binary scan); combined (field clause) AND (keyword clause); remove 「매칭용 복호화」; decryptData does not gate match decrypt; LogDbServiceTest TC-01–TC-09
+- 20260413-imagelog-unified-text-search | java_fw_imglog: unify datastring/headerstring/keywords into effectiveTerms; AND across terms, OR across surfaces per term; case-insensitive dedup; breaking change for old AND-across-fields; tests on LOCAL-DECRYPT-TST-IM-0001
+- 20260413-imagelog-search-decrypt-display-separation | java_fw_imglog: decrypt-for-match on datastring/headerstring for match; no search-response plaintext; clarifies datastring 「데이터」 does not scan data/header columns unless product extends (LOCAL seed / TC-09–TC-10).
 - 20260409-advanced-search-field-name-picker-and-caret | Java FW Image Log advanced search: show searchable field list on focus; insert canonical fragment; caret in value position (`AdvancedSearchForm`)
 - 20260330-imagelog-dup-guid-sample-data | Seed data: two imagelog rows share guid `GUID-DUP-PRETTY-20260330` with different status (input/output) for Pretty/decrypt manual and integration testing; aligns with parent req 20260330-image-log-pretty-decrypt-row-key
 - 20260320-imagelog-guid-status-composite-key | Java FW Image Log row identity is (guid + status); APIs, decryption-allowed store, approval snapshot, search-history detail, DB constraints, and UI must use the composite end-to-end
-- 20260206-image-log-datastring-search | Image Log datastring 검색 기능 개선
+- 20260206-image-log-datastring-search | Image Log datastring 검색 기능 개선; errata 2026-04-13 — `datastring` field scope vs binary `data`/`header`: see 20260413-imagelog-search-decrypt-display-separation §1
 - 20260206-image-log-decrypt-datastring-display | Image Log 복호화 시 datastring 필드 표시
 - 20260224-image-log-encrypted-highlight-only | Image log 암호화 구간만 encrypted 하이라이트
 - 20260225-image-log-search-no-results | 이미지 로그 검색 결과 없음

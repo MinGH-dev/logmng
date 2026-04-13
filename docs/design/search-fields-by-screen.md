@@ -35,7 +35,7 @@ Per-field design definition for **검색하기 (main)**, **활동 이력 (activi
 | loginId | Login ID | text | log-type-specific | min 100px, max 200px | 34px | 6px 8–10px | — | — | '' | Login ID | — |
 | keywords | 키워드 검색 | text | log-type-specific | min 160px, 1fr | 34px | 6px 8–10px | — | — | '' | 키워드1, 키워드2, 키워드3 (OR 조건으로 검색) | — |
 | showDecryptOption | (키워드 입력 시 복호화 옵션 노출) | — | — | — | — | — | — | — | false | — | — |
-| decryptData | 키워드 검색 시 복호화 여부 체크 | checkbox | log-type-specific | — | 44px min touch | — | — | — | false | — | — |
+| decryptData | 매칭용 복호화 (키워드 매칭만; 검색 응답·그리드 평문 아님) | checkbox | log-type-specific | — | 44px min touch | — | — | — | false | — | — |
 
 - **scopeWhenSelf**: 해당 없음 (main은 사용자 맥락 검색 아님).  
 - **API 날짜 형식 (SearchForm)**: 전송 시 `HH24MISSMS3` 등 타입별 스펙 따름.
@@ -51,10 +51,11 @@ Per-field design definition for **검색하기 (main)**, **활동 이력 (activi
 | service | 서비스명 | text | log-type-specific | min 100px, max 200px | 34px | 6px 8–10px | — | '' | 서비스명 | — |
 | datastring | 데이터 | text | log-type-specific | min 100px, max 200px | 34px | 6px 8–10px | — | — | '' | 데이터 검색 | — |
 | headerstring | 헤더 | text | log-type-specific | min 100px, max 200px | 34px | 6px 8–10px | — | — | '' | 헤더 검색 | — |
-| keywords | 키워드 검색 | text | log-type-specific | min 160px, 1fr | 34px | 6px 8–10px | — | — | '' | 키워드1, 키워드2, 키워드3 (OR 조건으로 검색) | — |
-| showDecryptOption | (키워드 입력 시 복호화 옵션 노출) | — | — | — | — | — | — | — | false | — | — |
-| decryptData | 키워드 검색 시 복호화 여부 체크 | checkbox | log-type-specific | — | 44px min touch | — | — | — | false | — | — |
+| keywords | 키워드 검색 | text | log-type-specific | min 160px, 1fr | 34px | 6px 8–10px | — | — | '' | 키워드1, 키워드2 (쉼표 구분 → API `keywords` 배열; **키워드 간 OR**) | — |
+| showDecryptOption | **N/A (제거됨)** — Image Log는 매칭용 복호화 UI 없음 | — | — | — | — | — | — | — | — | — | — |
+| decryptData | **N/A (제거됨)** — API 호환 필드만; 화면 체크박스 없음. 서버 **`decryptData`로 게이트하지 않음** (`java_fw_imglog` decrypt-for-match는 항상 매칭에 사용 가능; 응답 평문 없음 — `docs/contract.md`) | — | — | — | — | — | — | — | — | — | — |
 
+- **텍스트 필터 계약 (`java_fw_imglog`, API와 정합)**: **`datastring`** / **`headerstring`**에서 나온 필드 파생 토큰은 **대소문자 무시 중복 제거 후 AND**; **`keywords`** 배열은 **OR**. 둘 다 채워지면 **`(필드 절) AND (키워드 절)`**. 키워드·필드 토큰 각각은 동일한 인메모리 매칭(평문 또는 `datastring`/`headerstring` 컬럼의 bracket JSON **decrypt-for-match**). 상세: **`docs/contract.md`** 「Java FW Image Log (`java_fw_imglog`) — search match vs plaintext display」, **`docs/api-definition.md`** §5.1.
 - **API 날짜 형식 (ImageLogSearchForm)**: `yyyy-MM-dd HH:mm:ss`.
 
 ### 1.3 검색하기 — AdvancedSearchForm (고급 검색)
@@ -62,6 +63,7 @@ Per-field design definition for **검색하기 (main)**, **활동 이력 (activi
 - **controlType**: 토큰 기반 쿼리 빌더 (필드·연산자·값 추천). 단일 입력 필드 테이블이 아님.
 - **데이터 소스**: `GET /api/log-types/java_fw_imglog/fields`, `GET /api/search/suggest?logType=java_fw_imglog&context=...`
 - **정의**: 필드별 크기·제한값은 로그 타입/API 스펙에 따르며, 본 문서 §1.1·§1.2의 **공통 규칙**(height 34px, padding 6px 8–10px)을 적용. 상세 필드 목록은 API 및 AdvancedSearchForm 코드 참조.
+- **`java_fw_imglog` 텍스트 의미**: AST/필터가 §1.2와 같은 축으로 귀결될 때 **키워드 OR·필드 토큰 AND·결합 AND**, **decrypt-for-match**는 **`decryptData` UI 없음·요청 플래그로 게이트 안 함** — §1.2 bullet, **`docs/contract.md`**, **`docs/api-definition.md`** §5.7.
 
 ---
 

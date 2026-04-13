@@ -32,6 +32,7 @@ logs/
 
 # Env with secrets (do not commit)
 .env
+.env.docker
 .env.local
 .env.*.local
 
