@@ -220,6 +220,7 @@ Per `docs/workflow/REQUIREMENTS-CHANGE-TARGET-CHECKLIST.md`:
 
 - [x] Requirement doc completed (§5 recorded)
 - [x] Contract / api-definition / spec updated in same change set as behavior
+- [x] PB FEP wire DB apply runbook: [`docs/operations/PB-FEP-WIRE-DB-APPLY.md`](../../docs/operations/PB-FEP-WIRE-DB-APPLY.md) (linked from [`backend/DB_SETUP_GUIDE.md`](../../backend/DB_SETUP_GUIDE.md) — PB FEP partitioning section)
 
 ---
 
@@ -246,6 +247,13 @@ Per `docs/workflow/REQUIREMENTS-CHANGE-TARGET-CHECKLIST.md`:
 - TC-04–TC-08, TC-13: covered by `mvn test` (LogDbService / routing / decrypt paths per implementation).
 - TC-10–TC-12: covered by `npm test` (LogGrid, SearchForm, LogTable suites).
 - TC-01–TC-03, TC-14, TC-15: manual / DBA / doc review per §3 (not re-executed in this QA run).
+
+**Follow-up (generator, PB FEP seed, runbook — 2026-04-14):**
+
+- **`LocalDecryptSampleSeedGenerator`:** Aligned with wire-layout PB FEP sample columns so regenerated `init-data-local-decrypt-test-pbfep.sql` stays consistent with `schema_pb_fep.sql` / decrypt tests.
+- **Seed:** `backend/src/main/resources/db/init-data-local-decrypt-test-pbfep.sql` — refreshed from the generator for PB FEP local decrypt fixtures (ImageLog seed file left unchanged when diff was ciphertext-only churn).
+- **Runbook path:** Operator manual apply order and verification: **`docs/operations/PB-FEP-WIRE-DB-APPLY.md`** (cross-linked from **`backend/DB_SETUP_GUIDE.md`** in the PB FEP daily partitioning section).
+- **Regression:** `cd backend && mvn test` — **Pass** (exit 0) on 2026-04-14 after this follow-up (ImageLog seed file not included in commit; ciphertext-only churn reverted).
 
 ### Checklist (this requirement)
 

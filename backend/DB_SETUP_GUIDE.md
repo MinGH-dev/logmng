@@ -144,6 +144,8 @@ PB FEP 로그 검색 API는 `pb_send`와 `pb_recv`를 UNION ALL로 조회하며,
 
 ### PB FEP `pb_send` / `pb_recv` 파티셔닝 (일 단위, `log_timestamp`)
 
+영문 수동 적용·검증 절차(와이어 DDL 순서, `psql` 스모크, 앱 연결 확인): [`docs/operations/PB-FEP-WIRE-DB-APPLY.md`](../docs/operations/PB-FEP-WIRE-DB-APPLY.md).
+
 - **컬럼 (와이어 정렬)**: `schema_pb_fep.sql`은 레거시 PB FEP 와이어 필드명·길이(`log_time`, `media_gb`, `brodid`, `bmsg`, `data`, …)와 **`log_timestamp`**(검색·파티션용 `TIMESTAMP NOT NULL`), 레거시 `"timestamp"` 문자열용 **`wire_ts`**, 감사 **`created_at`/`updated_at`** 를 정의한다. **`log_timestamp`** 는 적재/마이그레이션 시 `prc_time`·`log_time`·`wire_ts` 파싱 등 **문서화된 규칙**으로 채운다(문자열만으로 RANGE 경계를 두지 않음). **`loginId`** 필터는 **`brodid`** 와 동일 의미(요구사항 `20260414-pb-fep-wire-schema-alignment`).
 - **범위 분할**: 부모 테이블명은 그대로 `pb_send`, `pb_recv`(API·계약 불변). 키는 **`log_timestamp`** TIMESTAMP. 각 일 파티션은 **`[D 00:00:00, D+1 00:00:00)`** (날짜 `D`는 `timestamp` 경계로 문자열 전달; DB 세션/저장 값과 일관되게 운영).
 - **이름 규칙**: 사전 생성 분할은 **`pb_send_YYYYMMDD`**, **`pb_recv_YYYYMMDD`**. 범위 밖·미리 만들지 않은 날은 **`pb_send_default`** / **`pb_recv_default`** 로 적재.

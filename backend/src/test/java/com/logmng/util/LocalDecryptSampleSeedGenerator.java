@@ -179,6 +179,21 @@ public final class LocalDecryptSampleSeedGenerator {
         return sb.toString();
     }
 
+    /** Wire-style fixed widths: IP 12, log channel 6, msg 4. */
+    private static String padRight(String s, int len) {
+        if (s == null) {
+            s = "";
+        }
+        if (s.length() >= len) {
+            return s.substring(0, len);
+        }
+        StringBuilder b = new StringBuilder(s);
+        while (b.length() < len) {
+            b.append(' ');
+        }
+        return b.toString();
+    }
+
     private static String generatePbfepSeedSql(CryptoUtil u) {
         String reqS1 = encPb(u, "LOCAL-PB-SEND1-REQUEST-PLAIN");
         String rspS1 = encPb(u, "LOCAL-PB-SEND1-RESPONSE-PLAIN");
@@ -189,41 +204,83 @@ public final class LocalDecryptSampleSeedGenerator {
         String reqR2 = encPb(u, "LOCAL-PB-RECV2-REQUEST-PLAIN");
         String rspR2 = encPb(u, "LOCAL-PB-RECV2-RESPONSE-PLAIN");
 
+        String pubIp = padRight("127.0.0.1", 12);
+        String prtIp = padRight("127.0.0.1", 12);
+        String logChPc = padRight("PC", 6);
+        String logChMob = padRight("MOB", 6);
+
         StringBuilder sb = new StringBuilder();
         sb.append("-- =============================================================================\n");
         sb.append("-- LOCAL / DEVELOPMENT ONLY — PB FEP (pb_send / pb_recv). ProObject AES without E002;\n");
         sb.append("-- decrypt with LogPayloadCryptoVariant.PB_FEP and dev key 12345678901234567890123456789012.\n");
+        sb.append("-- Rows marked reserve = 'LDPT' (4-char tag) for idempotent delete.\n");
         sb.append("-- =============================================================================\n\n");
         sb.append("DO $$\nBEGIN\n");
         sb.append("  IF to_regclass('pb_send') IS NULL THEN\n");
         sb.append("    RAISE NOTICE 'init-data-local-decrypt-test-pbfep: pb_send not found — skip.';\n");
         sb.append("  ELSE\n");
-        sb.append("    DELETE FROM pb_send WHERE session_id LIKE 'LOCAL-DECRYPT-TST-PB-%';\n");
-        sb.append("    INSERT INTO pb_send (log_timestamp, media_code, tr_code, user_id, ip_address, user_agent, request_data, response_data, status_code, response_time, session_id, device_type)\n");
-        sb.append("    VALUES (TIMESTAMP '2026-04-13 10:20:00', 'Z', 'SLDECT01', 'local_decrypt', '127.0.0.1', 'Mozilla/5.0 local test',\n");
+        sb.append("    DELETE FROM pb_send WHERE reserve = 'LDPT';\n");
+        sb.append("    INSERT INTO pb_send (\n");
+        sb.append("      log_timestamp, media_gb, tr_code, brodid, pub_ip, prt_ip, log_ch_cd,\n");
+        sb.append("      msg_code, data, bmsg, reserve, con_key, wire_ts\n");
+        sb.append("    )\n");
+        sb.append("    VALUES (\n");
+        sb.append("      TIMESTAMP '2026-04-13 10:20:00', '99', 'SLDECT01', 'local_decrypt',\n");
+        sb.append("      ").append(sqlQuote(pubIp)).append(", ").append(sqlQuote(prtIp)).append(", ").append(sqlQuote(logChPc)).append(",\n");
+        sb.append("      '0200',\n");
         sb.append("      ").append(sqlQuote(reqS1)).append(",\n");
         sb.append("      ").append(sqlQuote(rspS1)).append(",\n");
-        sb.append("      200, 42, 'LOCAL-DECRYPT-TST-PB-SEND-1', 'PC');\n");
-        sb.append("    INSERT INTO pb_send (log_timestamp, media_code, tr_code, user_id, ip_address, user_agent, request_data, response_data, status_code, response_time, session_id, device_type)\n");
-        sb.append("    VALUES (TIMESTAMP '2026-04-13 10:25:00', 'Z', 'SLDECT02', 'local_decrypt', '127.0.0.1', 'Mozilla/5.0 local test',\n");
+        sb.append("      'LDPT',\n");
+        sb.append("      rpad('LOCAL-DEC-SND1', 18),\n");
+        sb.append("      '2026-04-13 10:20:00'\n");
+        sb.append("    );\n");
+        sb.append("    INSERT INTO pb_send (\n");
+        sb.append("      log_timestamp, media_gb, tr_code, brodid, pub_ip, prt_ip, log_ch_cd,\n");
+        sb.append("      msg_code, data, bmsg, reserve, con_key, wire_ts\n");
+        sb.append("    )\n");
+        sb.append("    VALUES (\n");
+        sb.append("      TIMESTAMP '2026-04-13 10:25:00', '99', 'SLDECT02', 'local_decrypt',\n");
+        sb.append("      ").append(sqlQuote(pubIp)).append(", ").append(sqlQuote(prtIp)).append(", ").append(sqlQuote(logChMob)).append(",\n");
+        sb.append("      '0201',\n");
         sb.append("      ").append(sqlQuote(reqS2)).append(",\n");
         sb.append("      ").append(sqlQuote(rspS2)).append(",\n");
-        sb.append("      201, 55, 'LOCAL-DECRYPT-TST-PB-SEND-2', 'Mobile');\n");
+        sb.append("      'LDPT',\n");
+        sb.append("      rpad('LOCAL-DEC-SND2', 18),\n");
+        sb.append("      '2026-04-13 10:25:00'\n");
+        sb.append("    );\n");
         sb.append("  END IF;\n\n");
         sb.append("  IF to_regclass('pb_recv') IS NULL THEN\n");
         sb.append("    RAISE NOTICE 'init-data-local-decrypt-test-pbfep: pb_recv not found — skip.';\n");
         sb.append("  ELSE\n");
-        sb.append("    DELETE FROM pb_recv WHERE session_id LIKE 'LOCAL-DECRYPT-TST-PB-%';\n");
-        sb.append("    INSERT INTO pb_recv (log_timestamp, media_code, tr_code, user_id, ip_address, user_agent, request_data, response_data, status_code, response_time, session_id, device_type)\n");
-        sb.append("    VALUES (TIMESTAMP '2026-04-13 10:21:00', 'Z', 'RLDECT01', 'local_decrypt', '127.0.0.1', 'Mozilla/5.0 local test',\n");
+        sb.append("    DELETE FROM pb_recv WHERE reserve = 'LDPT';\n");
+        sb.append("    INSERT INTO pb_recv (\n");
+        sb.append("      log_timestamp, media_gb, tr_code, brodid, pub_ip, prt_ip, log_ch_cd,\n");
+        sb.append("      msg_code, data, bmsg, reserve, con_key, wire_ts\n");
+        sb.append("    )\n");
+        sb.append("    VALUES (\n");
+        sb.append("      TIMESTAMP '2026-04-13 10:21:00', '99', 'RLDECT01', 'local_decrypt',\n");
+        sb.append("      ").append(sqlQuote(pubIp)).append(", ").append(sqlQuote(prtIp)).append(", ").append(sqlQuote(logChPc)).append(",\n");
+        sb.append("      '0200',\n");
         sb.append("      ").append(sqlQuote(reqR1)).append(",\n");
         sb.append("      ").append(sqlQuote(rspR1)).append(",\n");
-        sb.append("      200, 33, 'LOCAL-DECRYPT-TST-PB-RECV-1', 'PC');\n");
-        sb.append("    INSERT INTO pb_recv (log_timestamp, media_code, tr_code, user_id, ip_address, user_agent, request_data, response_data, status_code, response_time, session_id, device_type)\n");
-        sb.append("    VALUES (TIMESTAMP '2026-04-13 10:26:00', 'Z', 'RLDECT02', 'local_decrypt', '127.0.0.1', 'Mozilla/5.0 local test',\n");
+        sb.append("      'LDPT',\n");
+        sb.append("      rpad('LOCAL-DEC-RCV1', 18),\n");
+        sb.append("      '2026-04-13 10:21:00'\n");
+        sb.append("    );\n");
+        sb.append("    INSERT INTO pb_recv (\n");
+        sb.append("      log_timestamp, media_gb, tr_code, brodid, pub_ip, prt_ip, log_ch_cd,\n");
+        sb.append("      msg_code, data, bmsg, reserve, con_key, wire_ts\n");
+        sb.append("    )\n");
+        sb.append("    VALUES (\n");
+        sb.append("      TIMESTAMP '2026-04-13 10:26:00', '99', 'RLDECT02', 'local_decrypt',\n");
+        sb.append("      ").append(sqlQuote(pubIp)).append(", ").append(sqlQuote(prtIp)).append(", ").append(sqlQuote(logChMob)).append(",\n");
+        sb.append("      '0200',\n");
         sb.append("      ").append(sqlQuote(reqR2)).append(",\n");
         sb.append("      ").append(sqlQuote(rspR2)).append(",\n");
-        sb.append("      200, 44, 'LOCAL-DECRYPT-TST-PB-RECV-2', 'Mobile');\n");
+        sb.append("      'LDPT',\n");
+        sb.append("      rpad('LOCAL-DEC-RCV2', 18),\n");
+        sb.append("      '2026-04-13 10:26:00'\n");
+        sb.append("    );\n");
         sb.append("  END IF;\n");
         sb.append("END $$;\n");
         return sb.toString();
