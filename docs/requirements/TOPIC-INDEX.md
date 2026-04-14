@@ -86,6 +86,7 @@ For **RequirementsPastSearch** token optimization. Read this file first to find 
 - 20260225-sidebar-search-menu-hierarchy | 사이드바 검색 메뉴 계층 표시 개선
 - 20260225-sidebar-submenu-expand-overflow | 사이드바 하위메뉴 펼침 시 다른 상위 메뉴 가림 수정
 - 20260225-sidebar-topbar-layout-no-overlap | 사이드바·상단바 레이아웃 중첩 제거 및 스크롤 분리
+- 20260414-pb-fep-wire-schema-alignment | Align PostgreSQL definitions for **`pb_send`** and **`pb_recv`** with the **legacy PB FEP wire-format column layout** (reference export style `pb_recv_20250818`), instead of the current simplified application-centric columns in `backend/src/main/resources/db/schema_pb_fep.sql` (e.g. `log_timestamp`, `media_code`, `tr_code`, `user_id`, …).
 
 ## department | 부서 | 결재자 | hierarchy
 
@@ -194,6 +195,7 @@ For **RequirementsPastSearch** token optimization. Read this file first to find 
 - 20260409-employee-number-uniqueness-provisioning | `app_user.employee_number` must not be duplicated across **active** users (`deleted_at IS NULL`) when the value is **non-null**, using the same **trimmed** string semantics as elsewhere. User Management V2 **direct user create** already enforces this via `UserManagementV2Service.ensureEmployeeNumberAvailable` before insert. The **HR / external provisioning** path (`ProvisioningService.provisionFromExternalEmployee`) currently inserts `app_user` **without** an equivalent check, so a new user can be provisioned with the same trimmed `employee_number` as an existing active user. The database schema only has a **non-unique** index on `employee_number` (`schema_sys.sql`, migration `migrate-app-user-employee-number-20260407.sql` documents that legacy duplicate rows prevented a UNIQUE constraint). This requirement closes the **application-layer** gap and aligns API error behavior with direct create.
 - 20260414-pb-fep-daily-partitioning | PB FEP `pb_send`/`pb_recv`: change PostgreSQL range partitioning from **monthly** to **daily**; upgrade path from existing monthly migration; retention/downtime/rollback; tests; release versioning per project norms
 - 20260410-install-deploy-three-db-noninteractive | Production and hardened deployments must support **three physically separate PostgreSQL databases** for:
+- 20260414-pb-fep-log-timestamp-physical-removal-bugfix | Real ingest on PB FEP fails when `log_timestamp` exists in PB FEP tables and related ingest/query paths still treat that column as present. The product requirement is no longer "unused alignment"; it is **complete physical removal** of `log_timestamp` from PB FEP schema and all dependent flows.
 
 ## log-type | 로그 타입 | dynamic
 

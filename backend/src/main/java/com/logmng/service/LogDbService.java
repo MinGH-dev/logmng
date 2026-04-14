@@ -72,23 +72,34 @@ public class LogDbService {
     private final CryptoUtil cryptoUtil;
     private final ObjectMapper objectMapper;
     private static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
+    private static final DateTimeFormatter PB_FEPLOG_TIME_LEXICAL_FORMATTER = DateTimeFormatter.ofPattern("yyyyMMddHHmmss");
 
     /**
-     * Allowlisted ORDER BY columns for pb_send ∪ pb_recv: stable legacy JSON keys matching SELECT aliases
-     * (wire columns aliased — req 20260414-pb-fep-wire-schema-alignment).
+     * Canonical PB FEP timestamp column used by search/filter path.
+     */
+    private static final String PB_FEPLOG_TIMESTAMP_COLUMN = "log_time";
+
+    /**
+     * Canonical product-facing PB FEP time key.
+     */
+    private static final String PB_FEPLOG_CANONICAL_TIME_KEY = "log_time";
+
+    /**
+     * Allowlisted ORDER BY columns for pb_send ∪ pb_recv: stable legacy JSON keys matching SELECT aliases.
+     * Keeps wire-logical contract wording while preserving backward compatibility for existing clients.
      */
     private static final Set<String> PB_FEPLOG_SORTABLE_COLUMNS = Collections.unmodifiableSet(new HashSet<>(Arrays.asList(
-            "id", "log_timestamp", "media_code", "tr_code", "user_id", "ip_address",
+            "id", PB_FEPLOG_CANONICAL_TIME_KEY, "media_code", "tr_code", "user_id", "ip_address",
             "user_agent", "request_data", "response_data", "status_code", "response_time",
             "error_message", "session_id", "device_type", "created_at", "updated_at", "log_type"
     )));
 
     /**
-     * Shared column projection: physical wire columns → stable API names (legacy /search + ORDER BY).
+     * Shared column projection using canonical time key only.
      * Keep pb_send / pb_recv lists identical for UNION ALL.
      */
     private static final String PB_FEPLOG_WIRE_SELECT_BODY =
-            "id, log_timestamp, "
+            "id, " + PB_FEPLOG_TIMESTAMP_COLUMN + ", "
                     + "media_gb AS media_code, tr_code, brodid AS user_id, pub_ip AS ip_address, "
                     + "CAST(NULL AS VARCHAR(500)) AS user_agent, "
                     + "vlen AS request_data, data AS response_data, "
@@ -136,7 +147,10 @@ public class LogDbService {
             return null;
         }
         if ("prc_time".equalsIgnoreCase(f)) {
-            return "log_timestamp";
+            return PB_FEPLOG_CANONICAL_TIME_KEY;
+        }
+        if ("log_timestamp".equalsIgnoreCase(f)) {
+            throw CustomException.badRequest("정렬 필드 log_timestamp는 더 이상 지원되지 않습니다. log_time을 사용하세요.", "INVALID_INPUT");
         }
         if ("brodid".equalsIgnoreCase(f)) {
             return "user_id";
@@ -208,9 +222,11 @@ public class LogDbService {
                 return ob.toString();
             }
         }
-        String sortField = normalizePbFeplogSortField(request.getSortField() != null ? request.getSortField() : "log_timestamp");
+        String sortField = normalizePbFeplogSortField(request.getSortField() != null
+                ? request.getSortField()
+                : PB_FEPLOG_CANONICAL_TIME_KEY);
         if (sortField == null || !PB_FEPLOG_SORTABLE_COLUMNS.contains(sortField)) {
-            sortField = "log_timestamp";
+            sortField = PB_FEPLOG_CANONICAL_TIME_KEY;
         }
         String sortDirection = request.getSortDirection() != null ? request.getSortDirection() : "desc";
         String dir = "asc".equalsIgnoreCase(sortDirection.trim()) ? "ASC" : "DESC";
@@ -237,12 +253,12 @@ public class LogDbService {
         LocalDateTime endDateTime = request.getEndDateAsDateTime();
         
         if (startDateTime != null) {
-            sql.append("AND log_timestamp >= ? ");
-            params.add(Timestamp.valueOf(startDateTime));
+            sql.append("AND ").append(PB_FEPLOG_TIMESTAMP_COLUMN).append(" >= ? ");
+            params.add(toPbFeplogLogTimeLexical(startDateTime));
         }
         if (endDateTime != null) {
-            sql.append("AND log_timestamp <= ? ");
-            params.add(Timestamp.valueOf(endDateTime));
+            sql.append("AND ").append(PB_FEPLOG_TIMESTAMP_COLUMN).append(" <= ? ");
+            params.add(toPbFeplogLogTimeLexical(endDateTime));
         }
             
             // 매체코드 조건
@@ -271,12 +287,12 @@ public class LogDbService {
             
             // 동일한 조건 적용
             if (startDateTime != null) {
-                sql.append("AND log_timestamp >= ? ");
-                params.add(Timestamp.valueOf(startDateTime));
+                sql.append("AND ").append(PB_FEPLOG_TIMESTAMP_COLUMN).append(" >= ? ");
+                params.add(toPbFeplogLogTimeLexical(startDateTime));
             }
             if (endDateTime != null) {
-                sql.append("AND log_timestamp <= ? ");
-                params.add(Timestamp.valueOf(endDateTime));
+                sql.append("AND ").append(PB_FEPLOG_TIMESTAMP_COLUMN).append(" <= ? ");
+                params.add(toPbFeplogLogTimeLexical(endDateTime));
             }
             if (request.getMediaCode() != null && !request.getMediaCode().trim().isEmpty()) {
                 sql.append("AND media_gb = ? ");
@@ -338,10 +354,9 @@ public class LogDbService {
                             if (value instanceof Timestamp) {
                                 value = ((Timestamp) value).toLocalDateTime().format(DATE_FORMATTER);
                             }
-                            
+
                             row.put(columnName, value);
                         }
-                        
                         // 복호화 옵션이 활성화된 경우 복호화된 데이터 포함
                         if (Boolean.TRUE.equals(request.getDecryptData())
                                 && request.getKeywords() != null
@@ -385,6 +400,13 @@ public class LogDbService {
             log.error("PB FEP 로그 검색 중 오류 발생", e);
             throw new RuntimeException("PB FEP 로그 검색 중 오류가 발생했습니다: " + e.getMessage(), e);
         }
+    }
+
+    /**
+     * PB FEP `log_time` is stored as lexical string `yyyyMMddHHmmss`; normalize date filters to the same format.
+     */
+    private static String toPbFeplogLogTimeLexical(LocalDateTime dateTime) {
+        return dateTime.withNano(0).format(PB_FEPLOG_TIME_LEXICAL_FORMATTER);
     }
 
     private LogDbSearchResponse searchPbFeplog(LogDbSearchRequest request) {
@@ -538,7 +560,8 @@ public class LogDbService {
         String branch = row.get("log_type") != null ? row.get("log_type").toString().trim().toLowerCase(Locale.ROOT) : "";
         out.put("id", row.get("id"));
         out.put("log_type", row.get("log_type"));
-        out.put("log_timestamp", row.get("log_timestamp"));
+        Object logTime = row.get(PB_FEPLOG_CANONICAL_TIME_KEY);
+        out.put(PB_FEPLOG_CANONICAL_TIME_KEY, logTime);
         out.put("tr_code", jdbcValueToString(row.get("tr_code")));
         out.put("login_id", jdbcValueToString(row.get("user_id")));
         out.put("msg_code", formatPbFepMsgCode(row.get("status_code")));
@@ -633,7 +656,8 @@ public class LogDbService {
             // 정렬 (이미지로그는 insert_time 사용)
             String sortField = request.getSortField() != null ? request.getSortField() : "insert_time";
             // 프론트엔드에서 보내는 필드명을 실제 컬럼명으로 매핑
-            if ("prc_time".equalsIgnoreCase(sortField) || "log_timestamp".equalsIgnoreCase(sortField)) {
+            if ("prc_time".equalsIgnoreCase(sortField)
+                    || PB_FEPLOG_CANONICAL_TIME_KEY.equalsIgnoreCase(sortField)) {
                 sortField = "insert_time";
             }
             String sortDirection = request.getSortDirection() != null ? request.getSortDirection() : "desc";
@@ -1073,7 +1097,6 @@ public class LogDbService {
                             
                             row.put(columnName, value);
                         }
-                        
                         row.put("log_type", type);
                         
                         log.info("✅ 로그 상세 조회 완료: ID={}", id);

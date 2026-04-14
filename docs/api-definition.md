@@ -331,9 +331,9 @@
 | decryptData | boolean | | 기본 false. **`logType = java_fw_imglog`**: 검색 응답에 평문을 채우는 플래그가 **아님**. **`decryptData`로** bracket **`datastring`/`headerstring`** 매칭이나 **키워드용 바이너리 `data`/`header` decrypt-for-match**를 **켜거나 끄지 않는다** — 서버 정책으로 매칭에 필요 시 적용, 응답에는 평문 미포함. UI 체크박스 없음 — 계약 **`docs/contract.md`** 동일 소절, **`docs/requirements/20260413-imagelog-search-decrypt-display-separation.md`**, **`20260414-imagelog-keyword-or-field-and-ui.md`**, **`docs/workflow/DOC-CODE-SYNC.md`**. |
 | page | integer | | 기본 1 |
 | pageSize | integer | | 기본 10 |
-| sortField | string | | 기본 "log_timestamp" |
+| sortField | string | | 기본 "log_time" |
 | sortDirection | string | | 기본 "desc" |
-| sortSpecs | { field: string, direction: string }[] | | **pb_feplog only**: ordered multi-column sort; when non-empty, overrides sortField/sortDirection. `field` must be an allowlisted name (stable JSON keys and legacy aliases such as `log_timestamp`, `tr_code`, `user_id`, `brodid`, `prc_time`, `bmsg`, `pub_ip` — resolved to wire physical columns per `docs/contract.md` § PB FEP wire schema). |
+| sortSpecs | { field: string, direction: string }[] | | **pb_feplog only**: ordered multi-column sort; when non-empty, overrides sortField/sortDirection. Canonical time sort key is `log_time`. `field` must be an allowlisted contract name (for example `log_time`, `tr_code`, `user_id`, `brodid`, `prc_time`, `bmsg`, `pub_ip`) resolved to wire physical columns per `docs/contract.md` § PB FEP wire schema. `log_timestamp` is not an allowed request sort key. |
 | displayTemplate | string | | 기본 "detailed" |
 
 - **Response (data)**: `LogDbSearchResponse`
@@ -344,7 +344,7 @@
       - **`hasEncryptedMatchDatastring`**, **`hasEncryptedMatchHeaderstring`**: 필드 또는 키워드 매칭이 해당 **텍스트 컬럼**의 **`[...]`** 구간 **decrypt-for-match**로 행 포함에 기여한 경우 **`true`**(평문 비노출). 미적용 시 생략 또는 **`false`**.
       - **`hasEncryptedMatchData`**, **`hasEncryptedMatchHeader`**: 백엔드가 보낼 때 — **`keywords`** 토큰이 바이너리 **`data`** 또는 **`header`** **decrypt-for-match**로 행 포함에 기여한 경우 각각 **`true`**. 미구현 시 생략(DOC–CODE–SYNC).
       - 근거: **`docs/contract.md`** 동일 소절, 요건 **`20260413-imagelog-search-decrypt-display-separation.md`**, **`20260414-imagelog-keyword-or-field-and-ui.md`**.
-    - PB FEP(`pb_feplog`) 행 규칙은 위 Image Log 제한과 별개로 기존 PB 표시·복호화 규칙을 따름 — **`docs/contract.md`** 동일 소절. **와이어 스키마 정렬 후에도** 레거시 응답 **키 이름은 유지**: 최소 **`log_timestamp`**, **`media_code`**(물리 **`media_gb`**), **`tr_code`**, **`user_id`**(물리 **`brodid`**) 등은 `docs/contract.md` **PB FEP — wire schema** 표와 동일한 별칭 규칙을 따른다.
+    - PB FEP(`pb_feplog`) 행 규칙은 위 Image Log 제한과 별개로 기존 PB 표시·복호화 규칙을 따름 — **`docs/contract.md`** 동일 소절. PB FEP canonical product-facing time key는 **`log_time`**이며, PB FEP 계약에서 **`log_timestamp`**는 제거되어 요청/응답/정렬 별칭으로 허용되지 않는다. `media_code`(물리 **`media_gb`**), `tr_code`, `user_id`(물리 **`brodid`**) 등은 `docs/contract.md` **PB FEP — wire schema** 별칭 규칙을 따른다.
   - `pagination`: `{ currentPage, totalPages, totalCount }`
 
 ### 5.1.1 PB FEP wireframe log search (`pb-fep-log-search`)
@@ -352,6 +352,12 @@
 - **POST** `/api/logs/db-refactored/pb-fep-log-search`
 - **Purpose**: Dedicated search for screen ID **`pb-fep-log-search`** only (wireframe IA / column names). Returns the same PB FEP UNION (`pb_feplog`) as legacy search but **each row uses wireframe field names** per requirement `docs/requirements/20260326-pb-fep-log-search-screen-wireframe.md` §2.D. **Wire / DB sourcing** for each key is aligned with **`docs/requirements/20260414-pb-fep-wire-schema-alignment.md`** and the **PB FEP — wire schema** subsection in `docs/contract.md` (physical columns such as `brodid`, `media_gb`, `msg_code`, `pub_ip`, `bmsg`, `data`; **`login_id`** = **`brodid`**).
 - **Legacy unchanged**: **`POST /api/logs/db-refactored/search`** (including `logType=pb_feplog` for **`pb-feplog`**) keeps its existing contract and response shape. New clients for **`pb-fep-log-search`** must call this path; legacy **`pb-feplog`** must **not** be repointed here without a separate requirement.
+- **Schema boundary note**: For PB FEP, canonical product-facing time field is **`log_time`**. PB FEP API contract does not expose or accept `log_timestamp`.
+- **Deprecation policy (implementation-ready)**:
+  - Backend/Frontend must request, sort, filter, and render using canonical `log_time`.
+  - `log_timestamp` is removed from PB FEP API contract and must not be accepted or emitted.
+  - For time filtering, backend applies `startDate`/`endDate` on canonical `log_time` semantics (query-time normalization allowed, no schema-field dependency).
+  - Alias removal requires a dedicated requirement + release-note notice before breaking change.
 - **Auth / access**: Same family as PB FEP log search and screen **`pb-fep-log-search`**: user must satisfy existing log-type and screen checks for **`pb_feplog`** / PB FEP (see `docs/contract.md` API function-level enforcement: **`pb-feplog` or `pb-fep-log-search`** for `pb_feplog` access). Unauthenticated **401**; insufficient screen / log-type access **403** `LOG_TYPE_NOT_ALLOWED` (or equivalent `FUNCTION_NOT_ALLOWED` where applicable).
 
 - **Request body** (JSON): **`LogDbSearchRequest`** subset / same shape as §5.1 for shared fields.
@@ -367,7 +373,7 @@
 | page | integer | X | Default **1**. |
 | pageSize | integer | X | Wireframe default **25**; allowed **25 / 50 / 100** (validate if outside). |
 | displayTemplate | string | X | Optional; same meaning as §5.1 if used. |
-| sortField / sortDirection | string | X | Legacy single-column fallback when **`sortSpecs`** is empty (implementation-defined; initial UI sort is `log_timestamp` **desc**). |
+| sortField / sortDirection | string | X | Legacy single-column fallback when **`sortSpecs`** is empty (implementation-defined; canonical default is `log_time` **desc**). |
 | sortSpecs | { field: string, direction: string }[] | X | **Cumulative** multi-column sort (ordered). **`field`** must be **allowlisted** (wireframe semantics / DB column map per `docs/contract.md` PB FEP wireframe section). Unknown **`field`** → **400**. When non-empty, overrides **`sortField` / `sortDirection`** for ordering. |
 | decryptData | boolean | X | As §5.1 if applicable to PB FEP behavior. |
 | (기타 LogDbSearchRequest 필드) | — | X | 이미지로그 전용 등 PB FEP와 무관한 필드는 무시 가능. |
@@ -375,7 +381,7 @@
 - **Response (data)**: Same envelope as §5.1 — object with:
   - **`data`**: `object[]` — each row is a **wireframe-keyed** map (**key names stable**; values sourced from wire-format columns per contract):
     - **Stable keys**: `id` (number, row id), `log_type` (string; branch discriminator with `id` for unique row keys — e.g. send vs recv).
-    - **Columns (JSON key → wire / physical source, normative)**: `log_timestamp` ← typed **`log_timestamp`**; `tr_code` ← **`tr_code`**; **`login_id`** ← **`brodid`** (same value as legacy `/search` **`user_id`**); `msg_code` ← **`msg_code`**; `bmsg` ← **`bmsg`** (or equivalent payload column per decrypt rules); `log_ch_cd` ← **`log_ch_cd`** (or equivalent); `send_recv` (`SEND` \| `RECV`) by union branch; `src_ip` ← **`pub_ip`**; `dest_ip` placeholder until product column exists; `app_id` from agreed wire/session/term fields; `data` from **`data`** / payload columns per product and decrypt rules.
+    - **Columns (JSON key → wire / physical source, normative)**: `log_time` ← canonical product-facing wire time; `tr_code` ← **`tr_code`**; **`login_id`** ← **`brodid`** (same value as legacy `/search` **`user_id`**); `msg_code` ← **`msg_code`**; `bmsg` ← **`bmsg`** (or equivalent payload column per decrypt rules); `log_ch_cd` ← **`log_ch_cd`** (or equivalent); `send_recv` (`SEND` \| `RECV`) by union branch; `src_ip` ← **`pub_ip`**; `dest_ip` placeholder until product column exists; `app_id` from agreed wire/session/term fields; `data` from **`data`** / payload columns per product and decrypt rules.
     - **Stream / expand (optional)**: `request_data`, `response_data` when still used for expanded STREAM DATA; masking/decrypt targets follow wire column layout per `docs/contract.md`.
   - **`pagination`**: `{ currentPage, totalPages, totalCount }`
 

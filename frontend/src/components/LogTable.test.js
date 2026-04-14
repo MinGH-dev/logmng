@@ -5,7 +5,7 @@ import LogTable from './LogTable';
 const pbFepSvgLog = (id) => ({
   id,
   log_type: 'PB',
-  log_timestamp: '2024-01-01T10:00:00',
+  log_time: '2024-01-01T10:00:00',
   tr_code: 'TR',
   login_id: 'u1',
   msg_code: 'M',
@@ -21,8 +21,8 @@ const pbFepSvgLog = (id) => ({
 const baseProps = {
   logs: [pbFepSvgLog(1)],
   loading: false,
-  sortConfig: { key: 'log_timestamp', direction: 'desc' },
-  sortCriteria: [{ key: 'log_timestamp', direction: 'desc' }],
+  sortConfig: { key: 'log_time', direction: 'desc' },
+  sortCriteria: [{ key: 'log_time', direction: 'desc' }],
   onSort: jest.fn(),
   currentPage: 1,
   totalPages: 1,

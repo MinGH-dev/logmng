@@ -12,7 +12,7 @@ jest.mock('../config/runtimeApi', () => ({
 const makePbFepRow = (id) => ({
   id,
   log_type: 'PB',
-  log_timestamp: `2024-01-01T10:00:00.${String(id).padStart(6, '0')}`,
+  log_time: `2024-01-01T10:00:00.${String(id).padStart(6, '0')}`,
   tr_code: 'TR',
   login_id: 'user01',
   msg_code: 'M',
@@ -119,7 +119,8 @@ describe('LogGrid PB FEP endpoints', () => {
     expect(searchCall).toBeDefined();
     expect(searchCall[0]).toBe('http://test-api.example/api/logs/db-refactored/pb-fep-log-search');
     const body = JSON.parse(searchCall[1].body);
-    expect(body.sortSpecs).toEqual([{ field: 'log_timestamp', direction: 'desc' }]);
+    expect(body.sortSpecs).toEqual([{ field: 'log_time', direction: 'desc' }]);
+    expect(body.sortSpecs.some((s) => s.field === 'log_timestamp')).toBe(false);
   });
 
   test('pb-feplog legacy view posts to db-refactored/search', async () => {
@@ -155,6 +156,47 @@ describe('LogGrid PB FEP endpoints', () => {
     );
     expect(searchCall).toBeDefined();
     expect(searchCall[0]).not.toContain('pb-fep-log-search');
+  });
+
+  test('pb-feplog legacy initialSearchParams datetime-local gets normalized to space format', async () => {
+    global.fetch.mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        success: true,
+        data: {
+          data: [],
+          pagination: { totalPages: 1, currentPage: 1, totalCount: 0 },
+        },
+      }),
+    });
+
+    render(
+      <LogGrid
+        viewId="pb-feplog"
+        logType={{ id: 'pb_feplog', name: 'PB FEP v1.0.0', description: '' }}
+        hasDecryptPermission={false}
+        initialSearchParams={{
+          tr_code: 'TR01',
+          loginId: 'user01',
+          startDate: '2026-04-14T00:00',
+          endDate: '2026-04-14T23:59',
+        }}
+      />
+    );
+
+    await waitFor(() => {
+      expect(global.fetch).toHaveBeenCalled();
+    });
+
+    const searchCall = global.fetch.mock.calls.find(
+      (c) => typeof c[0] === 'string' && c[0].includes('/db-refactored/search')
+    );
+    expect(searchCall).toBeDefined();
+    const body = JSON.parse(searchCall[1].body);
+    expect(body.startDate).toBe('2026-04-14 00:00:00');
+    expect(body.endDate).toBe('2026-04-14 23:59:00');
+    expect(body.sortSpecs).toEqual([{ field: 'log_time', direction: 'desc' }]);
+    expect(body.sortSpecs.some((s) => s.field === 'log_timestamp')).toBe(false);
   });
 
   /** TC-01 / TC-04: expand-all then page 2 — all rows expanded without clicking expand-all again */

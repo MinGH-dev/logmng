@@ -67,7 +67,7 @@ public class LogDbSearchRequest {
     
     private Integer page = 1;
     private Integer pageSize = 10;
-    private String sortField = "log_timestamp";
+    private String sortField = "log_time";
     private String sortDirection = "desc";
     /** Optional multi-column sort for pb_feplog (ordered). When non-empty, takes precedence over sortField/sortDirection for PB FEP. */
     @JsonProperty("sortSpecs")
@@ -142,7 +142,30 @@ public class LogDbSearchRequest {
      * endDate를 LocalDateTime으로 변환
      */
     public LocalDateTime getEndDateAsDateTime() {
-        return parseDateTime(endDate);
+        LocalDateTime dateTime = parseDateTime(endDate);
+        if (dateTime == null) {
+            return null;
+        }
+        // Date-only and start-of-day endDate should include the full day for legacy /search and PB FEP paths.
+        if (isDateOnlyOrStartOfDayEndDate(endDate, dateTime)) {
+            return dateTime.toLocalDate().atTime(23, 59, 59, 999_000_000);
+        }
+        return dateTime;
+    }
+
+    private boolean isDateOnlyOrStartOfDayEndDate(String rawEndDate, LocalDateTime parsed) {
+        String trimmedEndDate = rawEndDate != null ? rawEndDate.trim() : "";
+        if (trimmedEndDate.matches("\\d{4}-\\d{2}-\\d{2}")) {
+            return true;
+        }
+        if (trimmedEndDate.matches("\\d{4}-\\d{2}-\\d{2} 00:00:00")
+                || trimmedEndDate.matches("\\d{4}-\\d{2}-\\d{2} 00:00:00\\.0{1,3}")) {
+            return true;
+        }
+        if (trimmedEndDate.matches("\\d{4}-\\d{2}-\\d{2}T00:00:00(?:\\.0{1,9})?(?:Z)?")) {
+            return true;
+        }
+        return parsed.toLocalTime().equals(java.time.LocalTime.MIDNIGHT);
     }
     
     /**

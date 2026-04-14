@@ -14,7 +14,6 @@ import javax.sql.DataSource;
 import java.nio.charset.StandardCharsets;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
-import java.sql.Timestamp;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
@@ -105,11 +104,15 @@ class LogDbServiceTest {
         }
     }
 
-    private void insertPbSend(long id, Timestamp logTimestamp) throws Exception {
+    private static String toPbLogTime(LocalDateTime ldt) {
+        return ldt.format(DateTimeFormatter.ofPattern("yyyyMMddHHmmss"));
+    }
+
+    private void insertPbSend(long id, String logTime) throws Exception {
         try (Connection conn = dataSource.getConnection();
              PreparedStatement ps = H2ClasspathSql.prepareFromResource(conn, "/sql/logdb-service/insert-pb-send-minimal.sql")) {
             ps.setLong(1, id);
-            ps.setTimestamp(2, logTimestamp);
+            ps.setString(2, logTime);
             ps.executeUpdate();
         }
     }
@@ -474,8 +477,7 @@ class LogDbServiceTest {
     /** TC-07: pb_feplog search unchanged (no regression from image-log fix). */
     @Test
     void searchPbFeplog_returnsResultsUnchanged() throws Exception {
-        Timestamp logTs = Timestamp.valueOf(PB_SMOKE_LDT);
-        insertPbSend(1L, logTs);
+        insertPbSend(1L, toPbLogTime(PB_SMOKE_LDT));
 
         LogDbSearchRequest req = new LogDbSearchRequest();
         req.setLogType("pb_feplog");
@@ -490,19 +492,57 @@ class LogDbServiceTest {
         assertThat(res.getPagination()).isNotNull();
         List<Map<String, Object>> data = res.getData();
         assertThat(data.get(0)).containsKey("log_type");
+        assertThat(data.get(0)).containsKey("log_time");
+    }
+
+    /** Old /search regression: single-day date-only range must include same-day rows (endDate expands to end-of-day). */
+    @Test
+    void searchPbFeplog_dateOnlySingleDayRange_returnsNonEmpty() throws Exception {
+        insertPbSend(11L, toPbLogTime(PB_SMOKE_LDT));
+
+        LogDbSearchRequest req = new LogDbSearchRequest();
+        req.setLogType("pb_feplog");
+        req.setStartDate("2025-06-15");
+        req.setEndDate("2025-06-15");
+        req.setPage(1);
+        req.setPageSize(10);
+
+        LogDbSearchResponse res = logDbService.searchLogs(req);
+
+        assertThat(res.getData()).isNotEmpty();
+        assertThat(res.getPagination()).isNotNull();
+        assertThat(res.getPagination().getTotalCount()).isEqualTo(1L);
     }
 
     @Test
     void buildPbFeplogOrderBy_multiColumn_usesSortSpecs() {
         LogDbSearchRequest req = new LogDbSearchRequest();
         LogDbSortSpec a = new LogDbSortSpec();
-        a.setField("log_timestamp");
+        a.setField("log_time");
         a.setDirection("desc");
         LogDbSortSpec b = new LogDbSortSpec();
         b.setField("tr_code");
         b.setDirection("asc");
         req.setSortSpecs(List.of(a, b));
-        assertThat(logDbService.buildPbFeplogOrderBy(req)).isEqualTo("log_timestamp DESC, tr_code ASC");
+        assertThat(logDbService.buildPbFeplogOrderBy(req)).isEqualTo("log_time DESC, tr_code ASC");
+    }
+
+    @Test
+    void buildPbFeplogOrderBy_legacyPrcTimeAlias_mapsToBackwardCompatibleTimestampKey() {
+        LogDbSearchRequest req = new LogDbSearchRequest();
+        req.setSortField("prc_time");
+        req.setSortDirection("asc");
+        assertThat(logDbService.buildPbFeplogOrderBy(req)).isEqualTo("log_time ASC");
+    }
+
+    @Test
+    void buildPbFeplogOrderBy_logTimestampSortField_throwsBadRequest() {
+        LogDbSearchRequest req = new LogDbSearchRequest();
+        req.setSortField("log_timestamp");
+        req.setSortDirection("asc");
+        assertThatThrownBy(() -> logDbService.buildPbFeplogOrderBy(req))
+                .isInstanceOf(CustomException.class)
+                .hasMessageContaining("log_timestamp");
     }
 
     @Test
@@ -520,11 +560,10 @@ class LogDbServiceTest {
 
     @Test
     void searchPbFepLogWireframe_mapsWireframeKeys_sendBranch() throws Exception {
-        Timestamp logTs = Timestamp.valueOf(WIRE_LDT);
         try (Connection conn = dataSource.getConnection();
              PreparedStatement ps = H2ClasspathSql.prepareFromResource(conn, "/sql/logdb-service/insert-pb-send-wireframe.sql")) {
             ps.setLong(1, 101);
-            ps.setTimestamp(2, logTs);
+            ps.setString(2, toPbLogTime(WIRE_LDT));
             ps.executeUpdate();
         }
 
@@ -539,7 +578,7 @@ class LogDbServiceTest {
 
         assertThat(res.getData()).hasSize(1);
         Map<String, Object> row = res.getData().get(0);
-        assertThat(row).containsKeys("id", "log_type", "log_timestamp", "tr_code", "login_id", "msg_code", "bmsg", "log_ch_cd",
+        assertThat(row).containsKeys("id", "log_type", "log_time", "tr_code", "login_id", "msg_code", "bmsg", "log_ch_cd",
                 "send_recv", "src_ip", "dest_ip", "app_id", "data", "request_data", "response_data");
         assertThat(row.get("login_id")).isEqualTo("userA");
         assertThat(row.get("send_recv")).isEqualTo("SEND");
@@ -557,11 +596,10 @@ class LogDbServiceTest {
 
     @Test
     void searchPbFepLogWireframe_mapsRecvBranch() throws Exception {
-        Timestamp logTs = Timestamp.valueOf(WIRE_LDT);
         try (Connection conn = dataSource.getConnection();
              PreparedStatement ps = H2ClasspathSql.prepareFromResource(conn, "/sql/logdb-service/insert-pb-recv-wireframe.sql")) {
             ps.setLong(1, 202);
-            ps.setTimestamp(2, logTs);
+            ps.setString(2, toPbLogTime(WIRE_LDT));
             ps.executeUpdate();
         }
 
@@ -609,6 +647,54 @@ class LogDbServiceTest {
         LogDbSearchRequest req = new LogDbSearchRequest();
         req.setSortSpecs(List.of(s));
         assertThat(logDbService.buildPbFeplogOrderBy(req)).isEqualTo("user_id ASC");
+    }
+
+    @Test
+    void searchPbFeplog_sameDayKnownFormatRange_returnsKnownRows() throws Exception {
+        insertPbSend(31L, "20260414010101");
+        insertPbSend(32L, "20260414235959");
+        insertPbSend(33L, "20260415000000");
+
+        LogDbSearchRequest req = new LogDbSearchRequest();
+        req.setLogType("pb_feplog");
+        req.setStartDate("2026-04-14 00:00:00");
+        req.setEndDate("2026-04-14 23:59:59");
+        req.setTrCode("TR1");
+        req.setLoginId("u1");
+        req.setPage(1);
+        req.setPageSize(10);
+
+        LogDbSearchResponse res = logDbService.searchLogs(req);
+
+        assertThat(res.getData()).hasSize(2);
+        assertThat(res.getPagination().getTotalCount()).isEqualTo(2L);
+        assertThat(res.getData())
+                .extracting(row -> row.get("log_time"))
+                .containsExactlyInAnyOrder("20260414010101", "20260414235959");
+    }
+
+    @Test
+    void searchPbFeplog_sameDayIsoMidnightEndDate_expandsToEndOfDay() throws Exception {
+        insertPbSend(41L, "20260414010101");
+        insertPbSend(42L, "20260414235959");
+        insertPbSend(43L, "20260415000000");
+
+        LogDbSearchRequest req = new LogDbSearchRequest();
+        req.setLogType("pb_feplog");
+        req.setStartDate("2026-04-14T00:00:00.000");
+        req.setEndDate("2026-04-14T00:00:00.000");
+        req.setTrCode("TR1");
+        req.setLoginId("u1");
+        req.setPage(1);
+        req.setPageSize(10);
+
+        LogDbSearchResponse res = logDbService.searchLogs(req);
+
+        assertThat(res.getData()).hasSize(2);
+        assertThat(res.getPagination().getTotalCount()).isEqualTo(2L);
+        assertThat(res.getData())
+                .extracting(row -> row.get("log_time"))
+                .containsExactlyInAnyOrder("20260414010101", "20260414235959");
     }
 
     /**

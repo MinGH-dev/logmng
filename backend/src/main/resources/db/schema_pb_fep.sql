@@ -3,10 +3,9 @@
 -- App PB FEP log search reads pb_send and pb_recv (UNION ALL); unqualified names require search_path to include SCHEMA_PB.
 -- pb_send / pb_recv: 동일 와이어 컬럼 집합(UNION 호환). 비대칭이 생기면 요구사항 문서에 명시.
 --
--- 시간 컬럼 관계 (요구사항 20260414-pb-fep-wire-schema-alignment):
---   * log_timestamp TIMESTAMP NOT NULL — RANGE 파티션·검색·정렬용 표준 시각. 적재 시 prc_time/log_time 파싱,
---     wire_ts(레거시 "timestamp" 문자열) 파싱, 또는 INSERT 시점 규칙으로 반드시 채운다.
---   * log_time, prc_time — 와이어 원문 VARCHAR(고정/가변 길이 필드).
+-- 시간 컬럼 관계 (요구사항 20260414-pb-fep-log-timestamp-physical-removal-bugfix):
+--   * log_timestamp는 물리적으로 제거한다(적재 실패 원인 제거 목적).
+--   * log_time, prc_time — 와이어 원문 VARCHAR(고정/가변 길이 필드). 제품 표준 시간은 log_time.
 --   * wire_ts — 레거시 DDL의 따옴표 "timestamp" 컬럼에 대응; PostgreSQL 예약어 회피용 이름.
 --
 -- 적용 시 세션 search_path에 SCHEMA_PB(예: logmng)가 앞에 오도록 setup.sh 또는 psql에서 설정.
@@ -14,7 +13,6 @@
 -- 송신 로그 테이블
 CREATE TABLE IF NOT EXISTS pb_send (
     id BIGSERIAL PRIMARY KEY,
-    log_timestamp TIMESTAMP NOT NULL,
     log_time VARCHAR(15),
     log_ch_cd VARCHAR(6),
     log_io_cd VARCHAR(1),
@@ -66,7 +64,6 @@ CREATE TABLE IF NOT EXISTS pb_send (
 -- 수신 로그 테이블 (와이어 컬럼 집합 동일)
 CREATE TABLE IF NOT EXISTS pb_recv (
     id BIGSERIAL PRIMARY KEY,
-    log_timestamp TIMESTAMP NOT NULL,
     log_time VARCHAR(15),
     log_ch_cd VARCHAR(6),
     log_io_cd VARCHAR(1),
@@ -115,18 +112,18 @@ CREATE TABLE IF NOT EXISTS pb_recv (
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE INDEX IF NOT EXISTS idx_pb_send_log_timestamp ON pb_send(log_timestamp);
+CREATE INDEX IF NOT EXISTS idx_pb_send_log_time ON pb_send(log_time);
 CREATE INDEX IF NOT EXISTS idx_pb_send_brodid ON pb_send(brodid);
 CREATE INDEX IF NOT EXISTS idx_pb_send_media_gb ON pb_send(media_gb);
 CREATE INDEX IF NOT EXISTS idx_pb_send_tr_code ON pb_send(tr_code);
 
-CREATE INDEX IF NOT EXISTS idx_pb_recv_log_timestamp ON pb_recv(log_timestamp);
+CREATE INDEX IF NOT EXISTS idx_pb_recv_log_time ON pb_recv(log_time);
 CREATE INDEX IF NOT EXISTS idx_pb_recv_brodid ON pb_recv(brodid);
 CREATE INDEX IF NOT EXISTS idx_pb_recv_media_gb ON pb_recv(media_gb);
 CREATE INDEX IF NOT EXISTS idx_pb_recv_tr_code ON pb_recv(tr_code);
 
-CREATE INDEX IF NOT EXISTS idx_pb_send_search ON pb_send(log_timestamp, media_gb, tr_code);
-CREATE INDEX IF NOT EXISTS idx_pb_recv_search ON pb_recv(log_timestamp, media_gb, tr_code);
+CREATE INDEX IF NOT EXISTS idx_pb_send_search ON pb_send(log_time, media_gb, tr_code);
+CREATE INDEX IF NOT EXISTS idx_pb_recv_search ON pb_recv(log_time, media_gb, tr_code);
 
 CREATE INDEX IF NOT EXISTS idx_pb_send_con_key ON pb_send(con_key);
 CREATE INDEX IF NOT EXISTS idx_pb_recv_con_key ON pb_recv(con_key);

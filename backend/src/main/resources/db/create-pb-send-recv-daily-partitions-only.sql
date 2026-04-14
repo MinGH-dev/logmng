@@ -1,6 +1,10 @@
 -- PB FEP: partitioned parents (pb_send / pb_recv) + daily RANGE children
 --
--- **No DEFAULT partition.** If `log_timestamp` is not covered by a pre-created daily
+-- Time policy (finalized):
+--   - Product-facing canonical time field: `log_time`.
+--   - `log_timestamp` is physically removed (ingest bugfix requirement).
+--
+-- **No DEFAULT partition.** If `log_time` is not covered by a pre-created daily
 -- child, INSERT fails (no catch-all). Operators must extend the daily window (re-run
 -- this script with adjusted `back_days`/`fwd_days`, or `CREATE TABLE … PARTITION OF …`
 -- for additional days) before loading data outside the covered dates.
@@ -17,7 +21,7 @@
 --
 -- (B) Date range for daily children (per table, on *_migr_tmp):
 --   Let win_min = CURRENT_DATE − back_days, win_max = CURRENT_DATE + fwd_days (inclusive days).
---   Let data_min = MIN(log_timestamp::date), data_max = MAX(log_timestamp::date) from the
+--   Let data_min = MIN(to_date(substr(log_time,1,8),'YYYYMMDD')), data_max = MAX(...) from the
 --   temp table (NULL if empty).
 --   Partition days run from d_start = LEAST(COALESCE(data_min, win_min), win_min) through
 --   d_end = GREATEST(COALESCE(data_max, win_max), win_max) inclusive, so every existing row
@@ -26,7 +30,7 @@
 -- Does NOT migrate monthly→daily; use migrate-pb-send-recv-monthly-to-daily-20260414.sql for that.
 --
 -- Canonical source: backend/src/main/resources/db/
--- Parent column layout: wire-aligned pb_send / pb_recv (요구사항 20260414-pb-fep-wire-schema-alignment).
+-- Parent column layout: wire-aligned pb_send / pb_recv (requirement 20260414-pb-fep-wire-schema-alignment).
 --
 -- Prerequisites: none if you use this file alone — the block below matches
 -- schema_sys.sql / schema_pb_fep.sql (idempotent CREATE OR REPLACE).
@@ -60,7 +64,7 @@ BEGIN
 
     FOREACH k IN ARRAY ARRAY['pb_send', 'pb_recv']
     LOOP
-        -- ---------- (B) ordinary table → partitioned (no DEFAULT) ----------
+        -- ---------- (B) ordinary table → partitioned (no DEFAULT; key=log_time) ----------
         IF to_regclass(k) IS NOT NULL
            AND EXISTS (
                SELECT 1 FROM pg_class WHERE oid = to_regclass(k::TEXT) AND relkind = 'r'
@@ -71,7 +75,6 @@ BEGIN
             EXECUTE format(
                 'CREATE TABLE %I (
                 id BIGINT NOT NULL DEFAULT nextval(%L::regclass),
-                log_timestamp TIMESTAMP NOT NULL,
                 log_time VARCHAR(15),
                 log_ch_cd VARCHAR(6),
                 log_io_cd VARCHAR(1),
@@ -118,13 +121,13 @@ BEGIN
                 wire_ts VARCHAR(19),
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-            ) PARTITION BY RANGE (log_timestamp)',
+            ) PARTITION BY RANGE (log_time)',
                 k,
                 k || '_id_seq'
             );
 
             EXECUTE format(
-                'SELECT MIN(log_timestamp::date), MAX(log_timestamp::date) FROM %I',
+                'SELECT MIN(to_date(substr(log_time, 1, 8), ''YYYYMMDD'')), MAX(to_date(substr(log_time, 1, 8), ''YYYYMMDD'')) FROM %I WHERE log_time ~ ''^[0-9]{8,}$''',
                 k || '_migr_tmp'
             )
             INTO data_min, data_max;
@@ -140,8 +143,8 @@ BEGIN
                         'CREATE TABLE %I PARTITION OF %I FOR VALUES FROM (%L) TO (%L)',
                         part_name,
                         k,
-                        d::TEXT,
-                        (d + 1)::TEXT
+                        to_char(d, 'YYYYMMDD') || '0000000',
+                        to_char(d + 1, 'YYYYMMDD') || '0000000'
                     );
                 END IF;
                 EXECUTE format(
@@ -161,7 +164,7 @@ BEGIN
             EXECUTE format('DROP TABLE %I', k || '_migr_tmp');
 
             EXECUTE format(
-                'CREATE INDEX IF NOT EXISTS idx_%s_p_log_timestamp ON %I(log_timestamp)',
+                'CREATE INDEX IF NOT EXISTS idx_%s_p_log_time ON %I(log_time)',
                 k,
                 k
             );
@@ -181,7 +184,7 @@ BEGIN
                 k
             );
             EXECUTE format(
-                'CREATE INDEX IF NOT EXISTS idx_%s_p_search ON %I(log_timestamp, media_gb, tr_code)',
+                'CREATE INDEX IF NOT EXISTS idx_%s_p_search ON %I(log_time, media_gb, tr_code)',
                 k,
                 k
             );
@@ -191,17 +194,16 @@ BEGIN
                 k
             );
 
-            RAISE NOTICE 'create-pb-send-recv-daily-partitions-only: converted ordinary % to partitioned parent (no DEFAULT).', k;
+            RAISE NOTICE 'create-pb-send-recv-daily-partitions-only: converted ordinary % to partitioned parent (no DEFAULT; key=log_time).', k;
         END IF;
 
-        -- ---------- (A) missing table: greenfield partitioned stack (no DEFAULT) ----------
+        -- ---------- (A) missing table: greenfield partitioned stack (no DEFAULT; key=log_time) ----------
         IF to_regclass(k) IS NULL THEN
             EXECUTE format('CREATE SEQUENCE IF NOT EXISTS %I AS BIGINT', k || '_id_seq');
 
             EXECUTE format(
                 'CREATE TABLE %I (
                 id BIGINT NOT NULL DEFAULT nextval(%L::regclass),
-                log_timestamp TIMESTAMP NOT NULL,
                 log_time VARCHAR(15),
                 log_ch_cd VARCHAR(6),
                 log_io_cd VARCHAR(1),
@@ -248,13 +250,13 @@ BEGIN
                 wire_ts VARCHAR(19),
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-            ) PARTITION BY RANGE (log_timestamp)',
+            ) PARTITION BY RANGE (log_time)',
                 k,
                 k || '_id_seq'
             );
 
             EXECUTE format(
-                'CREATE INDEX IF NOT EXISTS idx_%s_p_log_timestamp ON %I(log_timestamp)',
+                'CREATE INDEX IF NOT EXISTS idx_%s_p_log_time ON %I(log_time)',
                 k,
                 k
             );
@@ -274,7 +276,7 @@ BEGIN
                 k
             );
             EXECUTE format(
-                'CREATE INDEX IF NOT EXISTS idx_%s_p_search ON %I(log_timestamp, media_gb, tr_code)',
+                'CREATE INDEX IF NOT EXISTS idx_%s_p_search ON %I(log_time, media_gb, tr_code)',
                 k,
                 k
             );
@@ -284,10 +286,10 @@ BEGIN
                 k
             );
 
-            RAISE NOTICE 'create-pb-send-recv-daily-partitions-only: created greenfield partitioned % (no DEFAULT).', k;
+            RAISE NOTICE 'create-pb-send-recv-daily-partitions-only: created greenfield partitioned % (no DEFAULT; key=log_time).', k;
         END IF;
 
-        -- ---------- (C) daily partitions + triggers (parent must be 'p' now) ----------
+        -- ---------- (C) already partitioned parent: ensure daily partitions + triggers only (no DEFAULT) ----------
         IF to_regclass(k) IS NULL THEN
             RAISE EXCEPTION 'create-pb-send-recv-daily-partitions-only: internal error, % missing after setup', k;
         END IF;
@@ -305,8 +307,8 @@ BEGIN
                         'CREATE TABLE %I PARTITION OF %I FOR VALUES FROM (%L) TO (%L)',
                         part_name,
                         k,
-                        d::TEXT,
-                        (d + 1)::TEXT
+                        to_char(d, 'YYYYMMDD') || '0000000',
+                        to_char(d + 1, 'YYYYMMDD') || '0000000'
                     );
                 END IF;
                 EXECUTE format(

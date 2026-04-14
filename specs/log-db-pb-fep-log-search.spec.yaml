@@ -1,12 +1,14 @@
 # PB FEP wireframe log search — dedicated route for screen pb-fep-log-search
 # Requirement: docs/requirements/20260326-pb-fep-log-search-screen-wireframe.md
 # Contract: docs/contract.md (PB FEP wireframe search API + PB FEP wire schema aliases), docs/api-definition.md §5.1.1
+# Schema boundary: PB FEP canonical product-facing time field is `log_time`.
+# `log_timestamp` is removed from PB FEP API contract.
 # Step 3 — API contract only; implementation: Backend/Frontend per handoff.
 
 ---
 metadata:
   title: "POST /api/logs/db-refactored/pb-fep-log-search"
-  version: "1.1"
+  version: "1.2"
   requirement: "20260326-pb-fep-log-search-screen-wireframe"
   wire_schema_requirement: "20260414-pb-fep-wire-schema-alignment"
   status: "draft"
@@ -46,14 +48,15 @@ type PbFepLogSearchRequest = {
   page?: number;         // default 1
   pageSize?: number;     // default 25; allowed 25 | 50 | 100 (validate)
   displayTemplate?: string;
-  sortField?: string;
+  sortField?: string;      // canonical time sort key: log_time
   sortDirection?: string;
   sortSpecs?: LogDbSortSpec[];  // cumulative; allowlisted field names; overrides sortField/sortDirection when non-empty
   decryptData?: boolean;
 };
 ```
 
-- **sortSpecs**: ordered list; **field** must be on server allowlist (wireframe / DB mapping). Unknown field → **400**.
+- **sortSpecs**: ordered list; **field** must be on server allowlist (wireframe / DB mapping). Canonical time field is `log_time`; `log_timestamp` is not allowed. Unknown field → **400**.
+- **Time filter behavior (required):** backend applies `startDate`/`endDate` on canonical `log_time` semantics. Query-time normalization from wire time values is allowed, but no schema/API field dependency on `log_timestamp`.
 
 # 4. Response
 
@@ -71,7 +74,7 @@ type Pagination = {
 type PbFepWireframeRow = {
   id: number;
   log_type: string;       // branch discriminator with id for stable React keys / expandedRowKeys
-  log_timestamp: string; // typed log_timestamp (canonical query + partition column)
+  log_time: string | null; // canonical product-facing time field
   tr_code: string | null; // wire tr_code
   login_id: string | null; // wire brodid (same semantics as legacy POST .../search user_id)
   msg_code: string | null; // wire msg_code
@@ -102,11 +105,11 @@ type PbFepLogSearchResponseData = {
 
 # 6. Wireframe row — DB / wire column sourcing (normative)
 
-Requirement: `docs/requirements/20260414-pb-fep-wire-schema-alignment.md` §2. Legacy `POST /api/logs/db-refactored/search` (`logType=pb_feplog`) keeps stable keys `log_timestamp`, `media_code`, `tr_code`, `user_id` with physical sources `log_timestamp`, `media_gb`, `tr_code`, `brodid` — see `docs/contract.md` (PB FEP wire schema).
+Requirement: `docs/requirements/20260414-pb-fep-wire-schema-alignment.md` §2 and `docs/requirements/20260414-pb-fep-log-timestamp-physical-removal-bugfix.md`. PB FEP product-facing logical/wire schema is wire-first with canonical time key `log_time`, and PB FEP contracts must not reference `log_timestamp`. Legacy `POST /api/logs/db-refactored/search` keeps stable keys such as `media_code`, `tr_code`, `user_id` mapped to `media_gb`, `tr_code`, `brodid` — see `docs/contract.md` (PB FEP wire schema).
 
 | Wireframe JSON key | Physical / wire source |
 |--------------------|-------------------------|
-| `log_timestamp` | `log_timestamp` (typed; not raw varchar-only wire time) |
+| `log_time` | canonical product-facing wire time field |
 | `tr_code` | `tr_code` |
 | `login_id` | `brodid` |
 | `msg_code` | `msg_code` |
@@ -123,3 +126,10 @@ Requirement: `docs/requirements/20260414-pb-fep-wire-schema-alignment.md` §2. L
 - Field mapping (UI → wireframe keys): `20260326-pb-fep-log-search-screen-wireframe` §2.D
 - Wire schema, partition key, legacy JSON aliases: `20260414-pb-fep-wire-schema-alignment` §2; `docs/contract.md` (PB FEP subsections)
 - Sort behavior: `20260326` §2.G, notes §9 (cumulative sortSpecs); sort field allowlist resolves legacy names to wire columns per contract
+
+# 8. Backward compatibility and deprecation policy (normative)
+
+1. Canonical product-facing time field for this endpoint is `log_time` (request/filter/sort/response).
+2. `log_timestamp` is removed from PB FEP contract; request sort/filter fields and response rows must not include it.
+3. Default ordering is `log_time desc`; when `sortSpecs` is present, server applies ordered allowlisted fields only.
+4. Time-range filtering uses canonical `log_time` semantics with backend query-time normalization as needed.

@@ -6,7 +6,7 @@ CREATE TABLE IF NOT EXISTS imagelog (
 );
 CREATE TABLE IF NOT EXISTS pb_send (
     id BIGINT PRIMARY KEY,
-    log_timestamp TIMESTAMP NOT NULL,
+    log_time VARCHAR(15) NOT NULL,
     log_ch_cd VARCHAR(6),
     log_io_cd VARCHAR(1),
     tr_code VARCHAR(8),
@@ -27,7 +27,7 @@ CREATE TABLE IF NOT EXISTS pb_send (
 );
 CREATE TABLE IF NOT EXISTS pb_recv (
     id BIGINT PRIMARY KEY,
-    log_timestamp TIMESTAMP NOT NULL,
+    log_time VARCHAR(15) NOT NULL,
     log_ch_cd VARCHAR(6),
     log_io_cd VARCHAR(1),
     tr_code VARCHAR(8),

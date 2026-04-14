@@ -5,7 +5,7 @@ import './LogTable.css';
 
 /** Legacy POST .../search columns + sort keys (pb-feplog). */
 const LOG_COLUMNS_PB_FEP_LEGACY = [
-  { key: 'log_timestamp', label: 'log_timestamp', sortable: true },
+  { key: 'log_time', label: 'log_time', sortable: true },
   { key: 'tr_code', label: 'tr_code', sortable: true },
   { key: 'user_id', label: 'user_id', sortable: true },
   { key: 'status_code', label: 'status_code', sortable: true },
@@ -18,9 +18,9 @@ const LOG_COLUMNS_PB_FEP_LEGACY = [
   { key: 'data', label: 'data', sortable: false },
 ];
 
-/** Wireframe SVG v10 — POST .../pb-fep-log-search row keys (expand chevron in log_timestamp cell). */
+/** Wireframe SVG v10 — POST .../pb-fep-log-search row keys (expand chevron in log_time cell). */
 const LOG_COLUMNS_PB_FEP_SVG = [
-  { key: 'log_timestamp', label: 'log_timestamp', sortable: true },
+  { key: 'log_time', label: 'log_time', sortable: true },
   { key: 'tr_code', label: 'tr_code', sortable: true },
   { key: 'login_id', label: 'login_id', sortable: true },
   { key: 'msg_code', label: 'msg_code', sortable: true },
@@ -35,10 +35,11 @@ const LOG_COLUMNS_PB_FEP_SVG = [
 
 export function getPbFeplogRowKey(log) {
   const lt = log.log_type != null ? String(log.log_type) : 'na';
+  const canonicalTime = log.log_time ?? '';
   const id =
     log.id != null
       ? String(log.id)
-      : `${log.log_timestamp}-${log.tr_code}-${log.user_id ?? log.login_id ?? ''}`;
+      : `${canonicalTime}-${log.tr_code}-${log.user_id ?? log.login_id ?? ''}`;
   return `${lt}-${id}`;
 }
 
@@ -203,7 +204,7 @@ const LogTable = ({
                         {isExpanded ? '▾' : '▸'}
                       </span>
                       <span className="pb-fep-timestamp-value">
-                        {formatTime(log.log_timestamp || log.timestamp || log.prc_time || log.log_time)}
+                        {formatTime(log.log_time || log.timestamp || log.prc_time)}
                       </span>
                     </div>
                   </td>
@@ -241,7 +242,7 @@ const LogTable = ({
           return (
             <React.Fragment key={rowKey}>
               <tr>
-                <td>{formatTime(log.log_timestamp || log.timestamp || log.prc_time || log.log_time)}</td>
+                <td>{formatTime(log.log_time || log.timestamp || log.prc_time)}</td>
                 <td>{log.tr_code || log.trCode}</td>
                 <td>{log.user_id || log.loginId || log.brodid}</td>
                 <td>{log.status_code || log.msg_code}</td>

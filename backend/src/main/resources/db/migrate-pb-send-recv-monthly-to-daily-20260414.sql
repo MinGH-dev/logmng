@@ -1,4 +1,5 @@
--- One-time: monthly RANGE partitions (pb_*_YYYYMM) -> daily (pb_*_YYYYMMDD) on log_timestamp.
+-- One-time: monthly RANGE partitions (pb_*_YYYYMM) -> daily (pb_*_YYYYMMDD) on log_time.
+-- log_timestamp is physically removed by dedicated migration script.
 -- Prerequisites: migrate-pb-send-recv-partitioning-20260408.sql (legacy monthly) already applied.
 --
 -- Idempotency:
@@ -80,6 +81,10 @@ BEGIN
                     );
                 END IF;
                 EXECUTE format(
+                    'DROP TRIGGER IF EXISTS update_pb_send_updated_at ON %I',
+                    pnm
+                );
+                EXECUTE format(
                     'CREATE TRIGGER update_pb_send_updated_at BEFORE UPDATE ON %I FOR EACH ROW EXECUTE FUNCTION update_updated_at_column()',
                     pnm
                 );
@@ -126,6 +131,10 @@ BEGIN
                         (d + 1)::TEXT
                     );
                 END IF;
+                EXECUTE format(
+                    'DROP TRIGGER IF EXISTS update_pb_recv_updated_at ON %I',
+                    pnm
+                );
                 EXECUTE format(
                     'CREATE TRIGGER update_pb_recv_updated_at BEFORE UPDATE ON %I FOR EACH ROW EXECUTE FUNCTION update_updated_at_column()',
                     pnm

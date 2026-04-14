@@ -331,12 +331,15 @@ apply_split_pb_migrations_and_grants() {
     run_sql_file_sp_pb "$DB_PB_NAME" "$sp_pb" "$SCRIPT_DIR/migrate-pb-fep-pagination-bmsg-sample-20260330.sql"
     echo "   ✅ PB FEP pagination/bmsg 샘플(PB DB)"
   fi
-  # Order: (1) ordinary -> partitioned + daily window + DEFAULT — migrate-pb-send-recv-partitioning-20260408.sql
-  #        (2) legacy monthly *_YYYYMM -> daily *_YYYYMMDD — migrate-pb-send-recv-monthly-to-daily-20260414.sql (no-op if no monthly children)
+  # Order: (1) ordinary -> partitioned + daily window (no DEFAULT) — migrate-pb-send-recv-partitioning-20260408.sql
+  #        (2) legacy monthly *_YYYYMM -> daily *_YYYYMMDD — migrate-pb-send-recv-monthly-to-daily-20260414.sql
+  #        (3) rebuild to RANGE(log_time) and drop log_timestamp — migrate-pb-send-recv-remove-log-timestamp-20260414.sql
   echo "5-pb-fep-partition. PB FEP(pb_send/pb_recv) 파티셔닝(split, DB=${DB_PB_NAME})..."
   run_sql_file_sp_pb "$DB_PB_NAME" "$sp_pb" "$SCRIPT_DIR/migrate-pb-send-recv-partitioning-20260408.sql"
   echo "5-pb-fep-partition-daily-upgrade. PB FEP 월파티션→일파티션(20260414, 멱등)..."
   run_sql_file_sp_pb "$DB_PB_NAME" "$sp_pb" "$SCRIPT_DIR/migrate-pb-send-recv-monthly-to-daily-20260414.sql"
+  echo "5-pb-fep-drop-log-timestamp. PB FEP log_timestamp 물리 제거(20260414, 멱등)..."
+  run_sql_file_sp_pb "$DB_PB_NAME" "$sp_pb" "$SCRIPT_DIR/migrate-pb-send-recv-remove-log-timestamp-20260414.sql"
   echo "   ✅ PB FEP 파티셔닝 + 일단위 정렬 마이그레이션(PB DB)"
   echo "5-pb-split-grant. PB 스키마 GRANT (${SCHEMA_PB} → ${DB_USER})..."
   grant_schema_objects_pb "$DB_PB_NAME" "$SCHEMA_PB" "$DB_USER"
@@ -689,12 +692,15 @@ else
     echo "   ✅ PB FEP pagination/bmsg 샘플 적용(재실행 시 seed 행만 삭제 후 재삽입)"
   fi
 
-  # Order: (1) ordinary -> partitioned + daily window + DEFAULT — migrate-pb-send-recv-partitioning-20260408.sql
-  #        (2) legacy monthly *_YYYYMM -> daily — migrate-pb-send-recv-monthly-to-daily-20260414.sql (no-op if no monthly children)
+  # Order: (1) ordinary -> partitioned + daily window (no DEFAULT) — migrate-pb-send-recv-partitioning-20260408.sql
+  #        (2) legacy monthly *_YYYYMM -> daily — migrate-pb-send-recv-monthly-to-daily-20260414.sql
+  #        (3) rebuild to RANGE(log_time) and drop log_timestamp — migrate-pb-send-recv-remove-log-timestamp-20260414.sql
   echo "5-pb-fep-partition. PB FEP(pb_send/pb_recv) 파티셔닝 전환(데이터 보존형, 일 단위 사전창, 20260408)..."
   run_sql_file_sp "$DB_A_NAME" "$SP_APP" "$SCRIPT_DIR/migrate-pb-send-recv-partitioning-20260408.sql"
   echo "5-pb-fep-partition-daily-upgrade. PB FEP 월→일 파티션(20260414, 멱등)..."
   run_sql_file_sp "$DB_A_NAME" "$SP_APP" "$SCRIPT_DIR/migrate-pb-send-recv-monthly-to-daily-20260414.sql"
+  echo "5-pb-fep-drop-log-timestamp. PB FEP log_timestamp 물리 제거(20260414, 멱등)..."
+  run_sql_file_sp "$DB_A_NAME" "$SP_APP" "$SCRIPT_DIR/migrate-pb-send-recv-remove-log-timestamp-20260414.sql"
   echo "   ✅ PB FEP 파티셔닝 마이그레이션 적용(이미 일 단위·멱등 경로면 no-op)"
 fi
 

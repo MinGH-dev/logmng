@@ -42,8 +42,31 @@ const cyclePbSort = (prev, key) => {
 };
 
 const specsFromCriteria = (criteria) => {
-  const c = criteria && criteria.length > 0 ? criteria : [{ key: 'log_timestamp', direction: 'desc' }];
+  const c = criteria && criteria.length > 0 ? criteria : [{ key: 'log_time', direction: 'desc' }];
   return c.map((s) => ({ field: s.key, direction: s.direction }));
+};
+
+const normalizePbFepDateParam = (value) => {
+  if (value == null) return value;
+  const raw = String(value).trim();
+  if (raw === '') return '';
+
+  const match = raw.match(
+    /^(\d{4})-(\d{2})-(\d{2})[T ](\d{2}):(\d{2})(?::(\d{2}))?$/
+  );
+  if (!match) return value;
+
+  const [, y, m, d, hh, mm, ss] = match;
+  return `${y}-${m}-${d} ${hh}:${mm}:${ss || '00'}`;
+};
+
+const normalizePbFepSearchParams = (params) => {
+  if (!params || typeof params !== 'object') return params;
+  return {
+    ...params,
+    startDate: normalizePbFepDateParam(params.startDate),
+    endDate: normalizePbFepDateParam(params.endDate),
+  };
 };
 
 const LogGrid = ({
@@ -69,8 +92,8 @@ const LogGrid = ({
   const [totalPages, setTotalPages] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
   const [pageSize, setPageSize] = useState(25);
-  const [sortConfig, setSortConfig] = useState({ key: 'log_timestamp', direction: 'desc' });
-  const [sortCriteria, setSortCriteria] = useState([{ key: 'log_timestamp', direction: 'desc' }]);
+  const [sortConfig, setSortConfig] = useState({ key: 'log_time', direction: 'desc' });
+  const [sortCriteria, setSortCriteria] = useState([{ key: 'log_time', direction: 'desc' }]);
   const [expandedRowKeys, setExpandedRowKeys] = useState(() => new Set());
   /**
    * PB FEP (pb_feplog): cross-page "전체 펼치기" intent (req 20260330).
@@ -118,10 +141,10 @@ const LogGrid = ({
   // 로그 타입에 따라 기본 정렬 필드 설정 (초기화 시 한 번만)
   useEffect(() => {
     if (!logType) return;
-    if (logType.id === 'java_fw_imglog' && sortConfig.key === 'log_timestamp') {
+    if (logType.id === 'java_fw_imglog' && sortConfig.key === 'log_time') {
       setSortConfig({ key: 'insert_time', direction: sortConfig.direction });
     } else if (logType.id === 'pb_feplog' && sortConfig.key === 'insert_time') {
-      setSortConfig({ key: 'log_timestamp', direction: sortConfig.direction });
+      setSortConfig({ key: 'log_time', direction: sortConfig.direction });
     }
     // 의도: logType 변경 시에만 정렬 키 동기화. sortConfig 의존 시 불필요 재실행·루프 가능
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -129,7 +152,7 @@ const LogGrid = ({
 
   useEffect(() => {
     if (logType?.id === 'pb_feplog') {
-      setSortCriteria([{ key: 'log_timestamp', direction: 'desc' }]);
+      setSortCriteria([{ key: 'log_time', direction: 'desc' }]);
       setExpandedRowKeys(new Set());
       expandAllActiveRef.current = false;
       setExpandAllActive(false);
@@ -255,7 +278,9 @@ const LogGrid = ({
     });
     if (!preserveApprovalId) setCurrentApprovalId(null);
     setLoading(true);
-    setSearchParams(params);
+    const isPb = logType?.id === 'pb_feplog';
+    const normalizedParams = isPb ? normalizePbFepSearchParams(params) : params;
+    setSearchParams(normalizedParams);
     setCurrentPage(1);
     if (logType?.id === 'pb_feplog') {
       setExpandedRowKeys(new Set());
@@ -264,9 +289,8 @@ const LogGrid = ({
     }
 
     try {
-      const isPb = logType?.id === 'pb_feplog';
       const requestData = {
-        ...params,
+        ...normalizedParams,
         logType: logType.id,
         page: 1,
         pageSize,

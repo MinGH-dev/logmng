@@ -142,21 +142,22 @@ PB FEP 로그 검색 API는 `pb_send`와 `pb_recv`를 UNION ALL로 조회하며,
 8. **`setup.sh` 단계 4h (`permission_group_screen` 컬럼)**: init-data(5단계) 이전에 DB A에서 다음 네 파일을 **순서대로** 적용 — `migrate-permission-group-screen-scope.sql` → `migrate-permission-group-screen-functions.sql` → `migrate-permission-group-screen-decrypt.sql` → `migrate-permission-group-screen-scope-team.sql`. 신규 설치는 `schema_sys.sql`에 컬럼이 이미 있어 no-op; 레거시 테이블만 실제 DDL이 수행됨. **전체 `setup.sh`를 다시 돌릴 수 없는** 환경에서는 동일 순서로 수동 실행하되 `SET search_path TO SCHEMA_SYS, SCHEMA_PB, public`(또는 운영 환경 변수에 맞는 스키마)을 사용합니다. 점검: `check-db.sh` 6b. 요구사항: `docs/requirements/20260320-permission-group-screen-entry-error-migration-check.md`.  
 실제 일괄 실행은 `backend/src/main/resources/db/setup.sh`가 위 순서와 변수를 사용합니다. 점검은 `check-db.sh`로 동일 변수를 넘겨 실행합니다.
 
-### PB FEP `pb_send` / `pb_recv` 파티셔닝 (일 단위, `log_timestamp`)
+### PB FEP `pb_send` / `pb_recv` 파티셔닝 (일 단위, `log_time`)
 
 영문 수동 적용·검증 절차(와이어 DDL 순서, `psql` 스모크, 앱 연결 확인): [`docs/operations/PB-FEP-WIRE-DB-APPLY.md`](../docs/operations/PB-FEP-WIRE-DB-APPLY.md).
 
-- **컬럼 (와이어 정렬)**: `schema_pb_fep.sql`은 레거시 PB FEP 와이어 필드명·길이(`log_time`, `media_gb`, `brodid`, `bmsg`, `data`, …)와 **`log_timestamp`**(검색·파티션용 `TIMESTAMP NOT NULL`), 레거시 `"timestamp"` 문자열용 **`wire_ts`**, 감사 **`created_at`/`updated_at`** 를 정의한다. **`log_timestamp`** 는 적재/마이그레이션 시 `prc_time`·`log_time`·`wire_ts` 파싱 등 **문서화된 규칙**으로 채운다(문자열만으로 RANGE 경계를 두지 않음). **`loginId`** 필터는 **`brodid`** 와 동일 의미(요구사항 `20260414-pb-fep-wire-schema-alignment`).
-- **범위 분할**: 부모 테이블명은 그대로 `pb_send`, `pb_recv`(API·계약 불변). 키는 **`log_timestamp`** TIMESTAMP. 각 일 파티션은 **`[D 00:00:00, D+1 00:00:00)`** (날짜 `D`는 `timestamp` 경계로 문자열 전달; DB 세션/저장 값과 일관되게 운영).
-- **이름 규칙**: 사전 생성 분할은 **`pb_send_YYYYMMDD`**, **`pb_recv_YYYYMMDD`**. 범위 밖·미리 만들지 않은 날은 **`pb_send_default`** / **`pb_recv_default`** 로 적재.
-- **신규 설치(그린필드)**: `migrate-pb-send-recv-partitioning-20260408.sql`이 일반 테이블을 부모+DEFAULT로 바꾼 뒤, **실행 시점의 `CURRENT_DATE` 기준 이전 30일 ~ 이후 7일**(양 끝 포함)에 대해 일 파티션을 만든다. 이후 날짜는 운영에서 `CREATE TABLE … PARTITION OF …`로 추가하거나, 유지보수 창에서 `setup.sh`를 다시 돌려 창을 갱신할 수 있다(데이터 보존형 DDL은 이미 파티션된 경우 no-op).
-- **유지보수 (이미 RANGE 부모만 있는 경우)**: 데이터 이전 없이 일 단위 자식만 미리 만들거나 주기적으로 창을 맞추려면 `create-pb-send-recv-daily-partitions-only.sql`을 `SET search_path TO SCHEMA_PB, public` 후 실행한다(스크립트 상단 `back_days`/`fwd_days` 조정 가능). **이 스크립트는 DEFAULT 파티션을 만들지 않으며**, 사전 생성된 일 범위 밖 `log_timestamp`는 INSERT가 실패한다(창 확장 후 적재). 예: 주간 크론 또는 부하 전 사전 창 확장.
+- **컬럼 (와이어 정렬)**: `schema_pb_fep.sql`은 레거시 PB FEP 와이어 필드명·길이(`log_time`, `media_gb`, `brodid`, `bmsg`, `data`, …), 레거시 `"timestamp"` 문자열용 **`wire_ts`**, 감사 **`created_at`/`updated_at`** 를 정의한다. **`log_timestamp`는 물리적으로 제거**되며, ingest 실패 원인 제거를 위해 신규/기존 환경 모두 제거 상태를 유지한다. **`loginId`** 필터는 **`brodid`** 와 동일 의미.
+- **범위 분할**: 부모 테이블명은 그대로 `pb_send`, `pb_recv`(API·계약 불변). 키는 **`log_time`**(문자열 `YYYYMMDD...` prefix 기준)이며 일 파티션 경계는 각 일의 시작 문자열(`YYYYMMDD0000000`)을 사용한다.
+- **이름 규칙**: 사전 생성 분할은 **`pb_send_YYYYMMDD`**, **`pb_recv_YYYYMMDD`**. 운영 정책은 **DEFAULT 미사용**이며, 범위 밖 데이터는 먼저 일 파티션 창을 확장한 뒤 적재한다.
+- **신규 설치(그린필드)**: `migrate-pb-send-recv-partitioning-20260408.sql`이 일반 테이블을 **DEFAULT 없이** 일 단위 부모로 전환하고, **실행 시점의 `CURRENT_DATE` 기준 이전 30일 ~ 이후 7일**(양 끝 포함)에 대해 일 파티션을 만든다. 이후 날짜는 운영에서 `CREATE TABLE … PARTITION OF …`로 추가하거나, 유지보수 창에서 `setup.sh`를 다시 돌려 창을 갱신할 수 있다(데이터 보존형 DDL은 이미 파티션된 경우 no-op).
+- **유지보수 (이미 RANGE 부모만 있는 경우)**: 데이터 이전 없이 일 단위 자식만 미리 만들거나 주기적으로 창을 맞추려면 `create-pb-send-recv-daily-partitions-only.sql`을 `SET search_path TO SCHEMA_PB, public` 후 실행한다(스크립트 상단 `back_days`/`fwd_days` 조정 가능). **이 스크립트는 DEFAULT 파티션을 만들지 않으며**, 사전 생성된 일 범위 밖 `log_time`은 INSERT가 실패한다(창 확장 후 적재). 예: 주간 크론 또는 부하 전 사전 창 확장.
 - **기존 DB(월 단위 `pb_*_YYYYMM`만 있는 경우)**: **전체 백업 후** `migrate-pb-send-recv-monthly-to-daily-20260414.sql`을 한 번 실행한다. 월 자식을 detach → 해당 월의 일 단위 자식 생성 → 부모로 행 이동 → 월 테이블 삭제. 이미 일 단위만 있으면 **NOTICE만 하고 종료**(멱등).
 - **`setup.sh` 적용 순서 (단일 DB·split-PB 공통)**:  
   1) `migrate-pb-send-recv-partitioning-20260408.sql`  
   2) `migrate-pb-send-recv-monthly-to-daily-20260414.sql`  
+  3) `migrate-pb-send-recv-remove-log-timestamp-20260414.sql`  
   주석: `setup.sh`의 `5-pb-fep-partition` / `5-pb-fep-partition-daily-upgrade` 단계.
-- **점검**: `check-db.sh` **6i** — `pb_send`가 파티션 부모일 때 월 단위(`YYYYMM`) 자식 잔존 여부·`pg_partition_tree` 행 수(참고).
+- **점검**: `check-db.sh` **6i/6j** — `pb_send`/`pb_recv` 파티션 부모에서 월 단위(`YYYYMM`) 자식, DEFAULT 파티션 잔존 여부, `log_timestamp` 물리 제거 여부를 함께 확인한다.
 - **운영 창·락**: `DETACH`/`INSERT`/`DROP`은 테이블 크기에 따라 장시간 락이 날 수 있음. **가급적 유지보수 시간대**에 실행.
 - **롤백**: 스크립트 역DDL을 표준화하지 않음. **백업에서 복원**이 1차 복구 수단이다.
 - **권한**: `DETACH PARTITION` 등은 **테이블 소유자 또는 슈퍼유저**가 필요하다. `setup.sh`는 `DB_SUPERUSER`/`DB_PB_SUPERUSER`로 SQL을 실행하므로 일반과 동일하다. **수동 `psql`** 로 20260414만 적용할 때는 `setup.sh`와 동일한 슈퍼유저(또는 소유자)를 사용한다.
@@ -266,17 +267,17 @@ SELECT COUNT(*) FROM pb_recv;
 
 ### pb_send / pb_recv (송·수신 FEP 로그)
 
-- **정의**: `backend/src/main/resources/db/schema_pb_fep.sql` — 와이어 컬럼 집합은 송·수신 동일(UNION 호환). 요약 필드: `log_timestamp`(파티션·검색 시각), `brodid`(사용자/로그인 키), `media_gb`, `tr_code`, IP류(`pub_ip`/`prt_ip`), 본문·페이로드(`vlen`,`vhd`,`bmsg`,`data`), 레거시 시각 문자열 `wire_ts`, 감사 `created_at`/`updated_at`.
+- **정의**: `backend/src/main/resources/db/schema_pb_fep.sql` — 와이어 컬럼 집합은 송·수신 동일(UNION 호환). 요약 필드: `log_time`(제품/계약 기준 시간 및 파티션 키), `brodid`(사용자/로그인 키), `media_gb`, `tr_code`, IP류(`pub_ip`/`prt_ip`), 본문·페이로드(`vlen`,`vhd`,`bmsg`,`data`), 레거시 시각 문자열 `wire_ts`, 감사 `created_at`/`updated_at`.
 - **Primary key**: 비파티션(일반 테이블) 설치 시 `id` BIGSERIAL PK. 파티션 부모로 전환한 뒤에는 부모에 PK를 두지 않는 경로가 있음(`migrate-pb-send-recv-partitioning-20260408.sql` 주석 참고).
 
 ## 🔍 인덱스
 
 다음 인덱스가 `schema_pb_fep.sql`에서 생성됩니다(수신 동일):
-- `idx_pb_send_log_timestamp` / `idx_pb_recv_log_timestamp`
+- `idx_pb_send_log_time` / `idx_pb_recv_log_time`
 - `idx_pb_send_brodid` / `idx_pb_recv_brodid`
 - `idx_pb_send_media_gb` / `idx_pb_recv_media_gb`
 - `idx_pb_send_tr_code` / `idx_pb_recv_tr_code`
-- `idx_pb_send_search` / `idx_pb_recv_search` — `(log_timestamp, media_gb, tr_code)`
+- `idx_pb_send_search` / `idx_pb_recv_search` — `(log_time, media_gb, tr_code)`
 - `idx_pb_send_con_key` / `idx_pb_recv_con_key`
 
 ## ⚙️ 백엔드 설정

@@ -312,17 +312,23 @@ if [ "${AU_TABLE:-0}" = "1" ]; then
 fi
 echo ""
 
-# 6i. PB FEP range partitions (daily pb_*_YYYYMMDD vs legacy monthly YYYYMM) — optional sanity
-echo "6i. PB FEP 파티션 레이아웃 (SCHEMA_PB=${SCHEMA_PB}; 부모=pb_send/pb_recv)"
+# 6i. PB FEP range partitions (daily pb_*_YYYYMMDD vs legacy monthly YYYYMM, no DEFAULT) — optional sanity
+echo "6i. PB FEP 파티션 레이아웃 (SCHEMA_PB=${SCHEMA_PB}; 부모=pb_send/pb_recv; 파티션 키=log_time, no DEFAULT)"
 if [ "$SEND_TABLE" = "1" ]; then
-  PB_SEND_KIND=$(psql_app -d "$DB_A_NAME" -tAc "SET search_path TO ${SCHEMA_PB}, public; SELECT c.relkind FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace WHERE n.nspname='${SCHEMA_PB}' AND c.relname='pb_send';" 2>/dev/null | tr -d '[:space:]' || echo "")
+  PB_SEND_KIND=$(psql_app -d "$DB_A_NAME" -tAc "SELECT c.relkind FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace WHERE n.nspname='${SCHEMA_PB}' AND c.relname='pb_send';" 2>/dev/null | tr -d '[:space:]' || echo "")
   if [ "$PB_SEND_KIND" = "p" ]; then
     PB_MON=$(psql_app -d "$DB_A_NAME" -tAc "SET search_path TO ${SCHEMA_PB}, public; SELECT COUNT(*) FROM pg_inherits i JOIN pg_class c ON c.oid = i.inhrelid WHERE i.inhparent = 'pb_send'::regclass AND c.relname ~ '^pb_send_[0-9]{6}\$';" 2>/dev/null | tail -1 | tr -d '[:space:]' || echo "0")
     PB_DAY=$(psql_app -d "$DB_A_NAME" -tAc "SET search_path TO ${SCHEMA_PB}, public; SELECT COUNT(*) FROM pg_inherits i JOIN pg_class c ON c.oid = i.inhrelid WHERE i.inhparent = 'pb_send'::regclass AND c.relname ~ '^pb_send_[0-9]{8}\$';" 2>/dev/null | tail -1 | tr -d '[:space:]' || echo "0")
+    PB_DEF=$(psql_app -d "$DB_A_NAME" -tAc "SET search_path TO ${SCHEMA_PB}, public; SELECT COUNT(*) FROM pg_inherits i JOIN pg_class c ON c.oid = i.inhrelid WHERE i.inhparent = 'pb_send'::regclass AND pg_get_expr(c.relpartbound, c.oid) = 'DEFAULT';" 2>/dev/null | tail -1 | tr -d '[:space:]' || echo "0")
     if [ "${PB_MON:-0}" != "0" ]; then
       echo "   ⚠️  pb_send에 월 단위 자식(pb_*_YYYYMM) ${PB_MON}개 — migrate-pb-send-recv-monthly-to-daily-20260414.sql 적용 검토"
     else
       echo "   ✅ pb_send: 월 단위(YYYYMM) 자식 없음; 일 단위(YYYYMMDD) 자식 ${PB_DAY:-0}개"
+    fi
+    if [ "${PB_DEF:-0}" = "0" ]; then
+      echo "   ✅ pb_send: DEFAULT 파티션 없음 (정책 일치)"
+    else
+      echo "   ❌ pb_send: DEFAULT 파티션 ${PB_DEF}개 존재 — migrate-pb-send-recv-partitioning-20260408.sql 재적용 또는 운영 정리 필요"
     fi
     PB_TREE=$(psql_app -d "$DB_A_NAME" -tAc "SET search_path TO ${SCHEMA_PB}, public; SELECT COUNT(*) FROM pg_partition_tree('pb_send');" 2>/dev/null | tail -1 | tr -d '[:space:]' || echo "0")
     if [ "${PB_TREE:-0}" != "0" ]; then
@@ -333,6 +339,46 @@ if [ "$SEND_TABLE" = "1" ]; then
   fi
 else
   echo "   ℹ️  ${SCHEMA_PB}.pb_send 없음 (split-PB 등 다른 DB에만 있을 수 있음) — 스킵"
+fi
+if [ "$RECV_TABLE" = "1" ]; then
+  PB_RECV_KIND=$(psql_app -d "$DB_A_NAME" -tAc "SELECT c.relkind FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace WHERE n.nspname='${SCHEMA_PB}' AND c.relname='pb_recv';" 2>/dev/null | tr -d '[:space:]' || echo "")
+  if [ "$PB_RECV_KIND" = "p" ]; then
+    PB_RECV_MON=$(psql_app -d "$DB_A_NAME" -tAc "SET search_path TO ${SCHEMA_PB}, public; SELECT COUNT(*) FROM pg_inherits i JOIN pg_class c ON c.oid = i.inhrelid WHERE i.inhparent = 'pb_recv'::regclass AND c.relname ~ '^pb_recv_[0-9]{6}\$';" 2>/dev/null | tail -1 | tr -d '[:space:]' || echo "0")
+    PB_RECV_DAY=$(psql_app -d "$DB_A_NAME" -tAc "SET search_path TO ${SCHEMA_PB}, public; SELECT COUNT(*) FROM pg_inherits i JOIN pg_class c ON c.oid = i.inhrelid WHERE i.inhparent = 'pb_recv'::regclass AND c.relname ~ '^pb_recv_[0-9]{8}\$';" 2>/dev/null | tail -1 | tr -d '[:space:]' || echo "0")
+    PB_RECV_DEF=$(psql_app -d "$DB_A_NAME" -tAc "SET search_path TO ${SCHEMA_PB}, public; SELECT COUNT(*) FROM pg_inherits i JOIN pg_class c ON c.oid = i.inhrelid WHERE i.inhparent = 'pb_recv'::regclass AND pg_get_expr(c.relpartbound, c.oid) = 'DEFAULT';" 2>/dev/null | tail -1 | tr -d '[:space:]' || echo "0")
+    if [ "${PB_RECV_MON:-0}" != "0" ]; then
+      echo "   ⚠️  pb_recv에 월 단위 자식(pb_*_YYYYMM) ${PB_RECV_MON}개 — migrate-pb-send-recv-monthly-to-daily-20260414.sql 적용 검토"
+    else
+      echo "   ✅ pb_recv: 월 단위(YYYYMM) 자식 없음; 일 단위(YYYYMMDD) 자식 ${PB_RECV_DAY:-0}개"
+    fi
+    if [ "${PB_RECV_DEF:-0}" = "0" ]; then
+      echo "   ✅ pb_recv: DEFAULT 파티션 없음 (정책 일치)"
+    else
+      echo "   ❌ pb_recv: DEFAULT 파티션 ${PB_RECV_DEF}개 존재 — migrate-pb-send-recv-partitioning-20260408.sql 재적용 또는 운영 정리 필요"
+    fi
+  else
+    echo "   ℹ️  pb_recv 파티션 부모 아님 (relkind=${PB_RECV_KIND:-unknown}) — 스킵"
+  fi
+fi
+echo ""
+
+# 6j. PB FEP log_timestamp 물리 제거 점검 (req 20260414 bugfix)
+echo "6j. PB FEP log_timestamp 물리 제거 점검 (SCHEMA_PB=${SCHEMA_PB})"
+if [ "$SEND_TABLE" = "1" ]; then
+  PB_SEND_TS_COL=$(psql_app -d "$DB_A_NAME" -tAc "SELECT COUNT(*) FROM information_schema.columns WHERE table_schema='${SCHEMA_PB}' AND table_name='pb_send' AND column_name='log_timestamp';" 2>/dev/null | tail -1 | tr -d '[:space:]' || echo "0")
+  if [ "${PB_SEND_TS_COL:-0}" = "0" ]; then
+    echo "   ✅ pb_send.log_timestamp 없음 (물리 제거 확인)"
+  else
+    echo "   ❌ pb_send.log_timestamp 존재 (${PB_SEND_TS_COL}) — ingest 실패 원인 가능, migrate-pb-send-recv-remove-log-timestamp-20260414.sql 적용 필요"
+  fi
+fi
+if [ "$RECV_TABLE" = "1" ]; then
+  PB_RECV_TS_COL=$(psql_app -d "$DB_A_NAME" -tAc "SELECT COUNT(*) FROM information_schema.columns WHERE table_schema='${SCHEMA_PB}' AND table_name='pb_recv' AND column_name='log_timestamp';" 2>/dev/null | tail -1 | tr -d '[:space:]' || echo "0")
+  if [ "${PB_RECV_TS_COL:-0}" = "0" ]; then
+    echo "   ✅ pb_recv.log_timestamp 없음 (물리 제거 확인)"
+  else
+    echo "   ❌ pb_recv.log_timestamp 존재 (${PB_RECV_TS_COL}) — ingest 실패 원인 가능, migrate-pb-send-recv-remove-log-timestamp-20260414.sql 적용 필요"
+  fi
 fi
 echo ""
 
