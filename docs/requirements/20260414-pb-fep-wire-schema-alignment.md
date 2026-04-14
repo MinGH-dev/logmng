@@ -203,18 +203,19 @@ Per `docs/workflow/REQUIREMENTS-CHANGE-TARGET-CHECKLIST.md`:
 
 ### Frontend verification
 
-- [ ] PB FEP v1 and v2 search rows render; sort/pagination work (not exercised in QA browser spot check; login-only)
-- [ ] No undefined column keys in table bindings
+- [x] PB FEP v1 (legacy **pb-feplog**): browser MCP — login, form visible, search submitted with date range 2026-04-13 + Login ID `local_decrypt` (TR Code filled `%` for required field); **rows not verified** — backend returned error (see §5 TC-09 / browser console).
+- [ ] PB FEP v2 wireframe screen (**pb-fep-log-search**) navigation + grid (not exercised in this run; blocked by same backend failure on authenticated curl).
+- [ ] No undefined column keys in table bindings (not re-validated beyond unit tests this run)
 
 ### Backend verification
 
 - [x] Unit tests updated and passing
-- [ ] ORDER BY allowlist enforced (covered by unit tests; no separate manual sign-off)
+- [x] ORDER BY allowlist enforced (covered by unit tests; no separate manual sign-off)
 
 ### Integration
 
 - [x] Health + DB connectivity after restart (`/api/health`, `/api/db/test`)
-- [ ] End-to-end search with real PB schema (optional; TC-09)
+- [ ] End-to-end search with **wire-aligned** PB schema (TC-09): **blocked on verifier DB** — PostgreSQL still has legacy 16-column `pb_send`/`pb_recv` (see §5); apply `schema_pb_fep.sql` + runbook before re-test.
 
 ### Documentation
 
@@ -228,25 +229,88 @@ Per `docs/workflow/REQUIREMENTS-CHANGE-TARGET-CHECKLIST.md`:
 
 ### Test run date
 
-- 2026-04-14 (QA verification)
+- 2026-04-14 — **full QA verification pass** (automated tests, restart, curls, `check-db.sh`, browser MCP). **E2E PB search blocked** by local PostgreSQL still on **legacy** `pb_send`/`pb_recv` layout (see blocker).
 
-### Test results
+### Pass / fail summary
+
+| Area | Result |
+|------|--------|
+| Backend `mvn test` | **Pass** (exit 0) |
+| Frontend `npm test -- --watchAll=false` | **Pass** (exit 0) |
+| Restart + health + frontend HTTP | **Pass** |
+| `GET /api/db/test` | **Pass** (`connected: true`; PB counts reported) |
+| TC-09 curl + UI PB search | **Blocked / Fail** on verifier DB (missing wire columns → HTTP 500) |
+| `check-db.sh` | **Pass** exit 0 with **warning** (column count vs wire expectation) |
+| Browser MCP (§3.5) | **Pass** for shell + login + PB FEP(old) search **attempt**; **no data grid** due to same server error |
+
+### Blocker (environment) — action for operators
+
+- **Symptom:** `POST /api/logs/db-refactored/search` with `logType=pb_feplog` returns **500** `INTERNAL_SERVER_ERROR`. Backend log: `PSQLException: ERROR: column "media_gb" does not exist` (`LogDbService.executePbFeplogUnionSearch`).
+- **Cause:** Connected PostgreSQL `pb_send` / `pb_recv` are still **simplified** (16 columns: `media_code`, `user_id`, …). `backend/src/main/resources/db/check-db.sh` reports: `pb_send 테이블 컬럼 수: 16 (예상: 45개 이상; 와이어 정렬 schema_pb_fep)`.
+- **Fix:** Apply wire-aligned DDL + data per **`docs/operations/PB-FEP-WIRE-DB-APPLY.md`** / `schema_pb_fep.sql`, then re-run TC-09 and browser PB search.
+
+### Auth note (dev seed — not a secret)
+
+- `init-data.sql` comment “user1 = **20260001**” refers to **`app_user.id`**, not local-login **`employeeNumber`**.
+- **`POST /api/auth/login`** (local mode) with `{"employeeNumber":"20260001","password":"user123"}` → **`success: false`**, `code: INVALID_CREDENTIALS` (no session cookie; **20260001** is `app_user.id`, not 사번).
+- Working session: **`{"employeeNumber":"20261001","password":"user123"}`** — matches `migrate-app-user-employee-number-display-backfill-20260409.sql` backfill for `user1`. Capture **`Set-Cookie: JSESSIONID`** for curl.
+
+### API integration (curl) — snippets
+
+1. **Login (success):**  
+   `curl -sS -c cookies.txt -H "Content-Type: application/json" -d '{"employeeNumber":"20261001","password":"user123"}' http://localhost:9200/api/auth/login`  
+   → `{"success":true,...}` and `JSESSIONID` in cookie jar.
+
+2. **`POST /api/logs/db-refactored/search`** (cookie `-b cookies.txt`):  
+   Body example: `{"logType":"pb_feplog","startDate":"2026-04-13 00:00:00","endDate":"2026-04-13 23:59:59","loginId":"local_decrypt","page":1,"pageSize":25}`  
+   → **`success": false`, `code": "INTERNAL_SERVER_ERROR`** (verifier DB legacy schema).
+
+3. **`POST /api/logs/db-refactored/pb-fep-log-search`:** same cookie, body `{"startDate":"2026-04-13 00:00:00","endDate":"2026-04-13 23:59:59","loginId":"local_decrypt","page":1,"pageSize":25}`  
+   → **401** without cookie; with cookie → same **500** class failure as search when DB mismatched.
+
+### Manual / DB
+
+- **`backend/src/main/resources/db/check-db.sh`:** exit **0**; **§6i** PB partition check **skipped** (`pb_send` not partitioned parent `relkind=SETp` on this instance); **§7** column-count **warning** (16 vs wire ≥45).
+- **`psql` smoke** `SELECT COUNT(*) FROM pb_send WHERE reserve='LDPT';` → **not run / N/A** — column `reserve` does not exist on legacy table (expected after wire migration only).
+
+### Browser MCP (verify.md §3.5)
+
+- **Tool:** `cursor-ide-browser` (project policy). **URL:** `http://localhost:3001`. **`browser_resize`:** 1920×1080. **Flow:** `browser_navigate` → `browser_lock` → wait → snapshot → fill → click.
+- **Login:** 사번 `20261001`, 비밀번호 dev seed `user123` → success (console: 로그인 성공).
+- **Screen:** sidebar **PB FEP(old)**; heading **PB FEP(old)**; set **시작/종료** `2026-04-13T00:00` / `2026-04-13T23:59:59`, **Login ID** `local_decrypt`, **TR Code** `%` (required indicator), **검색**.
+- **Result:** brief “데이터를 불러오는 중…” then no grid data in snapshot; **console** `검색 중 오류 발생` (debug) — consistent with backend 500 above. No captcha / field-name blocker.
+
+### §3 test case matrix (TC-01–TC-15)
+
+| ID | Result | Evidence (one line) |
+|----|--------|---------------------|
+| TC-01 | **Skip** | QA host DB not clean-applied wire DDL; `check-db` lists legacy columns only |
+| TC-02 | **Skip** | Partition parent not present (`check-db` 6i skip); not re-run |
+| TC-03 | **Skip** | No wire migration sample on this DB |
+| TC-04 | **Pass** | `mvn test` (LogDbService / H2 wire schema) |
+| TC-05 | **Pass** | `mvn test` |
+| TC-06 | **Pass** | `mvn test` |
+| TC-07 | **Pass** | `mvn test` |
+| TC-08 | **Pass** | `mvn test` |
+| TC-09 | **Blocked** | Authenticated curl + UI: **500** / `media_gb` missing on PostgreSQL |
+| TC-10 | **Pass** | `npm test` |
+| TC-11 | **Pass** | `npm test` |
+| TC-12 | **Pass** | `npm test` |
+| TC-13 | **Pass** | `mvn test` |
+| TC-14 | **Pass (warn)** | `check-db.sh` exit 0; PB column-count warning documents drift |
+| TC-15 | **Skip** | Contract grep not repeated in this QA run |
+
+### Command log (automated + verify)
 
 | Check | Command / step | Result | Notes |
 |-------|----------------|--------|--------|
-| Backend unit tests | `cd backend && mvn test` | **Pass** (exit 0) | Full suite; ~26 s wall time on verifier host |
-| Frontend unit tests | `cd frontend && npm test -- --watchAll=false` | **Pass** (exit 0) | 40 suites, 286 tests |
-| Verify: restart | `./scripts/dev-services.sh all restart` | **Pass** (exit 0) | DB + backend + frontend recycled |
-| Verify: backend health | `GET http://localhost:9200/api/health` | **Pass** | HTTP 200, JSON `success: true` |
-| Verify: frontend HTTP | `GET http://localhost:3001` | **Pass** | HTTP 200 |
-| Verify: DB connectivity | `GET http://localhost:9200/api/db/test` | **Pass** | `data.connected === true`, PB tables reported |
-| Browser spot check (§3.5) | cursor-ide-browser: navigate → lock → snapshot | **Pass** | `http://localhost:3001` — login shell (제목 "로그 관리 시스템", 사용자 ID/비밀번호/로그인) visible after load |
-
-**§3 mapping (automated vs manual):**
-
-- TC-04–TC-08, TC-13: covered by `mvn test` (LogDbService / routing / decrypt paths per implementation).
-- TC-10–TC-12: covered by `npm test` (LogGrid, SearchForm, LogTable suites).
-- TC-01–TC-03, TC-14, TC-15: manual / DBA / doc review per §3 (not re-executed in this QA run).
+| Backend unit tests | `cd backend && mvn test` | **Pass** (exit 0) | Full suite |
+| Frontend unit tests | `cd frontend && npm test -- --watchAll=false` | **Pass** (exit 0) | exit 0 on verifier host |
+| Verify: restart | `./scripts/dev-services.sh all restart` | **Pass** (exit 0) | First health curl after restart needed retry (~8 s insufficient once; subsequent `curl` → 200) |
+| Verify: backend health | `curl -s http://localhost:9200/api/health` | **Pass** | 200, `success: true` |
+| Verify: frontend HTTP | `curl -s -o /dev/null -w "%{http_code}" http://localhost:3001` | **Pass** | 200 |
+| Verify: DB connectivity | `curl -s http://localhost:9200/api/db/test` | **Pass** | `connected: true`; e.g. `pb_send_count` / `pb_recv_count` 189 each, `pbUsesPrimaryFallback: true` |
+| Browser §3.5 | cursor-ide-browser | **Pass** (UI path) / **Fail** (data) | Login + PB FEP(old) search; error state matches TC-09 |
 
 **Follow-up (generator, PB FEP seed, runbook — 2026-04-14):**
 
@@ -260,7 +324,7 @@ Per `docs/workflow/REQUIREMENTS-CHANGE-TARGET-CHECKLIST.md`:
 - [x] Backend: unit tests passing (`mvn test`)
 - [x] Frontend: unit tests passing where applicable (`npm test`)
 - [x] Integration smoke: health + DB test API after restart
-- [ ] Full E2E PB FEP search with production-like data (optional follow-up)
+- [ ] Full E2E PB FEP search on **wire-aligned** PostgreSQL (blocked until DB apply; optional re-run after migration)
 
 ---
 
