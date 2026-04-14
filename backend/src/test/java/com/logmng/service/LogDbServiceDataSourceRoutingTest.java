@@ -41,16 +41,13 @@ class LogDbServiceDataSourceRoutingTest {
     }
 
     private static void createPbTables(Statement stmt) throws Exception {
-        stmt.execute("CREATE TABLE IF NOT EXISTS pb_send (" +
-                "id BIGINT PRIMARY KEY, log_timestamp TIMESTAMP, media_code VARCHAR(50), tr_code VARCHAR(50)," +
-                "user_id VARCHAR(100), ip_address VARCHAR(50), user_agent VARCHAR(500), request_data CLOB, response_data CLOB," +
-                "status_code INT, response_time BIGINT, error_message CLOB, session_id VARCHAR(200), device_type VARCHAR(50)," +
-                "created_at TIMESTAMP, updated_at TIMESTAMP)");
-        stmt.execute("CREATE TABLE IF NOT EXISTS pb_recv (" +
-                "id BIGINT PRIMARY KEY, log_timestamp TIMESTAMP, media_code VARCHAR(50), tr_code VARCHAR(50)," +
-                "user_id VARCHAR(100), ip_address VARCHAR(50), user_agent VARCHAR(500), request_data CLOB, response_data CLOB," +
-                "status_code INT, response_time BIGINT, error_message CLOB, session_id VARCHAR(200), device_type VARCHAR(50)," +
-                "created_at TIMESTAMP, updated_at TIMESTAMP)");
+        String wirePb = "id BIGINT PRIMARY KEY, log_timestamp TIMESTAMP NOT NULL, log_ch_cd VARCHAR(6), log_io_cd VARCHAR(1),"
+                + " tr_code VARCHAR(8), brodid VARCHAR(16), media_gb VARCHAR(2), pub_ip VARCHAR(12), prt_ip VARCHAR(12),"
+                + " prc_time VARCHAR(9), msg_code VARCHAR(4), term_no VARCHAR(8),"
+                + " vlen CLOB, vhd CLOB, bmsg CLOB, data CLOB, wire_ts VARCHAR(19),"
+                + " created_at TIMESTAMP, updated_at TIMESTAMP";
+        stmt.execute("CREATE TABLE IF NOT EXISTS pb_send (" + wirePb + ")");
+        stmt.execute("CREATE TABLE IF NOT EXISTS pb_recv (" + wirePb + ")");
     }
 
     private static void createImagelogTable(Statement stmt) throws Exception {

@@ -1,7 +1,5 @@
 package com.logmng.util;
 
-import org.apache.commons.codec.binary.Base64;
-
 import javax.crypto.Cipher;
 import javax.crypto.SecretKey;
 import javax.crypto.SecretKeyFactory;
@@ -11,6 +9,7 @@ import javax.crypto.spec.SecretKeySpec;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.security.AlgorithmParameters;
+import java.util.Base64;
 import java.security.NoSuchAlgorithmException;
 import java.security.spec.InvalidKeySpecException;
 
@@ -63,7 +62,7 @@ public final class ProObjectAesCipher {
         System.arraycopy(SALTS, 0, buffer, 0, SALTS.length);
         System.arraycopy(ivBytes, 0, buffer, SALTS.length, ivBytes.length);
         System.arraycopy(encryptedBytes, 0, buffer, SALTS.length + ivBytes.length, encryptedBytes.length);
-        String b64 = new String(Base64.encodeBase64(buffer), StandardCharsets.US_ASCII);
+        String b64 = Base64.getEncoder().encodeToString(buffer);
         return prefixE002 ? (E002 + b64) : b64;
     }
 
@@ -78,7 +77,7 @@ public final class ProObjectAesCipher {
         if (stripE002IfPresent && working.startsWith(E002)) {
             working = working.substring(E002.length());
         }
-        byte[] all = Base64.decodeBase64(working.getBytes(StandardCharsets.UTF_8));
+        byte[] all = Base64.getDecoder().decode(working.getBytes(StandardCharsets.US_ASCII));
         int blockSize = 16;
         if (all.length < SALTS.length + blockSize + 1) {
             throw new IllegalArgumentException("decoded payload too short");

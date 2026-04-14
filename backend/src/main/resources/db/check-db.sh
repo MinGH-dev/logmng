@@ -340,10 +340,10 @@ echo ""
 echo "7. 테이블 구조 확인"
 if [ "$SEND_TABLE" = "1" ]; then
   COLUMN_COUNT=$(psql_app -d "$DB_A_NAME" -tAc "SELECT COUNT(*) FROM information_schema.columns WHERE table_schema='${SCHEMA_PB}' AND table_name='pb_send';" 2>/dev/null || echo "0")
-  if [ "${COLUMN_COUNT:-0}" -ge "15" ]; then
+  if [ "${COLUMN_COUNT:-0}" -ge "45" ]; then
     echo "   ✅ pb_send 테이블 컬럼 수: $COLUMN_COUNT (정상)"
   else
-    echo "   ⚠️  pb_send 테이블 컬럼 수: $COLUMN_COUNT (예상: 15개 이상)"
+    echo "   ⚠️  pb_send 테이블 컬럼 수: $COLUMN_COUNT (예상: 45개 이상; 와이어 정렬 schema_pb_fep)"
   fi
 fi
 echo ""

@@ -175,19 +175,31 @@ WHERE NOT EXISTS (SELECT 1 FROM search_history LIMIT 1);
 -- Installers should apply init-data.sql through setup.sh so session search_path matches
 -- SCHEMA_PB, aligned with app.db.schema and JDBC pool init SQL (DataSourceConfig / PgSchemaSupport).
 
--- 송신 로그 샘플 데이터
-INSERT INTO pb_send (log_timestamp, media_code, tr_code, user_id, ip_address, user_agent, request_data, response_data, status_code, response_time, session_id, device_type)
+-- 송신 로그 샘플 데이터 (와이어 컬럼; loginId 필터는 brodid 기준 — 요구사항 20260414-pb-fep-wire-schema-alignment)
+INSERT INTO pb_send (
+    log_timestamp, media_gb, tr_code, brodid, pub_ip, prt_ip, log_ch_cd,
+    prc_time, msg_code, data, bmsg, con_key, vhd, wire_ts
+)
 VALUES
-    ('2025-10-10 10:00:00', 'A', 'SAAAA100', 'user001', '192.168.1.100', 'Mozilla/5.0', 'encrypted_request_data_1', 'encrypted_response_data_1', 200, 150, 'session001', 'PC'),
-    ('2025-10-10 10:05:00', 'B', 'SBBBB100', 'user002', '192.168.1.101', 'Mozilla/5.0', 'encrypted_request_data_2', 'encrypted_response_data_2', 200, 120, 'session002', 'Mobile'),
-    ('2025-10-10 10:10:00', 'C', 'SCCCC100', 'user003', '192.168.1.102', 'Mozilla/5.0', 'encrypted_request_data_3', 'encrypted_response_data_3', 200, 180, 'session003', 'PC');
+    ('2025-10-10 10:00:00', '01', 'SAAAA100', 'user001', '192.168.1.10', '192.168.1.10', 'PC    ',
+     '100000000', '0200', 'encrypted_request_data_1', 'encrypted_response_data_1', rpad('session001', 18), 'Mozilla/5.0', '2025-10-10 10:00:00'),
+    ('2025-10-10 10:05:00', '02', 'SBBBB100', 'user002', '192.168.1.11', '192.168.1.11', 'MOB   ',
+     '100500000', '0200', 'encrypted_request_data_2', 'encrypted_response_data_2', rpad('session002', 18), 'Mozilla/5.0', '2025-10-10 10:05:00'),
+    ('2025-10-10 10:10:00', '03', 'SCCCC100', 'user003', '192.168.1.12', '192.168.1.12', 'PC    ',
+     '101000000', '0200', 'encrypted_request_data_3', 'encrypted_response_data_3', rpad('session003', 18), 'Mozilla/5.0', '2025-10-10 10:10:00');
 
 -- 수신 로그 샘플 데이터
-INSERT INTO pb_recv (log_timestamp, media_code, tr_code, user_id, ip_address, user_agent, request_data, response_data, status_code, response_time, session_id, device_type)
+INSERT INTO pb_recv (
+    log_timestamp, media_gb, tr_code, brodid, pub_ip, prt_ip, log_ch_cd,
+    prc_time, msg_code, data, bmsg, con_key, vhd, wire_ts
+)
 VALUES
-    ('2025-10-10 10:01:00', 'A', 'RAAAA100', 'user001', '192.168.1.100', 'Mozilla/5.0', 'encrypted_request_data_1', 'encrypted_response_data_1', 200, 100, 'session001', 'PC'),
-    ('2025-10-10 10:06:00', 'B', 'RBBBB100', 'user002', '192.168.1.101', 'Mozilla/5.0', 'encrypted_request_data_2', 'encrypted_response_data_2', 200, 110, 'session002', 'Mobile'),
-    ('2025-10-10 10:11:00', 'C', 'RCCCC100', 'user003', '192.168.1.102', 'Mozilla/5.0', 'encrypted_request_data_3', 'encrypted_response_data_3', 200, 130, 'session003', 'PC');
+    ('2025-10-10 10:01:00', '01', 'RAAAA100', 'user001', '192.168.1.10', '192.168.1.10', 'PC    ',
+     '100100000', '0200', 'encrypted_request_data_1', 'encrypted_response_data_1', rpad('session001', 18), 'Mozilla/5.0', '2025-10-10 10:01:00'),
+    ('2025-10-10 10:06:00', '02', 'RBBBB100', 'user002', '192.168.1.11', '192.168.1.11', 'MOB   ',
+     '100600000', '0200', 'encrypted_request_data_2', 'encrypted_response_data_2', rpad('session002', 18), 'Mozilla/5.0', '2025-10-10 10:06:00'),
+    ('2025-10-10 10:11:00', '03', 'RCCCC100', 'user003', '192.168.1.12', '192.168.1.12', 'PC    ',
+     '101100000', '0200', 'encrypted_request_data_3', 'encrypted_response_data_3', rpad('session003', 18), 'Mozilla/5.0', '2025-10-10 10:11:00');
 
 
 

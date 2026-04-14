@@ -1,13 +1,14 @@
 # PB FEP wireframe log search — dedicated route for screen pb-fep-log-search
 # Requirement: docs/requirements/20260326-pb-fep-log-search-screen-wireframe.md
-# Contract: docs/contract.md (PB FEP wireframe search API), docs/api-definition.md §5.1.1
+# Contract: docs/contract.md (PB FEP wireframe search API + PB FEP wire schema aliases), docs/api-definition.md §5.1.1
 # Step 3 — API contract only; implementation: Backend/Frontend per handoff.
 
 ---
 metadata:
   title: "POST /api/logs/db-refactored/pb-fep-log-search"
-  version: "1.0"
+  version: "1.1"
   requirement: "20260326-pb-fep-log-search-screen-wireframe"
+  wire_schema_requirement: "20260414-pb-fep-wire-schema-alignment"
   status: "draft"
 
 ---
@@ -37,7 +38,7 @@ type LogDbSortSpec = { field: string; direction: 'asc' | 'desc' };
 type PbFepLogSearchRequest = {
   startDate: string;       // required (product): combined start bound
   endDate: string;       // required (product): combined end bound; start <= end
-  loginId: string;       // required, non-blank
+  loginId: string;       // required, non-blank; equality on wire brodid (same semantics as legacy /search user_id)
   trCode?: string;
   tr_code?: string;
   keywords?: string[];
@@ -65,20 +66,22 @@ type Pagination = {
   totalCount: number;
 };
 
+// Wireframe JSON keys are stable; values are sourced from pb_send/pb_recv wire-format columns
+// (requirement docs/requirements/20260414-pb-fep-wire-schema-alignment.md §2).
 type PbFepWireframeRow = {
   id: number;
   log_type: string;       // branch discriminator with id for stable React keys / expandedRowKeys
-  log_timestamp: string;
-  tr_code: string | null;
-  login_id: string | null;
-  msg_code: string | null;
-  bmsg: string | null;
-  log_ch_cd: string | null;
+  log_timestamp: string; // typed log_timestamp (canonical query + partition column)
+  tr_code: string | null; // wire tr_code
+  login_id: string | null; // wire brodid (same semantics as legacy POST .../search user_id)
+  msg_code: string | null; // wire msg_code
+  bmsg: string | null; // wire bmsg (or equivalent payload column per decrypt rules)
+  log_ch_cd: string | null; // wire log_ch_cd or equivalent
   send_recv: 'SEND' | 'RECV';
-  src_ip: string | null;
-  dest_ip: string;       // placeholder empty or "—" until DB column exists
-  app_id: string | null;
-  data: string | null;   // cell summary / stream source per product & decrypt rules
+  src_ip: string | null; // wire pub_ip
+  dest_ip: string;       // placeholder empty or "—" until dedicated wire column agreed
+  app_id: string | null; // agreed wire session/term-related field(s), or empty
+  data: string | null;   // wire data / payload summary per product & decrypt rules
   request_data?: string | null;
   response_data?: string | null;
 };
@@ -97,7 +100,26 @@ type PbFepLogSearchResponseData = {
 | 401 | UNAUTHORIZED | Not logged in |
 | 403 | LOG_TYPE_NOT_ALLOWED, FUNCTION_NOT_ALLOWED | No PB FEP / pb-fep-log-search access |
 
-# 6. References
+# 6. Wireframe row — DB / wire column sourcing (normative)
 
-- Field mapping (DB → wireframe keys): requirement §2.D
-- Sort behavior: requirement §2.G, notes §9 (cumulative sortSpecs)
+Requirement: `docs/requirements/20260414-pb-fep-wire-schema-alignment.md` §2. Legacy `POST /api/logs/db-refactored/search` (`logType=pb_feplog`) keeps stable keys `log_timestamp`, `media_code`, `tr_code`, `user_id` with physical sources `log_timestamp`, `media_gb`, `tr_code`, `brodid` — see `docs/contract.md` (PB FEP wire schema).
+
+| Wireframe JSON key | Physical / wire source |
+|--------------------|-------------------------|
+| `log_timestamp` | `log_timestamp` (typed; not raw varchar-only wire time) |
+| `tr_code` | `tr_code` |
+| `login_id` | `brodid` |
+| `msg_code` | `msg_code` |
+| `bmsg` | `bmsg` (payload rules per backend) |
+| `log_ch_cd` | `log_ch_cd` (or equivalent channel field) |
+| `send_recv` | Union branch: SEND / RECV |
+| `src_ip` | `pub_ip` |
+| `dest_ip` | Placeholder until product column exists |
+| `app_id` | Product mapping from wire fields |
+| `data` | `data` and related payload columns |
+
+# 7. References
+
+- Field mapping (UI → wireframe keys): `20260326-pb-fep-log-search-screen-wireframe` §2.D
+- Wire schema, partition key, legacy JSON aliases: `20260414-pb-fep-wire-schema-alignment` §2; `docs/contract.md` (PB FEP subsections)
+- Sort behavior: `20260326` §2.G, notes §9 (cumulative sortSpecs); sort field allowlist resolves legacy names to wire columns per contract

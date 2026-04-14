@@ -333,7 +333,7 @@
 | pageSize | integer | | 기본 10 |
 | sortField | string | | 기본 "log_timestamp" |
 | sortDirection | string | | 기본 "desc" |
-| sortSpecs | { field: string, direction: string }[] | | **pb_feplog only**: ordered multi-column sort; when non-empty, overrides sortField/sortDirection. `field` must be an allowlisted column (e.g. log_timestamp, tr_code, user_id). |
+| sortSpecs | { field: string, direction: string }[] | | **pb_feplog only**: ordered multi-column sort; when non-empty, overrides sortField/sortDirection. `field` must be an allowlisted name (stable JSON keys and legacy aliases such as `log_timestamp`, `tr_code`, `user_id`, `brodid`, `prc_time`, `bmsg`, `pub_ip` — resolved to wire physical columns per `docs/contract.md` § PB FEP wire schema). |
 | displayTemplate | string | | 기본 "detailed" |
 
 - **Response (data)**: `LogDbSearchResponse`
@@ -344,13 +344,13 @@
       - **`hasEncryptedMatchDatastring`**, **`hasEncryptedMatchHeaderstring`**: 필드 또는 키워드 매칭이 해당 **텍스트 컬럼**의 **`[...]`** 구간 **decrypt-for-match**로 행 포함에 기여한 경우 **`true`**(평문 비노출). 미적용 시 생략 또는 **`false`**.
       - **`hasEncryptedMatchData`**, **`hasEncryptedMatchHeader`**: 백엔드가 보낼 때 — **`keywords`** 토큰이 바이너리 **`data`** 또는 **`header`** **decrypt-for-match**로 행 포함에 기여한 경우 각각 **`true`**. 미구현 시 생략(DOC–CODE–SYNC).
       - 근거: **`docs/contract.md`** 동일 소절, 요건 **`20260413-imagelog-search-decrypt-display-separation.md`**, **`20260414-imagelog-keyword-or-field-and-ui.md`**.
-    - PB FEP(`pb_feplog`) 행 규칙은 위 Image Log 제한과 별개로 기존 PB 표시·복호화 규칙을 따름 — **`docs/contract.md`** 동일 소절.
+    - PB FEP(`pb_feplog`) 행 규칙은 위 Image Log 제한과 별개로 기존 PB 표시·복호화 규칙을 따름 — **`docs/contract.md`** 동일 소절. **와이어 스키마 정렬 후에도** 레거시 응답 **키 이름은 유지**: 최소 **`log_timestamp`**, **`media_code`**(물리 **`media_gb`**), **`tr_code`**, **`user_id`**(물리 **`brodid`**) 등은 `docs/contract.md` **PB FEP — wire schema** 표와 동일한 별칭 규칙을 따른다.
   - `pagination`: `{ currentPage, totalPages, totalCount }`
 
 ### 5.1.1 PB FEP wireframe log search (`pb-fep-log-search`)
 
 - **POST** `/api/logs/db-refactored/pb-fep-log-search`
-- **Purpose**: Dedicated search for screen ID **`pb-fep-log-search`** only (wireframe IA / column names). Returns the same PB FEP UNION (`pb_feplog`) as legacy search but **each row uses wireframe field names** per requirement `docs/requirements/20260326-pb-fep-log-search-screen-wireframe.md` §2.D.
+- **Purpose**: Dedicated search for screen ID **`pb-fep-log-search`** only (wireframe IA / column names). Returns the same PB FEP UNION (`pb_feplog`) as legacy search but **each row uses wireframe field names** per requirement `docs/requirements/20260326-pb-fep-log-search-screen-wireframe.md` §2.D. **Wire / DB sourcing** for each key is aligned with **`docs/requirements/20260414-pb-fep-wire-schema-alignment.md`** and the **PB FEP — wire schema** subsection in `docs/contract.md` (physical columns such as `brodid`, `media_gb`, `msg_code`, `pub_ip`, `bmsg`, `data`; **`login_id`** = **`brodid`**).
 - **Legacy unchanged**: **`POST /api/logs/db-refactored/search`** (including `logType=pb_feplog` for **`pb-feplog`**) keeps its existing contract and response shape. New clients for **`pb-fep-log-search`** must call this path; legacy **`pb-feplog`** must **not** be repointed here without a separate requirement.
 - **Auth / access**: Same family as PB FEP log search and screen **`pb-fep-log-search`**: user must satisfy existing log-type and screen checks for **`pb_feplog`** / PB FEP (see `docs/contract.md` API function-level enforcement: **`pb-feplog` or `pb-fep-log-search`** for `pb_feplog` access). Unauthenticated **401**; insufficient screen / log-type access **403** `LOG_TYPE_NOT_ALLOWED` (or equivalent `FUNCTION_NOT_ALLOWED` where applicable).
 
@@ -360,7 +360,7 @@
 |------|------|------|------|
 | startDate | string | O (product) | Combined range start (wireframe: 조회일자 + 시작시간); format as in §5.1. |
 | endDate | string | O (product) | Combined range end (조회일자 + 종료시간); server validates start ≤ end. |
-| loginId | string | O | Non-blank; filters DB `user_id`. |
+| loginId | string | O | Non-blank; filters wire **`brodid`** (same semantics as legacy **`user_id`** JSON value on **`POST .../search`**; see `docs/contract.md` PB FEP wire schema). |
 | trCode / tr_code | string | X | Optional TR filter. |
 | keywords | string[] | X | Optional tokens (e.g. from comma-separated UI input). |
 | logType | string | X | May default to **`pb_feplog`** or be implied by this route; server validates PB FEP only. |
@@ -373,10 +373,10 @@
 | (기타 LogDbSearchRequest 필드) | — | X | 이미지로그 전용 등 PB FEP와 무관한 필드는 무시 가능. |
 
 - **Response (data)**: Same envelope as §5.1 — object with:
-  - **`data`**: `object[]` — each row is a **wireframe-keyed** map (not legacy `/search` column names for this screen):
+  - **`data`**: `object[]` — each row is a **wireframe-keyed** map (**key names stable**; values sourced from wire-format columns per contract):
     - **Stable keys**: `id` (number, row id), `log_type` (string; branch discriminator with `id` for unique row keys — e.g. send vs recv).
-    - **Columns**: `log_timestamp`, `tr_code`, `login_id`, `msg_code`, `bmsg`, `log_ch_cd`, `send_recv` (`SEND` \| `RECV`), `src_ip`, `dest_ip`, `app_id`, `data`.
-    - **Stream / expand (optional)**: `request_data`, `response_data` (or equivalent) when needed for expanded STREAM DATA; masking/decrypt follows PB FEP rules in `LogDbService` / contract.
+    - **Columns (JSON key → wire / physical source, normative)**: `log_timestamp` ← typed **`log_timestamp`**; `tr_code` ← **`tr_code`**; **`login_id`** ← **`brodid`** (same value as legacy `/search` **`user_id`**); `msg_code` ← **`msg_code`**; `bmsg` ← **`bmsg`** (or equivalent payload column per decrypt rules); `log_ch_cd` ← **`log_ch_cd`** (or equivalent); `send_recv` (`SEND` \| `RECV`) by union branch; `src_ip` ← **`pub_ip`**; `dest_ip` placeholder until product column exists; `app_id` from agreed wire/session/term fields; `data` from **`data`** / payload columns per product and decrypt rules.
+    - **Stream / expand (optional)**: `request_data`, `response_data` when still used for expanded STREAM DATA; masking/decrypt targets follow wire column layout per `docs/contract.md`.
   - **`pagination`**: `{ currentPage, totalPages, totalCount }`
 
 - **에러** (요약):

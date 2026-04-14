@@ -144,9 +144,11 @@ PB FEP 로그 검색 API는 `pb_send`와 `pb_recv`를 UNION ALL로 조회하며,
 
 ### PB FEP `pb_send` / `pb_recv` 파티셔닝 (일 단위, `log_timestamp`)
 
+- **컬럼 (와이어 정렬)**: `schema_pb_fep.sql`은 레거시 PB FEP 와이어 필드명·길이(`log_time`, `media_gb`, `brodid`, `bmsg`, `data`, …)와 **`log_timestamp`**(검색·파티션용 `TIMESTAMP NOT NULL`), 레거시 `"timestamp"` 문자열용 **`wire_ts`**, 감사 **`created_at`/`updated_at`** 를 정의한다. **`log_timestamp`** 는 적재/마이그레이션 시 `prc_time`·`log_time`·`wire_ts` 파싱 등 **문서화된 규칙**으로 채운다(문자열만으로 RANGE 경계를 두지 않음). **`loginId`** 필터는 **`brodid`** 와 동일 의미(요구사항 `20260414-pb-fep-wire-schema-alignment`).
 - **범위 분할**: 부모 테이블명은 그대로 `pb_send`, `pb_recv`(API·계약 불변). 키는 **`log_timestamp`** TIMESTAMP. 각 일 파티션은 **`[D 00:00:00, D+1 00:00:00)`** (날짜 `D`는 `timestamp` 경계로 문자열 전달; DB 세션/저장 값과 일관되게 운영).
 - **이름 규칙**: 사전 생성 분할은 **`pb_send_YYYYMMDD`**, **`pb_recv_YYYYMMDD`**. 범위 밖·미리 만들지 않은 날은 **`pb_send_default`** / **`pb_recv_default`** 로 적재.
 - **신규 설치(그린필드)**: `migrate-pb-send-recv-partitioning-20260408.sql`이 일반 테이블을 부모+DEFAULT로 바꾼 뒤, **실행 시점의 `CURRENT_DATE` 기준 이전 30일 ~ 이후 7일**(양 끝 포함)에 대해 일 파티션을 만든다. 이후 날짜는 운영에서 `CREATE TABLE … PARTITION OF …`로 추가하거나, 유지보수 창에서 `setup.sh`를 다시 돌려 창을 갱신할 수 있다(데이터 보존형 DDL은 이미 파티션된 경우 no-op).
+- **유지보수 (이미 RANGE 부모만 있는 경우)**: 데이터 이전 없이 일 단위 자식만 미리 만들거나 주기적으로 창을 맞추려면 `create-pb-send-recv-daily-partitions-only.sql`을 `SET search_path TO SCHEMA_PB, public` 후 실행한다(스크립트 상단 `back_days`/`fwd_days` 조정 가능). **이 스크립트는 DEFAULT 파티션을 만들지 않으며**, 사전 생성된 일 범위 밖 `log_timestamp`는 INSERT가 실패한다(창 확장 후 적재). 예: 주간 크론 또는 부하 전 사전 창 확장.
 - **기존 DB(월 단위 `pb_*_YYYYMM`만 있는 경우)**: **전체 백업 후** `migrate-pb-send-recv-monthly-to-daily-20260414.sql`을 한 번 실행한다. 월 자식을 detach → 해당 월의 일 단위 자식 생성 → 부모로 행 이동 → 월 테이블 삭제. 이미 일 단위만 있으면 **NOTICE만 하고 종료**(멱등).
 - **`setup.sh` 적용 순서 (단일 DB·split-PB 공통)**:  
   1) `migrate-pb-send-recv-partitioning-20260408.sql`  
@@ -260,37 +262,20 @@ SELECT COUNT(*) FROM pb_recv;
 
 ## 📊 테이블 구조
 
-### pb_send (송신 로그 테이블)
-- `id`: BIGSERIAL (Primary Key)
-- `log_timestamp`: TIMESTAMP (로그 시간)
-- `media_code`: VARCHAR(10) (매체코드)
-- `tr_code`: VARCHAR(20) (거래코드)
-- `user_id`: VARCHAR(50) (사용자ID)
-- `ip_address`: VARCHAR(45) (IP주소)
-- `user_agent`: TEXT (사용자에이전트)
-- `request_data`: TEXT (요청데이터 - 암호화)
-- `response_data`: TEXT (응답데이터 - 암호화)
-- `status_code`: INTEGER (상태코드)
-- `response_time`: INTEGER (응답시간)
-- `error_message`: TEXT (오류메시지)
-- `session_id`: VARCHAR(100) (세션ID)
-- `device_type`: VARCHAR(20) (디바이스타입)
-- `created_at`: TIMESTAMP (생성일시)
-- `updated_at`: TIMESTAMP (수정일시)
+### pb_send / pb_recv (송·수신 FEP 로그)
 
-### pb_recv (수신 로그 테이블)
-송신 테이블과 동일한 구조를 가집니다.
+- **정의**: `backend/src/main/resources/db/schema_pb_fep.sql` — 와이어 컬럼 집합은 송·수신 동일(UNION 호환). 요약 필드: `log_timestamp`(파티션·검색 시각), `brodid`(사용자/로그인 키), `media_gb`, `tr_code`, IP류(`pub_ip`/`prt_ip`), 본문·페이로드(`vlen`,`vhd`,`bmsg`,`data`), 레거시 시각 문자열 `wire_ts`, 감사 `created_at`/`updated_at`.
+- **Primary key**: 비파티션(일반 테이블) 설치 시 `id` BIGSERIAL PK. 파티션 부모로 전환한 뒤에는 부모에 PK를 두지 않는 경로가 있음(`migrate-pb-send-recv-partitioning-20260408.sql` 주석 참고).
 
 ## 🔍 인덱스
 
-다음 인덱스가 자동으로 생성됩니다:
-- `idx_pb_send_timestamp`: 로그 시간 인덱스
-- `idx_pb_send_media_code`: 매체코드 인덱스
-- `idx_pb_send_tr_code`: 거래코드 인덱스
-- `idx_pb_send_user_id`: 사용자ID 인덱스
-- `idx_pb_send_session_id`: 세션ID 인덱스
-- `idx_pb_send_search`: 복합 인덱스 (timestamp, media_code, tr_code)
-- 수신 테이블에도 동일한 인덱스 생성
+다음 인덱스가 `schema_pb_fep.sql`에서 생성됩니다(수신 동일):
+- `idx_pb_send_log_timestamp` / `idx_pb_recv_log_timestamp`
+- `idx_pb_send_brodid` / `idx_pb_recv_brodid`
+- `idx_pb_send_media_gb` / `idx_pb_recv_media_gb`
+- `idx_pb_send_tr_code` / `idx_pb_recv_tr_code`
+- `idx_pb_send_search` / `idx_pb_recv_search` — `(log_timestamp, media_gb, tr_code)`
+- `idx_pb_send_con_key` / `idx_pb_recv_con_key`
 
 ## ⚙️ 백엔드 설정
 

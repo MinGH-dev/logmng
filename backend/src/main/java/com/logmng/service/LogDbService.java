@@ -73,12 +73,29 @@ public class LogDbService {
     private final ObjectMapper objectMapper;
     private static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
 
-    /** Allowlisted ORDER BY columns for pb_send ∪ pb_recv (req 20260326). */
+    /**
+     * Allowlisted ORDER BY columns for pb_send ∪ pb_recv: stable legacy JSON keys matching SELECT aliases
+     * (wire columns aliased — req 20260414-pb-fep-wire-schema-alignment).
+     */
     private static final Set<String> PB_FEPLOG_SORTABLE_COLUMNS = Collections.unmodifiableSet(new HashSet<>(Arrays.asList(
             "id", "log_timestamp", "media_code", "tr_code", "user_id", "ip_address",
             "user_agent", "request_data", "response_data", "status_code", "response_time",
             "error_message", "session_id", "device_type", "created_at", "updated_at", "log_type"
     )));
+
+    /**
+     * Shared column projection: physical wire columns → stable API names (legacy /search + ORDER BY).
+     * Keep pb_send / pb_recv lists identical for UNION ALL.
+     */
+    private static final String PB_FEPLOG_WIRE_SELECT_BODY =
+            "id, log_timestamp, "
+                    + "media_gb AS media_code, tr_code, brodid AS user_id, pub_ip AS ip_address, "
+                    + "CAST(NULL AS VARCHAR(500)) AS user_agent, "
+                    + "vlen AS request_data, data AS response_data, "
+                    + "msg_code AS status_code, "
+                    + "COALESCE(CAST(NULLIF(TRIM(term_no), '') AS BIGINT), 0) AS response_time, "
+                    + "bmsg AS error_message, prt_ip AS session_id, log_ch_cd AS device_type, "
+                    + "created_at, updated_at ";
     
     public LogDbService(@Qualifier("dataSource") DataSource primaryDataSource,
                         @Qualifier("pbDataSource") DataSource pbDataSource,
@@ -124,11 +141,20 @@ public class LogDbService {
         if ("brodid".equalsIgnoreCase(f)) {
             return "user_id";
         }
+        if ("media_gb".equalsIgnoreCase(f)) {
+            return "media_code";
+        }
         if ("msg_code".equalsIgnoreCase(f)) {
             return "status_code";
         }
         if ("bmsg".equalsIgnoreCase(f)) {
             return "error_message";
+        }
+        if ("vlen".equalsIgnoreCase(f)) {
+            return "request_data";
+        }
+        if ("data".equalsIgnoreCase(f)) {
+            return "response_data";
         }
         if ("log_ch_cd".equalsIgnoreCase(f)) {
             return "device_type";
@@ -200,10 +226,8 @@ public class LogDbService {
         try (Connection connection = pbDataSource.getConnection()) {
             // SQL 쿼리 구성
             StringBuilder sql = new StringBuilder();
-            sql.append("SELECT id, log_timestamp, media_code, tr_code, user_id, ip_address, ");
-            sql.append("user_agent, request_data, response_data, status_code, response_time, ");
-            sql.append("error_message, session_id, device_type, created_at, updated_at, ");
-            sql.append("'send' as log_type ");
+            sql.append("SELECT ").append(PB_FEPLOG_WIRE_SELECT_BODY);
+            sql.append(", 'send' AS log_type ");
             sql.append("FROM pb_send WHERE 1=1 ");
             
             List<Object> params = new ArrayList<>();
@@ -223,7 +247,7 @@ public class LogDbService {
             
             // 매체코드 조건
             if (request.getMediaCode() != null && !request.getMediaCode().trim().isEmpty()) {
-                sql.append("AND media_code = ? ");
+                sql.append("AND media_gb = ? ");
                 params.add(request.getMediaCode());
             }
             
@@ -233,18 +257,16 @@ public class LogDbService {
                 params.add(request.getTrCode());
             }
             
-            // 사용자 ID 조건
+            // 사용자 ID 조건 (wire broker id)
             if (request.getLoginId() != null && !request.getLoginId().trim().isEmpty()) {
-                sql.append("AND user_id = ? ");
+                sql.append("AND brodid = ? ");
                 params.add(request.getLoginId());
             }
             
             // UNION ALL로 pb_recv도 포함
             sql.append("UNION ALL ");
-            sql.append("SELECT id, log_timestamp, media_code, tr_code, user_id, ip_address, ");
-            sql.append("user_agent, request_data, response_data, status_code, response_time, ");
-            sql.append("error_message, session_id, device_type, created_at, updated_at, ");
-            sql.append("'recv' as log_type ");
+            sql.append("SELECT ").append(PB_FEPLOG_WIRE_SELECT_BODY);
+            sql.append(", 'recv' AS log_type ");
             sql.append("FROM pb_recv WHERE 1=1 ");
             
             // 동일한 조건 적용
@@ -257,7 +279,7 @@ public class LogDbService {
                 params.add(Timestamp.valueOf(endDateTime));
             }
             if (request.getMediaCode() != null && !request.getMediaCode().trim().isEmpty()) {
-                sql.append("AND media_code = ? ");
+                sql.append("AND media_gb = ? ");
                 params.add(request.getMediaCode());
             }
             if (request.getTrCode() != null && !request.getTrCode().trim().isEmpty()) {
@@ -265,7 +287,7 @@ public class LogDbService {
                 params.add(request.getTrCode());
             }
             if (request.getLoginId() != null && !request.getLoginId().trim().isEmpty()) {
-                sql.append("AND user_id = ? ");
+                sql.append("AND brodid = ? ");
                 params.add(request.getLoginId());
             }
             
@@ -325,15 +347,14 @@ public class LogDbService {
                                 && request.getKeywords() != null
                                 && !request.getKeywords().isEmpty()) {
                             try {
-                                // request_data 복호화
-                                if (row.get("request_data") != null) {
-                                    String encryptedRequest = (String) row.get("request_data");
+                                // Wire vlen → legacy request_data alias; wire data → response_data alias
+                                String encryptedRequest = jdbcValueToString(row.get("request_data"));
+                                if (encryptedRequest != null && !encryptedRequest.isEmpty()) {
                                     String decryptedRequest = cryptoUtil.decryptLogPayload(encryptedRequest, LogPayloadCryptoVariant.PB_FEP);
                                     row.put("decrypted_request_data", decryptedRequest);
                                 }
-                                // response_data 복호화
-                                if (row.get("response_data") != null) {
-                                    String encryptedResponse = (String) row.get("response_data");
+                                String encryptedResponse = jdbcValueToString(row.get("response_data"));
+                                if (encryptedResponse != null && !encryptedResponse.isEmpty()) {
                                     String decryptedResponse = cryptoUtil.decryptLogPayload(encryptedResponse, LogPayloadCryptoVariant.PB_FEP);
                                     row.put("decrypted_response_data", decryptedResponse);
                                 }
@@ -1029,9 +1050,7 @@ public class LogDbService {
         String tableName = "send".equalsIgnoreCase(type) ? "pb_send" : "pb_recv";
         
         try (Connection connection = pbDataSource.getConnection()) {
-            String sql = "SELECT id, log_timestamp, media_code, tr_code, user_id, ip_address, " +
-                        "user_agent, request_data, response_data, status_code, response_time, " +
-                        "error_message, session_id, device_type, created_at, updated_at " +
+            String sql = "SELECT " + PB_FEPLOG_WIRE_SELECT_BODY +
                         "FROM " + tableName + " WHERE id = ?";
             
             try (PreparedStatement stmt = connection.prepareStatement(sql)) {
@@ -1253,16 +1272,14 @@ public class LogDbService {
         
         try {
             if ("pb_feplog".equals(logType)) {
-                // request_data 복호화
-                if (logData.get("request_data") != null) {
-                    String encryptedRequest = (String) logData.get("request_data");
+                String encryptedRequest = jdbcValueToString(logData.get("request_data"));
+                if (encryptedRequest != null && !encryptedRequest.isEmpty()) {
                     String decryptedRequest = cryptoUtil.decryptLogPayload(encryptedRequest, LogPayloadCryptoVariant.PB_FEP);
                     logData.put("decrypted_request_data", decryptedRequest);
                 }
-                
-                // response_data 복호화
-                if (logData.get("response_data") != null) {
-                    String encryptedResponse = (String) logData.get("response_data");
+
+                String encryptedResponse = jdbcValueToString(logData.get("response_data"));
+                if (encryptedResponse != null && !encryptedResponse.isEmpty()) {
                     String decryptedResponse = cryptoUtil.decryptLogPayload(encryptedResponse, LogPayloadCryptoVariant.PB_FEP);
                     logData.put("decrypted_response_data", decryptedResponse);
                 }
