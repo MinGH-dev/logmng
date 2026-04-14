@@ -203,8 +203,8 @@ Per `docs/workflow/REQUIREMENTS-CHANGE-TARGET-CHECKLIST.md`:
 
 ### Frontend verification
 
-- [x] PB FEP v1 (legacy **pb-feplog**): browser MCP — login, form visible, search submitted with date range 2026-04-13 + Login ID `local_decrypt` (TR Code filled `%` for required field); **rows not verified** — backend returned error (see §5 TC-09 / browser console).
-- [ ] PB FEP v2 wireframe screen (**pb-fep-log-search**) navigation + grid (not exercised in this run; blocked by same backend failure on authenticated curl).
+- [x] PB FEP v1 (legacy **pb-feplog**): browser MCP (`cursor-ide-browser`) — login, PB FEP(old) search submitted (2026-04-13, Login ID `local_decrypt`, TR Code `%`). Network: `POST /api/logs/db-refactored/search` **200**; console: **search success** (Korean log). Grid shows **no rows** — root cause: when `startDate`/`endDate` use `datetime-local` shape `2026-04-13T00:00`, API returns **totalCount 0** (repro in §5 curl). Space-separated `2026-04-13 00:00:00` returns 4 rows.
+- [ ] PB FEP v2 wireframe (**pb-fep-log-search**): browser not exercised; curl only (`pageSize` must be 25/50/100).
 - [ ] No undefined column keys in table bindings (not re-validated beyond unit tests this run)
 
 ### Backend verification
@@ -215,7 +215,7 @@ Per `docs/workflow/REQUIREMENTS-CHANGE-TARGET-CHECKLIST.md`:
 ### Integration
 
 - [x] Health + DB connectivity after restart (`/api/health`, `/api/db/test`)
-- [ ] End-to-end search with **wire-aligned** PB schema (TC-09): **blocked on verifier DB** — PostgreSQL still has legacy 16-column `pb_send`/`pb_recv` (see §5); apply `schema_pb_fep.sql` + runbook before re-test.
+- [x] End-to-end search with **wire-aligned** PB schema (TC-09): **Pass** on authenticated curl using **space-separated** datetimes (see §5). UI grid empty due to date serialization mismatch vs that curl body.
 
 ### Documentation
 
@@ -224,12 +224,11 @@ Per `docs/workflow/REQUIREMENTS-CHANGE-TARGET-CHECKLIST.md`:
 - [x] PB FEP wire DB apply runbook: [`docs/operations/PB-FEP-WIRE-DB-APPLY.md`](../../docs/operations/PB-FEP-WIRE-DB-APPLY.md) (linked from [`backend/DB_SETUP_GUIDE.md`](../../backend/DB_SETUP_GUIDE.md) — PB FEP partitioning section)
 
 ---
-
 ## 5. Test results
 
 ### Test run date
 
-- 2026-04-14 — **full QA verification pass** (automated tests, restart, curls, `check-db.sh`, browser MCP). **E2E PB search blocked** by local PostgreSQL still on **legacy** `pb_send`/`pb_recv` layout (see blocker).
+- **2026-04-14 (re-run)** — Wire-aligned `pb_send` / `pb_recv` + seeds on localhost **`logmng`** (owner `ghmin`). **`reserve='LDPT'`** smoke: `pb_send` **2**, `pb_recv` **2**. Full QA: `mvn test`, `npm test`, `./scripts/dev-services.sh all restart`, health/`db/test`, TC-09 curl, optional wireframe curl, `check-db.sh`, **cursor-ide-browser** PB FEP(old).
 
 ### Pass / fail summary
 
@@ -237,94 +236,95 @@ Per `docs/workflow/REQUIREMENTS-CHANGE-TARGET-CHECKLIST.md`:
 |------|--------|
 | Backend `mvn test` | **Pass** (exit 0) |
 | Frontend `npm test -- --watchAll=false` | **Pass** (exit 0) |
-| Restart + health + frontend HTTP | **Pass** |
-| `GET /api/db/test` | **Pass** (`connected: true`; PB counts reported) |
-| TC-09 curl + UI PB search | **Blocked / Fail** on verifier DB (missing wire columns → HTTP 500) |
-| `check-db.sh` | **Pass** exit 0 with **warning** (column count vs wire expectation) |
-| Browser MCP (§3.5) | **Pass** for shell + login + PB FEP(old) search **attempt**; **no data grid** due to same server error |
+| Restart + health + frontend HTTP | **Pass** (~12 s wait; `/api/health` 200; `localhost:3001` 200) |
+| `GET /api/db/test` | **Pass** (`connected: true`; e.g. `pb_send_count` 5, `pb_recv_count` 5) |
+| TC-09 `POST .../search` (curl, space-separated datetimes) | **Pass** — **200**, `success: true`, `data` **4 rows**, `totalCount` 4 |
+| TC-09 `POST .../pb-fep-log-search` | **Pass** — **200** with `pageSize` **25** (`pageSize` 20 → `INVALID_INPUT`) |
+| `check-db.sh` | **Pass** (exit 0); wire columns visible in output |
+| Browser MCP (§3.5) | **Partial** — login + search **200** + console search success; **grid shows 0 rows** (see **UI date format** below) |
 
-### Blocker (environment) — action for operators
+### Resolved blocker (previous run)
 
-- **Symptom:** `POST /api/logs/db-refactored/search` with `logType=pb_feplog` returns **500** `INTERNAL_SERVER_ERROR`. Backend log: `PSQLException: ERROR: column "media_gb" does not exist` (`LogDbService.executePbFeplogUnionSearch`).
-- **Cause:** Connected PostgreSQL `pb_send` / `pb_recv` are still **simplified** (16 columns: `media_code`, `user_id`, …). `backend/src/main/resources/db/check-db.sh` reports: `pb_send 테이블 컬럼 수: 16 (예상: 45개 이상; 와이어 정렬 schema_pb_fep)`.
-- **Fix:** Apply wire-aligned DDL + data per **`docs/operations/PB-FEP-WIRE-DB-APPLY.md`** / `schema_pb_fep.sql`, then re-run TC-09 and browser PB search.
+- Earlier failure (**500** / `column "media_gb" does not exist`) was due to **legacy 16-column** tables. After wire DDL apply, the same search SQL runs clean (**TC-09 Pass** on curl).
+
+### Remaining issue — UI vs API date string (not a wire-schema defect)
+
+- **Symptom:** PB FEP(old) **datetime-local** fields submit `startDate` / `endDate` like `2026-04-13T00:00` / `2026-04-13T23:59:59`. With that shape, `POST /api/logs/db-refactored/search` returns `success: true` with `pagination.totalCount` **0** and an empty `data` array.
+- **Repro (curl):** same session cookie; body  
+  `{"logType":"pb_feplog","startDate":"2026-04-13T00:00","endDate":"2026-04-13T23:59:59","loginId":"local_decrypt","trCode":"%","page":1,"pageSize":25}` → **totalCount 0**. Replace with **`"2026-04-13 00:00:00"`** / **`"2026-04-13 23:59:59"`** → **totalCount 4** (matches DB).
+- **Failure scope (follow-up):** **Backend** (normalize/parse ISO-8601 `T` datetimes for PB search) and/or **Frontend** (serialize to API-expected format). Hand off via Requirements if product wants UI rows without changing operator curl habits.
 
 ### Auth note (dev seed — not a secret)
 
-- `init-data.sql` comment “user1 = **20260001**” refers to **`app_user.id`**, not local-login **`employeeNumber`**.
-- **`POST /api/auth/login`** (local mode) with `{"employeeNumber":"20260001","password":"user123"}` → **`success: false`**, `code: INVALID_CREDENTIALS` (no session cookie; **20260001** is `app_user.id`, not 사번).
-- Working session: **`{"employeeNumber":"20261001","password":"user123"}`** — matches `migrate-app-user-employee-number-display-backfill-20260409.sql` backfill for `user1`. Capture **`Set-Cookie: JSESSIONID`** for curl.
+- Live DB: `SELECT employee_number, username FROM app_user WHERE username='user1'` → **`20261001`** | `user1` (matches prior backfill note).
+- `init-data.sql` comment “user1 = **20260001**” refers to **`app_user.id`**, not **`employeeNumber`**.
+- **`POST /api/auth/login`:** `{"employeeNumber":"20261001","password":"user123"}` → **200** + `JSESSIONID` for curl.
 
 ### API integration (curl) — snippets
 
-1. **Login (success):**  
-   `curl -sS -c cookies.txt -H "Content-Type: application/json" -d '{"employeeNumber":"20261001","password":"user123"}' http://localhost:9200/api/auth/login`  
-   → `{"success":true,...}` and `JSESSIONID` in cookie jar.
+1. **Login:** `curl -sS -c cookies.txt -H "Content-Type: application/json" -d '{"employeeNumber":"20261001","password":"user123"}' http://localhost:9200/api/auth/login`
 
-2. **`POST /api/logs/db-refactored/search`** (cookie `-b cookies.txt`):  
-   Body example: `{"logType":"pb_feplog","startDate":"2026-04-13 00:00:00","endDate":"2026-04-13 23:59:59","loginId":"local_decrypt","page":1,"pageSize":25}`  
-   → **`success": false`, `code": "INTERNAL_SERVER_ERROR`** (verifier DB legacy schema).
+2. **`POST /api/logs/db-refactored/search`** (`-b cookies.txt`):  
+   `{"logType":"pb_feplog","startDate":"2026-04-13 00:00:00","endDate":"2026-04-13 23:59:59","loginId":"local_decrypt","page":1,"pageSize":20}`  
+   → **200**, `success: true`, **non-empty** `data` (4 rows in this DB).
 
-3. **`POST /api/logs/db-refactored/pb-fep-log-search`:** same cookie, body `{"startDate":"2026-04-13 00:00:00","endDate":"2026-04-13 23:59:59","loginId":"local_decrypt","page":1,"pageSize":25}`  
-   → **401** without cookie; with cookie → same **500** class failure as search when DB mismatched.
+3. **`POST /api/logs/db-refactored/pb-fep-log-search`:** `pageSize` must be **25**, **50**, or **100**. Example:  
+   `{"startDate":"2026-04-13 00:00:00","endDate":"2026-04-13 23:59:59","loginId":"local_decrypt","page":1,"pageSize":25}` → **200**, wireframe rows.
 
 ### Manual / DB
 
-- **`backend/src/main/resources/db/check-db.sh`:** exit **0**; **§6i** PB partition check **skipped** (`pb_send` not partitioned parent `relkind=SETp` on this instance); **§7** column-count **warning** (16 vs wire ≥45).
-- **`psql` smoke** `SELECT COUNT(*) FROM pb_send WHERE reserve='LDPT';` → **not run / N/A** — column `reserve` does not exist on legacy table (expected after wire migration only).
+- **`psql`:** `SELECT COUNT(*) FROM pb_send WHERE reserve='LDPT'` → **2**; recv → **2**.
+- **`check-db.sh`:** exit **0**; output lists **partitioned** `pb_send` and wire columns (`brodid`, `media_gb`, …).
 
 ### Browser MCP (verify.md §3.5)
 
-- **Tool:** `cursor-ide-browser` (project policy). **URL:** `http://localhost:3001`. **`browser_resize`:** 1920×1080. **Flow:** `browser_navigate` → `browser_lock` → wait → snapshot → fill → click.
-- **Login:** 사번 `20261001`, 비밀번호 dev seed `user123` → success (console: 로그인 성공).
-- **Screen:** sidebar **PB FEP(old)**; heading **PB FEP(old)**; set **시작/종료** `2026-04-13T00:00` / `2026-04-13T23:59:59`, **Login ID** `local_decrypt`, **TR Code** `%` (required indicator), **검색**.
-- **Result:** brief “데이터를 불러오는 중…” then no grid data in snapshot; **console** `검색 중 오류 발생` (debug) — consistent with backend 500 above. No captcha / field-name blocker.
+- **Tool:** `cursor-ide-browser`. **URL:** `http://localhost:3001`.
+- **Flow:** `browser_navigate` → `browser_lock` → login (**20261001** / **user123**) → **PB FEP(old)** → fill dates **2026-04-13T00:00** / **2026-04-13T23:59:59**, **Login ID** `local_decrypt`, **TR Code** `%`, click **Search** (MCP `element` label must match the Korean button text exactly).
+- **Network:** `POST .../search` **200**.
+- **Console:** search success log; no search error debug line on this run.
+- **Grid:** screenshot/snapshot: **no rows** — consistent with **T**-format date body returning **0** rows (see above).
 
 ### §3 test case matrix (TC-01–TC-15)
 
 | ID | Result | Evidence (one line) |
 |----|--------|---------------------|
-| TC-01 | **Skip** | QA host DB not clean-applied wire DDL; `check-db` lists legacy columns only |
-| TC-02 | **Skip** | Partition parent not present (`check-db` 6i skip); not re-run |
-| TC-03 | **Skip** | No wire migration sample on this DB |
-| TC-04 | **Pass** | `mvn test` (LogDbService / H2 wire schema) |
+| TC-01 | **Pass (smoke)** | Wire columns + `brodid` present; `check-db` / `psql` |
+| TC-02 | **Pass / N/A** | Parent partitioned; policy not exhaustively re-proven this run |
+| TC-03 | **N/A** | Sample data present; no separate migration drill |
+| TC-04 | **Pass** | `mvn test` + curl search |
 | TC-05 | **Pass** | `mvn test` |
 | TC-06 | **Pass** | `mvn test` |
-| TC-07 | **Pass** | `mvn test` |
+| TC-07 | **Pass** | `mvn test` + wireframe curl |
 | TC-08 | **Pass** | `mvn test` |
-| TC-09 | **Blocked** | Authenticated curl + UI: **500** / `media_gb` missing on PostgreSQL |
+| TC-09 | **Pass (curl)** / **Partial (UI)** | curl **200** + 4 rows (space datetimes); UI grid empty (`T` datetimes → 0 rows) |
 | TC-10 | **Pass** | `npm test` |
 | TC-11 | **Pass** | `npm test` |
 | TC-12 | **Pass** | `npm test` |
 | TC-13 | **Pass** | `mvn test` |
-| TC-14 | **Pass (warn)** | `check-db.sh` exit 0; PB column-count warning documents drift |
-| TC-15 | **Skip** | Contract grep not repeated in this QA run |
+| TC-14 | **Pass** | `check-db.sh` exit 0 |
+| TC-15 | **Skip** | Contract grep not repeated this run |
 
 ### Command log (automated + verify)
 
 | Check | Command / step | Result | Notes |
-|-------|----------------|--------|--------|
+|-------|----------------|--------|-------|
 | Backend unit tests | `cd backend && mvn test` | **Pass** (exit 0) | Full suite |
-| Frontend unit tests | `cd frontend && npm test -- --watchAll=false` | **Pass** (exit 0) | exit 0 on verifier host |
-| Verify: restart | `./scripts/dev-services.sh all restart` | **Pass** (exit 0) | First health curl after restart needed retry (~8 s insufficient once; subsequent `curl` → 200) |
-| Verify: backend health | `curl -s http://localhost:9200/api/health` | **Pass** | 200, `success: true` |
+| Frontend unit tests | `cd frontend && npm test -- --watchAll=false` | **Pass** (exit 0) | |
+| Verify: restart | `./scripts/dev-services.sh all restart` | **Pass** (exit 0) | PostgreSQL restarted with stack |
+| Verify: backend health | `curl -s http://localhost:9200/api/health` | **Pass** | 200 |
 | Verify: frontend HTTP | `curl -s -o /dev/null -w "%{http_code}" http://localhost:3001` | **Pass** | 200 |
-| Verify: DB connectivity | `curl -s http://localhost:9200/api/db/test` | **Pass** | `connected: true`; e.g. `pb_send_count` / `pb_recv_count` 189 each, `pbUsesPrimaryFallback: true` |
-| Browser §3.5 | cursor-ide-browser | **Pass** (UI path) / **Fail** (data) | Login + PB FEP(old) search; error state matches TC-09 |
+| Verify: DB connectivity | `curl -s http://localhost:9200/api/db/test` | **Pass** | `connected: true` |
+| Browser §3.5 | cursor-ide-browser | **Partial** | 200 + console OK; grid empty (date format) |
 
-**Follow-up (generator, PB FEP seed, runbook — 2026-04-14):**
-
-- **`LocalDecryptSampleSeedGenerator`:** Aligned with wire-layout PB FEP sample columns so regenerated `init-data-local-decrypt-test-pbfep.sql` stays consistent with `schema_pb_fep.sql` / decrypt tests.
-- **Seed:** `backend/src/main/resources/db/init-data-local-decrypt-test-pbfep.sql` — refreshed from the generator for PB FEP local decrypt fixtures (ImageLog seed file left unchanged when diff was ciphertext-only churn).
-- **Runbook path:** Operator manual apply order and verification: **`docs/operations/PB-FEP-WIRE-DB-APPLY.md`** (cross-linked from **`backend/DB_SETUP_GUIDE.md`** in the PB FEP daily partitioning section).
-- **Regression:** `cd backend && mvn test` — **Pass** (exit 0) on 2026-04-14 after this follow-up (ImageLog seed file not included in commit; ciphertext-only churn reverted).
+**Historical note (2026-04-14 earlier pass):** generator/seed/runbook alignment and regression `mvn test` recorded in git history for this requirement; this §5 block replaces the prior **legacy-DB blocker** narrative after wire apply.
 
 ### Checklist (this requirement)
 
 - [x] Backend: unit tests passing (`mvn test`)
 - [x] Frontend: unit tests passing where applicable (`npm test`)
 - [x] Integration smoke: health + DB test API after restart
-- [ ] Full E2E PB FEP search on **wire-aligned** PostgreSQL (blocked until DB apply; optional re-run after migration)
+- [x] TC-09 curl against **wire-aligned** PostgreSQL (**Pass**)
+- [ ] PB FEP(old) **browser grid** shows rows without workarounds — **open** until UI/API date normalization (see above)
 
 ---
 
