@@ -9,6 +9,7 @@
 import React from 'react';
 import { Tooltip } from '@mui/material';
 import { MENU_TREE } from '../../constants/menuTree';
+import { ADMIN_MATRIX_SIDEBAR_ALIAS_HINTS } from '../../constants/screenAccessPolicy';
 import {
   FUNCTION_LABELS,
   APPROVE_CHECKBOX_TOOLTIP,
@@ -172,6 +173,9 @@ const ScreenSelectionTree = ({ selectedScreens, onChange, menuTree = MENU_TREE }
               const approveChecked = item?.approve ?? false;
               const decryptChecked = item?.decrypt ?? false;
               const approveTooltipId = `approve-tooltip-${child.id}`;
+              const sidebarAliasHint =
+                node.id === 'admin' ? ADMIN_MATRIX_SIDEBAR_ALIAS_HINTS[view] : undefined;
+              const aliasHintId = sidebarAliasHint ? `sidebar-alias-hint-${child.id}` : undefined;
 
               return (
                 <li key={child.id} className="screen-selection-item">
@@ -182,8 +186,15 @@ const ScreenSelectionTree = ({ selectedScreens, onChange, menuTree = MENU_TREE }
                       onChange={() => toggleScreen(view)}
                       aria-checked={checked}
                       aria-label={child.label}
+                      aria-describedby={aliasHintId}
                     />
-                    <span>{child.label}</span>
+                    {sidebarAliasHint ? (
+                      <Tooltip title={sidebarAliasHint} arrow placement="top">
+                        <span id={aliasHintId}>{child.label}</span>
+                      </Tooltip>
+                    ) : (
+                      <span>{child.label}</span>
+                    )}
                   </label>
                   {checked && (
                     <span className="screen-selection-functions" role="group" aria-label={`${child.label} 권한`}>

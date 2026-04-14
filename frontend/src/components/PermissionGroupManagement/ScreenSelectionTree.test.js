@@ -232,4 +232,14 @@ describe('ScreenSelectionTree — approval scope fixed to department (req 202603
     const scopeSelectEnabled = screen.getByRole('combobox', { name: /^검색 이력 조회 범위$/ });
     expect(scopeSelectEnabled).not.toBeDisabled();
   });
+
+  test('TC-10 (req 20260414): 관리 화면 행에 사이드바 별칭 안내 툴팁이 있다', () => {
+    render(<ScreenSelectionTree selectedScreens={[]} onChange={noop} />);
+    const adminGroup = screen.getByRole('group', { name: '관리' });
+    const tooltips = within(adminGroup).getAllByTestId('tooltip');
+    const pgV1 = tooltips.find((t) =>
+      t.getAttribute('data-title')?.includes('권한 그룹 v1·v2·계층')
+    );
+    expect(pgV1).toBeTruthy();
+  });
 });

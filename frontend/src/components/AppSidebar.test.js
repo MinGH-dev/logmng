@@ -27,6 +27,21 @@ const menuTree = [
   },
 ];
 
+const adminMenuTree = [
+  {
+    id: 'admin',
+    label: '관리',
+    icon: () => <span data-testid="icon-admin" />,
+    adminOnly: true,
+    children: [
+      { id: 'user-management', label: '사용자 관리', view: 'user-management' },
+      { id: 'user-management-v2', label: '사용자 관리 v2', view: 'user-management-v2' },
+      { id: 'permission-group-management', label: '권한 그룹 v1', view: 'permission-group-management' },
+      { id: 'permission-group-screen-matrix', label: '권한 그룹 v2', view: 'permission-group-screen-matrix' },
+    ],
+  },
+];
+
 describe('AppSidebar collapsed submenu layering behavior', () => {
   beforeEach(() => {
     jest.clearAllMocks();
@@ -106,5 +121,54 @@ describe('AppSidebar collapsed submenu layering behavior', () => {
     const childButton = childMenu.closest('.ps-menu-button');
     expect(childButton).toBeInTheDocument();
     expect(childButton).toHaveStyle({ paddingLeft: '48px' });
+  });
+});
+
+describe('AppSidebar — 관리 메뉴 필터 (req 20260414)', () => {
+  beforeEach(() => {
+    global.ResizeObserver = class ResizeObserver {
+      observe() {}
+      unobserve() {}
+      disconnect() {}
+    };
+    document.body.innerHTML = '<main style="position: relative; z-index: 0;"></main>';
+  });
+
+  test('TC-02/TC-03: user-permission-hierarchy alone shows PG v1+v2 and UM entries (alias expansion)', async () => {
+    render(
+      <ThemeProvider theme={appTheme}>
+        <AppSidebar
+          open
+          isAdmin={false}
+          allowedScreenIds={['user-permission-hierarchy']}
+          currentView="permission-group-screen-matrix"
+          onNavigate={jest.fn()}
+          menuTree={adminMenuTree}
+        />
+      </ThemeProvider>
+    );
+
+    expect(await screen.findByText('권한 그룹 v1')).toBeInTheDocument();
+    expect(screen.getByText('권한 그룹 v2')).toBeInTheDocument();
+    expect(screen.getByText('사용자 관리 v2')).toBeInTheDocument();
+    expect(screen.getByText('사용자 관리')).toBeInTheDocument();
+  });
+
+  test('TC-06: system admin sees all 관리 children from tree', async () => {
+    render(
+      <ThemeProvider theme={appTheme}>
+        <AppSidebar
+          open
+          isAdmin
+          allowedScreenIds={[]}
+          currentView="user-management"
+          onNavigate={jest.fn()}
+          menuTree={adminMenuTree}
+        />
+      </ThemeProvider>
+    );
+
+    expect(await screen.findByText('권한 그룹 v2')).toBeInTheDocument();
+    expect(screen.getByText('사용자 관리')).toBeInTheDocument();
   });
 });

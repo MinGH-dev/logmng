@@ -2,7 +2,10 @@
  * Central screen access policy: documented alias/OR rules only (no ad-hoc OR in AppSidebar / App / panels).
  *
  * @see docs/requirements/20260410-screen-access-menu-api-consistency.md
+ * @see docs/requirements/20260414-permission-group-admin-menu-mismatch.md (matrix row count vs 관리 메뉴 잎)
  */
+
+import { MENU_TREE } from './menuTree';
 
 /** Screen ids the product treats as satisfying `/api/permission-groups.*` (must match ScreenAccessInterceptor when backend is aligned). */
 export const PERMISSION_GROUPS_API_EXPECTED_SCREEN_IDS = [
@@ -138,4 +141,61 @@ export function canAccessDeepLinkHrSyncPoc({ allowedScreenIds, isSystemAdmin }) 
 export function canAccessDeepLinkUserManagementV2Poc({ allowedScreenIds, isSystemAdmin }) {
   if (isSystemAdmin === true) return true;
   return canAccessUserManagementV2PocView(allowedScreenIds);
+}
+
+/**
+ * Operator-facing copy: one checked matrix row (screen_id) can unlock multiple 관리 sidebar leaves per policy.
+ * Used in permission-group ScreenSelectionTree tooltips (req 20260414).
+ */
+export const ADMIN_MATRIX_SIDEBAR_ALIAS_HINTS = {
+  'user-management':
+    '레거시 사용자 관리·계층 화면이 허용되면 정책에 따라 사용자 관리 v2 메뉴가 함께 표시될 수 있습니다.',
+  'user-permission-hierarchy':
+    '사용자·부서 권한 관리(계층)가 허용되면 권한 그룹 v1·v2 및 사용자 관리 v2 등 동일 패밀리 메뉴가 함께 표시될 수 있습니다.',
+  'user-management-v2':
+    '레거시 사용자 관리 또는 계층 화면이 함께 허용되면 메뉴가 중복해 보일 수 있습니다. 실제 접근은 정책의 별칭 규칙을 따릅니다.',
+  'permission-group-management':
+    '권한 그룹 v1·v2·계층 중 하나만 허용되어도 동일 패밀리로 다른 권한 그룹 관리 메뉴가 함께 표시될 수 있습니다.',
+  'permission-group-screen-matrix':
+    '권한 그룹 v1·v2·계층 중 하나만 허용되어도 동일 패밀리로 다른 권한 그룹 관리 메뉴가 함께 표시될 수 있습니다.',
+};
+
+/**
+ * Effective 관리 submenu leaf `view` ids after the same rules as {@link AppSidebar} (non–system-admin filter + PoC strip).
+ *
+ * @param {string[]} allowedScreenIds
+ * @param {{ isSystemAdmin?: boolean, isHrSyncPocMenuEnabled?: () => boolean }} options
+ * @returns {string[]}
+ */
+export function getVisibleAdminSidebarChildViews(allowedScreenIds, options = {}) {
+  const adminNode = MENU_TREE.find((n) => n.id === 'admin');
+  if (!adminNode?.children?.length) return [];
+
+  const isSystemAdmin = options.isSystemAdmin === true;
+  const pocFn =
+    typeof options.isHrSyncPocMenuEnabled === 'function' ? options.isHrSyncPocMenuEnabled : () => false;
+
+  const stripPocWhenOff = (children) =>
+    (children || []).filter(
+      (c) =>
+        !(
+          (c.view === 'hr-sync-poc' || c.view === 'user-management-v2-poc') &&
+          !pocFn()
+        )
+    );
+
+  const children = stripPocWhenOff(adminNode.children);
+
+  if (isSystemAdmin) {
+    return children.map((c) => c.view).filter(Boolean);
+  }
+
+  const ids = Array.isArray(allowedScreenIds) ? allowedScreenIds : [];
+  const ctx = {
+    allowedScreenIds: ids,
+    isAdmin: false,
+    isHrSyncPocMenuEnabled: pocFn,
+  };
+
+  return children.filter((c) => canShowAdminSidebarChild(c, ctx)).map((c) => c.view).filter(Boolean);
 }

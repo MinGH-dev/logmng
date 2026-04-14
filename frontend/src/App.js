@@ -5,6 +5,7 @@ import './App.css';
 import LoginForm from './components/LoginForm';
 import LogGrid from './components/LogGrid';
 import UserActivityLogList from './components/UserActivityLog/UserActivityLogList';
+import ActivityLogAccessAuditList from './components/ActivityLogAccessAudit/ActivityLogAccessAuditList';
 import ActivityStatistics from './components/ActivityStatistics';
 import SearchHistoryList from './components/SearchHistory/SearchHistoryList';
 import UserManagement from './components/UserManagement/UserManagement';
@@ -35,6 +36,9 @@ import {
   clearUserData,
   hasEffectiveAppAccess,
 } from './utils/security';
+import { getVisibleAdminSidebarChildViews } from './constants/screenAccessPolicy';
+import { isScreenAccessDiagnosticEnabled } from './config/screenAccessDiagnostic';
+import { isHrSyncPocMenuEnabled } from './config/hrSyncPocUi';
 import NoPermissionDialog from './components/NoPermissionDialog';
 import MyPageModal from './components/MyPageModal';
 import logger from './utils/logger';
@@ -56,6 +60,7 @@ function App() {
   const [currentView, setCurrentView] = useState('pb-feplog'); // 'pb-feplog' | 'java-fw-imagelog' | 'activity-log' | ...
   const [initialSearchParams, setInitialSearchParams] = useState(null);
   const [initialSearchApprovalId, setInitialSearchApprovalId] = useState(null);
+  const [accessAuditInitialTargetId, setAccessAuditInitialTargetId] = useState(null);
   const [myPageOpen, setMyPageOpen] = useState(false);
 
   const { labelItems, setLabelItems, mergedMenuTree, logTypesByView } = useScreenDisplayLabels(
@@ -80,6 +85,22 @@ function App() {
   useEffect(() => {
     checkAuthStatus();
   }, []);
+
+  /** Dev-only: compare session allowedScreenIds vs effective 관리 submenu (req 20260414 diagnostic). */
+  useEffect(() => {
+    if (!user || !isScreenAccessDiagnosticEnabled()) return;
+    const ids = getAllowedScreenIds(user) ?? [];
+    const visibleAdminMenuViews = getVisibleAdminSidebarChildViews(ids, {
+      isSystemAdmin: user.isSystemAdmin === true,
+      isHrSyncPocMenuEnabled: () => isHrSyncPocMenuEnabled(),
+    });
+    logger.debug('Screen access diagnostic (req 20260414)', {
+      isSystemAdmin: user.isSystemAdmin === true,
+      allowedScreenIdsCount: ids.length,
+      allowedScreenIdsSorted: [...ids].slice().sort(),
+      visibleAdminMenuViews,
+    });
+  }, [user]);
 
   useEffect(() => {
     if (!isAuthenticated || !user) return;
@@ -399,7 +420,22 @@ function App() {
             data-horizontal-scroll-enabled={isHorizontalScrollView ? 'true' : 'false'}
           >
             {currentView === 'activity-log' && (
-              <UserActivityLogList user={user} />
+              <UserActivityLogList
+                user={user}
+                canOpenAccessAudit={canAccessView('activity-log-access-audit')}
+                onNavigateToAccessAudit={(targetLogId) => {
+                  setAccessAuditInitialTargetId(targetLogId);
+                  if (canAccessView('activity-log-access-audit')) {
+                    setCurrentView('activity-log-access-audit');
+                  }
+                }}
+              />
+            )}
+            {currentView === 'activity-log-access-audit' && canAccessView('activity-log-access-audit') && (
+              <ActivityLogAccessAuditList
+                initialTargetActivityLogId={accessAuditInitialTargetId}
+                onConsumedInitialTarget={() => setAccessAuditInitialTargetId(null)}
+              />
             )}
             {currentView === 'statistics' && <ActivityStatistics user={user} />}
             {currentView === 'search-history' && (

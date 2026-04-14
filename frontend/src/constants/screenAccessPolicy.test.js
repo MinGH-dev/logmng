@@ -4,6 +4,7 @@ import {
   canShowAdminSidebarChild,
   canAccessUserManagementV2PocView,
   PERMISSION_GROUPS_API_EXPECTED_SCREEN_IDS,
+  getVisibleAdminSidebarChildViews,
 } from './screenAccessPolicy';
 
 const adminChildByView = (view) => {
@@ -77,5 +78,71 @@ describe('screenAccessPolicy (req 20260410 TC-04–TC-08)', () => {
     expect(Array.isArray(PERMISSION_GROUPS_API_EXPECTED_SCREEN_IDS)).toBe(true);
     expect(PERMISSION_GROUPS_API_EXPECTED_SCREEN_IDS).toContain('permission-group-screen-matrix');
     expect(PERMISSION_GROUPS_API_EXPECTED_SCREEN_IDS).toContain('permission-group-management');
+  });
+});
+
+const pocOff = () => false;
+const pocOn = () => true;
+
+describe('screenAccessPolicy — req 20260414 (matrix rows vs 관리 메뉴)', () => {
+  /** TC-02: three matrix ids in the PG family still yield multiple sidebar leaves (alias expansion is documented). */
+  it('TC-02: three PG-family screen ids can produce more than three 관리 menu leaves', () => {
+    const ids = [
+      'user-permission-hierarchy',
+      'permission-group-management',
+      'permission-group-screen-matrix',
+    ];
+    const visible = getVisibleAdminSidebarChildViews(ids, {
+      isSystemAdmin: false,
+      isHrSyncPocMenuEnabled: pocOff,
+    });
+    expect(ids.length).toBe(3);
+    expect(visible.length).toBeGreaterThan(3);
+    expect(visible).toEqual(
+      expect.arrayContaining([
+        'user-management',
+        'user-management-v2',
+        'permission-group-management',
+        'permission-group-screen-matrix',
+      ])
+    );
+  });
+
+  /** TC-03: hierarchy alone unlocks PG v1+v2 and legacy UM paths per family / UM alias rules */
+  it('TC-03: user-permission-hierarchy alone unlocks PG v1, v2, legacy UM, and UM v2 menu items', () => {
+    const ids = ['user-permission-hierarchy'];
+    const visible = getVisibleAdminSidebarChildViews(ids, {
+      isSystemAdmin: false,
+      isHrSyncPocMenuEnabled: pocOff,
+    });
+    expect(visible).toEqual(
+      expect.arrayContaining([
+        'user-management',
+        'user-management-v2',
+        'permission-group-management',
+        'permission-group-screen-matrix',
+      ])
+    );
+    expect(visible).not.toContain('user-management-v2-poc');
+  });
+
+  /** TC-06 (§3): system admin sees all 관리 leaves (except PoC entries when PoC UI off) */
+  it('TC-06: isSystemAdmin yields every non-PoC 관리 leaf including screen-display-labels', () => {
+    const visible = getVisibleAdminSidebarChildViews([], {
+      isSystemAdmin: true,
+      isHrSyncPocMenuEnabled: pocOff,
+    });
+    expect(visible).toContain('screen-display-labels');
+    expect(visible).toContain('permission-group-screen-matrix');
+    expect(visible).not.toContain('hr-sync-poc');
+    expect(visible).not.toContain('user-management-v2-poc');
+  });
+
+  it('TC-06b: PoC menu entries appear when HR Sync PoC UI is enabled', () => {
+    const visible = getVisibleAdminSidebarChildViews([], {
+      isSystemAdmin: true,
+      isHrSyncPocMenuEnabled: pocOn,
+    });
+    expect(visible).toEqual(expect.arrayContaining(['hr-sync-poc', 'user-management-v2-poc']));
   });
 });
