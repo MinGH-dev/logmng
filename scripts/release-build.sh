@@ -8,7 +8,7 @@
 #
 # Environment (optional):
 #   REACT_APP_API_BASE_URL — 프론트 빌드 시 기본 API 베이스 (런타임은 LOGMNG_API_BASE_URL 로 덮어쓰기 가능)
-#   VERSION — offline 번들 이름/폴더 (기본 1.0.1)
+#   VERSION — offline 번들 이름/폴더 (기본 1.0.2)
 #   NO_TAR=1 — offline 모드에서 디렉터리만 생성, tar 생략
 #
 set -euo pipefail

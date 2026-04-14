@@ -6,6 +6,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [1.0.2] - 2026-04-14
+
+### Changed
+
+- **db (PB FEP)**: `pb_send` / `pb_recv`를 `log_timestamp` 기준 **일 단위** RANGE 파티셔닝으로 전환 — `migrate-pb-send-recv-partitioning-20260408.sql` 갱신, 기존 월 단위에서 일 단위로 이전하는 `migrate-pb-send-recv-monthly-to-daily-20260414.sql` 추가, `setup.sh`·`check-db.sh`·`backend/DB_SETUP_GUIDE.md` 정합. (요구사항 `docs/requirements/20260414-pb-fep-daily-partitioning.md`)
+
+### chore (release)
+
+- 배포·오프라인 번들 기본 버전 **1.0.2** (`pom.xml`, Docker/Compose 기본값, 에어갭·설치 스크립트, 문서 예시 경로).
+
 ## [1.0.1] - 2026-04-10
 
 ### Changed

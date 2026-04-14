@@ -8,14 +8,14 @@
 # Usage (repo root):
 #   ./scripts/build-offline-bundle.sh
 #   REACT_APP_API_BASE_URL=http://백엔드:9200/api ./scripts/build-offline-bundle.sh
-#   VERSION=1.0.1 NO_TAR=1 ./scripts/build-offline-bundle.sh   # directory only, skip tar (dev)
+#   VERSION=1.0.2 NO_TAR=1 ./scripts/build-offline-bundle.sh   # directory only, skip tar (dev)
 #
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
 
-VERSION="${VERSION:-1.0.1}"
+VERSION="${VERSION:-1.0.2}"
 OUT_NAME="logmng-offline-${VERSION}"
 OUT="$ROOT/dist/${OUT_NAME}"
 TAR_NAME="${OUT_NAME}.tar.gz"

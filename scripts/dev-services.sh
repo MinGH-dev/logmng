@@ -15,7 +15,7 @@ FRONTEND_PORT="${FRONTEND_PORT:-3001}"
 BACKEND_PORT="${BACKEND_PORT:-9200}"
 DB_PORT="${DB_PORT:-5432}"
 POSTGRES_SERVICE="${POSTGRES_SERVICE:-postgresql@16}"
-JAR_NAME="logmng-backend-1.0.1.jar"
+JAR_NAME="logmng-backend-1.0.2.jar"
 LOGS_DIR="$DEV_ROOT/logs"
 
 mkdir -p "$LOGS_DIR"

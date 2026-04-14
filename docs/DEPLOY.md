@@ -31,7 +31,7 @@ chmod +x scripts/release-build.sh scripts/package-airgap-bin.sh scripts/build-of
 선택:
 
 ```bash
-VERSION=1.0.1 ./scripts/release-build.sh
+VERSION=1.0.2 ./scripts/release-build.sh
 REACT_APP_API_BASE_URL=http://127.0.0.1:9200/api ./scripts/release-build.sh
 NO_TAR=1 ./scripts/release-build.sh   # dist/ 에 디렉터리만, tar 생략
 ```

@@ -19,7 +19,9 @@
 
 ## 운영: DB 인스턴스 분리 (System / PB FEP / ImageLog)
 
-운영에서 PostgreSQL을 **물리 인스턴스(호스트·포트·DB 이름) 단위**로 나눌 수 있습니다. 런타임 JDBC 환경 변수의 **정식 이름·추가 옵션(드라이버, fail-fast 등)** 은 배포본의 **`docs/contract.md`** 및 `application.yml`을 따릅니다(백엔드에 PB 전용 데이터소스가 반영된 이후 contract가 최종 권위).
+운영에서 PostgreSQL을 **물리 인스턴스(호스트·포트·DB 이름) 단위**로 나눌 수 있습니다. 런타임 JDBC 환경 변수의 **정식 이름·추가 옵션(드라이버, fail-fast 등)** 은 배포본의 **[`docs/contract.md`](../docs/contract.md)** 및 `application.yml`을 따릅니다(백엔드에 PB 전용 데이터소스가 반영된 이후 contract가 최종 권위).
+
+**설치·부트스트랩(`setup.sh`)** 에서 ImageLog(B) 전용 클러스터가 Primary와 다를 때는 **`DB_B_HOST` / `DB_B_PORT` / `DB_B_SUPERUSER`** 로 슈퍼유저 `psql` 대상을 지정합니다. **세 변수를 모두 생략(또는 미설정)** 하면 각각 **`DB_HOST` / `DB_PORT` / `DB_SUPERUSER`** 와 동일하게 동작하여, 기존처럼 **Primary 한 클러스터에 A+B** 를 두는 배포와 호환됩니다. 변수 표·`SETUP_MODE`·비대화형 필수값은 **[`docs/contract.md`](../docs/contract.md)** 의 **「DB 설치·부트스트랩 환경 변수」** 절과 동일하게 맞춥니다.
 
 ### 풀(연결)별 JDBC 설정 요약
 
@@ -42,7 +44,7 @@ DB 프로비저닝은 **`backend/src/main/resources/db/setup.sh`** 가 담당합
 | ImageLog | `APP_DB_SCHEMA_IMAGELOG` | `SCHEMA_IMAGELOG` (DB **B** 위) |
 
 - **`DB_A_NAME`**: 시스템 + PB DDL·시드가 올라가는 DB 이름. Primary JDBC의 DB 이름과 일치해야 합니다.
-- **`DB_B_NAME`**: ImageLog DDL·시드 대상 DB. ImageLog 전용 URL을 쓰지 않는 단일 DB 구성에서는 `DB_B_NAME`을 `DB_A_NAME`과 같게 두면 됩니다.
+- **`DB_B_NAME`**: ImageLog DDL·시드 대상 DB. ImageLog 전용 URL을 쓰지 않는 단일 DB 구성에서는 `DB_B_NAME`을 `DB_A_NAME`과 같게 두면 됩니다. ImageLog PostgreSQL 인스턴스가 Primary와 **다른 호스트·포트**이면 **`DB_B_HOST` / `DB_B_PORT` / `DB_B_SUPERUSER`** 로 설치 대상을 지정합니다(미설정 시 Primary와 동일 — 하위 호환). 상세는 아래 **「운영 3분할: 원격 3호스트」** 및 **[`docs/contract.md`](../docs/contract.md)**.
 
 **PB FEP를 시스템 DB(A)와 다른 database로 둘 때**( `DB_PB_NAME` 및 선택적 `DB_PB_HOST`·`DB_PB_PORT`·`DB_PB_SUPERUSER`): `setup.sh`는 A에서 PB DDL을 적용하지 않고 PB database에서 `schema_pb_fep.sql` 등 PB 쪽 DDL·마이그레이션을 적용합니다. 전체 프로비저닝은 한 번의 `SETUP_MODE=full`(또는 설치 스크립트 기본)로 처리하고, **A만 이미 적용된 환경에서 PB DB만 채울 때**는 `SETUP_MODE=pb_only`로 동일 `DB_PB_*`를 넘겨 실행합니다. Spring은 `APP_DATASOURCE_PB_URL`을 해당 PB JDBC와 맞춥니다. split 모드에서 DB A 쪽 `search_path`는 시스템용(`SCHEMA_SYS`, `public`)만 쓰고, `schema_sys.sql`이 `update_updated_at_column()`을 SYS에 정의하므로 PB 스키마를 path에 넣지 않아도 됩니다. **`SETUP_MODE=sys_only`+split**이면 이 스크립트 실행만으로는 PB DB DDL이 돌아가지 않으므로 PB는 `SETUP_MODE=pb_only`로 별도 실행합니다.
 
@@ -61,16 +63,44 @@ DB 프로비저닝은 **`backend/src/main/resources/db/setup.sh`** 가 담당합
 
 - **`INSTALL_NONINTERACTIVE=1`** 또는 **`SETUP_NONINTERACTIVE=1`** (대소문자 `true`/`yes`/`y` 등 허용)이면, 스크립트가 기본값을 덮어쓰기 **전에** 필수 변수 존재·비어 있지 않음을 검사합니다.
 - **`pb_only`**: `DB_PB_NAME`, `DB_USER`, `DB_PASSWORD` 필수; 연결 대상은 **`DB_PB_HOST`·`DB_PB_PORT` 둘 다 설정** 또는 **`DB_HOST`·`DB_PORT` 둘 다 설정** 중 하나.
-- **`full` / `sys_only`**: `DB_HOST`, `DB_PORT`, `DB_USER`, `DB_PASSWORD`, **`DB_ETL_USER`**, **`DB_ETL_PASSWORD`** 필수.
+- **`full` / `sys_only` / `primary_only`**: `DB_HOST`, `DB_PORT`, `DB_USER`, `DB_PASSWORD`, **`DB_ETL_USER`**, **`DB_ETL_PASSWORD`** 필수.
+- **`imagelog_only`**: `DB_B_NAME`, `DB_USER`, `DB_PASSWORD` 필수; 연결 대상은 **`DB_B_HOST`·`DB_B_PORT` 둘 다 설정** 또는 **`DB_HOST`·`DB_PORT` 둘 다 설정** 중 하나.
 
 ### 멱등성(idempotency)
 
 - DDL·대부분의 마이그레이션은 **재실행 안전**(`IF NOT EXISTS` 등)으로 설계되어 있습니다. 문제 해결 절(예: `42703`)에서도 `setup.sh` 재실행을 권장하는 경우가 있습니다.
 - **`init-data*.sql`** 는 환경에 따라 **중복 키** 등이 날 수 있으므로, 재적용 전 **`SKIP_INIT_DATA=1`** 등을 검토하세요. `sys_only`에서 초기 데이터까지 넣을 때는 **`SYS_ONLY_LOAD_INIT_DATA=1`** (중복 주의).
 
-### 운영 3분할에서의 **독립** 실행 순서 예
+### 운영 3분할: **원격 3호스트**(Primary / PB / ImageLog) 운영자 런북
 
-1. **시스템·ImageLog 쪽만** (`SETUP_MODE=full` 또는 `sys_only`) — Primary 호스트에서 A/B 및 split 시 정책에 맞게 실행.
+요구사항 `20260414-three-remote-db-independent-provisioning`에 따라, **서로 다른 호스트**에 다음 세 역할이 있을 때 **호스트별로 독립** 재설치·프로비저닝할 수 있습니다.
+
+| 역할 | 설치 시 `psql` 슈퍼유저 연결(요약) | 런타임(참고) |
+|------|-----------------------------------|--------------|
+| **Primary (A)** | `DB_HOST`, `DB_PORT`, `DB_SUPERUSER` (`psql_admin`) | [`docs/contract.md`](../docs/contract.md) — `SPRING_DATASOURCE_*` |
+| **PB FEP** (split-PB, `DB_PB_NAME` ≠ `DB_A_NAME`) | `DB_PB_HOST`, `DB_PB_PORT`, `DB_PB_SUPERUSER` (`psql_pb_admin`) | `APP_DATASOURCE_PB_*` |
+| **ImageLog (B)** | **`DB_B_HOST`**, **`DB_B_PORT`**, **`DB_B_SUPERUSER`** (`psql_b_admin`; 미설정 시 Primary와 동일) | `APP_DATASOURCE_IMAGELOG_*` |
+
+**독립 재설치 권장 순서** (네트워크·운영 창이 분리된 경우 — 각 단계는 **같은 `.env` 스키마**를 쓰되, 실행 시점에 해당 호스트만 도달하면 됨):
+
+1. **`SETUP_MODE=primary_only`** — Primary(A)만: 시스템 DDL·A 쪽 마이그레이션·그랜트 등. **ImageLog(B) DDL/시드/마이그레이션은 실행하지 않음.**
+2. **`SETUP_MODE=imagelog_only`** — ImageLog만: `DB_B_NAME`·`SCHEMA_IMAGELOG` 및 B 클러스터용 **`DB_B_*`** 로 ImageLog DDL·B 전용 단계만.
+3. **`SETUP_MODE=pb_only`** — PB만: `DB_PB_*` 로 PB DB DDL·PB 마이그레이션만.
+
+**한 번에 오케스트레이션**: 배포 스크립트 실행 호스트에서 **세 엔드포인트 모두** 네트워크로 도달 가능하면 **`SETUP_MODE=full`** 한 번으로 Primary(A) + ImageLog(B, `psql_b_admin`) + split-PB 구성 시 PB DB까지 순서대로 처리할 수 있습니다(세부 순서·생략 규칙은 `backend/src/main/resources/db/setup.sh` 주석 및 [`docs/contract.md`](../docs/contract.md) `SETUP_MODE` 설명 참고).
+
+**`primary_only` 와 PB (`SPLIT_PB`) — `setup.sh` 동작에 맞춤**
+
+- **`SPLIT_PB=0`** (`DB_PB_NAME`이 비어 있거나 `DB_A_NAME`과 같음): PB 스키마/DDL이 **DB A 위**에 올라가는 레거시 경로입니다. 이 경우 **`primary_only`에서도** A에 대한 PB DDL 단계(**예:** `schema_pb_fep` on A)가 **실행될 수 있습니다** (`full`과 유사하게 A 쪽 PB 경로 유지).
+- **`SPLIT_PB=1`** (`DB_PB_NAME`이 `DB_A_NAME`과 다름): **`primary_only`에서는 PB DDL/마이그레이션을 포함하지 않습니다.** PB 클러스터는 **`SETUP_MODE=pb_only`** 를 PB 호스트(또는 `DB_PB_*`가 가리키는 엔드포인트)에서 별도 실행합니다.
+
+**비대화형** (`INSTALL_NONINTERACTIVE=1` / `SETUP_NONINTERACTIVE=1`): 모드별 필수 변수·빈 값 검사는 `setup.sh` 상단 주석과 **[`docs/contract.md`](../docs/contract.md)** 과 일치합니다. 오류 시 stderr에는 **변수 이름만** 나열됩니다.
+
+---
+
+#### (이전) 동일 정책 요약 · `sys_only` / split-PB 보충
+
+1. **시스템·ImageLog를 한 번에** (`SETUP_MODE=full` 또는 `sys_only`) — Primary에서 A/B 및 split 정책에 맞게 실행할 때는 위 **`DB_B_*`** 로 B 클러스터를 지정할 수 있습니다.
 2. **PB DB가 별도 database**이고 `sys_only`만 돌린 경우: PB DDL은 자동으로 포함되지 않으므로 **같은 `.env`로 `SETUP_MODE=pb_only`** 를 한 번 더 실행해 PB 인스턴스만 프로비저닝합니다.
 3. 런타임 JDBC는 [`docs/contract.md`](../docs/contract.md)에 맞게 `SPRING_DATASOURCE_*`, `APP_DATASOURCE_PB_*`, `APP_DATASOURCE_IMAGELOG_*` 를 설정합니다.
 
@@ -85,11 +115,16 @@ DB 프로비저닝은 **`backend/src/main/resources/db/setup.sh`** 가 담당합
 | `DB_NAME` | 레거시 DB 이름 | `logmng` |
 | `DB_A_NAME` | 시스템 + PB가 들어가는 DB | `DB_NAME` |
 | `DB_B_NAME` | ImageLog 전용 DB | `DB_A_NAME` (같으면 단일 DB) |
+| `DB_B_HOST` | ImageLog(B) 전용 DDL·`psql_b_admin` 대상 호스트 | `DB_HOST` |
+| `DB_B_PORT` | ImageLog(B) 전용 포트 | `DB_PORT` |
+| `DB_B_SUPERUSER` | ImageLog(B) 클러스터 슈퍼유저 역할명 | `DB_SUPERUSER` |
 | `SCHEMA_SYS` | 시스템 DDL 대상 스키마 | `public` |
 | `SCHEMA_PB` | PB FEP DDL 대상 스키마 | `public` |
 | `SCHEMA_IMAGELOG` | DB B에서 imagelog DDL 대상 스키마 | `public` |
-| `DB_SUPERUSER` | DDL 실행 슈퍼유저 | `postgres` |
+| `DB_SUPERUSER` | Primary(A) DDL 실행 슈퍼유저 | `postgres` |
 | `PGPASSWORD_SUPER` | 슈퍼유저 비밀번호(선택) | (미설정 시 로컬 인증에 따름) |
+
+설치 변수 전체·`SETUP_MODE` 값은 **[`docs/contract.md`](../docs/contract.md)** 「DB 설치·부트스트랩 환경 변수」를 우선합니다.
 
 **DDL 파일 구성**  
 `schema.sql`은 `schema_pb_fep.sql`(PB)과 `schema_sys.sql`(시스템)을 `\i`로 불러옵니다. 단일 DB·`public`만 쓰는 경우에도 `psql -f schema.sql` 한 번으로 이전과 동일한 객체 집합이 생성됩니다.  
@@ -106,6 +141,21 @@ PB FEP 로그 검색 API는 `pb_send`와 `pb_recv`를 UNION ALL로 조회하며,
 7. **`setup.sh` 단계 4a–4g(레거시 정렬)**: ImageLog 쪽 `migrate-imagelog-guid-status-unique-20260320.sql`(DB B) 후, 시스템 DB A에 `migrate-sys-decryption-composite-pk-20260320.sql`(승인 스냅샷·`user_decryption_allowed`에 `row_status` 및 복합 PK). idempotent.  
 8. **`setup.sh` 단계 4h (`permission_group_screen` 컬럼)**: init-data(5단계) 이전에 DB A에서 다음 네 파일을 **순서대로** 적용 — `migrate-permission-group-screen-scope.sql` → `migrate-permission-group-screen-functions.sql` → `migrate-permission-group-screen-decrypt.sql` → `migrate-permission-group-screen-scope-team.sql`. 신규 설치는 `schema_sys.sql`에 컬럼이 이미 있어 no-op; 레거시 테이블만 실제 DDL이 수행됨. **전체 `setup.sh`를 다시 돌릴 수 없는** 환경에서는 동일 순서로 수동 실행하되 `SET search_path TO SCHEMA_SYS, SCHEMA_PB, public`(또는 운영 환경 변수에 맞는 스키마)을 사용합니다. 점검: `check-db.sh` 6b. 요구사항: `docs/requirements/20260320-permission-group-screen-entry-error-migration-check.md`.  
 실제 일괄 실행은 `backend/src/main/resources/db/setup.sh`가 위 순서와 변수를 사용합니다. 점검은 `check-db.sh`로 동일 변수를 넘겨 실행합니다.
+
+### PB FEP `pb_send` / `pb_recv` 파티셔닝 (일 단위, `log_timestamp`)
+
+- **범위 분할**: 부모 테이블명은 그대로 `pb_send`, `pb_recv`(API·계약 불변). 키는 **`log_timestamp`** TIMESTAMP. 각 일 파티션은 **`[D 00:00:00, D+1 00:00:00)`** (날짜 `D`는 `timestamp` 경계로 문자열 전달; DB 세션/저장 값과 일관되게 운영).
+- **이름 규칙**: 사전 생성 분할은 **`pb_send_YYYYMMDD`**, **`pb_recv_YYYYMMDD`**. 범위 밖·미리 만들지 않은 날은 **`pb_send_default`** / **`pb_recv_default`** 로 적재.
+- **신규 설치(그린필드)**: `migrate-pb-send-recv-partitioning-20260408.sql`이 일반 테이블을 부모+DEFAULT로 바꾼 뒤, **실행 시점의 `CURRENT_DATE` 기준 이전 30일 ~ 이후 7일**(양 끝 포함)에 대해 일 파티션을 만든다. 이후 날짜는 운영에서 `CREATE TABLE … PARTITION OF …`로 추가하거나, 유지보수 창에서 `setup.sh`를 다시 돌려 창을 갱신할 수 있다(데이터 보존형 DDL은 이미 파티션된 경우 no-op).
+- **기존 DB(월 단위 `pb_*_YYYYMM`만 있는 경우)**: **전체 백업 후** `migrate-pb-send-recv-monthly-to-daily-20260414.sql`을 한 번 실행한다. 월 자식을 detach → 해당 월의 일 단위 자식 생성 → 부모로 행 이동 → 월 테이블 삭제. 이미 일 단위만 있으면 **NOTICE만 하고 종료**(멱등).
+- **`setup.sh` 적용 순서 (단일 DB·split-PB 공통)**:  
+  1) `migrate-pb-send-recv-partitioning-20260408.sql`  
+  2) `migrate-pb-send-recv-monthly-to-daily-20260414.sql`  
+  주석: `setup.sh`의 `5-pb-fep-partition` / `5-pb-fep-partition-daily-upgrade` 단계.
+- **점검**: `check-db.sh` **6i** — `pb_send`가 파티션 부모일 때 월 단위(`YYYYMM`) 자식 잔존 여부·`pg_partition_tree` 행 수(참고).
+- **운영 창·락**: `DETACH`/`INSERT`/`DROP`은 테이블 크기에 따라 장시간 락이 날 수 있음. **가급적 유지보수 시간대**에 실행.
+- **롤백**: 스크립트 역DDL을 표준화하지 않음. **백업에서 복원**이 1차 복구 수단이다.
+- **권한**: `DETACH PARTITION` 등은 **테이블 소유자 또는 슈퍼유저**가 필요하다. `setup.sh`는 `DB_SUPERUSER`/`DB_PB_SUPERUSER`로 SQL을 실행하므로 일반과 동일하다. **수동 `psql`** 로 20260414만 적용할 때는 `setup.sh`와 동일한 슈퍼유저(또는 소유자)를 사용한다.
 
 **외부 조직 복제 `ext_department` / `ext_employee` (요건 20260407)**  
 ETL·레플리카 작업은 전용 DB 역할 **`logmng_etl`**(기본; 환경 변수 `DB_ETL_USER` / `DB_ETL_PASSWORD`로 덮어쓰기)을 사용해 `ext_*`에 INSERT·UPDATE·DELETE합니다. 애플리케이션 JDBC 사용자(`DB_USER`, 기본 `logmng`)는 **`ext_*`에 SELECT만** 허용됩니다(`setup.sh` 4b-ext). 프로비저닝 시 외부 직원 키와 `app_user`의 연결은 **`app_user_external_identity`** 테이블에 저장합니다(복제 테이블에 대한 FK 없음). 이름 fuzzy 검색에 **`pg_trgm`** 을 쓰려면 별도 마이그레이션에서 `CREATE EXTENSION IF NOT EXISTS pg_trgm` 및 GIN 인덱스를 추가하면 되며, 기본 설치는 btree 인덱스만 포함합니다. 점검: `check-db.sh` 6e(TC-D01/D02).  

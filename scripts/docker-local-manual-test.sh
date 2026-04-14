@@ -13,7 +13,7 @@
 # 사용법 (저장소 루트에서):
 #   chmod +x scripts/docker-local-manual-test.sh
 #   ./scripts/docker-local-manual-test.sh up          # 번들 생성 + DB 초기화 + 백엔드/프론트 기동
-#   VERSION=1.0.1 SKIP_BUNDLE_BUILD=1 ./scripts/docker-local-manual-test.sh up   # 이미 dist 있을 때
+#   VERSION=1.0.2 SKIP_BUNDLE_BUILD=1 ./scripts/docker-local-manual-test.sh up   # 이미 dist 있을 때
 #   SKIP_DB_INIT=1 SKIP_BUNDLE_BUILD=1 ./scripts/docker-local-manual-test.sh up  # DB 볼륨 유지·이미지만 재빌드
 #   ./scripts/docker-local-manual-test.sh sync      # ★ 소스 변경 후 Docker 반영: 번(dist) 재빌드 + backend/frontend 컨테이너 재생성 (= docker-dev-sync.sh)
 #   ./scripts/docker-local-manual-test.sh restart   # 기존 dist만으로 이미지 재빌드·재기동(소스 수정 직후에는 sync 권장)
@@ -30,7 +30,7 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
 
-VERSION="${VERSION:-1.0.1}"
+VERSION="${VERSION:-1.0.2}"
 DIST_DIR="dist/logmng-offline-${VERSION}"
 
 compose() {
@@ -92,8 +92,8 @@ run_up() {
   load_env_docker
   export_for_compose
 
-  echo "[docker-local-manual-test] PostgreSQL 기동..."
-  compose up -d postgres
+  echo "[docker-local-manual-test] PostgreSQL 기동 (primary + PB + ImageLog)..."
+  compose up -d postgres postgres-pb postgres-imagelog
   if [[ "${SKIP_DB_INIT:-0}" == "1" ]]; then
     echo "[docker-local-manual-test] SKIP_DB_INIT=1 — db-init 생략 (이미 초기화된 볼륨에서 이미지만 재빌드할 때)"
   else
@@ -118,7 +118,7 @@ run_down() {
   load_env_docker
   export_for_compose
   compose down
-  echo "[docker-local-manual-test] 중지됨. Postgres 데이터까지 지우려면: docker volume rm logmng-local_pgdata (이름은 docker volume ls 로 확인)"
+  echo "[docker-local-manual-test] 중지됨. Postgres 데이터까지 지우려면: docker volume rm logmng-local_pgdata logmng-local_pgdata_pb logmng-local_pgdata_imagelog (이름은 docker volume ls 로 확인)"
 }
 
 run_logs() {
@@ -152,9 +152,9 @@ run_restart() {
   load_env_docker
   export_for_compose
 
-  # backend depends_on postgres health — 항상 postgres를 먼저 기동(스택 전체가 내려간 뒤에도 동일하게 복구).
-  echo "[docker-local-manual-test] Postgres 기동(healthy 대기)..."
-  compose up -d postgres
+  # backend depends_on three Postgres services — 기동 순서 동일하게 유지.
+  echo "[docker-local-manual-test] Postgres 기동(healthy 대기, primary + PB + ImageLog)..."
+  compose up -d postgres postgres-pb postgres-imagelog
 
   # 기본: DB 초기화 생략(Postgres 볼륨·데이터 유지). 드물게 스키마/시드를 다시 넣을 때만 RESTART_DB_INIT=1.
   if [[ "${RESTART_DB_INIT:-0}" == "1" ]]; then
@@ -227,7 +227,7 @@ case "$cmd" in
     echo "  sync — backend/frontend 소스 변경 후 Docker에 반영: build-offline-bundle + compose up --build (db-init 생략)."
     echo "         (= ./scripts/docker-dev-sync.sh)  VERSION·NO_TAR 환경변수 동일하게 전달됩니다."
     echo "  restart — 기존 dist/만으로 이미지 재빌드·재기동. 소스만 바꾸고 sync 안 하면 이전 바이너리가 그대로입니다."
-    echo "           RESTART_DB_INIT=1 이면 postgres 기동 후 db-init 한 번 실행한 뒤 backend+frontend 기동."
+    echo "           RESTART_DB_INIT=1 이면 세 Postgres 기동 후 db-init 한 번 실행한 뒤 backend+frontend 기동."
     echo "  test-backend / test-frontend — Compose 프로필(mvn-test / npm-test)로 컨테이너에서 테스트 실행."
     echo "  test-all — test-backend 후 test-frontend 순차 실행(어느 한 단계라도 실패 시 종료 코드 비0)."
     exit 1

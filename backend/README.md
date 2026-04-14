@@ -46,7 +46,7 @@ mvn spring-boot:run
 
 또는 빌드된 JAR 파일 실행:
 ```bash
-java -jar target/logmng-backend-1.0.1.jar
+java -jar target/logmng-backend-1.0.2.jar
 ```
 
 ### 테스트 실행

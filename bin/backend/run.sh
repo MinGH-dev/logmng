@@ -4,7 +4,7 @@
 # Env: JAVA_OPTS, SPRING_*, APP_*, SERVER_PORT (default 9200), LOGGING_FILE_NAME — see ../README.md and docs/contract.md
 set -euo pipefail
 DIR="$(cd "$(dirname "$0")" && pwd)"
-JAR="$DIR/logmng-backend-1.0.1.jar"
+JAR="$DIR/logmng-backend-1.0.2.jar"
 PID_FILE="$DIR/.logmng-backend.pid"
 BACKEND_PORT="${SERVER_PORT:-9200}"
 LOG_DIR="${LOG_DIR:-$DIR/logs}"

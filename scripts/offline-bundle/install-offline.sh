@@ -35,7 +35,7 @@ LOG_DIR="$VAR_DIR/log"
 RUN_DIR="$VAR_DIR/run"
 ENV_FILE="$VAR_DIR/logmng.env"
 
-BACKEND_JAR="$BUNDLE_ROOT/bin/backend/logmng-backend-1.0.1.jar"
+BACKEND_JAR="$BUNDLE_ROOT/bin/backend/logmng-backend-1.0.2.jar"
 STATIC_JAR="$BUNDLE_ROOT/bin/frontend/logmng-static-server-1.0.0.jar"
 WWW_DIR="$BUNDLE_ROOT/bin/frontend/www"
 DB_SETUP="$BUNDLE_ROOT/db/setup.sh"

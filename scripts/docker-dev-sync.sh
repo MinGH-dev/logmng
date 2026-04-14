@@ -9,14 +9,14 @@
 #
 # Usage (repo root):
 #   ./scripts/docker-dev-sync.sh
-#   VERSION=1.0.1 NO_TAR=0 ./scripts/docker-dev-sync.sh   # include gzip tarball (slower)
+#   VERSION=1.0.2 NO_TAR=0 ./scripts/docker-dev-sync.sh   # include gzip tarball (slower)
 #
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
 
-export VERSION="${VERSION:-1.0.1}"
+export VERSION="${VERSION:-1.0.2}"
 export NO_TAR="${NO_TAR:-1}"
 
 echo "[docker-dev-sync] Rebuilding offline bundle (VERSION=${VERSION}, NO_TAR=${NO_TAR})..."

@@ -2,6 +2,8 @@
 
 Requirement: `docs/requirements/20260413-docker-local-dist-multidb.md`.
 
+**Three Postgres services:** Compose runs **`postgres`** (Primary / `logmng`), **`postgres-pb`** (PB / `pbfep`), and **`postgres-imagelog`** (ImageLog / `imagelog`) on separate volumes to simulate three hosts. Default published ports: **5433**, **5434**, **5435** (override with `POSTGRES_*_PUBLISH_PORT` in `.env.docker`). `db-init` and `backend` wait until all three are healthy. JDBC inside the network uses those service names (see `.env.docker.example`).
+
 Use **`docker-compose`** (standalone) or **`docker compose`** (Compose V2 plugin) — examples below use `docker-compose` for environments where the plugin is not installed (macOS Homebrew `docker` often has **no** `compose` subcommand; the helper script tries both).
 
 ## Dev sync (rebuild dist + Docker)
@@ -16,7 +18,7 @@ Use **`docker-compose`** (standalone) or **`docker compose`** (Compose V2 plugin
 
 **`./scripts/docker-local-manual-test.sh restart`** only rebuilds Docker images from the **existing** `dist/` tree. If you skipped a bundle rebuild, you will still run **old** JAR/static files — use **`sync`** (or `docker-dev-sync.sh`) after code changes.
 
-Optional: `VERSION=1.0.1` (default), `NO_TAR=0` to also produce the gzip tarball (slower). See `docs/workflow/DOCKER-LOCAL-AGENTS.md` items 11–12.
+Optional: `VERSION=1.0.2` (default), `NO_TAR=0` to also produce the gzip tarball (slower). See `docs/workflow/DOCKER-LOCAL-AGENTS.md` items 11–12.
 
 ## Agent / CI checklist (validate build + deploy)
 
@@ -24,8 +26,8 @@ Run from the **repository root** (`/path/to/logmng`).
 
 1. **Host tools**: Node.js + npm (for frontend build), **Apache Maven 3.x** (`mvn` on `PATH`), Docker Engine with **`docker-compose`** or Compose V2 plugin. If `mvn` is missing: e.g. macOS `brew install maven`.
 2. **Frontend deps**: `cd frontend && npm ci` (use if `npm run build` fails with missing modules or permission errors on `node_modules/.bin`).
-3. **Offline bundle**: `./scripts/build-offline-bundle.sh` (or `VERSION=1.0.1 NO_TAR=1 ./scripts/build-offline-bundle.sh`). Confirm `dist/logmng-offline-<VERSION>/bin/backend/*.jar` and `.../db/` exist.
-4. **Env file**: ensure `.env.docker` exists (`cp .env.docker.example .env.docker` if needed). For production-like secrets, replace placeholders; JDBC hosts inside containers must stay **`postgres`**.
+3. **Offline bundle**: `./scripts/build-offline-bundle.sh` (or `VERSION=1.0.2 NO_TAR=1 ./scripts/build-offline-bundle.sh`). Confirm `dist/logmng-offline-<VERSION>/bin/backend/*.jar` and `.../db/` exist.
+4. **Env file**: ensure `.env.docker` exists (`cp .env.docker.example .env.docker` if needed). For production-like secrets, replace placeholders; JDBC hosts inside containers must match Compose service names: **`postgres`**, **`postgres-pb`**, **`postgres-imagelog`**.
 5. **Compose interpolation**: use `./scripts/docker-local-manual-test.sh` **or** pass `--env-file .env.docker` on every `docker-compose` / `docker compose` invocation so `POSTGRES_PUBLISH_PORT`, `OFFLINE_ROOT`, and build args resolve consistently.
 6. **Bring up**: `./scripts/docker-local-manual-test.sh up`, or `SKIP_BUNDLE_BUILD=1` when `dist/` already matches `VERSION`. Rebuild images without re-running DB init: `SKIP_DB_INIT=1 SKIP_BUNDLE_BUILD=1 ./scripts/docker-local-manual-test.sh up`.
 7. **Smoke**: `./scripts/docker-local-manual-test.sh smoke` or `curl` TC-04–TC-06 per table below.
@@ -43,7 +45,7 @@ LDAP·브라우저 E2E 자동화는 포함하지 않습니다. 로컬에서 번�
 이미 `dist/logmng-offline-<VERSION>/` 가 있으면:
 
 ```bash
-VERSION=1.0.1 SKIP_BUNDLE_BUILD=1 ./scripts/docker-local-manual-test.sh up
+VERSION=1.0.2 SKIP_BUNDLE_BUILD=1 ./scripts/docker-local-manual-test.sh up
 ```
 
 중지: `./scripts/docker-local-manual-test.sh down` — 헬스 확인: `./scripts/docker-local-manual-test.sh smoke`
@@ -59,6 +61,31 @@ VERSION=1.0.1 SKIP_BUNDLE_BUILD=1 ./scripts/docker-local-manual-test.sh up
 **Host port 5432 busy**: 기본 **호스트** Postgres 포트는 **5433**(`POSTGRES_PUBLISH_PORT`)입니다. 로컬에 이미 PostgreSQL이 5432를 쓰는 경우를 피합니다. 필요 시 `.env.docker`에서 변경하세요.
 
 **로그인 시 "접근이 제한된 IP 주소"**: API는 `AuthService`가 `IpUtil`로 클라이언트 IP를 검사합니다. 호스트 브라우저→게시 포트로 들어오는 연결은 컨테이너에서 **127.0.0.1이 아니라 Docker 브리지(예: `172.17.0.1`)** 로 보일 수 있어 기본 허용 목록에 없으면 거절됩니다. `.env.docker`에 `APP_SECURITY_AUTHORIZED_IPS`를 설정하세요(`.env.docker.example` 참고 — 예: `172.*`, `192.168.*` 와일드카드). 변경 후 백엔드 컨테이너 재시작.
+
+## Air-gapped hosts (폐쇄망)
+
+Internet is required only on a **build/bundle machine**. The runtime stack does not call Maven/npm or public registries if images and `dist/` are already on the host.
+
+1. **On a machine with Docker + internet** (or with base images already cached):
+   - Produce `dist/logmng-offline-<VERSION>/`: `./scripts/build-offline-bundle.sh`
+   - Copy `.env.docker.example` → `.env.docker` and set secrets.
+   - Export images for transfer:
+     ```bash
+     ./scripts/docker-export-images-for-airgap.sh
+     ```
+     This pulls `postgres:16` and `eclipse-temurin:17-jre`, builds `backend` / `frontend` images, and writes `dist/logmng-docker-airgap-<VERSION>-YYYYMMDD.tar` (override with `OUT=...`).  
+     `SKIP_PULL=1` — use only if images are already local. `SKIP_COMPOSE_BUILD=1` — save base images only (you must build app images separately before `docker save` if needed).
+
+2. **On the air-gapped host**: copy the **repository tree** (or at least `docker/`, `dist/logmng-offline-<VERSION>/`, `.env.docker`) and the **tar** from step 1.
+   ```bash
+   docker load -i dist/logmng-docker-airgap-*.tar
+   docker-compose --env-file .env.docker -f docker/docker-compose.yml --project-directory . up -d --pull never postgres postgres-pb postgres-imagelog
+   docker-compose --env-file .env.docker -f docker/docker-compose.yml --project-directory . --profile init run --rm db-init
+   docker-compose --env-file .env.docker -f docker/docker-compose.yml --project-directory . up -d --pull never --build backend frontend
+   ```
+   `--pull never` avoids any registry access. **First-time image build on an air-gapped host is not supported** (Dockerfiles run `apt-get`); prefer building images online and loading from the tar.
+
+3. **Same three databases** as online compose: `logmng`, `pbfep`, `imagelog` on **three** Postgres services — see **Start order** below.
 
 ## Prerequisites
 
@@ -82,7 +109,7 @@ VERSION=1.0.1 SKIP_BUNDLE_BUILD=1 ./scripts/docker-local-manual-test.sh up
    cp .env.docker.example .env.docker
    ```
 
-   Edit passwords and `ENCRYPTION_KEY`. Keep `SPRING_DATASOURCE_*` / `APP_DATASOURCE_*` JDBC hosts as **`postgres`** (Compose service name). Align `DIST_VERSION` / `OFFLINE_ROOT` with your `dist/logmng-offline-*` directory.
+   Edit passwords and `ENCRYPTION_KEY`. Keep `SPRING_DATASOURCE_*` / `APP_DATASOURCE_*` JDBC hosts aligned with **three** Compose services (`postgres`, `postgres-pb`, `postgres-imagelog`). Align `DIST_VERSION` / `OFFLINE_ROOT` with your `dist/logmng-offline-*` directory.
 
 3. Compose variable substitution: prefer `./scripts/docker-local-manual-test.sh` (loads `.env.docker`) **or** `docker-compose --env-file .env.docker -f docker/docker-compose.yml --project-directory . …`. A repo-root `.env` file is optional; it is **not** required if you use `.env.docker` as above.
 
@@ -90,10 +117,10 @@ VERSION=1.0.1 SKIP_BUNDLE_BUILD=1 ./scripts/docker-local-manual-test.sh up
 
 Use the same `--env-file .env.docker` (and optional `set -a && source .env.docker && set +a`) so port and path variables match the manual-test script.
 
-1. PostgreSQL 16:
+1. PostgreSQL 16 (three services):
 
    ```bash
-   docker-compose --env-file .env.docker -f docker/docker-compose.yml --project-directory . up -d postgres
+   docker-compose --env-file .env.docker -f docker/docker-compose.yml --project-directory . up -d postgres postgres-pb postgres-imagelog
    ```
 
 2. One-shot DB init (`setup.sh` → databases `logmng`, `pbfep`, `imagelog`):
@@ -108,7 +135,7 @@ Use the same `--env-file .env.docker` (and optional `set -a && source .env.docke
    docker-compose --env-file .env.docker -f docker/docker-compose.yml --project-directory . up -d --build backend frontend
    ```
 
-Published ports: **9200** (API), **3001** (static UI), **5433** → container 5432 for Postgres by default (override with `POSTGRES_PUBLISH_PORT` in `.env.docker`).
+Published ports: **9200** (API), **3001** (static UI), **5433** / **5434** / **5435** → container 5432 for each Postgres service by default (override with `POSTGRES_PUBLISH_PORT`, `POSTGRES_PB_PUBLISH_PORT`, `POSTGRES_IMAGELOG_PUBLISH_PORT` in `.env.docker`).
 
 ## Build arguments
 
@@ -116,8 +143,8 @@ Runtime images accept:
 
 | Build arg       | Default   | Role                                      |
 |----------------|-----------|-------------------------------------------|
-| `DIST_VERSION` | `1.0.1`   | Path segment `dist/logmng-offline-<ver>` |
-| `BACKEND_JAR`  | `logmng-backend-1.0.1.jar` | Fat JAR filename under `bin/backend/` |
+| `DIST_VERSION` | `1.0.2`   | Path segment `dist/logmng-offline-<ver>` |
+| `BACKEND_JAR`  | `logmng-backend-1.0.2.jar` | Fat JAR filename under `bin/backend/` |
 | `STATIC_SERVER_JAR` | `logmng-static-server-1.0.0.jar` | Under `bin/frontend/` |
 
 Override in Compose via `.env.docker` / `.env` (`DIST_VERSION`, `BACKEND_JAR`, `STATIC_SERVER_JAR`).
@@ -138,7 +165,7 @@ docker-compose -f docker/docker-compose.yml --project-directory . --profile mvn-
 docker-compose -f docker/docker-compose.yml --project-directory . --profile mvn-test run --rm mvn-test
 ```
 
-To run tests against **PostgreSQL 16** on the same Compose network (e.g. future integration tests), start `postgres`, attach the test container with `--network logmng-local-net`, and point JDBC at `postgres:5432`.
+To run tests against **PostgreSQL 16** on the same Compose network (e.g. future integration tests), start the Postgres services, attach the test container with `--network logmng-local-net`, and point JDBC at `postgres:5432` (and PB/ImageLog hosts if needed).
 
 ## Validate compose file
 

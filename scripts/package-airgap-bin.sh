@@ -23,7 +23,7 @@ fi
 
 AIRGAP_BIN_ROOT="${AIRGAP_BIN_ROOT:-$ROOT/bin}"
 
-BACKEND_JAR_NAME="logmng-backend-1.0.1.jar"
+BACKEND_JAR_NAME="logmng-backend-1.0.2.jar"
 STATIC_SERVER_JAR_NAME="logmng-static-server-1.0.0.jar"
 
 export REACT_APP_API_BASE_URL="${REACT_APP_API_BASE_URL:-http://127.0.0.1:9200/api}"

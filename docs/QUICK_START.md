@@ -66,7 +66,7 @@ npm start
 ```bash
 cd backend
 mvn clean package -DskipTests
-java -jar target/logmng-backend-1.0.1.jar
+java -jar target/logmng-backend-1.0.2.jar
 ```
 
 **검증:**

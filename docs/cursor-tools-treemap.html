@@ -846,6 +846,7 @@ const TREEMAP_DATA = {
     "contract-first.mdc": ".cursor/rules/contract-first.mdc",
     "core-principles.mdc": ".cursor/rules/core-principles.mdc",
     "db-agent.mdc": ".cursor/rules/db-agent.mdc",
+    "docker-dev-sync-after-change.mdc": ".cursor/rules/docker-dev-sync-after-change.mdc",
     "error-first-workflow.mdc": ".cursor/rules/error-first-workflow.mdc",
     "file-reading-optimization.mdc": ".cursor/rules/file-reading-optimization.mdc",
     "frontend-agent.mdc": ".cursor/rules/frontend-agent.mdc",
@@ -958,6 +959,7 @@ const TREEMAP_DATA = {
     "DEVELOPMENT_WORKFLOW.md": "docs/workflow/DEVELOPMENT_WORKFLOW.md",
     "DOC-CODE-SYNC.md": "docs/workflow/DOC-CODE-SYNC.md",
     "DOC-MENU-PERMISSION-RESTRUCTURE-VERIFICATION.md": "docs/workflow/DOC-MENU-PERMISSION-RESTRUCTURE-VERIFICATION.md",
+    "DOCKER-LOCAL-AGENTS.md": "docs/workflow/DOCKER-LOCAL-AGENTS.md",
     "DOCUMENT-LANGUAGE-POLICY.md": "docs/workflow/DOCUMENT-LANGUAGE-POLICY.md",
     "DRYRUN-20260311-activity-log-row1-date-row2-rest.md": "docs/workflow/DRYRUN-20260311-activity-log-row1-date-row2-rest.md",
     "DRYRUN-20260311-activity-log-single-row-handoff.md": "docs/workflow/DRYRUN-20260311-activity-log-single-row-handoff.md",
@@ -2206,6 +2208,27 @@ const TREEMAP_DATA = {
           ]
         },
         {
+          "name": "docker-dev-sync-after-change.mdc",
+          "desc": "After frontend/backend changes, sync local Docker dist + images when the operator uses the compose stack",
+          "refs": [
+            {
+              "name": "docker-compose.yml",
+              "type": "other",
+              "path": "docker/docker-compose.yml"
+            },
+            {
+              "name": "docker-dev-sync.sh",
+              "type": "other",
+              "path": "./scripts/docker-dev-sync.sh"
+            },
+            {
+              "name": "DOCKER-LOCAL-AGENTS.md",
+              "type": "workflow",
+              "path": "docs/workflow/DOCKER-LOCAL-AGENTS.md"
+            }
+          ]
+        },
+        {
           "name": "error-first-workflow.mdc",
           "desc": "에러/버그 수정 시 요건 문서 + §3 테스트 계획 먼저 작성.",
           "refs": [
@@ -2321,6 +2344,21 @@ const TREEMAP_DATA = {
               "name": "check-frontend-backend.md",
               "type": "other",
               "path": "check-frontend-backend.md"
+            },
+            {
+              "name": "dev-services.sh",
+              "type": "other",
+              "path": "dev-services.sh"
+            },
+            {
+              "name": "docker-dev-sync.sh",
+              "type": "other",
+              "path": "./scripts/docker-dev-sync.sh"
+            },
+            {
+              "name": "DOCKER-LOCAL-AGENTS.md",
+              "type": "workflow",
+              "path": "docs/workflow/DOCKER-LOCAL-AGENTS.md"
             },
             {
               "name": "docs/requirements/{parentID}-bugfix-{N}.md",
@@ -2887,6 +2925,21 @@ const TREEMAP_DATA = {
                 "path": "schema_imagelog.sql"
               },
               {
+                "name": "migrate-pb-send-recv-partitioning-20260408.sql",
+                "type": "other",
+                "path": "migrate-pb-send-recv-partitioning-20260408.sql"
+              },
+              {
+                "name": "migrate-pb-send-recv-monthly-to-daily-20260414.sql",
+                "type": "other",
+                "path": "migrate-pb-send-recv-monthly-to-daily-20260414.sql"
+              },
+              {
+                "name": "setup.sh",
+                "type": "other",
+                "path": "setup.sh"
+              },
+              {
                 "name": "migrate-imagelog-guid-status-unique-20260320.sql",
                 "type": "other",
                 "path": "migrate-imagelog-guid-status-unique-20260320.sql"
@@ -2900,11 +2953,6 @@ const TREEMAP_DATA = {
                 "name": "migrate-imagelog-composite-decrypt-20260320.sql",
                 "type": "other",
                 "path": "migrate-imagelog-composite-decrypt-20260320.sql"
-              },
-              {
-                "name": "setup.sh",
-                "type": "other",
-                "path": "setup.sh"
               },
               {
                 "name": "migrate-permission-group-screen-scope.sql",
@@ -4283,6 +4331,62 @@ const TREEMAP_DATA = {
                 "name": "20260318-menu-and-permission-restructure.md",
                 "type": "other",
                 "path": "20260318-menu-and-permission-restructure.md"
+              }
+            ]
+          },
+          {
+            "name": "DOCKER-LOCAL-AGENTS.md",
+            "desc": "Docker local stack — agent-facing pitfalls",
+            "refs": [
+              {
+                "name": "README.md",
+                "type": "other",
+                "path": "docker/README.md"
+              },
+              {
+                "name": "docker-local-manual-test.sh",
+                "type": "other",
+                "path": "./scripts/docker-local-manual-test.sh"
+              },
+              {
+                "name": "build-offline-bundle.sh",
+                "type": "other",
+                "path": "scripts/build-offline-bundle.sh"
+              },
+              {
+                "name": "package-airgap-bin.sh",
+                "type": "other",
+                "path": "scripts/package-airgap-bin.sh"
+              },
+              {
+                "name": "INIT_DATA_FILE=init-data-closed-network-admin-only.sql",
+                "type": "other",
+                "path": "INIT_DATA_FILE=init-data-closed-network-admin-only.sql"
+              },
+              {
+                "name": "init-data.sql",
+                "type": "other",
+                "path": "init-data.sql"
+              },
+              {
+                "name": "docker-dev-sync.sh",
+                "type": "other",
+                "path": "./scripts/docker-dev-sync.sh"
+              },
+              {
+                "name": "build-offline-bundle.sh",
+                "type": "other",
+                "path": "./scripts/build-offline-bundle.sh"
+              },
+              {
+                "name": "setup.sh",
+                "type": "other",
+                "path": "backend/.../db/setup.sh"
+              },
+              {
+                "name": "docker-dev-sync.sh",
+                "type": "other",
+                "path": "docker-dev-sync.sh"
               }
             ]
           },

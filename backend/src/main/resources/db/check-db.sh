@@ -6,7 +6,8 @@
 #   DB_NAME / DB_A_NAME / DB_B_NAME / SCHEMA_SYS / SCHEMA_PB / SCHEMA_IMAGELOG
 #   DB_USER / DB_PASSWORD / DB_HOST / DB_PORT
 #   DB_SUPERUSER (기본: postgres)
-#   PGPASSWORD_SUPER — 슈퍼유저 비밀번호 (기본: postgres; 로컬 trust면 무시될 수 있음)
+#   ImageLog cluster (optional; defaults match Primary): DB_B_HOST, DB_B_PORT, DB_B_SUPERUSER
+#   PGPASSWORD_SUPER — superuser password (default: postgres; local trust may ignore)
 
 set -e
 
@@ -24,20 +25,37 @@ DB_HOST="${DB_HOST:-localhost}"
 DB_PORT="${DB_PORT:-5432}"
 
 DB_SUPERUSER="${DB_SUPERUSER:-postgres}"
+DB_B_HOST="${DB_B_HOST:-$DB_HOST}"
+DB_B_PORT="${DB_B_PORT:-$DB_PORT}"
+DB_B_SUPERUSER="${DB_B_SUPERUSER:-$DB_SUPERUSER}"
+
 export PGPASSWORD_SUPER="${PGPASSWORD_SUPER:-postgres}"
+
+B_CLUSTER_DIFFERS=0
+if [ "$DB_B_HOST" != "$DB_HOST" ] || [ "$DB_B_PORT" != "$DB_PORT" ]; then
+  B_CLUSTER_DIFFERS=1
+fi
 
 psql_su() {
   PGPASSWORD="$PGPASSWORD_SUPER" psql -U "$DB_SUPERUSER" -h "$DB_HOST" -p "$DB_PORT" "$@"
+}
+
+psql_su_b() {
+  PGPASSWORD="$PGPASSWORD_SUPER" psql -U "$DB_B_SUPERUSER" -h "$DB_B_HOST" -p "$DB_B_PORT" "$@"
 }
 
 psql_app() {
   PGPASSWORD="$DB_PASSWORD" psql -U "$DB_USER" -h "$DB_HOST" -p "$DB_PORT" "$@"
 }
 
+psql_app_b() {
+  PGPASSWORD="$DB_PASSWORD" psql -U "$DB_USER" -h "$DB_B_HOST" -p "$DB_B_PORT" "$@"
+}
+
 echo "=========================================="
 echo "PostgreSQL 데이터베이스 상태 점검"
 echo "  A=${DB_A_NAME} (SCHEMA_SYS=${SCHEMA_SYS}, SCHEMA_PB=${SCHEMA_PB})"
-echo "  B=${DB_B_NAME} (SCHEMA_IMAGELOG=${SCHEMA_IMAGELOG})"
+echo "  B=${DB_B_NAME} (SCHEMA_IMAGELOG=${SCHEMA_IMAGELOG}) @ ${DB_B_HOST}:${DB_B_PORT}"
 echo "=========================================="
 echo ""
 
@@ -53,10 +71,18 @@ echo ""
 # 2. PostgreSQL 연결 가능 여부 확인
 echo "2. PostgreSQL 연결 가능 여부"
 if pg_isready -h "$DB_HOST" -p "$DB_PORT" >/dev/null 2>&1; then
-  echo "   ✅ PostgreSQL 서버 연결 가능 (포트: $DB_PORT)"
+  echo "   ✅ Primary 서버 연결 가능 (${DB_HOST}:${DB_PORT})"
 else
-  echo "   ❌ PostgreSQL 서버 연결 불가"
+  echo "   ❌ Primary 서버 연결 불가 (${DB_HOST}:${DB_PORT})"
   echo "   💡 서비스 시작 후 잠시 대기 필요"
+fi
+if [ "$B_CLUSTER_DIFFERS" = "1" ]; then
+  echo "   ImageLog cluster (split from Primary): ${DB_B_HOST}:${DB_B_PORT}"
+  if pg_isready -h "$DB_B_HOST" -p "$DB_B_PORT" >/dev/null 2>&1; then
+    echo "   ✅ ImageLog 엔드포인트 응답 (${DB_B_HOST}:${DB_B_PORT})"
+  else
+    echo "   ❌ ImageLog 엔드포인트 연결 불가 (${DB_B_HOST}:${DB_B_PORT})"
+  fi
 fi
 echo ""
 
@@ -70,11 +96,11 @@ else
 fi
 
 if [ "$DB_B_NAME" != "$DB_A_NAME" ]; then
-  DB_B_EXISTS=$(psql_su -tAc "SELECT 1 FROM pg_database WHERE datname='${DB_B_NAME}'" 2>/dev/null || echo "")
+  DB_B_EXISTS=$(psql_su_b -tAc "SELECT 1 FROM pg_database WHERE datname='${DB_B_NAME}'" 2>/dev/null || echo "")
   if [ "$DB_B_EXISTS" = "1" ]; then
-    echo "   ✅ 데이터베이스 B '$DB_B_NAME' 존재"
+    echo "   ✅ 데이터베이스 B '$DB_B_NAME' 존재 (ImageLog cluster)"
   else
-    echo "   ❌ 데이터베이스 B '$DB_B_NAME' 없음"
+    echo "   ❌ 데이터베이스 B '$DB_B_NAME' 없음 (ImageLog cluster)"
   fi
 else
   echo "   ℹ️  B=A (단일 DB 모드)"
@@ -100,10 +126,10 @@ else
 fi
 
 if [ "$DB_B_NAME" != "$DB_A_NAME" ]; then
-  if psql_app -d "$DB_B_NAME" -c "SELECT 1;" >/dev/null 2>&1; then
-    echo "   ✅ 사용자 '$DB_USER'로 DB B 연결 성공"
+  if psql_app_b -d "$DB_B_NAME" -c "SELECT 1;" >/dev/null 2>&1; then
+    echo "   ✅ 사용자 '$DB_USER'로 DB B 연결 성공 (${DB_B_HOST}:${DB_B_PORT})"
   else
-    echo "   ❌ 사용자 '$DB_USER'로 DB B 연결 실패"
+    echo "   ❌ 사용자 '$DB_USER'로 DB B 연결 실패 (${DB_B_HOST}:${DB_B_PORT})"
   fi
 fi
 echo ""
@@ -125,11 +151,11 @@ else
   echo "   ❌ 스키마 ${SCHEMA_PB}.pb_recv 없음"
 fi
 
-IMG_TABLE=$(psql_app -d "$DB_B_NAME" -tAc "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema='${SCHEMA_IMAGELOG}' AND table_name='imagelog';" 2>/dev/null || echo "0")
+IMG_TABLE=$(psql_app_b -d "$DB_B_NAME" -tAc "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema='${SCHEMA_IMAGELOG}' AND table_name='imagelog';" 2>/dev/null || echo "0")
 if [ "$IMG_TABLE" = "1" ]; then
-  echo "   ✅ 스키마 ${SCHEMA_IMAGELOG}.imagelog 존재 (DB B)"
+  echo "   ✅ 스키마 ${SCHEMA_IMAGELOG}.imagelog 존재 (DB B @ ${DB_B_HOST}:${DB_B_PORT})"
 else
-  echo "   ❌ 스키마 ${SCHEMA_IMAGELOG}.imagelog 없음 (DB B)"
+  echo "   ❌ 스키마 ${SCHEMA_IMAGELOG}.imagelog 없음 (DB B @ ${DB_B_HOST}:${DB_B_PORT})"
 fi
 
 SYS_SAMPLE=$(psql_app -d "$DB_A_NAME" -tAc "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema='${SCHEMA_SYS}' AND table_name='app_user';" 2>/dev/null || echo "0")
@@ -286,6 +312,30 @@ if [ "${AU_TABLE:-0}" = "1" ]; then
 fi
 echo ""
 
+# 6i. PB FEP range partitions (daily pb_*_YYYYMMDD vs legacy monthly YYYYMM) — optional sanity
+echo "6i. PB FEP 파티션 레이아웃 (SCHEMA_PB=${SCHEMA_PB}; 부모=pb_send/pb_recv)"
+if [ "$SEND_TABLE" = "1" ]; then
+  PB_SEND_KIND=$(psql_app -d "$DB_A_NAME" -tAc "SET search_path TO ${SCHEMA_PB}, public; SELECT c.relkind FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace WHERE n.nspname='${SCHEMA_PB}' AND c.relname='pb_send';" 2>/dev/null | tr -d '[:space:]' || echo "")
+  if [ "$PB_SEND_KIND" = "p" ]; then
+    PB_MON=$(psql_app -d "$DB_A_NAME" -tAc "SET search_path TO ${SCHEMA_PB}, public; SELECT COUNT(*) FROM pg_inherits i JOIN pg_class c ON c.oid = i.inhrelid WHERE i.inhparent = 'pb_send'::regclass AND c.relname ~ '^pb_send_[0-9]{6}\$';" 2>/dev/null | tail -1 | tr -d '[:space:]' || echo "0")
+    PB_DAY=$(psql_app -d "$DB_A_NAME" -tAc "SET search_path TO ${SCHEMA_PB}, public; SELECT COUNT(*) FROM pg_inherits i JOIN pg_class c ON c.oid = i.inhrelid WHERE i.inhparent = 'pb_send'::regclass AND c.relname ~ '^pb_send_[0-9]{8}\$';" 2>/dev/null | tail -1 | tr -d '[:space:]' || echo "0")
+    if [ "${PB_MON:-0}" != "0" ]; then
+      echo "   ⚠️  pb_send에 월 단위 자식(pb_*_YYYYMM) ${PB_MON}개 — migrate-pb-send-recv-monthly-to-daily-20260414.sql 적용 검토"
+    else
+      echo "   ✅ pb_send: 월 단위(YYYYMM) 자식 없음; 일 단위(YYYYMMDD) 자식 ${PB_DAY:-0}개"
+    fi
+    PB_TREE=$(psql_app -d "$DB_A_NAME" -tAc "SET search_path TO ${SCHEMA_PB}, public; SELECT COUNT(*) FROM pg_partition_tree('pb_send');" 2>/dev/null | tail -1 | tr -d '[:space:]' || echo "0")
+    if [ "${PB_TREE:-0}" != "0" ]; then
+      echo "   ℹ️  pg_partition_tree(pb_send) 행 수: ${PB_TREE} (계층 존재)"
+    fi
+  else
+    echo "   ℹ️  pb_send 파티션 부모 아님 (relkind=${PB_SEND_KIND:-unknown}) — 스킵"
+  fi
+else
+  echo "   ℹ️  ${SCHEMA_PB}.pb_send 없음 (split-PB 등 다른 DB에만 있을 수 있음) — 스킵"
+fi
+echo ""
+
 # 7. 테이블 구조 확인
 echo "7. 테이블 구조 확인"
 if [ "$SEND_TABLE" = "1" ]; then
@@ -352,8 +402,8 @@ echo "12. 연결 정보"
 echo "   DB A: $DB_A_NAME"
 echo "   DB B: $DB_B_NAME"
 echo "   사용자: $DB_USER"
-echo "   호스트: $DB_HOST"
-echo "   포트: $DB_PORT"
+echo "   Primary: $DB_HOST:$DB_PORT"
+echo "   ImageLog(B): $DB_B_HOST:$DB_B_PORT"
 echo "   search_path 힌트: SYS=${SCHEMA_SYS}, PB=${SCHEMA_PB}, ImageLog(B)=${SCHEMA_IMAGELOG}"
 echo ""
 

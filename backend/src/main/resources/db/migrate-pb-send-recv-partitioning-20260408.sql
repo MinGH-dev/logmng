@@ -2,14 +2,17 @@
 -- 대상: pb_send, pb_recv
 -- 방식: 기존 테이블을 *_default로 rename 후 partitioned parent 생성 + DEFAULT partition attach
 -- 주의: parent에는 PK를 두지 않음(기존 PK(id)는 default partition에 유지)
+--
+-- 파티션: log_timestamp 기준 **일 단위** RANGE. 이름 pb_send_YYYYMMDD / pb_recv_YYYYMMDD.
+-- 사전 생성 범위: CURRENT_DATE 기준 **이전 30일 ~ 이후 7일** (양 끝 포함, 총 38일분).
+-- 그 밖의 시각은 pb_*_default 로 적재(운영에서 일 파티션 추가 절차는 DB_SETUP_GUIDE.md 참고).
 
 DO $$
 DECLARE
-    month_start DATE := date_trunc('month', CURRENT_DATE)::DATE;
-    prev_month  DATE := (date_trunc('month', CURRENT_DATE) - INTERVAL '1 month')::DATE;
-    next_month  DATE := (date_trunc('month', CURRENT_DATE) + INTERVAL '1 month')::DATE;
-    next2_month DATE := (date_trunc('month', CURRENT_DATE) + INTERVAL '2 month')::DATE;
-    part_name TEXT;
+    back_days  INT := 30;
+    fwd_days   INT := 7;
+    d          DATE;
+    part_name  TEXT;
 BEGIN
     -- pb_send
     IF to_regclass('pb_send') IS NOT NULL
@@ -47,35 +50,23 @@ BEGIN
         EXECUTE 'CREATE INDEX IF NOT EXISTS idx_pb_send_p_session_id ON pb_send(session_id)';
         EXECUTE 'CREATE INDEX IF NOT EXISTS idx_pb_send_p_search ON pb_send(log_timestamp, media_code, tr_code)';
 
-        FOREACH part_name IN ARRAY ARRAY[
-            format('pb_send_%s', to_char(prev_month, 'YYYYMM')),
-            format('pb_send_%s', to_char(month_start, 'YYYYMM')),
-            format('pb_send_%s', to_char(next_month, 'YYYYMM'))
-        ]
-        LOOP
+        d := CURRENT_DATE - back_days;
+        WHILE d <= CURRENT_DATE + fwd_days LOOP
+            part_name := format('pb_send_%s', to_char(d, 'YYYYMMDD'));
             IF to_regclass(part_name) IS NULL THEN
-                IF part_name = format('pb_send_%s', to_char(prev_month, 'YYYYMM')) THEN
-                    EXECUTE format(
-                        'CREATE TABLE %I PARTITION OF pb_send FOR VALUES FROM (%L) TO (%L)',
-                        part_name, prev_month::TEXT, month_start::TEXT
-                    );
-                ELSIF part_name = format('pb_send_%s', to_char(month_start, 'YYYYMM')) THEN
-                    EXECUTE format(
-                        'CREATE TABLE %I PARTITION OF pb_send FOR VALUES FROM (%L) TO (%L)',
-                        part_name, month_start::TEXT, next_month::TEXT
-                    );
-                ELSE
-                    EXECUTE format(
-                        'CREATE TABLE %I PARTITION OF pb_send FOR VALUES FROM (%L) TO (%L)',
-                        part_name, next_month::TEXT, next2_month::TEXT
-                    );
-                END IF;
+                EXECUTE format(
+                    'CREATE TABLE %I PARTITION OF pb_send FOR VALUES FROM (%L) TO (%L)',
+                    part_name,
+                    d::TEXT,
+                    (d + 1)::TEXT
+                );
             END IF;
             EXECUTE format('DROP TRIGGER IF EXISTS update_pb_send_updated_at ON %I', part_name);
             EXECUTE format(
                 'CREATE TRIGGER update_pb_send_updated_at BEFORE UPDATE ON %I FOR EACH ROW EXECUTE FUNCTION update_updated_at_column()',
                 part_name
             );
+            d := d + 1;
         END LOOP;
     END IF;
 
@@ -115,35 +106,23 @@ BEGIN
         EXECUTE 'CREATE INDEX IF NOT EXISTS idx_pb_recv_p_session_id ON pb_recv(session_id)';
         EXECUTE 'CREATE INDEX IF NOT EXISTS idx_pb_recv_p_search ON pb_recv(log_timestamp, media_code, tr_code)';
 
-        FOREACH part_name IN ARRAY ARRAY[
-            format('pb_recv_%s', to_char(prev_month, 'YYYYMM')),
-            format('pb_recv_%s', to_char(month_start, 'YYYYMM')),
-            format('pb_recv_%s', to_char(next_month, 'YYYYMM'))
-        ]
-        LOOP
+        d := CURRENT_DATE - back_days;
+        WHILE d <= CURRENT_DATE + fwd_days LOOP
+            part_name := format('pb_recv_%s', to_char(d, 'YYYYMMDD'));
             IF to_regclass(part_name) IS NULL THEN
-                IF part_name = format('pb_recv_%s', to_char(prev_month, 'YYYYMM')) THEN
-                    EXECUTE format(
-                        'CREATE TABLE %I PARTITION OF pb_recv FOR VALUES FROM (%L) TO (%L)',
-                        part_name, prev_month::TEXT, month_start::TEXT
-                    );
-                ELSIF part_name = format('pb_recv_%s', to_char(month_start, 'YYYYMM')) THEN
-                    EXECUTE format(
-                        'CREATE TABLE %I PARTITION OF pb_recv FOR VALUES FROM (%L) TO (%L)',
-                        part_name, month_start::TEXT, next_month::TEXT
-                    );
-                ELSE
-                    EXECUTE format(
-                        'CREATE TABLE %I PARTITION OF pb_recv FOR VALUES FROM (%L) TO (%L)',
-                        part_name, next_month::TEXT, next2_month::TEXT
-                    );
-                END IF;
+                EXECUTE format(
+                    'CREATE TABLE %I PARTITION OF pb_recv FOR VALUES FROM (%L) TO (%L)',
+                    part_name,
+                    d::TEXT,
+                    (d + 1)::TEXT
+                );
             END IF;
             EXECUTE format('DROP TRIGGER IF EXISTS update_pb_recv_updated_at ON %I', part_name);
             EXECUTE format(
                 'CREATE TRIGGER update_pb_recv_updated_at BEFORE UPDATE ON %I FOR EACH ROW EXECUTE FUNCTION update_updated_at_column()',
                 part_name
             );
+            d := d + 1;
         END LOOP;
     END IF;
 END $$;

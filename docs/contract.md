@@ -10,9 +10,8 @@
 | 프론트엔드 | http://localhost:3001 | frontend/.env PORT |
 | DB — Primary (A, logmng / system) | 예: `localhost:5432`, DB `logmng` (배포마다 상이) | **런타임:** `spring.datasource.*` / `SPRING_DATASOURCE_URL`·`SPRING_DATASOURCE_USERNAME`·`SPRING_DATASOURCE_PASSWORD`. **설치(`setup.sh`):** `DB_HOST`, `DB_PORT`, `DB_A_NAME`(미설정 시 레거시 `DB_NAME`), `DB_SUPERUSER`, 앱 역할 `DB_USER`·`DB_PASSWORD` 등. PB URL이 비어 있거나 Primary와 같으면 PB FEP도 동일 풀(sys+pb `search_path`) |
 | DB — PB FEP (선택, 물리 분리 가능) | 별도 DB·인스턴스 또는 A와 동일 | **런타임:** `app.datasource.pb.*` / `APP_DATASOURCE_PB_*` — `pb_send`·`pb_recv` 전용 풀. **설치:** `DB_PB_NAME`, `DB_PB_HOST`, `DB_PB_PORT`, `DB_PB_SUPERUSER`(기본은 Primary 슈퍼유저와 동일). `DB_PB_NAME`이 비거나 `DB_A_NAME`과 같으면 PB DDL은 A에 적용(레거시 단일 DB) |
-| DB — ImageLog (B, 물리 분리 가능) | 별도 DB 이름 또는 A와 동일 | **런타임:** `app.datasource.imagelog.*` / `APP_DATASOURCE_IMAGELOG_*` — Java FW ImageLog(`imagelog`). **설치:** `DB_B_NAME`(기본 `DB_A_NAME`), `SCHEMA_IMAGELOG`; B는 Primary와 **동일 호스트·포트**에서 DB 이름만 분리하는 모델(`setup.sh`의 `psql_admin`). JDBC는 `jdbc:postgresql://<DB_HOST>:<DB_PORT>/<DB_B_NAME>` |
-
-**Docker 로컬(dist 번들)**: `dist/logmng-offline-<VERSION>/`와 PostgreSQL 16·다중 DB를 `docker compose`로 맞추는 절차는 저장소 루트 **[docker/README.md](../docker/README.md)**; 예시 env 키는 **[.env.docker.example](../.env.docker.example)**. 컨테이너 간 JDBC 호스트는 Compose 서비스 이름(예: `postgres`). 변수 이름·포트는 위 표와 동일하게 맞춘다(API 계약 변경 아님).
+| DB — ImageLog (B, 물리 분리 가능) | 별도 DB 이름 또는 A와 동일 | **런타임(JDBC 단일 진실):** `app.datasource.imagelog.*` / `APP_DATASOURCE_IMAGELOG_*` — Java FW ImageLog(`imagelog`) 전용 Hikari 풀. **설치(`setup.sh`):** `DB_B_NAME`(기본 `DB_A_NAME`), `SCHEMA_IMAGELOG`; ImageLog DDL·B DB 대상 **클러스터**는 **`DB_B_HOST` / `DB_B_PORT` / `DB_B_SUPERUSER`** — **미설정 시** 각각 **`DB_HOST` / `DB_PORT` / `DB_SUPERUSER`**(Primary 클러스터와 동일; 기존 단일·동일 클러스터 배포와 하위 호환). 원격 ImageLog만 분리 프로비저닝할 때의 모드·순서는 **`backend/DB_SETUP_GUIDE.md`** 및 아래 **`SETUP_MODE`**·분리 실행 절 참고. |
+| Docker Compose (dist 번들·로컬/폐쇄망) | 한 PostgreSQL 컨테이너에 DB 세 개: `logmng`, `pbfep`, `imagelog` | 예시 환경: 저장소 루트 `.env.docker.example` → `.env.docker`. 절차·이미지 내보내기: `docker/README.md`, `scripts/docker-export-images-for-airgap.sh` |
 
 ### DB 다중 데이터소스·스키마
 
@@ -57,17 +56,26 @@
 
 ### DB 설치·부트스트랩 환경 변수 (`backend/src/main/resources/db/setup.sh`)
 
-비대화형 설치는 **필수 값을 환경(또는 `.env`에서 `set -a` … `source`)으로 export**한 뒤 `setup.sh`를 호출한다. PostgreSQL 클라이언트 비밀번호는 표준 **`PGPASSWORD`** 또는 스크립트가 읽는 **`PGPASSWORD_SUPER`**(설정 시 내부에서 `PGPASSWORD`로 전달)로 공급한다. **슈퍼유저 OS 사용자**는 **`DB_SUPERUSER`**(기본 `postgres`).
+운영자 런북·모드 매트릭스·분리 실행 예: **`backend/DB_SETUP_GUIDE.md`**(본 절과 교차 참조).
+
+비대화형 설치는 **필수 값을 환경(또는 `.env`에서 `set -a` … `source`)으로 export**한 뒤 `setup.sh`를 호출한다. PostgreSQL 클라이언트 비밀번호는 표준 **`PGPASSWORD`** 또는 스크립트가 읽는 **`PGPASSWORD_SUPER`**(설정 시 내부에서 `PGPASSWORD`로 전달)로 공급한다. **Primary 슈퍼유저 OS 사용자**는 **`DB_SUPERUSER`**(기본 `postgres`). ImageLog를 **별도 호스트**에 두는 경우 B 전용 연결은 **`DB_B_SUPERUSER`**(미설정 시 `DB_SUPERUSER`).
 
 **`SETUP_MODE`** (기본 `full`)
 
 | 값 | 의미 |
 |------|------|
-| `full` | Primary A·ImageLog B·(split-PB 시) PB DB까지 스크립트가 담당하는 전체 단계 |
-| `sys_only` | 시스템 쪽 DDL/마이그레이션 위주; PB FEP 전용 DDL은 생략(split-PB일 때). 초기 데이터는 기본 생략 — 필요 시 `SYS_ONLY_LOAD_INIT_DATA=1` |
+| `full` | Primary A·ImageLog B·(split-PB 시) PB DB까지 스크립트가 담당하는 전체 단계. **세 물리 호스트가 서로 다른** 경우: 설치 실행 호스트에서 **Primary·ImageLog·PB** 엔드포인트가 **모두** 도달 가능하면 한 번의 `full`로 오케스트레이션 가능. 클러스터 간 네트워크가 막혀 있으면 아래 **`primary_only` / `imagelog_only` / `pb_only`**를 **순서대로 분리 실행**(상세는 `backend/DB_SETUP_GUIDE.md`). |
+| `sys_only` | 시스템 쪽 DDL/마이그레이션 위주; PB FEP 전용 DDL은 생략(split-PB일 때). 초기 데이터는 기본 생략 — 필요 시 `SYS_ONLY_LOAD_INIT_DATA=1`. **다중 원격 호스트**에서의 스킵·적용 범위는 `full`과 동일한 “한 번에 전체 도달 vs 분리 실행” 구분을 따른다. |
 | `pb_only` | PB 전용 DB만 프로비저닝·PB DDL/마이그레이션; **`DB_PB_NAME` 필수**. A/ImageLog 단계 없음 |
+| `primary_only` | **Primary(A) 경로만** — 시스템 DDL·마이그레이션 등 A에 속하는 단계; **ImageLog(B) DDL·B 전용 시드 단계 없음**. **PB는 “PB-on-A” vs “split PB DB”에 따라 다름**(`setup.sh`는 `DB_PB_NAME`·`DB_A_NAME` 비교로 내부 **`SPLIT_PB`** 계산): **`SPLIT_PB=0`**(PB 스키마·DDL이 Primary DB A에 적용되는 구성)이면 **`primary_only`에서도 A에 대해 PB DDL이 수행**된다(`full`의 A+PB-on-A에 해당). **`SPLIT_PB=1`**(PB가 A와 다른 DB·클러스터)이면 **`primary_only`는 PB 클러스터 단계를 건너뛴다** — PB는 **`SETUP_MODE=pb_only`**와 **`DB_PB_*`**로 PB 측에서 별도 실행. |
+| `imagelog_only` | **ImageLog(B) 경로만** — `DB_B_NAME`·ImageLog 스키마/마이그레이션·해당 시드(플래그에 따름); **Primary(A)·PB 단계 없음**. |
 
-**Primary / ImageLog 대상 클러스터 (동일 `DB_HOST`·`DB_PORT`)**
+**단일 클러스터 vs 세 원격 호스트(요약)**
+
+- **단일 PostgreSQL / 동일 클러스터에 A+B(+선택 PB 이름)**: **`DB_B_HOST` / `DB_B_PORT` / `DB_B_SUPERUSER`를 비우면** 예전과 같이 Primary(`DB_HOST`·`DB_PORT`·`DB_SUPERUSER`) 한 대상으로 A·B 설치가 이뤄진다.
+- **세 원격 호스트(Primary / PB FEP / ImageLog)**: 런타임은 이미 **`SPRING_DATASOURCE_*`**, **`APP_DATASOURCE_PB_*`**, **`APP_DATASOURCE_IMAGELOG_*`** 로 URL이 갈라진다. **설치**는 Primary용 **`DB_HOST`**·PB용 **`DB_PB_*`**·ImageLog용 **`DB_B_*`**(미설정 시 Primary로 폴백)를 조합해 **같은 모드에서 모두 도달**하거나, **`primary_only` → `imagelog_only` → (`SPLIT_PB=1`일 때) `pb_only`** 등으로 **호스트별로 나눠** 실행한다 — **PB-on-A(`SPLIT_PB=0`)**이면 `primary_only`만으로 Primary 측 PB DDL까지 끝나므로 **PB 전용 `pb_only`는 split PB일 때** PB 호스트에 해당한다. 상세·권장 순서는 **`backend/DB_SETUP_GUIDE.md`**.
+
+**Primary 대상 클러스터 (`setup.sh` — A·공통·Primary `psql` 단계)**
 
 | 변수 | 기본(스크립트) | 설명 |
 |------|----------------|------|
@@ -75,10 +83,20 @@
 | `DB_PORT` | `5432` | |
 | `DB_NAME` | `logmng` | 레거시; `DB_A_NAME` 미지정 시 A 이름으로 사용 |
 | `DB_A_NAME` | `$DB_NAME` | 시스템 스키마 및(non-split 시) PB DDL이 붙는 DB |
-| `DB_B_NAME` | `$DB_A_NAME` | ImageLog DB; A와 다르면 **물리 DB 분리** |
+| `DB_B_NAME` | `$DB_A_NAME` | ImageLog **논리 DB 이름**; A와 다르면 **물리 DB 분리**(연결 호스트는 아래 **`DB_B_*`** 또는 Primary 폴백) |
 | `DB_USER` / `DB_PASSWORD` | `logmng` / … | 애플리케이션 역할 |
 | `DB_ETL_USER` / `DB_ETL_PASSWORD` | `logmng_etl` / … | ETL 역할(스크립트가 생성·그랜트) |
 | `SCHEMA_SYS` / `SCHEMA_PB` / `SCHEMA_IMAGELOG` | `public` | `APP_DB_SCHEMA_*`와 맞출 것 |
+
+**ImageLog 대상 클러스터 (split-B; 미설정 시 Primary와 동일 — 하위 호환)**
+
+| 변수 | 기본(스크립트) | 설명 |
+|------|----------------|------|
+| `DB_B_HOST` | `$DB_HOST` | ImageLog(B) DDL·마이그레이션·B DB 생성 등 **B 전용** `psql` 대상 호스트 |
+| `DB_B_PORT` | `$DB_PORT` | 위와 짝 |
+| `DB_B_SUPERUSER` | `$DB_SUPERUSER` | B 클러스터 슈퍼유저 역할 이름(`psql -U`); 미설정 시 Primary 슈퍼유저와 동일 |
+
+애플리케이션 **런타임** ImageLog 연결은 위 표가 아니라 **`APP_DATASOURCE_IMAGELOG_*`**(위 절 `app.datasource.imagelog.*`)만 사용한다. `DB_B_*`는 **설치 스크립트**가 B 클러스터에 접속할 때 쓰는 엔드포인트이며, JDBC URL과 자동 동기화되지 않는다(배포 시 동일 호스트·DB명을 맞추거나 `INSTALL_WRITE_APP_ENV` 등으로 생성 파일을 검토).
 
 **PB 전용 클러스터·DB (split-PB)**
 
@@ -87,6 +105,7 @@
 | `DB_PB_NAME` | 비어 있거나 `DB_A_NAME`과 같으면 PB는 A에 적용 |
 | `DB_PB_HOST` / `DB_PB_PORT` | 기본 `DB_HOST` / `DB_PORT` |
 | `DB_PB_SUPERUSER` | 기본 `DB_SUPERUSER` |
+| 내부 `SPLIT_PB`(직접 설정하지 않음; `setup.sh`가 위 이름들로 계산) | `DB_PB_NAME`이 비어 있지 않고 `DB_A_NAME`과 **다르면 `1`**(별도 PB DB·PB 클러스터 단계), **아니면 `0`**(PB-on-A). `SETUP_MODE=primary_only`에서 PB DDL 적용 여부는 **`SPLIT_PB`**에 따라 위 `primary_only` 행과 동일. |
 
 **초기 데이터·폐쇄망 옵션**
 
@@ -110,7 +129,7 @@
 | `INSTALL_NONINTERACTIVE` | `1` / `true` / `yes` — 비대화형 경로 |
 | `INSTALL_ENV_FILE` | 기본 `$REPO_ROOT/.env` |
 | `INSTALL_WRITE_APP_ENV` | `1`이면 setup 성공 후 JDBC export 파일 생성(기본 `backend/.env.logmng.generated`, 경로는 `INSTALL_APP_ENV_OUT`) |
-| 필수(비대화형) | `SETUP_MODE`(full\|sys_only\|pb_only), `DB_HOST`, `DB_PORT`, `DB_USER`, `DB_PASSWORD`, `DB_NAME` 또는 `DB_A_NAME`; `pb_only`일 때 `DB_PB_NAME` |
+| 필수(비대화형) | `SETUP_MODE`(full\|sys_only\|pb_only\|primary_only\|imagelog_only), `DB_HOST`, `DB_PORT`, `DB_USER`, `DB_PASSWORD`, `DB_NAME` 또는 `DB_A_NAME`; `pb_only`일 때 `DB_PB_NAME`; 모드별 추가 필수는 `setup.sh`·`backend/DB_SETUP_GUIDE.md` |
 | `setup.sh` 호출 시 | 위 **DB 설치·부트스트랩** 표의 변수·`SETUP_MODE`를 그대로 export |
 | 생성 export 키 | `write_env_file`: `SPRING_DATASOURCE_*`, `APP_DB_SCHEMA_*`, `APP_DATASOURCE_PB_*`, `APP_DATASOURCE_IMAGELOG_*`, **`LOGGING_FILE_NAME`**(선택) |
 
@@ -185,7 +204,6 @@
 | `app.decryption.failure-handling` (`fallback` \| `skip` \| `error`) | `FAILURE_HANDLING`, 또는 `APP_DECRYPTION_FAILURE_HANDLING` |
 
 - **`failure-handling` 범위**: 레거시 단일 필드 복호화(`CryptoUtil.decrypt`, `ivHex:encryptedHex` 등)에는 위 값이 그대로 적용된다. **로그 페이로드**(`decryptLogPayload`, java_fw_imglog·pb_feplog 컬럼 및 JSON 내부 `[]` 래핑 값)는 실패 시 **ciphertext를 평문처럼 반환하지 않는다**(fallback이어도 예외 또는 안내 문구로 처리).
-- **`app.decryption.auto-decrypt-on-keyword-search` vs Image Log 검색 응답**: 키워드·필드 텍스트 매칭 시 서버 설정에 따른 자동 복호화 동작이 있더라도, **`java_fw_imglog`**에 대해 **`POST /api/logs/db-refactored/search`** / **`advanced-search`** 응답에 평문을 실어 보내는 근거로 해석되지 않는다. Image Log **decrypt-for-match**는 클라이언트 **`decryptData`**로 게이트되지 않는다(아래 「Java FW Image Log」). 상세·금지 키는 요건 **`docs/requirements/20260413-imagelog-search-decrypt-display-separation.md`** 및 동일 소절.
 
 **로그 페이로드 암·복호화 형식 (서버)**
 
@@ -197,49 +215,6 @@
 **Air-gap bundle**: `scripts/package-airgap-bin.sh` (default `AIRGAP_BIN_ROOT` = repo `bin/`) fills that directory with backend fat JAR, static UI (`www/`), and JDK-only static server JAR; see `bin/README.md`. **Full offline server package** (DB scripts + installer): `scripts/release-build.sh` (default, no args) or `scripts/build-offline-bundle.sh` builds the same binaries **into** `dist/logmng-offline-*/bin/` (no copy to repo `bin/`) → `dist/logmng-offline-*.tar.gz`; optionally run `scripts/download-psql-for-bundle.sh` first to bundle PostgreSQL **16** `psql` client `.deb` files (PGDG bookworm amd64; see script header). On the target host extract and run `./install-offline.sh all` (see `scripts/offline-bundle/README-OFFLINE.md`).
 
 ## API 규격
-
-### Java FW Image Log (`java_fw_imglog`) — search match vs plaintext display
-
-**Requirement (normative)**: `docs/requirements/20260413-imagelog-search-decrypt-display-separation.md` §1–§2 (no plaintext in search response), including the **binary `data` / `header` column scope** clarification and follow-on **keyword-only** decrypt-for-match extension documented there. **Text-filter composition (keywords vs fields)**: normative rules below; align with `docs/requirements/20260414-imagelog-keyword-or-field-and-ui.md` (keyword OR vs field AND, `decryptData` non-gating). **Doc–code alignment**: `docs/workflow/DOC-CODE-SYNC.md` (same change set when response keys, tokenization, column-scope predicates, or `decryptData` gating semantics change in code).
-
-**Scope**: **`logType = java_fw_imglog`** only. **`pb_feplog`** / PB FEP wireframe search (`POST /api/logs/db-refactored/pb-fep-log-search`) and legacy **`POST /api/logs/db-refactored/search`** for **`pb_feplog`** are **unchanged** by this subsection; do not infer Image Log rules from PB FEP rows or vice versa.
-
-**Endpoints (same response envelope family)**:
-
-- **`POST /api/logs/db-refactored/search`** when `logType` is **`java_fw_imglog`**
-- **`POST /api/logs/db-refactored/advanced-search`** when `logType` is **`java_fw_imglog`** (same-shape `LogDbSearchRequest` / `LogDbSearchResponse` family as §5.1 in `docs/api-definition.md`)
-
-**`keywords`, `datastring`, `headerstring` — text clauses (`java_fw_imglog`)**:
-
-- **Keyword clause (`keywords`)**: Request field **`keywords`** is a **`string[]`**. The UI may collect comma-separated input and send **one array element per token** (or equivalent tokenization **must** match between client and server — DOC-CODE-SYNC). The keyword clause is satisfied if **any** keyword token matches (**OR** across tokens). For **each** keyword token, a match succeeds if **either** the **string-column surfaces** predicate (next bullet, field scope) **or** the **binary payload decrypt-for-match** predicate applies: in-memory decrypt-for-match on the **`data`** and/or **`header`** **binary payload** columns using the **java_fw_imglog / IMAGE_LOG** payload variant (match-only). **Search responses must not** include decrypted payload plaintext from this path (same separation rule as §1 in `20260413-imagelog-search-decrypt-display-separation`).
-- **Field clause (`datastring` / `headerstring`)** — **unchanged column scope**: Non-blank **`datastring`** and **`headerstring`** each contribute **field-derived terms** (tokenization per server implementation; DOC-CODE-SYNC). All such terms are combined into one set **deduplicated case-insensitively**. The field clause is satisfied only if **every** remaining term matches (**AND** across field-derived terms). For **each** field term, matching uses **only** the **`datastring`** and **`headerstring`** **text column** values: **plaintext substring** **or** **bracket-wrapped JSON decrypt-for-match on those strings** (match-only). The field clause **does not** scan, load, decrypt, or substring-match the binary **`data`** or **`header`** DB columns.
-- **Combining clauses**: When **both** the keyword clause and the field clause are active (keywords non-empty **and** at least one field-derived term exists), a row must satisfy **`(field clause) AND (keyword clause)`**. When only one side is active, that side alone applies.
-- **Predicate summary**: **Field terms** and **keyword tokens** share the **same** match logic on **`datastring` / `headerstring`** (plaintext + bracket-JSON decrypt-for-match on those columns only). **Keyword tokens additionally** may match via **binary `data` / `header`** decrypt-for-match; **field terms do not**.
-
-**Meaning of `decryptData` on `LogDbSearchRequest` (java_fw_imglog)**:
-
-- For **`java_fw_imglog`**, **bracket-JSON decrypt-for-match** on **`datastring`** / **`headerstring`**, and **decrypt-for-match on binary `data` / `header`** when evaluating the **keyword** clause, are **not gated** by the client **`decryptData`** flag: the server applies match-time decrypt as needed per the predicates above while **still** obeying the no-plaintext-in-search-response rule below. The request field **`decryptData`** remains in the shared **`LogDbSearchRequest`** shape for compatibility; clients **must not** rely on it to enable or disable Image Log match-time decrypt. **UI**: Image Log search does **not** expose a “matching decrypt” checkbox — see `docs/design/search-fields-by-screen.md` (Image Log).
-- **`decryptData` does not** mean “populate decrypted plaintext fields in the search/list API response.” Search/list responses **must not** expose plaintext produced solely for match evaluation.
-- **Plaintext for display** is **only** via the explicit decrypt path after approval rules — e.g. **`POST /api/logs/decrypt/{logType}`** (today: **`POST /api/logs/decrypt/java_fw_imglog`**) and the documented **`GET /api/decrypt/allowed`** / decryption-allowed store / **`screenFunctions.*.decrypt`** behavior in this document and `docs/api-definition.md` §10. Related requirements: `20260317-search-decrypt-permission-ui`, `20260318-decryption-approval-guids-encrypted-only`, `20260320-imagelog-guid-status-composite-key`.
-
-**Outgoing row keys (java_fw_imglog search / advanced-search, default contract)**:
-
-- Response **`data[]`** row objects **must not** include **`decrypted_data`**, **`decrypted_header`**, **`decrypted_datastring`**, **`decrypted_headerstring`**, nor **any other** keys whose names **start with `decrypted_`**.
-- **Undocumented** keys whose names **start with `_`** remain **prohibited** on search responses (no ad-hoc internal wire keys).
-- **Allowed (optional, display / UI metadata only — not plaintext, not ciphertext):**
-  - **`hasEncryptedMatchDatastring`**, **`hasEncryptedMatchHeaderstring`**: When present, each is **`true`** only if the row was **included in the result set** because a **field** or **keyword** match used **decrypt-for-match** **inside** the **`datastring`** or **`headerstring`** text (e.g. bracket-wrapped JSON segments); they do **not** expose decrypted content. When the condition does not apply, omit the field or use **`false`** per implementation (clients must treat absence as falsy for highlight purposes). These names **replace** the former internal-only **`_datastring_has_encrypted_match`** / **`_headerstring_has_encrypted_match`** (req **`20260206-image-log-datastring-search`**, **`20260224-image-log-encrypted-highlight-only`**).
-  - **`hasEncryptedMatchData`**, **`hasEncryptedMatchHeader`** (when Backend emits them): When present, each is **`true`** only if the row was **included** because **at least one `keywords` token** matched via **decrypt-for-match** on the binary **`data`** or **`header`** payload column, respectively (match-only; **no** payload plaintext on the wire). Omit or **`false`** when not applicable. **DOC–CODE–SYNC:** Add or adjust these flags in the same change set as Backend support.
-- **DOC–CODE–SYNC:** Serialization must use the **`hasEncryptedMatch*`** names above on the wire; legacy **`_*_has_encrypted_match`** keys must not appear in outward JSON once implementation is aligned.
-
-**Configuration note (`app.decryption.auto-decrypt-on-keyword-search`)**:
-
-- Must be interpreted so it **does not** override the **no-plaintext-in-search-response** rule above. If product ever needs different behavior, **update this contract and `docs/api-definition.md` first** (see requirement §2.1 Security review).
-
-**Security review alignment (summary)**:
-
-- Search-time decrypt-for-match and explicit decrypt-for-display are **separate trust boundaries**; diagnostic logs **must not** print decrypt-for-match payloads at INFO in production. Strip or never populate client-visible decrypted fields on search responses per the key list above.
-
----
 
 - **정의 위치**: `docs/api-definition.md`(현재 구현 API 목록·요청/응답), `specs/*.spec.yaml` 또는 기능별 요건 문서의 API 섹션. 새 API/변경 시 해당 스펙을 먼저 작성·수정한다. **외부 조직 복제·AD 로그인·관리자 프리프로비저닝 (요건 `20260407-external-dept-employee-ad-login`)**: `auth.login.mode`, `POST /api/auth/login` 모드별 요청 형식, **`/api/provisioning/*`** — **`specs/external-identity-auth.spec.yaml`**. **마이페이지·로컬 전용 자가 비밀번호 변경 (요건 `20260408-my-page-local-password-and-profile`)**: **`POST /api/auth/me/password`** — **`specs/my-page-password.spec.yaml`** (AD 모드 **403** `PASSWORD_CHANGE_NOT_ALLOWED`). **활동 이력 `action_type` 코드·선택 `GET /api/activity-log/action-types`**: `specs/activity-action-types.spec.yaml`(User Management v2 부서/직접등록 감사·`USER_CREATE` 구분자는 요건 **`20260408-user-management-v2-activity-audit-detail-in-activity-log`**, 스펙 §2.8·§3 `department_admin` / `user_admin`). **활동 로그 보수적 감사 증빙(마스킹·특권 공개·접근 감사·선택 반출 승인)** — 요건 `docs/requirements/20260330-audit-evidence-activity-log-conservative.md`: 상세 API·접근 감사 조회·`action_detail` 하위 형태 요약은 **`specs/activity-log-audit-evidence.spec.yaml`**; 코드표 확장은 **`specs/activity-action-types.spec.yaml`** §2.7. **메뉴·화면 표시 라벨·사이드바 상위 그룹·정렬 `GET/PUT /api/screen-display-labels` (요건 `20260406-menu-display-names-admin`, `20260407-screen-menu-parent-order`)**: `specs/menu-display-labels.spec.yaml`. **User Management v2 수동 부서 트리/직접 사용자 등록/quick-entry (요건 `20260408-user-management-v2-manual-department-tree-and-quick-user-entry`)**: `POST /api/user-management-v2/departments/root`, `POST /api/user-management-v2/departments/{parentDepartmentId}/children`, `DELETE /api/user-management-v2/departments/{departmentId}` (요청 본문 JSON **`changeReason`** 필수; 충돌·참조 거부 시 `DEPARTMENT_HAS_CHILDREN`, `DEPARTMENT_HAS_ACTIVE_USERS`, `DEPARTMENT_ORG_LINK_REFERENCES`, 없음 시 `DEPARTMENT_NOT_FOUND` — **`specs/user-management-v2.spec.yaml`** §4.3), `POST /api/user-management-v2/users/direct`, `GET /api/user-management-v2/quick-entry/options` — **`specs/user-management-v2.spec.yaml`**. **조회 범위(scope)** — 요건 **`docs/requirements/20260409-user-management-v2-read-scope.md`**: 권한 그룹 **`user-management-v2`** 행에 **`scope`** `self`|`team`|`all`(기본 **`team`**, 생략/NULL 동일); **`GET /api/users`**, **`GET /api/departments/user-permission-hierarchy`**, v2 **GET** 등 읽기 경로에 서버 측 적용; 돌연변이는 유효 조회 범위 밖 대상 금지(`403` `FUNCTION_NOT_ALLOWED` 등 — 스펙 §2.3). **명명 호환성 주의**: v2 스펙의 `departmentId`/`parentDepartmentId`는 레거시 필드명이며, 실제 의미/타입은 각각 부서 코드 문자열(`departmentCode`/`parentDepartmentCode`)이다. **HR Sync PoC (preview-only, zero-impact)** (요건 `20260408-external-hr-user-sync-security-db-design` §2.6, 스냅샷·인력 목록 확장 `20260408-hr-sync-poc-snapshot-list-and-sample-data`, PoC UM v2 클론 `20260408-poc-user-management-v2-isolated-clone`): **`GET /api/hr-sync/poc/config`**, **`POST /api/hr-sync/poc/preview`**, **`GET /api/hr-sync/poc/snapshots`**, **`GET /api/hr-sync/poc/snapshots/{snapshotId}/employees`**, **`GET /api/hr-sync/poc/user-mgmt/replica-departments/tree`**, **`GET /api/hr-sync/poc/user-mgmt/replica-users`**, **`POST /api/hr-sync/poc/user-mgmt/actions/migrate-preview`** (stub — **`app_user` 미변경**) — **`specs/hr-sync-poc.spec.yaml`**; 본문 계약은 아래 § HR Sync PoC.
 - **구현**: 백엔드는 스펙에 정의된 경로·메서드·요청/응답 형식을 따른다. 프론트엔드는 동일 스펙을 참고해 호출한다.

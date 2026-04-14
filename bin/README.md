@@ -12,7 +12,7 @@
 
 | 경로 | 설명 |
 |------|------|
-| `backend/logmng-backend-1.0.1.jar` | Spring Boot fat JAR. *`package-airgap-bin.sh` 실행 후 생성* (Git 무시) |
+| `backend/logmng-backend-1.0.2.jar` | Spring Boot fat JAR. *`package-airgap-bin.sh` 실행 후 생성* (Git 무시) |
 | `backend/run.sh` | 백엔드 기동·중지·상태: `./run.sh` (포그라운드), `./run.sh start` / `stop` / `status` (TC-07) |
 | `backend/MODULES.md` | 이 모듈 요약 |
 | `frontend/logmng-static-server-1.0.0.jar` | JDK 전용 정적 서버 JAR. *스크립트 후 생성* (Git 무시) |
@@ -90,7 +90,7 @@ UI와 API가 **다른 호스트/포트**이면 CORS에 **브라우저가 실제�
 `run.sh` 뒤에 Spring 인자를 넘기거나, 같은 디렉터리에 `application-local.yml`을 두고:
 
 ```bash
-java -jar logmng-backend-1.0.1.jar --spring.config.additional-location=file:./
+java -jar logmng-backend-1.0.2.jar --spring.config.additional-location=file:./
 ```
 
 (파일명·경로는 운영 표준에 맞게 조정)

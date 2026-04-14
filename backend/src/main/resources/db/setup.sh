@@ -12,8 +12,10 @@
 # --- Contract: docs/contract.md (DB 설치·부트스트랩) ---
 # 슈퍼유저 OS 역할: DB_SUPERUSER (기본 postgres). 클라이언트 비밀번호는 PGPASSWORD 또는
 # PGPASSWORD_SUPER(설정 시 내부에서 PGPASSWORD로 전달) — 값은 절대 stdout/stderr에 출력하지 않음.
-# Primary/ImageLog 클러스터: DB_HOST, DB_PORT, DB_NAME(레거시), DB_A_NAME, DB_B_NAME, DB_USER, DB_PASSWORD,
+# Primary cluster (A): DB_HOST, DB_PORT, DB_NAME(레거시), DB_A_NAME, DB_USER, DB_PASSWORD,
 # DB_ETL_USER, DB_ETL_PASSWORD, SCHEMA_*.
+# ImageLog cluster (B): DB_B_NAME, SCHEMA_IMAGELOG; optional split endpoint DB_B_HOST, DB_B_PORT, DB_B_SUPERUSER
+# (defaults: DB_HOST, DB_PORT, DB_SUPERUSER — unset = same-cluster A+B as before).
 # Split-PB 클러스터: DB_PB_NAME, DB_PB_HOST, DB_PB_PORT, DB_PB_SUPERUSER(기본 DB_SUPERUSER와 동일).
 #
 # --- PB FEP 별도 PostgreSQL database (split-PB) ---
@@ -22,19 +24,25 @@
 # DB_PB_NAME DB에만 적용(psql_pb_admin = DB_PB_HOST/DB_PB_PORT/DB_PB_SUPERUSER, 기본은 primary와 동일).
 # Spring 런타임 URL은 contract의 APP_DATASOURCE_PB_* / SPRING_DATASOURCE_* 참고(본 스크립트는 JDBC 전체 URL을 로그에 찍지 않음).
 #
-# SETUP_MODE (기본 full); 허용 값: full | sys_only | pb_only
-#   full(기본)     A/B + (split 시 PB DB). sys_only+split 시 PB 자동 DDL 없음 → pb_only로 PB 클러스터 실행 권장.
-#   sys_only       schema_pb_fep·초기 데이터 등 생략(기존과 동일). split 시 A는 SYS만; PB DDL은 실행하지 않음.
-#   pb_only        PB DB만: DB_PB_NAME 생성·앱 역할 CONNECT/grants·SCHEMA_PB·schema_pb_fep·PB 마이그레이션만.
-#                  A/B/ImageLog 단계 없음. DB_PB_NAME 필수(비어 있으면 exit 1).
+# SETUP_MODE (default full); allowed: full | sys_only | pb_only | primary_only | imagelog_only
+#   full(default)   Primary A + ImageLog B + (split PB DB when configured). B DDL uses psql_b_admin (defaults = Primary).
+#   sys_only        Same as before: lighter A path; split PB DDL skipped on this run — use pb_only for PB cluster.
+#   pb_only         PB database only (unchanged). No Primary A / ImageLog B steps.
+#   primary_only    Primary A path only: system DDL/migrations/grants on A per full-like contract for A.
+#                   No ImageLog B DDL/seeds/migrations. When SPLIT_PB=1 (PB DB distinct from A), no PB DDL —
+#                   use SETUP_MODE=pb_only on the PB host. When SPLIT_PB=0, PB DDL on A runs like full (PB on A).
+#   imagelog_only   ImageLog B cluster only: DB_B_NAME, SCHEMA_IMAGELOG, imagelog DDL/migrations/seeds per flags.
+#                   No Primary A DDL, no PB steps.
 #
 # --- Non-interactive (.env-driven install, req 20260410) ---
 # install 래퍼는 set -a && source .env && set +a 후 본 스크립트를 호출할 수 있다.
 # INSTALL_NONINTERACTIVE=1 또는 SETUP_NONINTERACTIVE=1 이면(대소문자 true/yes/y 허용) 스크립트 기본값으로
 # 비밀번호·호스트를 채우지 않도록 **기본값 적용 전에** 필수 변수가 설정·비어 있지 않은지 검사한다.
-#   full / sys_only: DB_HOST, DB_PORT, DB_USER, DB_PASSWORD, DB_ETL_USER, DB_ETL_PASSWORD
+#   full / sys_only / primary_only: DB_HOST, DB_PORT, DB_USER, DB_PASSWORD, DB_ETL_USER, DB_ETL_PASSWORD
 #   pb_only: DB_PB_NAME, DB_USER, DB_PASSWORD 및 (DB_PB_HOST·DB_PB_PORT 가 모두 설정되어 있거나
 #            대체로 DB_HOST·DB_PORT 가 모두 설정)
+#   imagelog_only: DB_B_NAME, DB_USER, DB_PASSWORD 및 (DB_B_HOST·DB_B_PORT 가 모두 설정되어 있거나
+#                  대체로 DB_HOST·DB_PORT 가 모두 설정)
 # 누락/빈 값 오류 메시지는 변수 **이름만** 나열한다. trust 인증이면 PGPASSWORD/PGPASSWORD_SUPER 생략 가능.
 #
 # --- Security (stdout/stderr) ---
@@ -89,7 +97,23 @@ _validate_noninteractive_env() {
         if ! eval "[ -n \"\${${n}+x}\" ]"; then bad="${bad}${bad:+ }DB_PORT"; fi
       fi
       ;;
-    full|sys_only)
+    imagelog_only)
+      n="DB_B_NAME"
+      if ! eval "[ -n \"\${${n}+x}\" ]" || ! eval "[ -n \"\$$n\" ]"; then bad="${bad}${bad:+ }DB_B_NAME"; fi
+      n="DB_USER"
+      if ! eval "[ -n \"\${${n}+x}\" ]" || ! eval "[ -n \"\$$n\" ]"; then bad="${bad}${bad:+ }DB_USER"; fi
+      n="DB_PASSWORD"
+      if ! eval "[ -n \"\${${n}+x}\" ]" || ! eval "[ -n \"\$$n\" ]"; then bad="${bad}${bad:+ }DB_PASSWORD"; fi
+      if eval "[ -n \"\${DB_B_HOST+x}\" ]" && eval "[ -n \"\${DB_B_PORT+x}\" ]"; then
+        :
+      else
+        n="DB_HOST"
+        if ! eval "[ -n \"\${${n}+x}\" ]"; then bad="${bad}${bad:+ }DB_HOST"; fi
+        n="DB_PORT"
+        if ! eval "[ -n \"\${${n}+x}\" ]"; then bad="${bad}${bad:+ }DB_PORT"; fi
+      fi
+      ;;
+    full|sys_only|primary_only)
       n="DB_HOST"
       if ! eval "[ -n \"\${${n}+x}\" ]"; then bad="${bad}${bad:+ }DB_HOST"; fi
       n="DB_PORT"
@@ -104,7 +128,7 @@ _validate_noninteractive_env() {
       if ! eval "[ -n \"\${${n}+x}\" ]" || ! eval "[ -n \"\$$n\" ]"; then bad="${bad}${bad:+ }DB_ETL_PASSWORD"; fi
       ;;
     *)
-      echo "Error: invalid SETUP_MODE (expected full, sys_only, or pb_only)." >&2
+      echo "Error: invalid SETUP_MODE (expected full, sys_only, pb_only, primary_only, or imagelog_only)." >&2
       exit 2
       ;;
   esac
@@ -140,14 +164,19 @@ DB_PB_HOST="${DB_PB_HOST:-$DB_HOST}"
 DB_PB_PORT="${DB_PB_PORT:-$DB_PORT}"
 DB_PB_SUPERUSER="${DB_PB_SUPERUSER:-$DB_SUPERUSER}"
 
+# ImageLog cluster (B): defaults fold to Primary — TC-03 backward compatibility when unset
+DB_B_HOST="${DB_B_HOST:-$DB_HOST}"
+DB_B_PORT="${DB_B_PORT:-$DB_PORT}"
+DB_B_SUPERUSER="${DB_B_SUPERUSER:-$DB_SUPERUSER}"
+
 SETUP_MODE="${SETUP_MODE:-full}"
 INIT_DATA_FILE="${INIT_DATA_FILE:-init-data.sql}"
 CLOSED_NETWORK_MINIMAL="${CLOSED_NETWORK_MINIMAL:-0}"
 SKIP_INIT_DATA="${SKIP_INIT_DATA:-0}"
 LOAD_LOCAL_DECRYPT_TEST_DATA="${LOAD_LOCAL_DECRYPT_TEST_DATA:-0}"
 
-case "$SETUP_MODE" in full|sys_only|pb_only) ;; *)
-  echo "Error: invalid SETUP_MODE (expected full, sys_only, or pb_only)." >&2
+case "$SETUP_MODE" in full|sys_only|pb_only|primary_only|imagelog_only) ;; *)
+  echo "Error: invalid SETUP_MODE (expected full, sys_only, pb_only, primary_only, or imagelog_only)." >&2
   exit 2
   ;;
 esac
@@ -160,6 +189,23 @@ fi
 PB_CLUSTER_DIFFERS=0
 if [ "$DB_PB_HOST" != "$DB_HOST" ] || [ "$DB_PB_PORT" != "$DB_PORT" ]; then
   PB_CLUSTER_DIFFERS=1
+fi
+
+B_CLUSTER_DIFFERS=0
+if [ "$DB_B_HOST" != "$DB_HOST" ] || [ "$DB_B_PORT" != "$DB_PORT" ]; then
+  B_CLUSTER_DIFFERS=1
+fi
+
+# Primary-only: no ImageLog B steps; when split-PB, no PB DDL (use pb_only on PB host)
+PRIMARY_ONLY=0
+if [ "$SETUP_MODE" = "primary_only" ]; then
+  PRIMARY_ONLY=1
+fi
+
+# Run ImageLog-on-B DDL/seeds in main path (not primary_only; imagelog_only handled separately)
+RUN_B_IMAGELOG=1
+if [ "$PRIMARY_ONLY" = "1" ]; then
+  RUN_B_IMAGELOG=0
 fi
 
 if [ "$SPLIT_PB" = "1" ]; then
@@ -181,6 +227,10 @@ psql_pb_admin() {
   psql -U "$DB_PB_SUPERUSER" -h "$DB_PB_HOST" -p "$DB_PB_PORT" "$@"
 }
 
+psql_b_admin() {
+  psql -U "$DB_B_SUPERUSER" -h "$DB_B_HOST" -p "$DB_B_PORT" "$@"
+}
+
 ensure_schema() {
   local db="$1"
   local sch="$2"
@@ -197,6 +247,15 @@ ensure_schema_pb() {
     return 0
   fi
   psql_pb_admin -d "$db" -v ON_ERROR_STOP=1 -c "CREATE SCHEMA IF NOT EXISTS ${sch};"
+}
+
+ensure_schema_b() {
+  local db="$1"
+  local sch="$2"
+  if [ "$sch" = "public" ]; then
+    return 0
+  fi
+  psql_b_admin -d "$db" -v ON_ERROR_STOP=1 -c "CREATE SCHEMA IF NOT EXISTS ${sch};"
 }
 
 grant_schema_objects() {
@@ -221,6 +280,17 @@ grant_schema_objects_pb() {
   psql_pb_admin -d "$db" -v ON_ERROR_STOP=1 -c "ALTER DEFAULT PRIVILEGES IN SCHEMA ${sch} GRANT ALL ON SEQUENCES TO ${user};"
 }
 
+grant_schema_objects_b() {
+  local db="$1"
+  local sch="$2"
+  local user="$3"
+  psql_b_admin -d "$db" -v ON_ERROR_STOP=1 -c "GRANT USAGE ON SCHEMA ${sch} TO ${user};"
+  psql_b_admin -d "$db" -v ON_ERROR_STOP=1 -c "GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA ${sch} TO ${user};"
+  psql_b_admin -d "$db" -v ON_ERROR_STOP=1 -c "GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA ${sch} TO ${user};"
+  psql_b_admin -d "$db" -v ON_ERROR_STOP=1 -c "ALTER DEFAULT PRIVILEGES IN SCHEMA ${sch} GRANT ALL ON TABLES TO ${user};"
+  psql_b_admin -d "$db" -v ON_ERROR_STOP=1 -c "ALTER DEFAULT PRIVILEGES IN SCHEMA ${sch} GRANT ALL ON SEQUENCES TO ${user};"
+}
+
 run_sql_file_sp() {
   local db="$1"
   local search_path_csv="$2"
@@ -239,6 +309,15 @@ run_sql_file_sp_pb() {
     -f "$file"
 }
 
+run_sql_file_sp_b() {
+  local db="$1"
+  local search_path_csv="$2"
+  local file="$3"
+  psql_b_admin -d "$db" -v ON_ERROR_STOP=1 \
+    -c "SET search_path TO ${search_path_csv};" \
+    -f "$file"
+}
+
 grant_connect_pb_db() {
   psql_pb_admin -d postgres -v ON_ERROR_STOP=1 -c "GRANT CONNECT ON DATABASE ${DB_PB_NAME} TO ${DB_USER};"
 }
@@ -252,9 +331,13 @@ apply_split_pb_migrations_and_grants() {
     run_sql_file_sp_pb "$DB_PB_NAME" "$sp_pb" "$SCRIPT_DIR/migrate-pb-fep-pagination-bmsg-sample-20260330.sql"
     echo "   ✅ PB FEP pagination/bmsg 샘플(PB DB)"
   fi
+  # Order: (1) ordinary -> partitioned + daily window + DEFAULT — migrate-pb-send-recv-partitioning-20260408.sql
+  #        (2) legacy monthly *_YYYYMM -> daily *_YYYYMMDD — migrate-pb-send-recv-monthly-to-daily-20260414.sql (no-op if no monthly children)
   echo "5-pb-fep-partition. PB FEP(pb_send/pb_recv) 파티셔닝(split, DB=${DB_PB_NAME})..."
   run_sql_file_sp_pb "$DB_PB_NAME" "$sp_pb" "$SCRIPT_DIR/migrate-pb-send-recv-partitioning-20260408.sql"
-  echo "   ✅ PB FEP 파티셔닝 마이그레이션(PB DB)"
+  echo "5-pb-fep-partition-daily-upgrade. PB FEP 월파티션→일파티션(20260414, 멱등)..."
+  run_sql_file_sp_pb "$DB_PB_NAME" "$sp_pb" "$SCRIPT_DIR/migrate-pb-send-recv-monthly-to-daily-20260414.sql"
+  echo "   ✅ PB FEP 파티셔닝 + 일단위 정렬 마이그레이션(PB DB)"
   echo "5-pb-split-grant. PB 스키마 GRANT (${SCHEMA_PB} → ${DB_USER})..."
   grant_schema_objects_pb "$DB_PB_NAME" "$SCHEMA_PB" "$DB_USER"
   psql_pb_admin -d "$DB_PB_NAME" -c "GRANT ALL PRIVILEGES ON SCHEMA public TO $DB_USER;" 2>/dev/null || true
@@ -302,7 +385,71 @@ if [ "$SETUP_MODE" = "pb_only" ]; then
   exit 0
 fi
 
-echo "=== PostgreSQL 데이터베이스 설정 (MODE=${SETUP_MODE}, SPLIT_PB=${SPLIT_PB}, INIT_DATA_FILE=${INIT_DATA_FILE}, SKIP_INIT_DATA=${SKIP_INIT_DATA}, CLOSED_NETWORK_MINIMAL=${CLOSED_NETWORK_MINIMAL}, LOAD_LOCAL_DECRYPT_TEST_DATA=${LOAD_LOCAL_DECRYPT_TEST_DATA}, A=${DB_A_NAME}, B=${DB_B_NAME}, PB=${DB_PB_NAME:-'(on A)'}, SCHEMA_SYS=${SCHEMA_SYS}, SCHEMA_PB=${SCHEMA_PB}, SCHEMA_IMAGELOG=${SCHEMA_IMAGELOG}) ==="
+# --- ImageLog-only provisioning (B cluster; no Primary A / no PB) ---
+if [ "$SETUP_MODE" = "imagelog_only" ]; then
+  echo "=== PostgreSQL imagelog_only (DB_B_NAME=${DB_B_NAME}, host=${DB_B_HOST}:${DB_B_PORT}, SCHEMA_IMAGELOG=${SCHEMA_IMAGELOG}) ==="
+  echo ""
+  if ! pg_isready -h "$DB_B_HOST" -p "$DB_B_PORT" >/dev/null 2>&1; then
+    echo "경고: pg_isready 실패 — ImageLog 클러스터 ${DB_B_HOST}:${DB_B_PORT} 가 응답하지 않습니다. 계속 시도합니다."
+  fi
+
+  echo "1-b. ImageLog database 생성..."
+  psql_b_admin -tc "SELECT 1 FROM pg_database WHERE datname = '${DB_B_NAME}'" | grep -q 1 || \
+    psql_b_admin -c "CREATE DATABASE ${DB_B_NAME};"
+  echo "   ✅ database '${DB_B_NAME}' 확인됨"
+
+  echo "2-b. ImageLog 클러스터에 앱 사용자 확인(없으면 CREATE)..."
+  psql_b_admin -d postgres -tc "SELECT 1 FROM pg_roles WHERE rolname = '${DB_USER}'" | grep -q 1 || \
+    psql_b_admin -d postgres -c "CREATE USER ${DB_USER} WITH PASSWORD '${DB_PASSWORD}';"
+  echo "   ✅ 사용자 '${DB_USER}' 확인됨(ImageLog 클러스터)"
+  if [ "$B_CLUSTER_DIFFERS" != "1" ]; then
+    echo "      (ImageLog 클러스터 = primary — 이미 역할이 있으면 위 CREATE는 건너뜀)"
+  fi
+
+  echo "3-b. CONNECT 및 SCHEMA_IMAGELOG 준비..."
+  psql_b_admin -d postgres -v ON_ERROR_STOP=1 -c "GRANT CONNECT ON DATABASE ${DB_B_NAME} TO ${DB_USER};"
+  psql_b_admin -d "$DB_B_NAME" -v ON_ERROR_STOP=1 -c "GRANT ALL PRIVILEGES ON DATABASE ${DB_B_NAME} TO ${DB_USER};"
+  ensure_schema_b "$DB_B_NAME" "$SCHEMA_IMAGELOG"
+  psql_b_admin -d "$DB_B_NAME" -c "GRANT ALL PRIVILEGES ON SCHEMA public TO $DB_USER;" 2>/dev/null || true
+
+  echo "4-b. ImageLog DDL (schema_imagelog.sql)..."
+  run_sql_file_sp_b "$DB_B_NAME" "${SCHEMA_IMAGELOG}, public" "$SCRIPT_DIR/schema_imagelog.sql"
+  echo "4-b-1. imagelog (guid, status) unique index..."
+  run_sql_file_sp_b "$DB_B_NAME" "${SCHEMA_IMAGELOG}, public" "$SCRIPT_DIR/migrate-imagelog-guid-status-unique-20260320.sql"
+  echo "   ✅ imagelog DDL 완료"
+
+  echo "4-b-grant. ImageLog 스키마 GRANT (${SCHEMA_IMAGELOG} → ${DB_USER})..."
+  grant_schema_objects_b "$DB_B_NAME" "$SCHEMA_IMAGELOG" "$DB_USER"
+
+  if [ "${SKIP_INIT_DATA:-0}" = "1" ]; then
+    echo "5-b. imagelog 샘플 ⏭️  생략 (SKIP_INIT_DATA=1)"
+  elif [ "${CLOSED_NETWORK_MINIMAL}" = "1" ]; then
+    echo "5-b / 5-b-1 / 5-b-2. imagelog 샘플·데모 마이그레이션 ⏭️  생략 (CLOSED_NETWORK_MINIMAL=1)"
+  else
+    echo "5-b. imagelog 샘플 데이터 삽입 중 (비어 있을 때만)..."
+    run_sql_file_sp_b "$DB_B_NAME" "${SCHEMA_IMAGELOG}, public" "$SCRIPT_DIR/init-data-imagelog.sql"
+    echo "   ✅ imagelog 샘플 데이터 완료"
+    echo "5-b-1. imagelog 동일 GUID·상이 status 샘플 행 마이그레이션..."
+    run_sql_file_sp_b "$DB_B_NAME" "${SCHEMA_IMAGELOG}, public" "$SCRIPT_DIR/migrate-imagelog-dup-guid-sample-20260330.sql"
+    echo "5-b-2. imagelog companion-status 마이그레이션..."
+    run_sql_file_sp_b "$DB_B_NAME" "${SCHEMA_IMAGELOG}, public" "$SCRIPT_DIR/migrate-imagelog-companion-status-20260330.sql"
+  fi
+
+  if [ "${LOAD_LOCAL_DECRYPT_TEST_DATA:-0}" = "1" ]; then
+    echo "6-b-local-decrypt-test. 로컬 복호화 연습용 시드 (ImageLog, LOAD_LOCAL_DECRYPT_TEST_DATA=1)..."
+    run_sql_file_sp_b "$DB_B_NAME" "${SCHEMA_IMAGELOG}, public" "$SCRIPT_DIR/init-data-local-decrypt-test-imagelog.sql"
+    echo "   ✅ init-data-local-decrypt-test-imagelog.sql"
+  fi
+
+  echo ""
+  echo "=== imagelog_only 설정 완료 ==="
+  echo "데이터베이스(B/ImageLog): $DB_B_NAME (SCHEMA_IMAGELOG=$SCHEMA_IMAGELOG)"
+  echo "앱 역할(이름만): $DB_USER"
+  echo "ImageLog 엔드포인트: ${DB_B_HOST}:${DB_B_PORT} (런타임: APP_DATASOURCE_IMAGELOG_* 참고)"
+  exit 0
+fi
+
+echo "=== PostgreSQL 데이터베이스 설정 (MODE=${SETUP_MODE}, SPLIT_PB=${SPLIT_PB}, INIT_DATA_FILE=${INIT_DATA_FILE}, SKIP_INIT_DATA=${SKIP_INIT_DATA}, CLOSED_NETWORK_MINIMAL=${CLOSED_NETWORK_MINIMAL}, LOAD_LOCAL_DECRYPT_TEST_DATA=${LOAD_LOCAL_DECRYPT_TEST_DATA}, A=${DB_A_NAME}, B=${DB_B_NAME}@${DB_B_HOST}:${DB_B_PORT}, PB=${DB_PB_NAME:-'(on A)'}, SCHEMA_SYS=${SCHEMA_SYS}, SCHEMA_PB=${SCHEMA_PB}, SCHEMA_IMAGELOG=${SCHEMA_IMAGELOG}) ==="
 echo ""
 
 if command -v brew >/dev/null 2>&1 && ! pg_isready -h "$DB_HOST" -p "$DB_PORT" >/dev/null 2>&1; then
@@ -321,17 +468,36 @@ if [ "$SPLIT_PB" = "1" ]; then
   fi
 fi
 
+if [ "$RUN_B_IMAGELOG" = "1" ]; then
+  if ! pg_isready -h "$DB_B_HOST" -p "$DB_B_PORT" >/dev/null 2>&1; then
+    echo "경고: pg_isready 실패 — ImageLog 클러스터 ${DB_B_HOST}:${DB_B_PORT} 가 응답하지 않습니다. 계속 시도합니다."
+  fi
+fi
+
 if [ "$SETUP_MODE" = "sys_only" ] && [ "$SPLIT_PB" = "1" ]; then
   echo "참고: split-PB + sys_only — PB DDL/마이그레이션은 이 실행에서 생략합니다. PB DB는 SETUP_MODE=pb_only 로 별도 실행하세요."
 fi
 
+if [ "$PRIMARY_ONLY" = "1" ] && [ "$SPLIT_PB" = "1" ]; then
+  echo "참고: split-PB + primary_only — PB DDL/마이그레이션은 이 실행에서 생략합니다(PB는 pb_only). ImageLog(B) 단계 없음."
+fi
+
 echo "1. 데이터베이스 생성 중..."
-for dbname in "$DB_A_NAME" "$DB_B_NAME"; do
-  psql_admin -tc "SELECT 1 FROM pg_database WHERE datname = '$dbname'" | grep -q 1 || \
-    psql_admin -c "CREATE DATABASE $dbname;"
-  echo "   ✅ 데이터베이스 '$dbname' 확인됨"
-done
-if [ "$SPLIT_PB" = "1" ]; then
+psql_admin -tc "SELECT 1 FROM pg_database WHERE datname = '${DB_A_NAME}'" | grep -q 1 || \
+  psql_admin -c "CREATE DATABASE ${DB_A_NAME};"
+echo "   ✅ 데이터베이스 '${DB_A_NAME}' 확인됨(primary)"
+
+if [ "$RUN_B_IMAGELOG" = "1" ]; then
+  if [ "$DB_B_NAME" = "$DB_A_NAME" ] && [ "$DB_B_HOST" = "$DB_HOST" ] && [ "$DB_B_PORT" = "$DB_PORT" ]; then
+    echo "   ℹ️  B=A 단일 DB — ImageLog 동일 인스턴스"
+  else
+    psql_b_admin -tc "SELECT 1 FROM pg_database WHERE datname = '${DB_B_NAME}'" | grep -q 1 || \
+      psql_b_admin -c "CREATE DATABASE ${DB_B_NAME};"
+    echo "   ✅ 데이터베이스 '${DB_B_NAME}' 확인됨(ImageLog 클러스터)"
+  fi
+fi
+
+if [ "$SPLIT_PB" = "1" ] && [ "$PRIMARY_ONLY" != "1" ]; then
   psql_pb_admin -tc "SELECT 1 FROM pg_database WHERE datname = '${DB_PB_NAME}'" | grep -q 1 || \
     psql_pb_admin -c "CREATE DATABASE ${DB_PB_NAME};"
   echo "   ✅ 데이터베이스(PB) '${DB_PB_NAME}' 확인됨"
@@ -342,7 +508,13 @@ psql_admin -d "$DB_A_NAME" -tc "SELECT 1 FROM pg_user WHERE usename = '$DB_USER'
   psql_admin -d "$DB_A_NAME" -c "CREATE USER $DB_USER WITH PASSWORD '$DB_PASSWORD';"
 echo "   ✅ 사용자 '$DB_USER' 확인됨(primary)"
 
-if [ "$SPLIT_PB" = "1" ] && [ "$PB_CLUSTER_DIFFERS" = "1" ]; then
+if [ "$RUN_B_IMAGELOG" = "1" ] && [ "$B_CLUSTER_DIFFERS" = "1" ]; then
+  psql_b_admin -d postgres -tc "SELECT 1 FROM pg_roles WHERE rolname = '${DB_USER}'" | grep -q 1 || \
+    psql_b_admin -d postgres -c "CREATE USER ${DB_USER} WITH PASSWORD '${DB_PASSWORD}';"
+  echo "   ✅ 사용자 '$DB_USER' 확인됨(ImageLog 클러스터)"
+fi
+
+if [ "$SPLIT_PB" = "1" ] && [ "$PB_CLUSTER_DIFFERS" = "1" ] && [ "$PRIMARY_ONLY" != "1" ]; then
   psql_pb_admin -d postgres -tc "SELECT 1 FROM pg_roles WHERE rolname = '${DB_USER}'" | grep -q 1 || \
     psql_pb_admin -d postgres -c "CREATE USER ${DB_USER} WITH PASSWORD '${DB_PASSWORD}';"
   echo "   ✅ 사용자 '$DB_USER' 확인됨(PB 클러스터)"
@@ -350,10 +522,11 @@ fi
 
 echo "3. DB 연결 권한 및 스키마 준비..."
 psql_admin -d "$DB_A_NAME" -c "GRANT ALL PRIVILEGES ON DATABASE $DB_A_NAME TO $DB_USER;"
-if [ "$DB_B_NAME" != "$DB_A_NAME" ]; then
-  psql_admin -d "$DB_B_NAME" -c "GRANT ALL PRIVILEGES ON DATABASE $DB_B_NAME TO $DB_USER;"
+if [ "$RUN_B_IMAGELOG" = "1" ] && [ "$DB_B_NAME" != "$DB_A_NAME" ]; then
+  psql_b_admin -d postgres -v ON_ERROR_STOP=1 -c "GRANT CONNECT ON DATABASE ${DB_B_NAME} TO ${DB_USER};"
+  psql_b_admin -d "$DB_B_NAME" -c "GRANT ALL PRIVILEGES ON DATABASE $DB_B_NAME TO $DB_USER;"
 fi
-if [ "$SPLIT_PB" = "1" ]; then
+if [ "$SPLIT_PB" = "1" ] && [ "$PRIMARY_ONLY" != "1" ]; then
   grant_connect_pb_db
 fi
 
@@ -361,7 +534,12 @@ ensure_schema "$DB_A_NAME" "$SCHEMA_SYS"
 if [ "$SPLIT_PB" != "1" ]; then
   ensure_schema "$DB_A_NAME" "$SCHEMA_PB"
 fi
-ensure_schema "$DB_B_NAME" "$SCHEMA_IMAGELOG"
+if [ "$RUN_B_IMAGELOG" = "1" ]; then
+  ensure_schema_b "$DB_B_NAME" "$SCHEMA_IMAGELOG"
+  if [ "$DB_B_NAME" != "$DB_A_NAME" ]; then
+    psql_b_admin -d "$DB_B_NAME" -c "GRANT ALL PRIVILEGES ON SCHEMA public TO $DB_USER;" 2>/dev/null || true
+  fi
+fi
 
 psql_admin -d "$DB_A_NAME" -c "GRANT ALL PRIVILEGES ON SCHEMA public TO $DB_USER;" 2>/dev/null || true
 
@@ -408,11 +586,15 @@ echo "4a-user-activity-access-audit. user_activity_access_audit (append-only acc
 run_sql_file_sp "$DB_A_NAME" "$SP_A_DDL" "$SCRIPT_DIR/migrate-user-activity-access-audit-20260406.sql"
 echo "   ✅ user_activity_access_audit 적용(또는 이미 존재)"
 
-run_sql_file_sp "$DB_B_NAME" "${SCHEMA_IMAGELOG}, public" "$SCRIPT_DIR/schema_imagelog.sql"
+if [ "$RUN_B_IMAGELOG" = "1" ]; then
+  run_sql_file_sp_b "$DB_B_NAME" "${SCHEMA_IMAGELOG}, public" "$SCRIPT_DIR/schema_imagelog.sql"
 
-echo "4a-imagelog. (guid, status) 유니크 인덱스 — 레거시 DB 정렬 (req 20260320)..."
-run_sql_file_sp "$DB_B_NAME" "${SCHEMA_IMAGELOG}, public" "$SCRIPT_DIR/migrate-imagelog-guid-status-unique-20260320.sql"
-echo "   ✅ imagelog uq_imagelog_guid_row_status 적용(또는 이미 존재)"
+  echo "4a-imagelog. (guid, status) 유니크 인덱스 — 레거시 DB 정렬 (req 20260320)..."
+  run_sql_file_sp_b "$DB_B_NAME" "${SCHEMA_IMAGELOG}, public" "$SCRIPT_DIR/migrate-imagelog-guid-status-unique-20260320.sql"
+  echo "   ✅ imagelog uq_imagelog_guid_row_status 적용(또는 이미 존재)"
+else
+  echo "   ⏭️  ImageLog(B) DDL 생략 (primary_only)"
+fi
 
 echo "   ✅ 스키마 파일 적용 완료"
 
@@ -421,7 +603,9 @@ grant_schema_objects "$DB_A_NAME" "$SCHEMA_SYS" "$DB_USER"
 if [ "$SPLIT_PB" != "1" ]; then
   grant_schema_objects "$DB_A_NAME" "$SCHEMA_PB" "$DB_USER"
 fi
-grant_schema_objects "$DB_B_NAME" "$SCHEMA_IMAGELOG" "$DB_USER"
+if [ "$RUN_B_IMAGELOG" = "1" ]; then
+  grant_schema_objects_b "$DB_B_NAME" "$SCHEMA_IMAGELOG" "$DB_USER"
+fi
 
 echo "4b-ext. ext_department / ext_employee: 앱 역할(${DB_USER}) SELECT-only, ETL 역할(${DB_ETL_USER}) 쓰기 (req 20260407)..."
 EXT_DEP_EXISTS=$(psql_admin -d "$DB_A_NAME" -tAc "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema='${SCHEMA_SYS}' AND table_name='ext_department';" 2>/dev/null || echo "0")
@@ -494,7 +678,7 @@ if [ "$SPLIT_PB" = "1" ]; then
   if [ "$SETUP_MODE" = "full" ]; then
     apply_split_pb_migrations_and_grants
   else
-    echo "5-pb-fep / 5-pb-fep-partition ⏭️  split-PB + sys_only — PB DB 마이그레이션 생략(pb_only 로 실행)"
+    echo "5-pb-fep / 5-pb-fep-partition ⏭️  split-PB — PB DB 마이그레이션 생략(SETUP_MODE=sys_only|primary_only 등 → pb_only 로 실행)"
   fi
 else
   if [ "${CLOSED_NETWORK_MINIMAL}" = "1" ]; then
@@ -505,9 +689,13 @@ else
     echo "   ✅ PB FEP pagination/bmsg 샘플 적용(재실행 시 seed 행만 삭제 후 재삽입)"
   fi
 
-  echo "5-pb-fep-partition. PB FEP(pb_send/pb_recv) 파티셔닝 전환(데이터 보존형, 20260408)..."
+  # Order: (1) ordinary -> partitioned + daily window + DEFAULT — migrate-pb-send-recv-partitioning-20260408.sql
+  #        (2) legacy monthly *_YYYYMM -> daily — migrate-pb-send-recv-monthly-to-daily-20260414.sql (no-op if no monthly children)
+  echo "5-pb-fep-partition. PB FEP(pb_send/pb_recv) 파티셔닝 전환(데이터 보존형, 일 단위 사전창, 20260408)..."
   run_sql_file_sp "$DB_A_NAME" "$SP_APP" "$SCRIPT_DIR/migrate-pb-send-recv-partitioning-20260408.sql"
-  echo "   ✅ PB FEP 파티셔닝 마이그레이션 적용(이미 파티셔닝이면 no-op)"
+  echo "5-pb-fep-partition-daily-upgrade. PB FEP 월→일 파티션(20260414, 멱등)..."
+  run_sql_file_sp "$DB_A_NAME" "$SP_APP" "$SCRIPT_DIR/migrate-pb-send-recv-monthly-to-daily-20260414.sql"
+  echo "   ✅ PB FEP 파티셔닝 마이그레이션 적용(이미 일 단위·멱등 경로면 no-op)"
 fi
 
 echo "5a. permission_group_screen main → pb-feplog/java-fw-imagelog 마이그레이션 적용 중..."
@@ -518,19 +706,21 @@ echo "5a-1. permission_group_screen java-fw_imagelog → java-fw-imagelog 정규
 run_sql_file_sp "$DB_A_NAME" "$SP_APP" "$SCRIPT_DIR/migrate-permission-group-screen-imagelog-canonical.sql"
 echo "   ✅ java-fw_imagelog 정규화 완료"
 
-if [ "${CLOSED_NETWORK_MINIMAL}" = "1" ]; then
+if [ "$RUN_B_IMAGELOG" != "1" ]; then
+  echo "5b / 5b-1 / 5b-2. imagelog 샘플 ⏭️  생략 (primary_only)"
+elif [ "${CLOSED_NETWORK_MINIMAL}" = "1" ]; then
   echo "5b / 5b-1 / 5b-2. imagelog 샘플·데모 마이그레이션 ⏭️  생략 (CLOSED_NETWORK_MINIMAL=1)"
 else
   echo "5b. imagelog 샘플 데이터 삽입 중 (비어 있을 때만)..."
-  run_sql_file_sp "$DB_B_NAME" "${SCHEMA_IMAGELOG}, public" "$SCRIPT_DIR/init-data-imagelog.sql"
+  run_sql_file_sp_b "$DB_B_NAME" "${SCHEMA_IMAGELOG}, public" "$SCRIPT_DIR/init-data-imagelog.sql"
   echo "   ✅ imagelog 샘플 데이터 완료"
 
   echo "5b-1. imagelog 동일 GUID·상이 status 샘플 행 마이그레이션 (req 20260330)..."
-  run_sql_file_sp "$DB_B_NAME" "${SCHEMA_IMAGELOG}, public" "$SCRIPT_DIR/migrate-imagelog-dup-guid-sample-20260330.sql"
+  run_sql_file_sp_b "$DB_B_NAME" "${SCHEMA_IMAGELOG}, public" "$SCRIPT_DIR/migrate-imagelog-dup-guid-sample-20260330.sql"
   echo "   ✅ imagelog duplicate-GUID sample 적용(또는 이미 존재)"
 
   echo "5b-2. imagelog 단일-status guid 동반 행 (input↔output/error→input) 마이그레이션 (req 20260330)..."
-  run_sql_file_sp "$DB_B_NAME" "${SCHEMA_IMAGELOG}, public" "$SCRIPT_DIR/migrate-imagelog-companion-status-20260330.sql"
+  run_sql_file_sp_b "$DB_B_NAME" "${SCHEMA_IMAGELOG}, public" "$SCRIPT_DIR/migrate-imagelog-companion-status-20260330.sql"
   echo "   ✅ imagelog companion-status 적용(또는 이미 존재)"
 fi
 
@@ -544,9 +734,15 @@ echo "   ✅ app_user_permission_group user_id 정규화 완료(또는 이미 us
 
 if [ "${LOAD_LOCAL_DECRYPT_TEST_DATA:-0}" = "1" ]; then
   echo "6b-local-decrypt-test. 로컬 복호화 연습용 시드 (LOAD_LOCAL_DECRYPT_TEST_DATA=1, dev/local only)..."
-  run_sql_file_sp "$DB_B_NAME" "${SCHEMA_IMAGELOG}, public" "$SCRIPT_DIR/init-data-local-decrypt-test-imagelog.sql"
-  echo "   ✅ init-data-local-decrypt-test-imagelog.sql"
-  if [ "$SPLIT_PB" = "1" ]; then
+  if [ "$RUN_B_IMAGELOG" = "1" ]; then
+    run_sql_file_sp_b "$DB_B_NAME" "${SCHEMA_IMAGELOG}, public" "$SCRIPT_DIR/init-data-local-decrypt-test-imagelog.sql"
+    echo "   ✅ init-data-local-decrypt-test-imagelog.sql"
+  else
+    echo "   ⏭️  ImageLog local-decrypt 시드 생략 (primary_only)"
+  fi
+  if [ "$PRIMARY_ONLY" = "1" ]; then
+    echo "   ⏭️  PB local-decrypt 시드 생략 (primary_only; PB는 별도 실행)"
+  elif [ "$SPLIT_PB" = "1" ]; then
     run_sql_file_sp_pb "$DB_PB_NAME" "${SCHEMA_PB}, public" "$SCRIPT_DIR/init-data-local-decrypt-test-pbfep.sql"
     echo "   ✅ init-data-local-decrypt-test-pbfep.sql (PB DB=${DB_PB_NAME})"
   else
@@ -561,7 +757,11 @@ echo "데이터베이스 A: $DB_A_NAME  (SYS=$SCHEMA_SYS, PB=$SCHEMA_PB)"
 if [ "$SPLIT_PB" = "1" ]; then
   echo "데이터베이스 PB: $DB_PB_NAME @ ${DB_PB_HOST}:${DB_PB_PORT} (런타임: APP_DATASOURCE_PB_*)"
 fi
-echo "데이터베이스 B: $DB_B_NAME  (ImageLog schema=$SCHEMA_IMAGELOG)"
+if [ "$RUN_B_IMAGELOG" = "1" ]; then
+  echo "데이터베이스 B: $DB_B_NAME  (ImageLog schema=$SCHEMA_IMAGELOG @ ${DB_B_HOST}:${DB_B_PORT})"
+else
+  echo "데이터베이스 B: (skipped — primary_only)"
+fi
 echo "앱 역할(이름만): $DB_USER"
 echo "Primary 엔드포인트: ${DB_HOST}:${DB_PORT}"
 echo "자격 증명은 DB_USER / DB_PASSWORD 등 환경 변수로만 설정(값은 로그에 출력하지 않음)"
