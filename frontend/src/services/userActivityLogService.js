@@ -3,6 +3,27 @@
  */
 
 import { getApiBaseUrl } from '../config/runtimeApi';
+import logger from '../utils/logger';
+
+const appendSearchParams = (params = {}) => {
+  const q = new URLSearchParams();
+  const entries = {
+    startDate: params.startDate,
+    endDate: params.endDate,
+    accessorUserId: params.accessorUserId,
+    targetActivityLogId: params.targetActivityLogId,
+    accessType: params.accessType,
+    page: params.page,
+    pageSize: params.pageSize,
+    sortDirection: params.sortDirection,
+  };
+  Object.entries(entries).forEach(([k, v]) => {
+    if (v !== undefined && v !== null && v !== '') {
+      q.set(k, String(v));
+    }
+  });
+  return q;
+};
 
 /**
  * 사용자 활동 이력 검색
@@ -132,5 +153,39 @@ export const postActivityLogPrivilegedReveal = async (id, revealKind = 'COPY_BOD
 export const exportActivityLogs = async (searchParams) => {
   // TODO: 구현 예정
   throw new Error('CSV 내보내기 기능은 아직 구현되지 않았습니다.');
+};
+
+/**
+ * 활동 로그 접근 감사 목록 (GET). 401/403 시 본문을 그대로 반환해 화면 메시지에 사용.
+ * @param {object} params — startDate, endDate, accessorUserId, targetActivityLogId, accessType, page, pageSize, sortDirection
+ */
+export const searchAccessAudit = async (params = {}) => {
+  try {
+    const q = appendSearchParams(params);
+    const response = await fetch(
+      `${getApiBaseUrl()}/activity-log/access-audit?${q.toString()}`,
+      {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+      },
+    );
+
+    const result = await response.json().catch(() => ({}));
+
+    if (!response.ok) {
+      if (response.status === 401 || response.status === 403) {
+        return result;
+      }
+      throw new Error(result.error || `HTTP error! status: ${response.status}`);
+    }
+
+    return result;
+  } catch (error) {
+    logger.error('접근 감사 목록 조회 실패:', error);
+    throw error;
+  }
 };
 
