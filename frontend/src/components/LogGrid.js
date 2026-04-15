@@ -60,12 +60,18 @@ const normalizePbFepDateParam = (value) => {
   return `${y}-${m}-${d} ${hh}:${mm}:${ss || '00'}`;
 };
 
+/**
+ * PB FEP search payload normalization (req 20260415-pb-fep-keyword-decrypt-and-plaintext-search §2 Frontend).
+ * Keyword row filtering must not depend on clients sending decryptData: true; strip UI-only fields.
+ */
 const normalizePbFepSearchParams = (params) => {
   if (!params || typeof params !== 'object') return params;
+  const { showDecryptOption: _showDecryptOption, decryptData: _decryptData, ...rest } = params;
   return {
-    ...params,
+    ...rest,
     startDate: normalizePbFepDateParam(params.startDate),
     endDate: normalizePbFepDateParam(params.endDate),
+    decryptData: false,
   };
 };
 

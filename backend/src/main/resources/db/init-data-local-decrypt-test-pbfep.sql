@@ -11,11 +11,11 @@ BEGIN
   ELSE
     DELETE FROM pb_send WHERE reserve = 'LDPT';
     INSERT INTO pb_send (
-      log_timestamp, media_gb, tr_code, brodid, pub_ip, prt_ip, log_ch_cd,
+      log_time, media_gb, tr_code, brodid, pub_ip, prt_ip, log_ch_cd,
       msg_code, data, bmsg, reserve, con_key, wire_ts
     )
     VALUES (
-      TIMESTAMP '2026-04-13 10:20:00', '99', 'SLDECT01', 'local_decrypt',
+      '20260413102000000000', '99', 'SLDECT01', 'local_decrypt',
       '127.0.0.1   ', '127.0.0.1   ', 'PC    ',
       '0200',
       'Jo1mpzWoGoFvutn6NhYlAQH7UGba/3BzBB+08fQcc6eblGiskh+a8X2ezhLPImkh2q8taaqNTr8ag8g5YqNY5A==',
@@ -25,11 +25,11 @@ BEGIN
       '2026-04-13 10:20:00'
     );
     INSERT INTO pb_send (
-      log_timestamp, media_gb, tr_code, brodid, pub_ip, prt_ip, log_ch_cd,
+      log_time, media_gb, tr_code, brodid, pub_ip, prt_ip, log_ch_cd,
       msg_code, data, bmsg, reserve, con_key, wire_ts
     )
     VALUES (
-      TIMESTAMP '2026-04-13 10:25:00', '99', 'SLDECT02', 'local_decrypt',
+      '20260413102500000000', '99', 'SLDECT02', 'local_decrypt',
       '127.0.0.1   ', '127.0.0.1   ', 'MOB   ',
       '0201',
       'Jo1mpzWoGoFvutn6NhYlAeJDM1z39G71BSMqdD6RQfvQcRQ19DnNwC5cI/Tn2oWw2J9gxHyxHNjnU86Bb/zwhA==',
@@ -45,11 +45,11 @@ BEGIN
   ELSE
     DELETE FROM pb_recv WHERE reserve = 'LDPT';
     INSERT INTO pb_recv (
-      log_timestamp, media_gb, tr_code, brodid, pub_ip, prt_ip, log_ch_cd,
+      log_time, media_gb, tr_code, brodid, pub_ip, prt_ip, log_ch_cd,
       msg_code, data, bmsg, reserve, con_key, wire_ts
     )
     VALUES (
-      TIMESTAMP '2026-04-13 10:21:00', '99', 'RLDECT01', 'local_decrypt',
+      '20260413102100000000', '99', 'RLDECT01', 'local_decrypt',
       '127.0.0.1   ', '127.0.0.1   ', 'PC    ',
       '0200',
       'Jo1mpzWoGoFvutn6NhYlAYNldecMIdFXJZH2U3XHKwHbrqznyVBWh+Hdpr+c4hMX6sFoyXUd6DRNeIdmRSka6Q==',
@@ -59,11 +59,11 @@ BEGIN
       '2026-04-13 10:21:00'
     );
     INSERT INTO pb_recv (
-      log_timestamp, media_gb, tr_code, brodid, pub_ip, prt_ip, log_ch_cd,
+      log_time, media_gb, tr_code, brodid, pub_ip, prt_ip, log_ch_cd,
       msg_code, data, bmsg, reserve, con_key, wire_ts
     )
     VALUES (
-      TIMESTAMP '2026-04-13 10:26:00', '99', 'RLDECT02', 'local_decrypt',
+      '20260413102600000000', '99', 'RLDECT02', 'local_decrypt',
       '127.0.0.1   ', '127.0.0.1   ', 'MOB   ',
       '0200',
       'Jo1mpzWoGoFvutn6NhYlAc/Kk/Og0NXIPQ0wUCmzpaG3MNnEGrXjkaiVDcwAVULJIsVu3zfeOZsartVDM9x0aw==',

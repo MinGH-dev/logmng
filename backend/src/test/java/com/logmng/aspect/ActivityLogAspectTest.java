@@ -2,6 +2,8 @@ package com.logmng.aspect;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.logmng.controller.DecryptController;
+import com.logmng.controller.LogDbController;
+import com.logmng.dto.request.LogDbSearchRequest;
 import com.logmng.dto.response.ApiResponse;
 import com.logmng.dto.response.LoginResponse;
 import com.logmng.service.AuthService;
@@ -27,10 +29,12 @@ import jakarta.servlet.http.Part;
 import java.lang.reflect.Method;
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.when;
 
 /**
@@ -63,15 +67,15 @@ class ActivityLogAspectTest {
 
         Method method = DecryptController.class.getMethod(
                 "decryptRow", String.class, Map.class, HttpServletRequest.class);
-        when(methodSignature.getMethod()).thenReturn(method);
-        when(joinPoint.getSignature()).thenReturn(methodSignature);
-        when(methodSignature.getParameterNames()).thenReturn(new String[]{"logType", "request", "httpRequest"});
-        when(joinPoint.getArgs()).thenReturn(new Object[]{
+        lenient().when(methodSignature.getMethod()).thenReturn(method);
+        lenient().when(joinPoint.getSignature()).thenReturn(methodSignature);
+        lenient().when(methodSignature.getParameterNames()).thenReturn(new String[]{"logType", "request", "httpRequest"});
+        lenient().when(joinPoint.getArgs()).thenReturn(new Object[]{
                 "java_fw_imglog",
                 Map.of("searchHistoryId", "1", "guid", "g"),
                 request
         });
-        doReturn(ResponseEntity.ok(ApiResponse.success(Map.of("decrypted", "data"))))
+        lenient().doReturn(ResponseEntity.ok(ApiResponse.success(Map.of("decrypted", "data"))))
                 .when(joinPoint).proceed();
 
         PermissionGroupService permissionGroupService = new PermissionGroupService(null, null);
@@ -258,6 +262,36 @@ class ActivityLogAspectTest {
         aspect.logActivity(joinPoint);
 
         assertThat(userActivityLogService.getLastIpAddress()).isEqualTo("172.23.111.10");
+    }
+
+    /**
+     * TC-10 (req 20260415): pb_feplog search activity detail lists keywords masked like java_fw_imglog.
+     */
+    @Test
+    void logActivity_pbFeplogSearch_masksKeywordsInActionDetail() throws Throwable {
+        MockHttpServletRequest request = new MockHttpServletRequest();
+        request.setRemoteAddr("127.0.0.1");
+        request.setMethod("POST");
+        request.setRequestURI("/api/logs/db-refactored/search");
+        RequestContextHolder.setRequestAttributes(new ServletRequestAttributes(request));
+
+        Method method = LogDbController.class.getMethod(
+                "searchLogs", LogDbSearchRequest.class, HttpServletRequest.class);
+        when(methodSignature.getMethod()).thenReturn(method);
+        when(methodSignature.getParameterNames()).thenReturn(new String[]{"request", "httpRequest"});
+
+        LogDbSearchRequest body = new LogDbSearchRequest();
+        body.setLogType("pb_feplog");
+        body.setKeywords(List.of("alice@example.com"));
+
+        when(joinPoint.getArgs()).thenReturn(new Object[]{body, request});
+        doReturn(ResponseEntity.ok(ApiResponse.success(null))).when(joinPoint).proceed();
+
+        aspect.logActivity(joinPoint);
+
+        String json = new ObjectMapper().writeValueAsString(userActivityLogService.getLastActionDetail());
+        assertThat(json).doesNotContain("alice@example.com");
+        assertThat(json).contains("\"keywords\"");
     }
 
     private static class StubAuthServiceForAspect extends AuthService {

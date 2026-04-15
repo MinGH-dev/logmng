@@ -327,14 +327,17 @@
 | service | string | | 이미지로그 |
 | datastring | string | | **`logType = java_fw_imglog`**: 필드 파생 검색어에 참여(비어 있지 않을 때). 필드 절(field clause)은 **`datastring`**·**`headerstring`**에서 나온 **모든** 필드 파생 토큰을 **대소문자 무시 중복 제거**한 뒤, **각 토큰마다 AND**로 만족해야 한다(계약). **필드 절 매칭 범위(고정):** 해당 **텍스트 컬럼** 값에 대해서만 **평문 부분일치** 또는 그 문자열의 **`[...]`** 래핑 JSON **decrypt-for-match**. 바이너리 **`data`** / **`header`** 컬럼은 필드 절에서 **조회·복호화·부분일치 스캔하지 않음** — **`docs/contract.md`** 동일 소절, 요건 **`20260414-imagelog-keyword-or-field-and-ui.md`**, **`20260413-imagelog-search-decrypt-display-separation.md`**. |
 | headerstring | string | | **`java_fw_imglog`**: 위 **`datastring`**과 동일한 필드 절 규칙의 일부(두 필드의 토큰이 한 집합으로 합쳐진 뒤 AND). **바이너리 `data` / `header`는 필드 절에서 사용하지 않음**(위와 동일). |
-| keywords | string[] | | **`logType = java_fw_imglog`**: UI는 쉼표 구분 입력을 보통 **`keywords`** 배열 요소로 전달한다. 키워드 절은 요소(토큰) 중 **하나라도** 매치하면 만족(**OR**). **토큰당 매칭:** (1) 필드 절과 **동일한** **`datastring` / `headerstring`** 표면(평문 + 해당 문자열의 bracket **decrypt-for-match**), **또는** (2) **추가**로 바이너리 **`data`** / **`header`** 페이로드에 대한 인메모리 **decrypt-for-match**(java_fw_imglog / IMAGE_LOG 변형). 검색 응답에 페이로드 평문을 넣지 **않음**. **키워드 절**과 **필드 절**이 **동시에** 있으면 **`(필드 절) AND (키워드 절)`** — **`docs/contract.md`**, DOC-CODE-SYNC. |
-| decryptData | boolean | | 기본 false. **`logType = java_fw_imglog`**: 검색 응답에 평문을 채우는 플래그가 **아님**. **`decryptData`로** bracket **`datastring`/`headerstring`** 매칭이나 **키워드용 바이너리 `data`/`header` decrypt-for-match**를 **켜거나 끄지 않는다** — 서버 정책으로 매칭에 필요 시 적용, 응답에는 평문 미포함. UI 체크박스 없음 — 계약 **`docs/contract.md`** 동일 소절, **`docs/requirements/20260413-imagelog-search-decrypt-display-separation.md`**, **`20260414-imagelog-keyword-or-field-and-ui.md`**, **`docs/workflow/DOC-CODE-SYNC.md`**. |
+| keywords | string[] | | **`logType = java_fw_imglog`**: UI는 쉼표 구분 입력을 보통 **`keywords`** 배열 요소로 전달한다. 키워드 절은 요소(토큰) 중 **하나라도** 매치하면 만족(**OR**). **토큰당 매칭:** (1) 필드 절과 **동일한** **`datastring` / `headerstring`** 표면(평문 + 해당 문자열의 bracket **decrypt-for-match**), **또는** (2) **추가**로 바이너리 **`data`** / **`header`** 페이로드에 대한 인메모리 **decrypt-for-match**(java_fw_imglog / IMAGE_LOG 변형). 검색 응답에 페이로드 평문을 넣지 **않음**. **키워드 절**과 **필드 절**이 **동시에** 있으면 **`(필드 절) AND (키워드 절)`** — **`docs/contract.md`**, DOC-CODE-SYNC. **`logType = pb_feplog`**: **`POST .../search`**에서 비어 있지 않으면 **행 포함**에 사용한다(하이라이트만이 아님). 토큰 **OR**, 기본 **대소문자 무시** 부분일치; 평문 와이어 문자열(**`request_data`**, **`response_data`**, **`error_message`**/`bmsg` 등) + PB FEP 페이로드 **decrypt-for-match**(매칭용 메모리 복호화). 구조화 SQL 필터와 **AND**. 상세·와이어프레임 동일 경로: **`docs/contract.md`** § **PB FEP (`pb_feplog`) — keyword search…**, 요건 **`20260415-pb-fep-keyword-decrypt-and-plaintext-search.md`**, 브라우저 노출 **`20260415-encrypted-field-search-no-client-plaintext.md`**. |
+| decryptData | boolean | | 기본 false. **`logType = java_fw_imglog`**: 검색 응답에 평문을 채우는 플래그가 **아님**. **`decryptData`로** bracket **`datastring`/`headerstring`** 매칭이나 **키워드용 바이너리 `data`/`header` decrypt-for-match**를 **켜거나 끄지 않는다** — 서버 정책으로 매칭에 필요 시 적용, 응답에는 평문 미포함. UI 체크박스 없음 — 계약 **`docs/contract.md`** 동일 소절, **`docs/requirements/20260413-imagelog-search-decrypt-display-separation.md`**, **`20260414-imagelog-keyword-or-field-and-ui.md`**, **`docs/workflow/DOC-CODE-SYNC.md`**. **`logType = pb_feplog`**: 키워드 매칭(평문 + decrypt-for-match)은 **`decryptData`와 무관**하게 수행; **`decryptData: true`**만으로 검색 응답에 **`decrypted_*`** 평문 키를 채우는 계약 **아님**(기본 금지 — **`docs/contract.md`** § PB FEP keyword / **`20260415-encrypted-field-search-no-client-plaintext.md`**). |
 | page | integer | | 기본 1 |
 | pageSize | integer | | 기본 10 |
 | sortField | string | | 기본 "log_time" |
 | sortDirection | string | | 기본 "desc" |
 | sortSpecs | { field: string, direction: string }[] | | **pb_feplog only**: ordered multi-column sort; when non-empty, overrides sortField/sortDirection. Canonical time sort key is `log_time`. `field` must be an allowlisted contract name (for example `log_time`, `tr_code`, `user_id`, `brodid`, `prc_time`, `bmsg`, `pub_ip`) resolved to wire physical columns per `docs/contract.md` § PB FEP wire schema. `log_timestamp` is not an allowed request sort key. |
 | displayTemplate | string | | 기본 "detailed" |
+
+- **PB FEP (`logType=pb_feplog`) — `log_time`:** **`startDate`** / **`endDate`** drive the search window on canonical **`log_time`**. The server **normalizes** those bounds into the **same lexical space** as the wire column: a **fixed 20-digit** decimal string **`yyyyMMddHHmmssSSSSSS`** (date + time to seconds + **microseconds**, zero-padded), and applies **`log_time`** filters as **string (lexical) comparison** to those endpoints (consistent with DB **RANGE** partition bounds in that space). **Response rows** echo **`log_time`** as this **20-character** wire string on the stable keys defined in **`docs/contract.md`** (PB FEP — **`log_time` wire value**). **`log_timestamp`** is not used. See also §5.1.1 for the wireframe route.
+- **PB FEP (`logType=pb_feplog`) — `keywords` + pagination:** **`keywords`**가 비어 있지 않으면 결과 **`data`** 행과 **`pagination`**(`totalCount`, `totalPages` 등)은 **키워드 필터가 반영된** 집합을 가리켜야 한다. 구현이 키워드 비어 있지 않을 때 **상한이 있는 프리페치**를 쓰는 경우, 캡·부분 가시성·운영자 안내 문구는 **`docs/contract.md`** § PB FEP keyword / prefetch 절 및 본 문서 §5.1.1과 **DOC-CODE-SYNC**(무음 오판정 집계 금지).
 
 - **Response (data)**: `LogDbSearchResponse`
   - `data`: object[] (로그 행 목록)
@@ -344,7 +347,7 @@
       - **`hasEncryptedMatchDatastring`**, **`hasEncryptedMatchHeaderstring`**: 필드 또는 키워드 매칭이 해당 **텍스트 컬럼**의 **`[...]`** 구간 **decrypt-for-match**로 행 포함에 기여한 경우 **`true`**(평문 비노출). 미적용 시 생략 또는 **`false`**.
       - **`hasEncryptedMatchData`**, **`hasEncryptedMatchHeader`**: 백엔드가 보낼 때 — **`keywords`** 토큰이 바이너리 **`data`** 또는 **`header`** **decrypt-for-match**로 행 포함에 기여한 경우 각각 **`true`**. 미구현 시 생략(DOC–CODE–SYNC).
       - 근거: **`docs/contract.md`** 동일 소절, 요건 **`20260413-imagelog-search-decrypt-display-separation.md`**, **`20260414-imagelog-keyword-or-field-and-ui.md`**.
-    - PB FEP(`pb_feplog`) 행 규칙은 위 Image Log 제한과 별개로 기존 PB 표시·복호화 규칙을 따름 — **`docs/contract.md`** 동일 소절. PB FEP canonical product-facing time key는 **`log_time`**이며, PB FEP 계약에서 **`log_timestamp`**는 제거되어 요청/응답/정렬 별칭으로 허용되지 않는다. `media_code`(물리 **`media_gb`**), `tr_code`, `user_id`(물리 **`brodid`**) 등은 `docs/contract.md` **PB FEP — wire schema** 별칭 규칙을 따른다.
+    - **`logType = pb_feplog`** (**`POST /api/logs/db-refactored/search`** 및 **`POST /api/logs/db-refactored/pb-fep-log-search`** 응답 행): canonical time·별칭은 위와 동일(**`log_time`** 20자리 wire, **`log_timestamp`** 비사용, `media_code`/`tr_code`/`user_id` 등 **`docs/contract.md`** PB FEP wire schema). **검색 응답 JSON:** **`decrypted_request_data`**, **`decrypted_response_data`** 등 **`decrypted_*`** 로 복호화된 페이로드 평문을 실어 보내지 **않는다**(계약 기본; 예외는 Security·본 계약·본 문서에 **명시**된 경우만 — 요건 **`20260415-pb-fep-keyword-decrypt-and-plaintext-search.md`**, **`20260415-encrypted-field-search-no-client-plaintext.md`**). 선택적 비평문 힌트(불리언 등)는 **계약에 적을 때만** 허용. 키워드·decrypt-for-match·프리페치 캡: **`docs/contract.md`** § **PB FEP (`pb_feplog`) — keyword search…**.
   - `pagination`: `{ currentPage, totalPages, totalCount }`
 
 ### 5.1.1 PB FEP wireframe log search (`pb-fep-log-search`)
@@ -353,10 +356,11 @@
 - **Purpose**: Dedicated search for screen ID **`pb-fep-log-search`** only (wireframe IA / column names). Returns the same PB FEP UNION (`pb_feplog`) as legacy search but **each row uses wireframe field names** per requirement `docs/requirements/20260326-pb-fep-log-search-screen-wireframe.md` §2.D. **Wire / DB sourcing** for each key is aligned with **`docs/requirements/20260414-pb-fep-wire-schema-alignment.md`** and the **PB FEP — wire schema** subsection in `docs/contract.md` (physical columns such as `brodid`, `media_gb`, `msg_code`, `pub_ip`, `bmsg`, `data`; **`login_id`** = **`brodid`**).
 - **Legacy unchanged**: **`POST /api/logs/db-refactored/search`** (including `logType=pb_feplog` for **`pb-feplog`**) keeps its existing contract and response shape. New clients for **`pb-fep-log-search`** must call this path; legacy **`pb-feplog`** must **not** be repointed here without a separate requirement.
 - **Schema boundary note**: For PB FEP, canonical product-facing time field is **`log_time`**. PB FEP API contract does not expose or accept `log_timestamp`.
+- **`log_time` format (search + response):** Wire **`log_time`** is a **20-digit** lexical string **`yyyyMMddHHmmssSSSSSS`** (microseconds, zero-padded). **`startDate`/`endDate`** are mapped to **normalized** lower/upper endpoints in that **same 20-character** space; **`log_time`** is filtered by **lexical string comparison**. Each row in **`data`** echoes **`log_time`** as that wire string (wireframe column **`log_time`**). Normative detail: **`docs/contract.md`** PB FEP — **`log_time` wire value**.
 - **Deprecation policy (implementation-ready)**:
   - Backend/Frontend must request, sort, filter, and render using canonical `log_time`.
   - `log_timestamp` is removed from PB FEP API contract and must not be accepted or emitted.
-  - For time filtering, backend applies `startDate`/`endDate` on canonical `log_time` semantics (query-time normalization allowed, no schema-field dependency).
+  - For time filtering, backend applies `startDate`/`endDate` on canonical `log_time` semantics **in the 20-character lexical format** (query-time normalization into padded wire bounds; no schema-field dependency on `log_timestamp`).
   - Alias removal requires a dedicated requirement + release-note notice before breaking change.
 - **Auth / access**: Same family as PB FEP log search and screen **`pb-fep-log-search`**: user must satisfy existing log-type and screen checks for **`pb_feplog`** / PB FEP (see `docs/contract.md` API function-level enforcement: **`pb-feplog` or `pb-fep-log-search`** for `pb_feplog` access). Unauthenticated **401**; insufficient screen / log-type access **403** `LOG_TYPE_NOT_ALLOWED` (or equivalent `FUNCTION_NOT_ALLOWED` where applicable).
 
@@ -368,22 +372,23 @@
 | endDate | string | O (product) | Combined range end (조회일자 + 종료시간); server validates start ≤ end. |
 | loginId | string | O | Non-blank; filters wire **`brodid`** (same semantics as legacy **`user_id`** JSON value on **`POST .../search`**; see `docs/contract.md` PB FEP wire schema). |
 | trCode / tr_code | string | X | Optional TR filter. |
-| keywords | string[] | X | Optional tokens (e.g. from comma-separated UI input). |
+| keywords | string[] | X | Optional tokens (e.g. from comma-separated UI input). When non-empty, **same row-filtering semantics** as **`POST .../search`** with **`logType=pb_feplog`** (`docs/contract.md` § PB FEP keyword; `keywords` OR, default case-insensitive, AND with structured filters). Clients do **not** need **`decryptData: true`** for keyword hits. |
 | logType | string | X | May default to **`pb_feplog`** or be implied by this route; server validates PB FEP only. |
 | page | integer | X | Default **1**. |
 | pageSize | integer | X | Wireframe default **25**; allowed **25 / 50 / 100** (validate if outside). |
 | displayTemplate | string | X | Optional; same meaning as §5.1 if used. |
 | sortField / sortDirection | string | X | Legacy single-column fallback when **`sortSpecs`** is empty (implementation-defined; canonical default is `log_time` **desc**). |
 | sortSpecs | { field: string, direction: string }[] | X | **Cumulative** multi-column sort (ordered). **`field`** must be **allowlisted** (wireframe semantics / DB column map per `docs/contract.md` PB FEP wireframe section). Unknown **`field`** → **400**. When non-empty, overrides **`sortField` / `sortDirection`** for ordering. |
-| decryptData | boolean | X | As §5.1 if applicable to PB FEP behavior. |
+| decryptData | boolean | X | Does **not** gate PB FEP keyword matching; does **not** authorize **`decrypted_*`** keys on this search response (§5.1 / `docs/contract.md` § PB FEP keyword). |
 | (기타 LogDbSearchRequest 필드) | — | X | 이미지로그 전용 등 PB FEP와 무관한 필드는 무시 가능. |
 
 - **Response (data)**: Same envelope as §5.1 — object with:
   - **`data`**: `object[]` — each row is a **wireframe-keyed** map (**key names stable**; values sourced from wire-format columns per contract):
     - **Stable keys**: `id` (number, row id), `log_type` (string; branch discriminator with `id` for unique row keys — e.g. send vs recv).
-    - **Columns (JSON key → wire / physical source, normative)**: `log_time` ← canonical product-facing wire time; `tr_code` ← **`tr_code`**; **`login_id`** ← **`brodid`** (same value as legacy `/search` **`user_id`**); `msg_code` ← **`msg_code`**; `bmsg` ← **`bmsg`** (or equivalent payload column per decrypt rules); `log_ch_cd` ← **`log_ch_cd`** (or equivalent); `send_recv` (`SEND` \| `RECV`) by union branch; `src_ip` ← **`pub_ip`**; `dest_ip` placeholder until product column exists; `app_id` from agreed wire/session/term fields; `data` from **`data`** / payload columns per product and decrypt rules.
+    - **Columns (JSON key → wire / physical source, normative)**: `log_time` ← canonical product-facing wire time (**20-digit** **`yyyyMMddHHmmssSSSSSS`**, same lexical echo as **`POST .../search`** PB FEP rows); `tr_code` ← **`tr_code`**; **`login_id`** ← **`brodid`** (same value as legacy `/search` **`user_id`**); `msg_code` ← **`msg_code`**; `bmsg` ← **`bmsg`** (or equivalent payload column per decrypt rules); `log_ch_cd` ← **`log_ch_cd`** (or equivalent); `send_recv` (`SEND` \| `RECV`) by union branch; `src_ip` ← **`pub_ip`**; `dest_ip` placeholder until product column exists; `app_id` from agreed wire/session/term fields; `data` from **`data`** / payload columns per product and decrypt rules.
     - **Stream / expand (optional)**: `request_data`, `response_data` when still used for expanded STREAM DATA; masking/decrypt targets follow wire column layout per `docs/contract.md`.
-  - **`pagination`**: `{ currentPage, totalPages, totalCount }`
+    - **Search list JSON (wireframe route):** §5.1 **`pb_feplog`** 응답과 동일하게 **`decrypted_*`** 평문 페이로드 키 **금지**(계약 예외 명시 시만).
+  - **`pagination`**: `{ currentPage, totalPages, totalCount }` — must follow the **keyword-filtered** population when **`keywords`** is non-empty (same contract as §5.1; if a prefetch cap applies, totals/disclosure align with `docs/contract.md` § PB FEP prefetch note).
 
 - **에러** (요약):
   - **400** — range/login validation, invalid **`sortSpecs.field`** (allowlist), bad **`pageSize`**; `code` e.g. **`INVALID_INPUT`** or **`BAD_REQUEST`** (implementation aligns).
@@ -397,6 +402,7 @@
   - pb_feplog: `type` = "send" | "recv", `identifier` = id (Long)
   - java_fw_imglog: `type` 무시, `identifier` = guid (String)
 - **Response (data)**: Map (로그 한 건 상세)
+  - **pb_feplog:** 맵에 포함되는 **`log_time`** 은 검색 응답과 동일하게 **20자리** lexical **`yyyyMMddHHmmssSSSSSS`** (마이크로초, 제로 패딩) wire 값이다 — **`docs/contract.md`** PB FEP **`log_time` wire value** subsection.
 
 ### 5.3 복호화된 데이터 조회
 
@@ -942,7 +948,8 @@
 ## 13. 참고
 
 - **환경·포트**: `docs/contract.md`
-- **Image Log (`java_fw_imglog`) 검색 응답 vs 명시적 복호화**: `docs/contract.md` § API 규격 「Java FW Image Log (`java_fw_imglog`) — search match vs plaintext display」, 요건 `docs/requirements/20260413-imagelog-search-decrypt-display-separation.md`, 동기화 절차 `docs/workflow/DOC-CODE-SYNC.md`.
+- **Image Log (`java_fw_imglog`) 검색 응답 vs 명시적 복호화**: `docs/contract.md` § API 규격 및 `docs/api-definition.md` §5.1 **`java_fw_imglog`** 응답 행 규칙, 요건 `docs/requirements/20260413-imagelog-search-decrypt-display-separation.md`, 동기화 절차 `docs/workflow/DOC-CODE-SYNC.md`.
+- **PB FEP (`pb_feplog`) 키워드·검색 응답·`decryptData`**: `docs/contract.md` § **PB FEP (`pb_feplog`) — keyword search…**; 요건 `docs/requirements/20260415-pb-fep-keyword-decrypt-and-plaintext-search.md`; 브라우저/Network 평문 채널 금지 `docs/requirements/20260415-encrypted-field-search-no-client-plaintext.md`.
 - **사용자 관리·전산요청서·인사배치 등 (미구현 API)**: `specs/user-management.spec.yaml`
 - **PB FEP 와이어프레임 검색 (`pb-fep-log-search`)**: `specs/log-db-pb-fep-log-search.spec.yaml`, 본 문서 §5.1.1.
 - **정의 위치**: 이 문서는 현재 구현 기준. API 추가/변경 시 이 문서와 `specs/*.spec.yaml`을 먼저 갱신할 것.

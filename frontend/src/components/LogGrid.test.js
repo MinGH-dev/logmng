@@ -123,6 +123,44 @@ describe('LogGrid PB FEP endpoints', () => {
     expect(body.sortSpecs.some((s) => s.field === 'log_timestamp')).toBe(false);
   });
 
+  test('pb-fep-log-search sends keywords array and decryptData false (no keyword/decrypt coupling)', async () => {
+    global.fetch.mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        success: true,
+        data: {
+          data: [],
+          pagination: { totalPages: 1, currentPage: 1, totalCount: 0 },
+        },
+      }),
+    });
+
+    render(
+      <LogGrid
+        viewId="pb-fep-log-search"
+        logType={{ id: 'pb_feplog', name: 'PB FEP v2.0.0', description: '' }}
+        hasDecryptPermission={false}
+      />
+    );
+
+    fireEvent.change(screen.getByPlaceholderText('Login ID'), { target: { value: 'user01' } });
+    fireEvent.change(screen.getByPlaceholderText(/쉼표로 구분/i), { target: { value: 'alpha, beta' } });
+    fireEvent.click(screen.getByRole('button', { name: '검색' }));
+
+    await waitFor(() => {
+      expect(global.fetch).toHaveBeenCalled();
+    });
+
+    const searchCall = global.fetch.mock.calls.find(
+      (c) => typeof c[0] === 'string' && c[0].includes('/pb-fep-log-search')
+    );
+    expect(searchCall).toBeDefined();
+    const body = JSON.parse(searchCall[1].body);
+    expect(body.keywords).toEqual(['alpha', 'beta']);
+    expect(body.decryptData).toBe(false);
+    expect(body).not.toHaveProperty('showDecryptOption');
+  });
+
   test('pb-feplog legacy view posts to db-refactored/search', async () => {
     global.fetch.mockResolvedValue({
       ok: true,
@@ -156,6 +194,47 @@ describe('LogGrid PB FEP endpoints', () => {
     );
     expect(searchCall).toBeDefined();
     expect(searchCall[0]).not.toContain('pb-fep-log-search');
+  });
+
+  test('pb-feplog legacy sends keywords and decryptData false without decrypt checkbox', async () => {
+    global.fetch.mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        success: true,
+        data: {
+          data: [],
+          pagination: { totalPages: 1, currentPage: 1, totalCount: 0 },
+        },
+      }),
+    });
+
+    render(
+      <LogGrid
+        viewId="pb-feplog"
+        logType={{ id: 'pb_feplog', name: 'PB FEP v1.0.0', description: '' }}
+        hasDecryptPermission={false}
+      />
+    );
+
+    expect(screen.queryByLabelText(/키워드 검색 시 복호화/i)).not.toBeInTheDocument();
+
+    fireEvent.change(screen.getByPlaceholderText('TR Code'), { target: { value: 'TR01' } });
+    fireEvent.change(screen.getByPlaceholderText('Login ID'), { target: { value: 'user01' } });
+    fireEvent.change(screen.getByPlaceholderText(/키워드1/i), { target: { value: 'kw-one' } });
+    fireEvent.click(screen.getByRole('button', { name: '검색' }));
+
+    await waitFor(() => {
+      expect(global.fetch).toHaveBeenCalled();
+    });
+
+    const searchCall = global.fetch.mock.calls.find(
+      (c) => typeof c[0] === 'string' && c[0].includes('/db-refactored/search')
+    );
+    expect(searchCall).toBeDefined();
+    const body = JSON.parse(searchCall[1].body);
+    expect(body.keywords).toEqual(['kw-one']);
+    expect(body.decryptData).toBe(false);
+    expect(body).not.toHaveProperty('showDecryptOption');
   });
 
   test('pb-feplog legacy initialSearchParams datetime-local gets normalized to space format', async () => {

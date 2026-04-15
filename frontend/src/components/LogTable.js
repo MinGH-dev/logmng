@@ -43,6 +43,62 @@ export function getPbFeplogRowKey(log) {
   return `${lt}-${id}`;
 }
 
+/**
+ * PB FEP / grid timestamp display. Handles compact lexical `log_time`:
+ * - 20 digits: `yyyyMMddHHmmssSSSSSS` (microseconds)
+ * - 14 digits: legacy second-only `yyyyMMddHHmmss`
+ * @param {string|number|undefined|null} timeString
+ * @returns {string}
+ */
+export function formatLogTableTime(timeString) {
+  if (!timeString) return '';
+  if (typeof timeString === 'string' && timeString.length === 9 && /^\d{9}$/.test(timeString)) {
+    const hours = timeString.substring(0, 2);
+    const minutes = timeString.substring(2, 4);
+    const seconds = timeString.substring(4, 6);
+    const milliseconds = timeString.substring(6, 9);
+    return `${hours}:${minutes}:${seconds}.${milliseconds}`;
+  }
+  if (typeof timeString === 'string' && /^\d{20}$/.test(timeString)) {
+    const y = timeString.slice(0, 4);
+    const mo = timeString.slice(4, 6);
+    const d = timeString.slice(6, 8);
+    const h = timeString.slice(8, 10);
+    const mi = timeString.slice(10, 12);
+    const s = timeString.slice(12, 14);
+    const micro = timeString.slice(14, 20);
+    return `${y}-${mo}-${d} ${h}:${mi}:${s}.${micro}`;
+  }
+  if (typeof timeString === 'string' && /^\d{14}$/.test(timeString)) {
+    const y = timeString.slice(0, 4);
+    const mo = timeString.slice(4, 6);
+    const d = timeString.slice(6, 8);
+    const h = timeString.slice(8, 10);
+    const mi = timeString.slice(10, 12);
+    const s = timeString.slice(12, 14);
+    return `${y}-${mo}-${d} ${h}:${mi}:${s}`;
+  }
+  if (typeof timeString === 'string' && timeString.includes('T')) {
+    try {
+      const date = new Date(timeString);
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const day = String(date.getDate()).padStart(2, '0');
+      const hours = String(date.getHours()).padStart(2, '0');
+      const minutes = String(date.getMinutes()).padStart(2, '0');
+      const seconds = String(date.getSeconds()).padStart(2, '0');
+      return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
+    } catch (error) {
+      return timeString;
+    }
+  }
+  try {
+    return format(new Date(timeString), 'yyyy-MM-dd HH:mm:ss');
+  } catch (error) {
+    return timeString;
+  }
+}
+
 const LogTable = ({
   logs,
   loading,
@@ -84,36 +140,6 @@ const LogTable = ({
       onRowExpandChange(next, { manualCollapse: wasExpanded });
     } else {
       setInternalExpanded(next);
-    }
-  };
-
-  const formatTime = (timeString) => {
-    if (!timeString) return '';
-    if (typeof timeString === 'string' && timeString.length === 9 && /^\d{9}$/.test(timeString)) {
-      const hours = timeString.substring(0, 2);
-      const minutes = timeString.substring(2, 4);
-      const seconds = timeString.substring(4, 6);
-      const milliseconds = timeString.substring(6, 9);
-      return `${hours}:${minutes}:${seconds}.${milliseconds}`;
-    }
-    if (typeof timeString === 'string' && timeString.includes('T')) {
-      try {
-        const date = new Date(timeString);
-        const year = date.getFullYear();
-        const month = String(date.getMonth() + 1).padStart(2, '0');
-        const day = String(date.getDate()).padStart(2, '0');
-        const hours = String(date.getHours()).padStart(2, '0');
-        const minutes = String(date.getMinutes()).padStart(2, '0');
-        const seconds = String(date.getSeconds()).padStart(2, '0');
-        return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
-      } catch (error) {
-        return timeString;
-      }
-    }
-    try {
-      return format(new Date(timeString), 'yyyy-MM-dd HH:mm:ss');
-    } catch (error) {
-      return timeString;
     }
   };
 
@@ -204,7 +230,7 @@ const LogTable = ({
                         {isExpanded ? '▾' : '▸'}
                       </span>
                       <span className="pb-fep-timestamp-value">
-                        {formatTime(log.log_time || log.timestamp || log.prc_time)}
+                        {formatLogTableTime(log.log_time || log.timestamp || log.prc_time)}
                       </span>
                     </div>
                   </td>
@@ -242,7 +268,7 @@ const LogTable = ({
           return (
             <React.Fragment key={rowKey}>
               <tr>
-                <td>{formatTime(log.log_time || log.timestamp || log.prc_time)}</td>
+                <td>{formatLogTableTime(log.log_time || log.timestamp || log.prc_time)}</td>
                 <td>{log.tr_code || log.trCode}</td>
                 <td>{log.user_id || log.loginId || log.brodid}</td>
                 <td>{log.status_code || log.msg_code}</td>

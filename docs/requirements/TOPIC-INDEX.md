@@ -119,6 +119,8 @@ For **RequirementsPastSearch** token optimization. Read this file first to find 
 
 ## decryption | 복호화 | search-history | 검색 이력 | approval
 
+- 20260415-pb-fep-keyword-decrypt-and-plaintext-search | pb_feplog: keyword row-filter via plaintext + PB_FEP decrypt-for-match (prefetch cap pattern); decryptData does not gate match; no decrypted_* on search wire; ActivityLogAspect mask keywords; seed for known substring in ciphertext
+- 20260415-encrypted-field-search-no-client-plaintext | Encrypted-at-rest fields: decrypt-for-match on server; list/search API + UI + DevTools must not expose plaintext PII; highlights without plaintext DOM; extends 20260413 separation with browser/diagnostic constraints; Security §2.1 follow-up
 - 20260407-pending-approvals-history-search-readonly-requester | 복호화 승인 관리: 이력 검색·조회, 요청자 읽기 전용, 승인자 워크플로 유지, 승인/반려 후 행 유지, 로그 검색(LogGrid) 검색/필터 UI 정렬, 계약·인터셉터·스코프 정합
 - 20260318-search-history-create-server-error-bugfix | Bugfix: server error when submitting "복호화 승인 요청" (POST /api/search-history); Backend to identify root cause and fix so create returns 201 and UI shows success.
 - 20260318-search-history-user2-not-showing | user2로 검색이력 화면에서 검색이력 데이터가 표시되지 않는 문제 원인 파악 및 조치
@@ -156,6 +158,7 @@ For **RequirementsPastSearch** token optimization. Read this file first to find 
 
 ## image-log | imagelog | datastring
 
+- 20260415-encrypted-field-search-no-client-plaintext | Encrypted-at-rest fields: decrypt-for-match on server; list/search API + UI + DevTools must not expose plaintext PII; highlights without plaintext DOM; extends 20260413 separation with browser/diagnostic constraints; Security §2.1 follow-up
 - 20260414-imagelog-keyword-or-field-and-ui | java_fw_imglog: keyword list OR across tokens (adds binary data/header decrypt-for-match); fieldTerms from datastring+headerstring AND (no binary scan); combined (field clause) AND (keyword clause); remove 「매칭용 복호화」; decryptData does not gate match decrypt; LogDbServiceTest TC-01–TC-09
 - 20260413-imagelog-unified-text-search | java_fw_imglog: unify datastring/headerstring/keywords into effectiveTerms; AND across terms, OR across surfaces per term; case-insensitive dedup; breaking change for old AND-across-fields; tests on LOCAL-DECRYPT-TST-IM-0001
 - 20260413-imagelog-search-decrypt-display-separation | java_fw_imglog: decrypt-for-match on datastring/headerstring for match; no search-response plaintext; clarifies datastring 「데이터」 does not scan data/header columns unless product extends (LOCAL seed / TC-09–TC-10).
@@ -167,6 +170,7 @@ For **RequirementsPastSearch** token optimization. Read this file first to find 
 - 20260224-image-log-encrypted-highlight-only | Image log 암호화 구간만 encrypted 하이라이트
 - 20260225-image-log-search-no-results | 이미지 로그 검색 결과 없음
 - 20260318-image-log-search-data-header-keyword-fix | On the Image Log (Java FW Image Log) screen, **data search** (datastring), **header search** (headerstring), and **keyword search** (keywords) are reported as not working properly. The user wants the **root cause identified** and the search behavior fixed so that data, header, and keyword filters behave as intended.
+- 20260414-image-log-datastring-headerstring-independent-matching-fix | In Java FW Image Log search, entering `LOCAL` in `datastring` currently returns rows where `datastring` does not contain `LOCAL`. Root cause is confirmed: in backend `LogDbService.searchJavaFwImglog`, `datastring` input is handled as a unified field term and also matches `headerstring` (and decryption match path), causing cross-field leakage and user confusion.
 
 ## grid | UX | ux-standards | 그리드
 
@@ -181,6 +185,7 @@ For **RequirementsPastSearch** token optimization. Read this file first to find 
 
 ## privacy | security | 개인정보 | IP | 로깅
 
+- 20260415-encrypted-field-search-no-client-plaintext | Encrypted-at-rest fields: decrypt-for-match on server; list/search API + UI + DevTools must not expose plaintext PII; highlights without plaintext DOM; extends 20260413 separation with browser/diagnostic constraints; Security §2.1 follow-up
 - 20260206-privacy-security-improvement | 프론트엔드 개인정보 보호 및 보안 개선
 - 20260206-privacy-security-improvement-summary | 개인정보 보호 개선 요약
 - 20260206-privacy-security-improvement-test-results | 개인정보 보호 테스트 결과
@@ -190,15 +195,18 @@ For **RequirementsPastSearch** token optimization. Read this file first to find 
 
 ## database | datasource | schema | multi-db
 
+- 20260415-pb-fep-keyword-decrypt-and-plaintext-search | Extend or add PB FEP local decrypt test seed so keyword TC can assert known plaintext substring inside PB_FEP ciphertext (init-data-local-decrypt-test-pbfep.sql or dedicated seed)
 - 20260408-hr-sync-poc-snapshot-list-and-sample-data | Optional `ext_employee.snapshot_id` (or thin `hr_sync_poc_snapshot`) + migration/init seed for ≥2 PoC snapshots; writes limited to `ext_*` / ETL role
 - 20260320-multi-datasource-schema-configuration | Multi-datasource config: system+PB on DB A (`logmng_sys`, `logmng`), Java FW ImageLog on DB B (`public`); setup scripts + Spring Boot configurable URLs/schemas; single-DB dev backward compatible
 - 20260409-employee-number-uniqueness-provisioning | `app_user.employee_number` must not be duplicated across **active** users (`deleted_at IS NULL`) when the value is **non-null**, using the same **trimmed** string semantics as elsewhere. User Management V2 **direct user create** already enforces this via `UserManagementV2Service.ensureEmployeeNumberAvailable` before insert. The **HR / external provisioning** path (`ProvisioningService.provisionFromExternalEmployee`) currently inserts `app_user` **without** an equivalent check, so a new user can be provisioned with the same trimmed `employee_number` as an existing active user. The database schema only has a **non-unique** index on `employee_number` (`schema_sys.sql`, migration `migrate-app-user-employee-number-20260407.sql` documents that legacy duplicate rows prevented a UNIQUE constraint). This requirement closes the **application-layer** gap and aligns API error behavior with direct create.
 - 20260414-pb-fep-daily-partitioning | PB FEP `pb_send`/`pb_recv`: change PostgreSQL range partitioning from **monthly** to **daily**; upgrade path from existing monthly migration; retention/downtime/rollback; tests; release versioning per project norms
+- 20260415-pb-fep-log-time-20-char-microseconds | PB FEP `pb_send`/`pb_recv`: `log_time` must be **20-char** lexical `yyyyMMddHHmmssSSSSSS` (microsecond padding); `VARCHAR(20)`, daily `RANGE` bounds `YYYYMMDD||000000000000`, backend formatter + H2/seed/contract/frontend display alignment
 - 20260410-install-deploy-three-db-noninteractive | Production and hardened deployments must support **three physically separate PostgreSQL databases** for:
 - 20260414-pb-fep-log-timestamp-physical-removal-bugfix | Real ingest on PB FEP fails when `log_timestamp` exists in PB FEP tables and related ingest/query paths still treat that column as present. The product requirement is no longer "unused alignment"; it is **complete physical removal** of `log_timestamp` from PB FEP schema and all dependent flows.
 
 ## log-type | 로그 타입 | dynamic
 
+- 20260415-pb-fep-keyword-decrypt-and-plaintext-search | pb_feplog / pb-fep-log-search: keywords must filter rows (plaintext + decrypt-for-match); align java_fw_imglog prefetch-cap pattern; Contract decryptData + response keys; DB seed with known ciphertext substring for tests
 - 20260208-dynamic-log-type-management | 동적 로그 타입 관리 기능
 - 20260320-pb-feplog-empty-results-media-code-verification | PB FEP Log: verify empty search for media code SAAAA100 from 2023 — true data absence vs API/filter bug; read-only DB count vs POST search evidence
 - 20260326-pb-fep-log-search-screen-wireframe | Screen `pb-fep-log-search` only: SVG v10 authoritative for visual/IA (vs notes v11: e.g. 조회일자+시작/종료시간); dedicated `POST .../pb-fep-log-search`; grid/toolbar/table/stream per SVG; §2.D DB mapping from `schema_pb_fep.sql`; legacy `pb-feplog` keeps `db-refactored/search` only

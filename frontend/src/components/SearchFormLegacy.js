@@ -40,8 +40,6 @@ const legacyStoredParamsToFormFields = (stored) => {
     tr_code: tr,
     loginId: stored.loginId != null ? String(stored.loginId) : '',
     keywords: keywordsStr,
-    showDecryptOption: Boolean(keywordsStr && keywordsStr.trim()),
-    decryptData: Boolean(stored.decryptData),
   };
 };
 
@@ -53,7 +51,6 @@ const SearchFormLegacy = ({ onSearch, initialFromSearchParams = null }) => {
     tr_code: '',
     loginId: '',
     keywords: '',
-    showDecryptOption: false,
   });
 
   const [errors, setErrors] = useState({});
@@ -84,15 +81,6 @@ const SearchFormLegacy = ({ onSearch, initialFromSearchParams = null }) => {
         return next;
       });
     }
-  };
-
-  const handleKeywordsChange = (e) => {
-    const value = e.target.value;
-    setFormData((prev) => ({
-      ...prev,
-      keywords: value,
-      showDecryptOption: value.trim() !== '',
-    }));
   };
 
   const handleSubmit = (e) => {
@@ -128,9 +116,11 @@ const SearchFormLegacy = ({ onSearch, initialFromSearchParams = null }) => {
     };
 
     const searchParams = {
-      ...formData,
       startDate: formatDateForAPI(formData.startDate),
       endDate: formatDateForAPI(formData.endDate),
+      media_gb: formData.media_gb != null ? String(formData.media_gb).trim() : '',
+      tr_code: formData.tr_code != null ? String(formData.tr_code).trim() : '',
+      loginId: formData.loginId != null ? String(formData.loginId).trim() : '',
       keywords: keywordsArray,
     };
 
@@ -145,7 +135,6 @@ const SearchFormLegacy = ({ onSearch, initialFromSearchParams = null }) => {
       tr_code: '',
       loginId: '',
       keywords: '',
-      showDecryptOption: false,
     });
     setErrors({});
   };
@@ -272,22 +261,11 @@ const SearchFormLegacy = ({ onSearch, initialFromSearchParams = null }) => {
               id="keywords"
               name="keywords"
               value={formData.keywords}
-              onChange={handleKeywordsChange}
+              onChange={handleInputChange}
               placeholder="키워드1, 키워드2, 키워드3 (OR 조건으로 검색)"
             />
           </div>
         </div>
-
-        {formData.showDecryptOption && (
-          <div className="form-row">
-            <div className="form-group checkbox-group">
-              <label>
-                <input type="checkbox" name="decryptData" checked={formData.decryptData || false} onChange={handleInputChange} />
-                키워드 검색 시 복호화 여부 체크
-              </label>
-            </div>
-          </div>
-        )}
 
         <div className="form-actions">
           <button type="submit" className="btn btn-primary">

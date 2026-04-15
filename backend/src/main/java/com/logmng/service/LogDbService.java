@@ -34,24 +34,36 @@ public class LogDbService {
     private static final int IMGLOG_FILTER_PREFETCH_CAP = 5000;
 
     /**
-     * In-memory text filter terms for java_fw_imglog: field terms (datastring + headerstring, AND) vs keyword terms
-     * (keywords list, OR). See {@link #buildJavaFwImglogTextFilterTerms(LogDbSearchRequest)}.
+     * Max rows to prefetch when {@code pb_feplog} keyword list is non-empty; filter in memory then paginate.
+     * Per req 20260415-pb-fep-keyword-decrypt-and-plaintext-search (same structural pattern as {@link #IMGLOG_FILTER_PREFETCH_CAP}).
+     */
+    private static final int PB_FEPLOG_KEYWORD_FILTER_PREFETCH_CAP = 5000;
+
+    /**
+     * In-memory text filter terms for java_fw_imglog.
+     * datastring/headerstring are independent field filters (AND when both present), keywords keep OR semantics.
      */
     private static final class JavaFwImglogTextFilterTerms {
-        private final List<String> fieldTerms;
+        private final String datastringTerm;
+        private final String headerstringTerm;
         private final List<String> keywordTerms;
 
-        private JavaFwImglogTextFilterTerms(List<String> fieldTerms, List<String> keywordTerms) {
-            this.fieldTerms = fieldTerms != null ? fieldTerms : Collections.emptyList();
+        private JavaFwImglogTextFilterTerms(String datastringTerm, String headerstringTerm, List<String> keywordTerms) {
+            this.datastringTerm = datastringTerm;
+            this.headerstringTerm = headerstringTerm;
             this.keywordTerms = keywordTerms != null ? keywordTerms : Collections.emptyList();
         }
 
         boolean needsFiltering() {
-            return !fieldTerms.isEmpty() || !keywordTerms.isEmpty();
+            return datastringTerm != null || headerstringTerm != null || !keywordTerms.isEmpty();
         }
 
-        List<String> getFieldTerms() {
-            return fieldTerms;
+        String getDatastringTerm() {
+            return datastringTerm;
+        }
+
+        String getHeaderstringTerm() {
+            return headerstringTerm;
         }
 
         List<String> getKeywordTerms() {
@@ -72,7 +84,8 @@ public class LogDbService {
     private final CryptoUtil cryptoUtil;
     private final ObjectMapper objectMapper;
     private static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
-    private static final DateTimeFormatter PB_FEPLOG_TIME_LEXICAL_FORMATTER = DateTimeFormatter.ofPattern("yyyyMMddHHmmss");
+    /** First 14 digits of PB FEP {@code log_time} ({@code yyyyMMddHHmmss}); microseconds appended separately for 20-char wire form. */
+    private static final DateTimeFormatter PB_FEPLOG_TIME_TO_SECOND_FORMATTER = DateTimeFormatter.ofPattern("yyyyMMddHHmmss");
 
     /**
      * Canonical PB FEP timestamp column used by search/filter path.
@@ -233,25 +246,30 @@ public class LogDbService {
         return sortField + " " + dir;
     }
     
+    private static final class PbFeplogUnionSql {
+        private final String sql;
+        private final List<Object> params;
+
+        private PbFeplogUnionSql(String sql, List<Object> params) {
+            this.sql = sql;
+            this.params = params;
+        }
+    }
+
     /**
-     * PB FEP search: SQL {@code pb_send} {@code UNION ALL} {@code pb_recv}. Shared by legacy {@link #searchLogs} (pb_feplog) and wireframe {@link #searchPbFepLogWireframe}.
+     * Builds {@code pb_send} ∪ {@code pb_recv} SELECT with structured filters and {@code ORDER BY} (no LIMIT).
      */
-    private LogDbSearchResponse executePbFeplogUnionSearch(LogDbSearchRequest request) {
-        List<Map<String, Object>> results = new ArrayList<>();
-        
-        try (Connection connection = pbDataSource.getConnection()) {
-            // SQL 쿼리 구성
-            StringBuilder sql = new StringBuilder();
-            sql.append("SELECT ").append(PB_FEPLOG_WIRE_SELECT_BODY);
-            sql.append(", 'send' AS log_type ");
-            sql.append("FROM pb_send WHERE 1=1 ");
-            
-            List<Object> params = new ArrayList<>();
-            
-        // 날짜 조건
+    private PbFeplogUnionSql buildPbFeplogUnionSelectSql(LogDbSearchRequest request) {
+        StringBuilder sql = new StringBuilder();
+        sql.append("SELECT ").append(PB_FEPLOG_WIRE_SELECT_BODY);
+        sql.append(", 'send' AS log_type ");
+        sql.append("FROM pb_send WHERE 1=1 ");
+
+        List<Object> params = new ArrayList<>();
+
         LocalDateTime startDateTime = request.getStartDateAsDateTime();
         LocalDateTime endDateTime = request.getEndDateAsDateTime();
-        
+
         if (startDateTime != null) {
             sql.append("AND ").append(PB_FEPLOG_TIMESTAMP_COLUMN).append(" >= ? ");
             params.add(toPbFeplogLogTimeLexical(startDateTime));
@@ -260,142 +278,238 @@ public class LogDbService {
             sql.append("AND ").append(PB_FEPLOG_TIMESTAMP_COLUMN).append(" <= ? ");
             params.add(toPbFeplogLogTimeLexical(endDateTime));
         }
-            
-            // 매체코드 조건
-            if (request.getMediaCode() != null && !request.getMediaCode().trim().isEmpty()) {
-                sql.append("AND media_gb = ? ");
-                params.add(request.getMediaCode());
+
+        if (request.getMediaCode() != null && !request.getMediaCode().trim().isEmpty()) {
+            sql.append("AND media_gb = ? ");
+            params.add(request.getMediaCode());
+        }
+        if (request.getTrCode() != null && !request.getTrCode().trim().isEmpty()) {
+            sql.append("AND tr_code = ? ");
+            params.add(request.getTrCode());
+        }
+        if (request.getLoginId() != null && !request.getLoginId().trim().isEmpty()) {
+            sql.append("AND brodid = ? ");
+            params.add(request.getLoginId());
+        }
+
+        sql.append("UNION ALL ");
+        sql.append("SELECT ").append(PB_FEPLOG_WIRE_SELECT_BODY);
+        sql.append(", 'recv' AS log_type ");
+        sql.append("FROM pb_recv WHERE 1=1 ");
+
+        if (startDateTime != null) {
+            sql.append("AND ").append(PB_FEPLOG_TIMESTAMP_COLUMN).append(" >= ? ");
+            params.add(toPbFeplogLogTimeLexical(startDateTime));
+        }
+        if (endDateTime != null) {
+            sql.append("AND ").append(PB_FEPLOG_TIMESTAMP_COLUMN).append(" <= ? ");
+            params.add(toPbFeplogLogTimeLexical(endDateTime));
+        }
+        if (request.getMediaCode() != null && !request.getMediaCode().trim().isEmpty()) {
+            sql.append("AND media_gb = ? ");
+            params.add(request.getMediaCode());
+        }
+        if (request.getTrCode() != null && !request.getTrCode().trim().isEmpty()) {
+            sql.append("AND tr_code = ? ");
+            params.add(request.getTrCode());
+        }
+        if (request.getLoginId() != null && !request.getLoginId().trim().isEmpty()) {
+            sql.append("AND brodid = ? ");
+            params.add(request.getLoginId());
+        }
+
+        sql.append("ORDER BY ").append(buildPbFeplogOrderBy(request));
+        return new PbFeplogUnionSql(sql.toString(), params);
+    }
+
+    private static void setPreparedStatementParams(PreparedStatement stmt, List<Object> params) throws SQLException {
+        for (int i = 0; i < params.size(); i++) {
+            stmt.setObject(i + 1, params.get(i));
+        }
+    }
+
+    /** Trim each keyword; skip empty; preserve order (same rules as java_fw_imglog list). */
+    private static List<String> buildPbFeplogKeywordTerms(LogDbSearchRequest request) {
+        List<String> out = new ArrayList<>();
+        if (request == null || request.getKeywords() == null) {
+            return out;
+        }
+        for (String kw : request.getKeywords()) {
+            if (kw == null) {
+                continue;
             }
-            
-            // TR 코드 조건
-            if (request.getTrCode() != null && !request.getTrCode().trim().isEmpty()) {
-                sql.append("AND tr_code = ? ");
-                params.add(request.getTrCode());
+            String t = kw.trim();
+            if (!t.isEmpty()) {
+                out.add(t);
             }
-            
-            // 사용자 ID 조건 (wire broker id)
-            if (request.getLoginId() != null && !request.getLoginId().trim().isEmpty()) {
-                sql.append("AND brodid = ? ");
-                params.add(request.getLoginId());
+        }
+        return out;
+    }
+
+    private static boolean containsIgnoreCaseNullable(String haystack, String needle) {
+        if (haystack == null || needle == null || needle.isEmpty()) {
+            return false;
+        }
+        return haystack.toLowerCase(Locale.ROOT).contains(needle.toLowerCase(Locale.ROOT));
+    }
+
+    /**
+     * In-memory decrypt-for-match only; failures are swallowed (DEBUG only, no decrypted material at INFO/WARN).
+     */
+    private String decryptPbFepPayloadForKeywordMatch(String ciphertext) {
+        if (ciphertext == null || ciphertext.isEmpty()) {
+            return null;
+        }
+        try {
+            return cryptoUtil.decryptLogPayload(ciphertext, LogPayloadCryptoVariant.PB_FEP);
+        } catch (Exception e) {
+            log.debug("pb_feplog keyword decrypt-for-match skipped: {}", e.getClass().getSimpleName());
+            return null;
+        }
+    }
+
+    private boolean pbFeplogCellMatchesKeyword(String wireText, String keyword) {
+        if (containsIgnoreCaseNullable(wireText, keyword)) {
+            return true;
+        }
+        String decrypted = decryptPbFepPayloadForKeywordMatch(wireText);
+        return containsIgnoreCaseNullable(decrypted, keyword);
+    }
+
+    /**
+     * Keyword predicate: OR across keyword strings; each keyword may match {@code request_data}, {@code response_data},
+     * or {@code error_message} (bmsg wire) via wire text or PB_FEP decrypt-for-match (req 20260415).
+     */
+    private boolean pbFeplogRowMatchesKeywordClause(Map<String, Object> row, List<String> keywordTerms) {
+        if (keywordTerms == null || keywordTerms.isEmpty()) {
+            return true;
+        }
+        String req = jdbcValueToString(row.get("request_data"));
+        String res = jdbcValueToString(row.get("response_data"));
+        String bmsg = jdbcValueToString(row.get("error_message"));
+        for (String keyword : keywordTerms) {
+            if (keyword == null || keyword.isEmpty()) {
+                continue;
             }
-            
-            // UNION ALL로 pb_recv도 포함
-            sql.append("UNION ALL ");
-            sql.append("SELECT ").append(PB_FEPLOG_WIRE_SELECT_BODY);
-            sql.append(", 'recv' AS log_type ");
-            sql.append("FROM pb_recv WHERE 1=1 ");
-            
-            // 동일한 조건 적용
-            if (startDateTime != null) {
-                sql.append("AND ").append(PB_FEPLOG_TIMESTAMP_COLUMN).append(" >= ? ");
-                params.add(toPbFeplogLogTimeLexical(startDateTime));
+            if (pbFeplogCellMatchesKeyword(req, keyword)
+                    || pbFeplogCellMatchesKeyword(res, keyword)
+                    || pbFeplogCellMatchesKeyword(bmsg, keyword)) {
+                return true;
             }
-            if (endDateTime != null) {
-                sql.append("AND ").append(PB_FEPLOG_TIMESTAMP_COLUMN).append(" <= ? ");
-                params.add(toPbFeplogLogTimeLexical(endDateTime));
+        }
+        return false;
+    }
+
+    private List<Map<String, Object>> filterPbFeplogRowsByKeywordTerms(List<Map<String, Object>> rows,
+            List<String> keywordTerms) {
+        if (keywordTerms == null || keywordTerms.isEmpty()) {
+            return new ArrayList<>(rows);
+        }
+        List<Map<String, Object>> filtered = new ArrayList<>();
+        for (Map<String, Object> row : rows) {
+            if (pbFeplogRowMatchesKeywordClause(row, keywordTerms)) {
+                filtered.add(row);
             }
-            if (request.getMediaCode() != null && !request.getMediaCode().trim().isEmpty()) {
-                sql.append("AND media_gb = ? ");
-                params.add(request.getMediaCode());
+        }
+        return filtered;
+    }
+
+    private List<Map<String, Object>> readPbFeplogResultSet(ResultSet rs) throws SQLException {
+        List<Map<String, Object>> list = new ArrayList<>();
+        ResultSetMetaData metaData = rs.getMetaData();
+        int columnCount = metaData.getColumnCount();
+        while (rs.next()) {
+            Map<String, Object> row = new LinkedHashMap<>();
+            for (int i = 1; i <= columnCount; i++) {
+                String columnName = metaData.getColumnName(i);
+                Object value = rs.getObject(i);
+                if (value instanceof Timestamp) {
+                    value = ((Timestamp) value).toLocalDateTime().format(DATE_FORMATTER);
+                }
+                row.put(columnName, value);
             }
-            if (request.getTrCode() != null && !request.getTrCode().trim().isEmpty()) {
-                sql.append("AND tr_code = ? ");
-                params.add(request.getTrCode());
+            list.add(row);
+        }
+        return list;
+    }
+
+    /**
+     * PB FEP search: SQL {@code pb_send} {@code UNION ALL} {@code pb_recv}. Shared by legacy {@link #searchLogs} (pb_feplog) and wireframe {@link #searchPbFepLogWireframe}.
+     */
+    private LogDbSearchResponse executePbFeplogUnionSearch(LogDbSearchRequest request) {
+        List<String> keywordTerms = buildPbFeplogKeywordTerms(request);
+        boolean keywordPrefetchPath = !keywordTerms.isEmpty();
+
+        try (Connection connection = pbDataSource.getConnection()) {
+            PbFeplogUnionSql union = buildPbFeplogUnionSelectSql(request);
+            log.debug("실행 SQL: {}", union.sql);
+            log.debug("파라미터: {}", union.params);
+
+            int page = request.getPage() != null ? request.getPage() : 1;
+            int pageSize = request.getPageSize() != null ? request.getPageSize() : 10;
+
+            if (keywordPrefetchPath) {
+                String prefetchSql = union.sql + " LIMIT ?";
+                List<Object> prefetchParams = new ArrayList<>(union.params);
+                prefetchParams.add(PB_FEPLOG_KEYWORD_FILTER_PREFETCH_CAP);
+
+                List<Map<String, Object>> prefetched;
+                try (PreparedStatement stmt = connection.prepareStatement(prefetchSql)) {
+                    setPreparedStatementParams(stmt, prefetchParams);
+                    try (ResultSet rs = stmt.executeQuery()) {
+                        prefetched = readPbFeplogResultSet(rs);
+                    }
+                }
+                log.debug("pb_feplog keyword prefetch rows before filter: {}", prefetched.size());
+
+                List<Map<String, Object>> filtered = filterPbFeplogRowsByKeywordTerms(prefetched, keywordTerms);
+                log.debug("pb_feplog rows after keyword filter: {}", filtered.size());
+
+                long totalCount = filtered.size();
+                int totalPages = (int) Math.ceil((double) totalCount / pageSize);
+                int fromIndex = (page - 1) * pageSize;
+                List<Map<String, Object>> pageResults = fromIndex >= filtered.size()
+                        ? new ArrayList<>()
+                        : new ArrayList<>(filtered.subList(fromIndex, Math.min(fromIndex + pageSize, filtered.size())));
+
+                log.info("✅ PB FEP 검색 완료 (키워드 필터): {}건 중 {}건 반환 (페이지: {}/{})",
+                        totalCount, pageResults.size(), page, totalPages);
+                LogDbSearchResponse.PaginationInfo pagination = new LogDbSearchResponse.PaginationInfo(
+                        page, totalPages, totalCount);
+                return new LogDbSearchResponse(pageResults, pagination);
             }
-            if (request.getLoginId() != null && !request.getLoginId().trim().isEmpty()) {
-                sql.append("AND brodid = ? ");
-                params.add(request.getLoginId());
-            }
-            
-            sql.append("ORDER BY ").append(buildPbFeplogOrderBy(request));
-            
-            log.debug("실행 SQL: {}", sql.toString());
-            log.debug("파라미터: {}", params);
-            
-            // 전체 개수 조회
-            String countSql = "SELECT COUNT(*) FROM (" + sql.toString() + ") as total";
+
+            String countSql = "SELECT COUNT(*) FROM (" + union.sql + ") as total";
             long totalCount = 0;
             try (PreparedStatement countStmt = connection.prepareStatement(countSql)) {
-                for (int i = 0; i < params.size(); i++) {
-                    countStmt.setObject(i + 1, params.get(i));
-                }
+                setPreparedStatementParams(countStmt, union.params);
                 try (ResultSet rs = countStmt.executeQuery()) {
                     if (rs.next()) {
                         totalCount = rs.getLong(1);
                     }
                 }
             }
-            
-            // 페이징 적용
-            int page = request.getPage() != null ? request.getPage() : 1;
-            int pageSize = request.getPageSize() != null ? request.getPageSize() : 10;
-            int offset = (page - 1) * pageSize;
-            sql.append(" LIMIT ? OFFSET ?");
-            params.add(pageSize);
-            params.add(offset);
-            
-            // 데이터 조회
-            try (PreparedStatement stmt = connection.prepareStatement(sql.toString())) {
-                for (int i = 0; i < params.size(); i++) {
-                    stmt.setObject(i + 1, params.get(i));
-                }
-                
-                try (ResultSet rs = stmt.executeQuery()) {
-                    ResultSetMetaData metaData = rs.getMetaData();
-                    int columnCount = metaData.getColumnCount();
-                    
-                    while (rs.next()) {
-                        Map<String, Object> row = new LinkedHashMap<>();
-                        for (int i = 1; i <= columnCount; i++) {
-                            String columnName = metaData.getColumnName(i);
-                            Object value = rs.getObject(i);
-                            
-                            // Timestamp를 문자열로 변환
-                            if (value instanceof Timestamp) {
-                                value = ((Timestamp) value).toLocalDateTime().format(DATE_FORMATTER);
-                            }
 
-                            row.put(columnName, value);
-                        }
-                        // 복호화 옵션이 활성화된 경우 복호화된 데이터 포함
-                        if (Boolean.TRUE.equals(request.getDecryptData())
-                                && request.getKeywords() != null
-                                && !request.getKeywords().isEmpty()) {
-                            try {
-                                // Wire vlen → legacy request_data alias; wire data → response_data alias
-                                String encryptedRequest = jdbcValueToString(row.get("request_data"));
-                                if (encryptedRequest != null && !encryptedRequest.isEmpty()) {
-                                    String decryptedRequest = cryptoUtil.decryptLogPayload(encryptedRequest, LogPayloadCryptoVariant.PB_FEP);
-                                    row.put("decrypted_request_data", decryptedRequest);
-                                }
-                                String encryptedResponse = jdbcValueToString(row.get("response_data"));
-                                if (encryptedResponse != null && !encryptedResponse.isEmpty()) {
-                                    String decryptedResponse = cryptoUtil.decryptLogPayload(encryptedResponse, LogPayloadCryptoVariant.PB_FEP);
-                                    row.put("decrypted_response_data", decryptedResponse);
-                                }
-                            } catch (Exception e) {
-                                log.warn("복호화 실패 (ID: {}): {}", row.get("id"), e.getMessage());
-                                row.put("decrypted_request_data", "복호화 실패");
-                                row.put("decrypted_response_data", "복호화 실패");
-                            }
-                        }
-                        
-                        results.add(row);
-                    }
+            int offset = (page - 1) * pageSize;
+            String pagedSql = union.sql + " LIMIT ? OFFSET ?";
+            List<Object> pageParams = new ArrayList<>(union.params);
+            pageParams.add(pageSize);
+            pageParams.add(offset);
+
+            List<Map<String, Object>> results;
+            try (PreparedStatement stmt = connection.prepareStatement(pagedSql)) {
+                setPreparedStatementParams(stmt, pageParams);
+                try (ResultSet rs = stmt.executeQuery()) {
+                    results = readPbFeplogResultSet(rs);
                 }
             }
-            
-            // 페이징 정보 계산
+
             int totalPages = (int) Math.ceil((double) totalCount / pageSize);
-            
             log.info("✅ 검색 완료: {}건 중 {}건 반환 (페이지: {}/{})", totalCount, results.size(), page, totalPages);
-            
             LogDbSearchResponse.PaginationInfo pagination = new LogDbSearchResponse.PaginationInfo(
-                    page, totalPages, totalCount
-            );
-            
+                    page, totalPages, totalCount);
             return new LogDbSearchResponse(results, pagination);
-            
+
         } catch (SQLException e) {
             log.error("PB FEP 로그 검색 중 오류 발생", e);
             throw new RuntimeException("PB FEP 로그 검색 중 오류가 발생했습니다: " + e.getMessage(), e);
@@ -403,10 +517,13 @@ public class LogDbService {
     }
 
     /**
-     * PB FEP `log_time` is stored as lexical string `yyyyMMddHHmmss`; normalize date filters to the same format.
+     * PB FEP {@code log_time} wire form: 20-digit lexical string {@code yyyyMMddHHmmssSSSSSS} (microseconds zero-padded).
+     * Nanoseconds are truncated to microseconds (deterministic).
      */
     private static String toPbFeplogLogTimeLexical(LocalDateTime dateTime) {
-        return dateTime.withNano(0).format(PB_FEPLOG_TIME_LEXICAL_FORMATTER);
+        int micros = dateTime.getNano() / 1_000;
+        return dateTime.withNano(0).format(PB_FEPLOG_TIME_TO_SECOND_FORMATTER)
+                + String.format(Locale.ROOT, "%06d", micros);
     }
 
     private LogDbSearchResponse searchPbFeplog(LogDbSearchRequest request) {
@@ -579,8 +696,9 @@ public class LogDbService {
         Object sessionId = row.get("session_id");
         out.put("app_id", sessionId != null ? sessionId.toString() : "");
 
-        Object reqRaw = row.get("decrypted_request_data") != null ? row.get("decrypted_request_data") : row.get("request_data");
-        Object resRaw = row.get("decrypted_response_data") != null ? row.get("decrypted_response_data") : row.get("response_data");
+        // Search path must not expose decrypted_* on row maps (req 20260415); wireframe uses stored wire values only.
+        Object reqRaw = row.get("request_data");
+        Object resRaw = row.get("response_data");
         String reqOut = jdbcValueToString(reqRaw);
         String resOut = jdbcValueToString(resRaw);
         out.put("request_data", reqOut);
@@ -650,8 +768,10 @@ public class LogDbService {
             
             // datastring, headerstring, keywords: in-memory filter — field terms AND, keyword terms OR (req java_fw_imglog).
             JavaFwImglogTextFilterTerms textFilterTerms = buildJavaFwImglogTextFilterTerms(request);
+            int fieldTermCount = (textFilterTerms.getDatastringTerm() != null ? 1 : 0)
+                    + (textFilterTerms.getHeaderstringTerm() != null ? 1 : 0);
             log.debug("image log text filter: fieldTermCount={}, keywordTermCount={}",
-                    textFilterTerms.getFieldTerms().size(), textFilterTerms.getKeywordTerms().size());
+                    fieldTermCount, textFilterTerms.getKeywordTerms().size());
             
             // 정렬 (이미지로그는 insert_time 사용)
             String sortField = request.getSortField() != null ? request.getSortField() : "insert_time";
@@ -800,32 +920,22 @@ public class LogDbService {
     }
 
     /**
-     * Builds field + keyword term lists for java_fw_imglog in-memory filter: field terms from trim(datastring) and
-     * trim(headerstring) only (case-insensitive dedupe, first spelling wins); keyword terms from keywords list only
-     * (trim, skip empty; order preserved; not deduped against field terms).
+     * Builds datastring/headerstring independent field terms + keyword terms for java_fw_imglog in-memory filter.
      */
     private JavaFwImglogTextFilterTerms buildJavaFwImglogTextFilterTerms(LogDbSearchRequest request) {
         return new JavaFwImglogTextFilterTerms(
-                buildJavaFwImglogFieldTextTerms(request),
+                buildJavaFwImglogSingleFieldTerm(request != null ? request.getDatastring() : null),
+                buildJavaFwImglogSingleFieldTerm(request != null ? request.getHeaderstring() : null),
                 buildJavaFwImglogKeywordTerms(request));
     }
 
-    /** Non-empty trim(datastring) and trim(headerstring), deduped case-insensitively (first wins); datastring before headerstring. */
-    private List<String> buildJavaFwImglogFieldTextTerms(LogDbSearchRequest request) {
-        Map<String, String> byLower = new LinkedHashMap<>();
-        if (request.getDatastring() != null) {
-            String t = request.getDatastring().trim();
-            if (!t.isEmpty()) {
-                byLower.putIfAbsent(t.toLowerCase(Locale.ROOT), t);
-            }
+    /** Trim single field term; null when blank. */
+    private String buildJavaFwImglogSingleFieldTerm(String value) {
+        if (value == null) {
+            return null;
         }
-        if (request.getHeaderstring() != null) {
-            String t = request.getHeaderstring().trim();
-            if (!t.isEmpty()) {
-                byLower.putIfAbsent(t.toLowerCase(Locale.ROOT), t);
-            }
-        }
-        return new ArrayList<>(byLower.values());
+        String trimmed = value.trim();
+        return trimmed.isEmpty() ? null : trimmed;
     }
 
     /** Trim each keyword; skip empty; preserve list order (no dedupe). */
@@ -869,6 +979,30 @@ public class LogDbService {
             }
         }
         return matches;
+    }
+
+    /** Datastring filter branch: match only datastring/decryptedDatastring; no header fallback. */
+    private boolean javaFwImglogDatastringMatchesForFilter(Map<String, Object> row,
+            String datastring, String decryptedDatastring,
+            String term) {
+        boolean plainData = datastring != null && datastring.contains(term);
+        boolean decDataMatch = decryptedDatastring != null && decryptedDatastring.contains(term);
+        if ((plainData || decDataMatch) && !plainData && decDataMatch) {
+            row.put("hasEncryptedMatchDatastring", true);
+        }
+        return plainData || decDataMatch;
+    }
+
+    /** Headerstring filter branch: match only headerstring/decryptedHeaderstring; no data fallback. */
+    private boolean javaFwImglogHeaderstringMatchesForFilter(Map<String, Object> row,
+            String headerstring, String decryptedHeaderstring,
+            String term) {
+        boolean plainHeader = headerstring != null && headerstring.contains(term);
+        boolean decHeaderMatch = decryptedHeaderstring != null && decryptedHeaderstring.contains(term);
+        if ((plainHeader || decHeaderMatch) && !plainHeader && decHeaderMatch) {
+            row.put("hasEncryptedMatchHeaderstring", true);
+        }
+        return plainHeader || decHeaderMatch;
     }
 
     /**
@@ -941,15 +1075,16 @@ public class LogDbService {
     }
 
     /**
-     * Field terms: AND (each must match). Keyword terms: OR (at least one must match if non-empty).
-     * Row included iff fieldOk and keywordOk.
+     * Field terms: datastring/headerstring each independent (AND when both present).
+     * Keyword terms: OR (at least one must match if non-empty). Row included iff fieldOk and keywordOk.
      */
     private List<Map<String, Object>> filterImageLogRowsByFieldAndKeywordTerms(List<Map<String, Object>> rows,
             JavaFwImglogTextFilterTerms terms) {
         if (terms == null || !terms.needsFiltering()) {
             return new ArrayList<>(rows);
         }
-        List<String> fieldTerms = terms.getFieldTerms();
+        String datastringTerm = terms.getDatastringTerm();
+        String headerstringTerm = terms.getHeaderstringTerm();
         List<String> keywordTerms = terms.getKeywordTerms();
         List<Map<String, Object>> filteredResults = new ArrayList<>();
         for (Map<String, Object> row : rows) {
@@ -965,14 +1100,11 @@ public class LogDbService {
                 decryptedHeaderstring = decryptJsonStringValues(headerstring);
             }
 
-            boolean fieldOk = true;
-            for (String t : fieldTerms) {
-                if (!javaFwImglogTermMatchesForFilter(row, datastring, headerstring,
-                        decryptedDatastring, decryptedHeaderstring, t)) {
-                    fieldOk = false;
-                    break;
-                }
-            }
+            boolean datastringOk = datastringTerm == null || javaFwImglogDatastringMatchesForFilter(
+                    row, datastring, decryptedDatastring, datastringTerm);
+            boolean headerstringOk = headerstringTerm == null || javaFwImglogHeaderstringMatchesForFilter(
+                    row, headerstring, decryptedHeaderstring, headerstringTerm);
+            boolean fieldOk = datastringOk && headerstringOk;
 
             boolean keywordOk = keywordTerms.isEmpty();
             if (!keywordOk) {
@@ -1485,9 +1617,9 @@ public class LogDbService {
                 try {
                     LocalDateTime endDateTime = parseDateTime(request.getEndDate());
                     if (endDateTime != null) {
-                        // endDate가 날짜만 있으면 23:59:59.999로 설정
+                        // endDate가 날짜만 있으면 당일 마지막 마이크로초(23:59:59.999999)까지 포함
                         if (request.getEndDate().trim().matches("\\d{4}-\\d{2}-\\d{2}")) {
-                            endDateTime = endDateTime.toLocalDate().atTime(23, 59, 59, 999_000_000);
+                            endDateTime = endDateTime.toLocalDate().atTime(23, 59, 59, LogDbSearchRequest.END_OF_DAY_NANOS);
                         }
                         long endTimestamp = endDateTime.atZone(java.time.ZoneId.systemDefault())
                             .toInstant().toEpochMilli();

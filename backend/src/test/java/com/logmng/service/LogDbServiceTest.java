@@ -37,15 +37,18 @@ class LogDbServiceTest {
     private static final long ILOG_BASE_MS = 1_730_000_000_000L;
     private static final LocalDateTime PB_SMOKE_LDT = LocalDateTime.of(2025, 6, 15, 12, 0);
     private static final LocalDateTime WIRE_LDT = LocalDateTime.of(2025, 6, 15, 15, 0);
+    /** Isolated window for PB FEP keyword tests (req 20260415). */
+    private static final LocalDateTime PB_KW_LDT = LocalDateTime.of(2025, 8, 1, 10, 0);
 
     private DataSource dataSource;
     private LogDbService logDbService;
+    private CryptoUtil cryptoUtil;
 
     @BeforeEach
     void setUp() throws Exception {
         dataSource = createH2DataSource();
         H2ClasspathSql.runScript(dataSource, "/sql/logdb-service/truncate-all.sql");
-        CryptoUtil cryptoUtil = new CryptoUtil();
+        cryptoUtil = new CryptoUtil();
         ReflectionTestUtils.setField(cryptoUtil, "encryptionKey", "test-key-32-bytes-long!!!!!!!!!");
         ReflectionTestUtils.setField(cryptoUtil, "decryptionEnabled", true);
         logDbService = new LogDbService(dataSource, dataSource, dataSource, cryptoUtil);
@@ -104,8 +107,11 @@ class LogDbServiceTest {
         }
     }
 
+    /** PB FEP wire {@code log_time}: 20-digit {@code yyyyMMddHHmmss} + microsecond suffix (nanoseconds truncated). */
     private static String toPbLogTime(LocalDateTime ldt) {
-        return ldt.format(DateTimeFormatter.ofPattern("yyyyMMddHHmmss"));
+        int micros = ldt.getNano() / 1_000;
+        return ldt.withNano(0).format(DateTimeFormatter.ofPattern("yyyyMMddHHmmss"))
+                + String.format(java.util.Locale.ROOT, "%06d", micros);
     }
 
     private void insertPbSend(long id, String logTime) throws Exception {
@@ -115,6 +121,33 @@ class LogDbServiceTest {
             ps.setString(2, logTime);
             ps.executeUpdate();
         }
+    }
+
+    private void insertPbSendPayload(long id, String logTime, String trCode, String brodid,
+            String vlen, String data, String bmsg) throws Exception {
+        try (Connection conn = dataSource.getConnection();
+             PreparedStatement ps = H2ClasspathSql.prepareFromResource(conn, "/sql/logdb-service/insert-pb-send-payload.sql")) {
+            ps.setLong(1, id);
+            ps.setString(2, logTime);
+            ps.setString(3, trCode);
+            ps.setString(4, brodid);
+            ps.setString(5, vlen != null ? vlen : "");
+            ps.setString(6, data != null ? data : "");
+            ps.setString(7, bmsg != null ? bmsg : "");
+            ps.executeUpdate();
+        }
+    }
+
+    private LogDbSearchRequest pbFeplogKeywordRequest() {
+        LogDbSearchRequest req = new LogDbSearchRequest();
+        req.setLogType("pb_feplog");
+        req.setStartDate(PB_KW_LDT.toLocalDate().atStartOfDay().format(FMT));
+        req.setEndDate(PB_KW_LDT.toLocalDate().plusDays(1).atStartOfDay().minusSeconds(1).format(FMT));
+        req.setTrCode("TRK");
+        req.setLoginId("kwuser");
+        req.setPage(1);
+        req.setPageSize(10);
+        return req;
     }
 
     private LogDbSearchRequest imageLogRequest(long startTs, long endTs) {
@@ -133,12 +166,12 @@ class LogDbServiceTest {
         return imageLogRequest(ILOG_BASE_MS - 86_400_000L, ILOG_BASE_MS + 86_400_000L);
     }
 
-    /** TC-01: datastring-only search returns only rows where datastring contains the term; total count matches filtered count. */
+    /** TC-01: datastring-only search excludes header-only matches; total count matches filtered count. */
     @Test
     void searchJavaFwImglog_datastringOnly_returnsMatchingRowsAndCorrectCount() throws Exception {
         long ts = ILOG_BASE_MS;
         insertImageLog("A", "B", "C", "ok", "plain needle1 here", "h1", ts);
-        insertImageLog("A", "B", "C", "ok", "other text", "h2", ts + 1);
+        insertImageLog("A", "B", "C", "ok", "other text", "header needle1 only", ts + 1);
 
         LogDbSearchRequest req = imageLogRequestAroundBase();
         req.setDatastring("needle1");
@@ -151,12 +184,12 @@ class LogDbServiceTest {
         assertThat(res.getPagination().getTotalCount()).isEqualTo(1L);
     }
 
-    /** TC-02: headerstring-only search returns only rows where headerstring contains the term. */
+    /** TC-02: headerstring-only search excludes data-only matches. */
     @Test
     void searchJavaFwImglog_headerstringOnly_returnsMatchingRowsAndCorrectCount() throws Exception {
         long ts = ILOG_BASE_MS;
         insertImageLog("A", "B", "C", "ok", "d1", "header needle2 value", ts);
-        insertImageLog("A", "B", "C", "ok", "d2", "other header", ts + 1);
+        insertImageLog("A", "B", "C", "ok", "datastring needle2 only", "other header", ts + 1);
 
         LogDbSearchRequest req = imageLogRequestAroundBase();
         req.setHeaderstring("needle2");
@@ -239,6 +272,33 @@ class LogDbServiceTest {
     }
 
     /**
+     * TC-04: headerstring matches after bracket JSON decrypt only; response keeps contract-safe keys and sets
+     * hasEncryptedMatchHeaderstring.
+     */
+    @Test
+    void searchJavaFwImglog_headerstringBracketDecryptMatch_hasNoDecryptedOrInternalKeys() throws Exception {
+        CryptoUtil enc = new CryptoUtil();
+        ReflectionTestUtils.setField(enc, "encryptionKey", "test-key-32-bytes-long!!!!!!!!!");
+        ReflectionTestUtils.setField(enc, "decryptionEnabled", true);
+        String secretPlain = "HEADER_MATCH_" + ILOG_BASE_MS;
+        String encPayload = enc.encryptImageLogPayload(secretPlain);
+        String headerstring = String.format("{\"field\":\"[%s]\"}", encPayload);
+
+        long ts = ILOG_BASE_MS;
+        insertImageLog("A", "B", "C", "ok", "plain-data", headerstring, ts);
+
+        LogDbSearchRequest req = imageLogRequestAroundBase();
+        req.setHeaderstring(secretPlain);
+
+        LogDbSearchResponse res = logDbService.searchLogs(req);
+
+        assertThat(res.getData()).hasSize(1);
+        Map<String, Object> row = res.getData().get(0);
+        assertJavaFwImglogSearchRowHasNoForbiddenKeys(row);
+        assertThat(row).containsEntry("hasEncryptedMatchHeaderstring", true);
+    }
+
+    /**
      * Regression (seed LOCAL-DECRYPT-TST-IM-0001 / {@link com.logmng.util.LocalDecryptSampleSeedGenerator}):
      * keyword "LOCAL" matches plaintext {@code guid} in {@code headerstring}; {@code datastring} mirrors seed (LD1, Korean name, bracket {@code p}) with no substring "LOCAL" in stored JSON.
      */
@@ -258,12 +318,9 @@ class LogDbServiceTest {
         assertThat(res.getData().get(0).get("guid")).isEqualTo("LOCAL-DECRYPT-TST-IM-0001");
     }
 
-    /**
-     * Unified text filter: {@code datastring} "LOCAL" alone becomes one term; it matches via {@code headerstring}
-     * plaintext (guid substring) like the keyword path — seed row must not be dropped.
-     */
+    /** Regression: datastring filter must not match via headerstring plaintext (seed IM-0001 LOCAL only in header guid). */
     @Test
-    void searchJavaFwImglog_datastringLocal_matchesSeedIm0001ViaHeaderPlaintext() throws Exception {
+    void searchJavaFwImglog_datastringLocal_doesNotMatchSeedIm0001ViaHeaderPlaintext() throws Exception {
         insertLocalDecryptRegressionRowIm0001Like();
 
         LogDbSearchRequest req = imageLogRequestAroundBase();
@@ -273,19 +330,18 @@ class LogDbServiceTest {
 
         LogDbSearchResponse res = logDbService.searchLogs(req);
 
-        assertThat(res.getData()).hasSize(1);
-        assertThat(res.getPagination().getTotalCount()).isEqualTo(1L);
-        assertThat(res.getData().get(0).get("guid")).isEqualTo("LOCAL-DECRYPT-TST-IM-0001");
+        assertThat(res.getData()).isEmpty();
+        assertThat(res.getPagination().getTotalCount()).isEqualTo(0L);
     }
 
-    /** datastring term LOCAL matches header; second term OTHER is absent everywhere → row excluded. */
+    /** Field+keyword combination keeps rule (field AND keyword): keyword hit alone cannot bypass datastring miss. */
     @Test
-    void searchJavaFwImglog_datastringLocalPlusKeywordOther_noMatchWhenOtherAbsent() throws Exception {
+    void searchJavaFwImglog_datastringLocalPlusKeywordLocal_noMatchBecauseDatastringIsolated() throws Exception {
         insertLocalDecryptRegressionRowIm0001Like();
 
         LogDbSearchRequest req = imageLogRequestAroundBase();
         req.setDatastring("LOCAL");
-        req.setKeywords(List.of("OTHER"));
+        req.setKeywords(List.of("LOCAL"));
         req.setHeaderstring("");
 
         LogDbSearchResponse res = logDbService.searchLogs(req);
@@ -294,9 +350,9 @@ class LogDbServiceTest {
         assertThat(res.getPagination().getTotalCount()).isEqualTo(0L);
     }
 
-    /** Duplicate LOCAL from datastring + headerstring dedupes to one term; still matches seed row once. */
+    /** Both datastring and headerstring filters are AND: header hit cannot satisfy datastring condition. */
     @Test
-    void searchJavaFwImglog_datastringAndHeaderstringLocal_deduped_matchesSeedIm0001() throws Exception {
+    void searchJavaFwImglog_datastringAndHeaderstringLocal_noMatchWhenDatastringMissing() throws Exception {
         insertLocalDecryptRegressionRowIm0001Like();
 
         LogDbSearchRequest req = imageLogRequestAroundBase();
@@ -305,8 +361,8 @@ class LogDbServiceTest {
 
         LogDbSearchResponse res = logDbService.searchLogs(req);
 
-        assertThat(res.getData()).hasSize(1);
-        assertThat(res.getPagination().getTotalCount()).isEqualTo(1L);
+        assertThat(res.getData()).isEmpty();
+        assertThat(res.getPagination().getTotalCount()).isEqualTo(0L);
     }
 
     /** Two field terms both required (datastring + headerstring): termA in data, termB in header on the same row. */
@@ -651,9 +707,9 @@ class LogDbServiceTest {
 
     @Test
     void searchPbFeplog_sameDayKnownFormatRange_returnsKnownRows() throws Exception {
-        insertPbSend(31L, "20260414010101");
-        insertPbSend(32L, "20260414235959");
-        insertPbSend(33L, "20260415000000");
+        insertPbSend(31L, "20260414010101000000");
+        insertPbSend(32L, "20260414235959000000");
+        insertPbSend(33L, "20260415000000000000");
 
         LogDbSearchRequest req = new LogDbSearchRequest();
         req.setLogType("pb_feplog");
@@ -670,14 +726,14 @@ class LogDbServiceTest {
         assertThat(res.getPagination().getTotalCount()).isEqualTo(2L);
         assertThat(res.getData())
                 .extracting(row -> row.get("log_time"))
-                .containsExactlyInAnyOrder("20260414010101", "20260414235959");
+                .containsExactlyInAnyOrder("20260414010101000000", "20260414235959000000");
     }
 
     @Test
     void searchPbFeplog_sameDayIsoMidnightEndDate_expandsToEndOfDay() throws Exception {
-        insertPbSend(41L, "20260414010101");
-        insertPbSend(42L, "20260414235959");
-        insertPbSend(43L, "20260415000000");
+        insertPbSend(41L, "20260414010101000000");
+        insertPbSend(42L, "20260414235959000000");
+        insertPbSend(43L, "20260415000000000000");
 
         LogDbSearchRequest req = new LogDbSearchRequest();
         req.setLogType("pb_feplog");
@@ -694,7 +750,133 @@ class LogDbServiceTest {
         assertThat(res.getPagination().getTotalCount()).isEqualTo(2L);
         assertThat(res.getData())
                 .extracting(row -> row.get("log_time"))
-                .containsExactlyInAnyOrder("20260414010101", "20260414235959");
+                .containsExactlyInAnyOrder("20260414010101000000", "20260414235959000000");
+    }
+
+    /** TC-04 (req 20260415): nanoseconds truncated to six fractional digits for 20-char lexical {@code log_time}. */
+    @Test
+    void toPbFeplogLogTimeLexical_truncatesNanosToMicroseconds() {
+        LocalDateTime t = LocalDateTime.of(2026, 4, 15, 14, 30, 25, 123_456_789);
+        String s = (String) ReflectionTestUtils.invokeMethod(logDbService, "toPbFeplogLogTimeLexical", t);
+        assertThat(s).isEqualTo("20260415143025123456");
+        assertThat(s).hasSize(20);
+    }
+
+    /** TC-01: keywords match plaintext request_data / response_data / error_message (bmsg) only. */
+    @Test
+    void searchPbFeplog_keywords_plaintextSurfaces_tc01() throws Exception {
+        String lt = toPbLogTime(PB_KW_LDT);
+        insertPbSendPayload(801L, lt, "TRK", "kwuser", "plain-req-TC01", "", "");
+        insertPbSendPayload(802L, lt, "TRK", "kwuser", "", "plain-res-TC01", "");
+        insertPbSendPayload(803L, lt, "TRK", "kwuser", "", "", "plain-bmsg-TC01");
+
+        LogDbSearchRequest r1 = pbFeplogKeywordRequest();
+        r1.setKeywords(List.of("plain-req-TC01"));
+        assertThat(logDbService.searchLogs(r1).getData()).hasSize(1);
+        assertThat(logDbService.searchLogs(r1).getData().get(0).get("id")).isEqualTo(801L);
+
+        LogDbSearchRequest r2 = pbFeplogKeywordRequest();
+        r2.setKeywords(List.of("plain-res-TC01"));
+        assertThat(logDbService.searchLogs(r2).getData()).extracting(row -> row.get("id")).containsExactly(802L);
+
+        LogDbSearchRequest r3 = pbFeplogKeywordRequest();
+        r3.setKeywords(List.of("plain-bmsg-TC01"));
+        assertThat(logDbService.searchLogs(r3).getData()).extracting(row -> row.get("id")).containsExactly(803L);
+    }
+
+    /** TC-02: keyword matches only after PB_FEP decrypt on request_data. */
+    @Test
+    void searchPbFeplog_keywords_encryptedPayloadDecryptForMatch_tc02() throws Exception {
+        String token = "PB-FEP-KW-TEST-20260415-ONLY-INSIDE";
+        String cipher = cryptoUtil.encryptPbFepPayload("prefix-" + token + "-suffix");
+        assertThat(cipher.toLowerCase(java.util.Locale.ROOT)).doesNotContain(token.toLowerCase(java.util.Locale.ROOT));
+
+        String lt = toPbLogTime(PB_KW_LDT);
+        insertPbSendPayload(811L, lt, "TRK", "kwuser", cipher, "", "");
+
+        LogDbSearchRequest req = pbFeplogKeywordRequest();
+        req.setKeywords(List.of(token));
+
+        LogDbSearchResponse res = logDbService.searchLogs(req);
+        assertThat(res.getData()).hasSize(1);
+        assertThat(res.getData().get(0).get("id")).isEqualTo(811L);
+        assertThat(res.getPagination().getTotalCount()).isEqualTo(1L);
+    }
+
+    /**
+     * TC-03: decrypt throws on full column value; keyword still matches plaintext portion (case-insensitive).
+     */
+    @Test
+    void searchPbFeplog_keywords_decryptFails_plaintextPortionStillMatches_tc03() throws Exception {
+        String lt = toPbLogTime(PB_KW_LDT);
+        String vlen = "VISIBLE_PLAIN_TC03___not-valid-pb-fep-ciphertext-###";
+        insertPbSendPayload(821L, lt, "TRK", "kwuser", vlen, "", "");
+
+        LogDbSearchRequest req = pbFeplogKeywordRequest();
+        req.setKeywords(List.of("visible_plain_tc03"));
+
+        LogDbSearchResponse res = logDbService.searchLogs(req);
+        assertThat(res.getData()).hasSize(1);
+        assertThat(res.getData().get(0).get("id")).isEqualTo(821L);
+    }
+
+    /** TC-04: multiple keywords — OR across tokens. */
+    @Test
+    void searchPbFeplog_keywords_multipleTerms_orSemantics_tc04() throws Exception {
+        String lt = toPbLogTime(PB_KW_LDT);
+        String onlyA = "PB_KW_OR_ONLY_A_991";
+        String onlyB = "PB_KW_OR_ONLY_B_992";
+        insertPbSendPayload(831L, lt, "TRK", "kwuser", onlyA, "", "");
+        insertPbSendPayload(832L, lt, "TRK", "kwuser", "", onlyB, "");
+        insertPbSendPayload(833L, lt, "TRK", "kwuser", "no-match-here", "", "");
+
+        LogDbSearchRequest req = pbFeplogKeywordRequest();
+        req.setKeywords(List.of(onlyA, onlyB));
+
+        LogDbSearchResponse res = logDbService.searchLogs(req);
+        assertThat(res.getData()).hasSize(2);
+        assertThat(res.getData()).extracting(row -> row.get("id")).containsExactlyInAnyOrder(831L, 832L);
+    }
+
+    /** TC-05: case-insensitive keyword match on wire text. */
+    @Test
+    void searchPbFeplog_keywords_caseInsensitive_tc05() throws Exception {
+        String lt = toPbLogTime(PB_KW_LDT);
+        insertPbSendPayload(841L, lt, "TRK", "kwuser", "MixedCaseTokenXyZ", "", "");
+
+        LogDbSearchRequest req = pbFeplogKeywordRequest();
+        req.setKeywords(List.of("mixedcasetokenxyz"));
+
+        assertThat(logDbService.searchLogs(req).getData()).hasSize(1);
+    }
+
+    /**
+     * TC-06: keywords non-empty, decryptData false — row from decrypt-for-match; response rows must not carry decrypted_* keys.
+     */
+    @Test
+    void searchPbFeplog_keywords_decryptDataFalse_noDecryptedKeys_tc06() throws Exception {
+        String token = "PB-FEP-KW-TC06-SECRET";
+        String cipher = cryptoUtil.encryptPbFepPayload("body-" + token);
+        String lt = toPbLogTime(PB_KW_LDT);
+        insertPbSendPayload(851L, lt, "TRK", "kwuser", "", cipher, "");
+
+        LogDbSearchRequest req = pbFeplogKeywordRequest();
+        req.setKeywords(List.of(token));
+        req.setDecryptData(false);
+
+        LogDbSearchResponse res = logDbService.searchLogs(req);
+        assertThat(res.getData()).hasSize(1);
+        Map<String, Object> row = res.getData().get(0);
+        assertThat(row).doesNotContainKey("decrypted_request_data");
+        assertThat(row).doesNotContainKey("decrypted_response_data");
+
+        LogDbSearchRequest wfReq = pbFeplogKeywordRequest();
+        wfReq.setPageSize(25);
+        wfReq.setKeywords(List.of(token));
+        wfReq.setDecryptData(false);
+        LogDbSearchResponse wire = logDbService.searchPbFepLogWireframe(wfReq);
+        assertThat(wire.getData()).hasSize(1);
+        assertThat(wire.getData().get(0)).doesNotContainKey("decrypted_request_data");
     }
 
     /**

@@ -41,7 +41,7 @@ class LogDbServiceDataSourceRoutingTest {
     }
 
     private static void createPbTables(Statement stmt) throws Exception {
-        String wirePb = "id BIGINT PRIMARY KEY, log_time TIMESTAMP NOT NULL, log_ch_cd VARCHAR(6), log_io_cd VARCHAR(1),"
+        String wirePb = "id BIGINT PRIMARY KEY, log_time VARCHAR(20) NOT NULL, log_ch_cd VARCHAR(6), log_io_cd VARCHAR(1),"
                 + " tr_code VARCHAR(8), brodid VARCHAR(16), media_gb VARCHAR(2), pub_ip VARCHAR(12), prt_ip VARCHAR(12),"
                 + " prc_time VARCHAR(9), msg_code VARCHAR(4), term_no VARCHAR(8),"
                 + " vlen CLOB, vhd CLOB, bmsg CLOB, data CLOB, wire_ts VARCHAR(19),"

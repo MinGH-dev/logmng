@@ -178,6 +178,13 @@ public class ActivityLogAspect {
                                         searchConditions.put("mediaCode", searchRequest.getMediaCode());
                                         searchConditions.put("trCode", searchRequest.getTrCode());
                                         searchConditions.put("loginId", searchRequest.getLoginId());
+                                        if (searchRequest.getKeywords() != null && !searchRequest.getKeywords().isEmpty()) {
+                                            java.util.List<String> maskedKeywords = new java.util.ArrayList<>();
+                                            for (String keyword : searchRequest.getKeywords()) {
+                                                maskedKeywords.add(maskSensitiveData(keyword));
+                                            }
+                                            searchConditions.put("keywords", maskedKeywords);
+                                        }
                                     }
                                     
                                     params.put(paramNames[i], searchConditions);
@@ -219,6 +226,13 @@ public class ActivityLogAspect {
                                         searchConditions.put("mediaCode", searchRequest.getMediaCode());
                                         searchConditions.put("trCode", searchRequest.getTrCode());
                                         searchConditions.put("loginId", searchRequest.getLoginId());
+                                        if (searchRequest.getKeywords() != null && !searchRequest.getKeywords().isEmpty()) {
+                                            java.util.List<String> maskedKeywords = new java.util.ArrayList<>();
+                                            for (String keyword : searchRequest.getKeywords()) {
+                                                maskedKeywords.add(maskSensitiveData(keyword));
+                                            }
+                                            searchConditions.put("keywords", maskedKeywords);
+                                        }
                                     }
                                     
                                     params.put(paramNames[i], searchConditions);

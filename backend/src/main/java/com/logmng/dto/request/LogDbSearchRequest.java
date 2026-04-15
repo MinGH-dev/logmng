@@ -1,6 +1,7 @@
 package com.logmng.dto.request;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.fasterxml.jackson.annotation.JsonAlias;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -17,6 +18,12 @@ import java.util.List;
 public class LogDbSearchRequest {
     
     private static final Logger log = LoggerFactory.getLogger(LogDbSearchRequest.class);
+
+    /**
+     * Inclusive end-of-day instant for date-only or midnight {@code endDate} expansion: last microsecond of the civil day.
+     * Aligns PB FEP {@code log_time} lexical upper bound with {@code …999999} in 20-digit wire form.
+     */
+    public static final int END_OF_DAY_NANOS = 999_999_000;
     
     // 날짜는 문자열로 받아서 파싱 (프론트엔드에서 다양한 형식으로 전송 가능)
     private String startDate;
@@ -51,9 +58,11 @@ public class LogDbSearchRequest {
     private String service;
     
     @JsonProperty("datastring")
+    @JsonAlias({"dataString", "DataString"})
     private String datastring;
     
     @JsonProperty("headerstring")
+    @JsonAlias({"headerString", "HeaderString"})
     private String headerstring;
     
     @JsonProperty("keywords")
@@ -148,7 +157,7 @@ public class LogDbSearchRequest {
         }
         // Date-only and start-of-day endDate should include the full day for legacy /search and PB FEP paths.
         if (isDateOnlyOrStartOfDayEndDate(endDate, dateTime)) {
-            return dateTime.toLocalDate().atTime(23, 59, 59, 999_000_000);
+            return dateTime.toLocalDate().atTime(23, 59, 59, END_OF_DAY_NANOS);
         }
         return dateTime;
     }
@@ -371,14 +380,14 @@ public class LogDbSearchRequest {
             log.debug("getEndDateAsTimestamp: endDate 파싱 결과 null (raw endDate={})", endDate);
             return null;
         }
-        // endDate가 날짜만 있으면 23:59:59.999로 설정
+        // endDate가 날짜만 있으면 당일 마지막 마이크로초까지
         String trimmedEndDate = endDate != null ? endDate.trim() : "";
         if (trimmedEndDate.matches("\\d{4}-\\d{2}-\\d{2}") && !trimmedEndDate.contains(":")) {
-            dateTime = dateTime.toLocalDate().atTime(23, 59, 59, 999_000_000);
+            dateTime = dateTime.toLocalDate().atTime(23, 59, 59, END_OF_DAY_NANOS);
         }
-        // endDate가 yyyy-MM-dd HH:mm:ss 형식이고 시간이 00:00:00이면 23:59:59.999로 설정
+        // endDate가 yyyy-MM-dd HH:mm:ss 형식이고 시간이 00:00:00이면 당일 마지막 마이크로초까지
         else if (trimmedEndDate.matches("\\d{4}-\\d{2}-\\d{2} 00:00:00")) {
-            dateTime = dateTime.toLocalDate().atTime(23, 59, 59, 999_000_000);
+            dateTime = dateTime.toLocalDate().atTime(23, 59, 59, END_OF_DAY_NANOS);
         }
         return dateTime.atZone(java.time.ZoneId.systemDefault()).toInstant().toEpochMilli();
     }
