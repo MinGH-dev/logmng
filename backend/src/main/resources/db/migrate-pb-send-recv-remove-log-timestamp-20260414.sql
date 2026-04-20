@@ -84,7 +84,7 @@ BEGIN
         EXECUTE format(
             'CREATE TABLE %I (
             id BIGINT NOT NULL DEFAULT nextval(%L::regclass),
-            log_time VARCHAR(15),
+            log_time VARCHAR(20),
             log_ch_cd VARCHAR(6),
             log_io_cd VARCHAR(1),
             log_len VARCHAR(6),
@@ -167,7 +167,7 @@ BEGIN
             IF to_regclass(part_name) IS NULL THEN
                 EXECUTE format(
                     'CREATE TABLE %I PARTITION OF %I FOR VALUES FROM (%L) TO (%L)',
-                    part_name, k, to_char(d, 'YYYYMMDD') || '0000000', to_char(d + 1, 'YYYYMMDD') || '0000000'
+                    part_name, k, to_char(d, 'YYYYMMDD') || '000000000000', to_char(d + 1, 'YYYYMMDD') || '000000000000'
                 );
             END IF;
             EXECUTE format('DROP TRIGGER IF EXISTS update_%s_updated_at ON %I', k, part_name);
@@ -188,9 +188,11 @@ BEGIN
             SELECT
                 id,
                 COALESCE(
-                    NULLIF(log_time, ''''),
-                    to_char(log_timestamp, ''YYYYMMDDHH24MISS''),
-                    to_char(created_at, ''YYYYMMDDHH24MISS'')
+                    CASE WHEN (NULLIF(TRIM(log_time), '''')) ~ ''^[0-9]{20}$'' THEN SUBSTRING(TRIM(log_time) FROM 1 FOR 20) END,
+                    CASE WHEN (NULLIF(TRIM(log_time), '''')) ~ ''^[0-9]{14}$'' THEN TRIM(log_time) || ''000000'' END,
+                    CASE WHEN (NULLIF(TRIM(log_time), '''')) ~ ''^[0-9]{8}$'' THEN TRIM(log_time) || ''000000000000'' END,
+                    to_char(log_timestamp, ''YYYYMMDDHH24MISS'') || ''000000'',
+                    to_char(created_at, ''YYYYMMDDHH24MISS'') || ''000000''
                 ) AS log_time,
                 log_ch_cd, log_io_cd, log_len, len, tr_gb, comp_gb, enct_gb, data_off, tr_code, comp_no, brodid,
                 media_gb, channel_no, tr_seq, trid_sign, trid_media_gb, trid_term_no, trid_svr_no, trid_svr_seq,

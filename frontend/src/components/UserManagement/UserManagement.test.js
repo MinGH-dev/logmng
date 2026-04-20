@@ -6,6 +6,7 @@ import UserManagement from './UserManagement';
 import {
   deleteUser,
   createChildDepartmentV2,
+  createRootDepartmentV2,
   updateDepartmentV2,
   createDirectUserV2,
   deleteDepartmentV2,
@@ -17,6 +18,7 @@ import { appTheme } from '../../theme';
 jest.mock('../../services/userService', () => ({
   deleteUser: jest.fn(),
   createChildDepartmentV2: jest.fn(),
+  createRootDepartmentV2: jest.fn(),
   updateDepartmentV2: jest.fn(),
   createDirectUserV2: jest.fn(),
   deleteDepartmentV2: jest.fn(),
@@ -57,6 +59,10 @@ describe('UserManagement', () => {
     jest.clearAllMocks();
     listPermissionGroups.mockResolvedValue([]);
     createChildDepartmentV2.mockResolvedValue({ success: true, data: { id: 502 } });
+    createRootDepartmentV2.mockResolvedValue({
+      success: true,
+      data: { departmentId: 'ROOT', name: '루트', code: 'ROOT', parentDepartmentId: null },
+    });
     updateDepartmentV2.mockResolvedValue({ success: true, data: { id: 502 } });
     deleteDepartmentV2.mockResolvedValue({ success: true, data: null });
     getQuickEntryOptionsV2.mockResolvedValue({
@@ -321,6 +327,11 @@ describe('UserManagement', () => {
       await waitFor(() => expect(createDirectUserV2).toHaveBeenCalledTimes(1));
       await waitFor(() => expect(getUserPermissionHierarchy).toHaveBeenCalledTimes(2));
       await waitFor(() => expect(screen.queryByRole('dialog', { name: '사용자 추가' })).not.toBeInTheDocument());
+      // Success path awaits loadHierarchy(); while loading, the tree (and "팀") is not rendered
+      await waitFor(() => {
+        expect(screen.queryByText('목록을 불러오는 중…')).not.toBeInTheDocument();
+      });
+      await screen.findByRole('button', { name: '팀' });
 
       await userEvent.click(screen.getByRole('button', { name: '팀' }));
       await userEvent.click(screen.getByRole('button', { name: '사용자 추가' }));
@@ -628,6 +639,7 @@ describe('UserManagement', () => {
 
       expect(screen.queryByRole('button', { name: '인사정보 기반 등록(전환 기간)' })).not.toBeInTheDocument();
       expect(screen.queryByRole('button', { name: '하위 부서 추가' })).not.toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: '최상위 부서 추가' })).not.toBeInTheDocument();
       expect(screen.queryByRole('button', { name: '부서 수정' })).not.toBeInTheDocument();
       expect(screen.queryByRole('button', { name: '사용자 추가' })).not.toBeInTheDocument();
       expect(screen.queryByRole('button', { name: '부서 삭제' })).not.toBeInTheDocument();
@@ -862,6 +874,139 @@ describe('UserManagement', () => {
       expect(screen.getByRole('button', { name: '검색' })).toBeDisabled();
       expect(screen.getByRole('button', { name: '검색 초기화' })).toBeDisabled();
       expect(screen.getByRole('button', { name: '모두 펼치기' })).toBeDisabled();
+      expect(screen.getByRole('button', { name: '최상위 부서 추가' })).toBeEnabled();
+    });
+  });
+
+  describe('req 20260414: 최상위 부서 추가 toolbar', () => {
+    test('TC-01: 빈 트리·쓰기·미선택이면 최상위 부서 추가가 보이고 활성', async () => {
+      getUserPermissionHierarchy.mockResolvedValue({ data: [] });
+      await renderUserManagement(adminUser);
+      await waitFor(() => expect(screen.getByText('등록된 부서가 없습니다.')).toBeInTheDocument());
+      const rootBtn = screen.getByRole('button', { name: '최상위 부서 추가' });
+      expect(rootBtn).toBeVisible();
+      expect(rootBtn).toBeEnabled();
+    });
+
+    test('TC-02: 부서 선택 시 최상위 부서 추가는 비활성', async () => {
+      getUserPermissionHierarchy.mockResolvedValue({
+        data: [{ code: 'D1', name: '선택팀', children: [], users: [] }],
+      });
+      await renderUserManagement(adminUser);
+      await waitFor(() => expect(screen.getByText('선택팀')).toBeInTheDocument());
+      expect(screen.getByRole('button', { name: '최상위 부서 추가' })).toBeEnabled();
+      await userEvent.click(screen.getByRole('button', { name: '선택팀' }));
+      await waitFor(() => expect(screen.getByText(/선택 부서:/)).toHaveTextContent('선택팀'));
+      expect(screen.getByRole('button', { name: '최상위 부서 추가' })).toBeDisabled();
+    });
+
+    test('TC-03: 읽기 전용이면 최상위 부서 추가 버튼이 없음', async () => {
+      const readOnlyUser = {
+        isSystemAdmin: false,
+        allowedScreenIds: ['user-permission-hierarchy'],
+        screenFunctions: { 'user-permission-hierarchy': { write: false } },
+      };
+      getUserPermissionHierarchy.mockResolvedValue({ data: [] });
+      await renderUserManagement(readOnlyUser);
+      await waitFor(() => expect(screen.getByText('등록된 부서가 없습니다.')).toBeInTheDocument());
+      expect(screen.queryByRole('button', { name: '최상위 부서 추가' })).not.toBeInTheDocument();
+    });
+
+    test('TC-04: 유효 입력 후 저장 시 createRootDepartmentV2 호출·페이로드·목록 갱신', async () => {
+      getUserPermissionHierarchy.mockResolvedValue({ data: [] });
+      await renderUserManagement(adminUser);
+      await waitFor(() => expect(screen.getByText('등록된 부서가 없습니다.')).toBeInTheDocument());
+
+      await userEvent.click(screen.getByRole('button', { name: '최상위 부서 추가' }));
+      const dialog = await screen.findByRole('dialog', { name: '최상위 부서 추가' });
+      await userEvent.type(within(dialog).getByLabelText(/부서명/), '디지털혁신본부');
+      await userEvent.type(within(dialog).getByLabelText(/부서코드/), 'DI');
+      await userEvent.type(within(dialog).getByLabelText(/변경 사유/), 'v2 수동 트리 구성 시작');
+      await userEvent.click(within(dialog).getByRole('button', { name: '저장' }));
+
+      await waitFor(() => {
+        expect(createRootDepartmentV2).toHaveBeenCalledTimes(1);
+      });
+      expect(createRootDepartmentV2).toHaveBeenCalledWith({
+        name: '디지털혁신본부',
+        code: 'DI',
+        changeReason: 'v2 수동 트리 구성 시작',
+      });
+      await waitFor(() => expect(getUserPermissionHierarchy.mock.calls.length).toBeGreaterThanOrEqual(2));
+    });
+
+    test('TC-05: 변경 사유 없이 저장하면 오류이며 API 미호출', async () => {
+      getUserPermissionHierarchy.mockResolvedValue({ data: [] });
+      await renderUserManagement(adminUser);
+      await waitFor(() => expect(screen.getByText('등록된 부서가 없습니다.')).toBeInTheDocument());
+
+      await userEvent.click(screen.getByRole('button', { name: '최상위 부서 추가' }));
+      const dialog = await screen.findByRole('dialog', { name: '최상위 부서 추가' });
+      await userEvent.type(within(dialog).getByLabelText(/부서명/), '팀');
+      await userEvent.type(within(dialog).getByLabelText(/부서코드/), 'T1');
+      await userEvent.click(within(dialog).getByRole('button', { name: '저장' }));
+
+      await waitFor(() => expect(screen.getByText('변경 사유를 입력하세요.')).toBeInTheDocument());
+      expect(createRootDepartmentV2).not.toHaveBeenCalled();
+    });
+
+    test('TC-06: 트리 비어 있지 않고 미선택이면 최상위 부서 추가 활성', async () => {
+      getUserPermissionHierarchy.mockResolvedValue({
+        data: [{ code: 'R1', name: '기존루트', children: [], users: [] }],
+      });
+      await renderUserManagement(adminUser);
+      await waitFor(() => expect(screen.getByText('기존루트')).toBeInTheDocument());
+      expect(screen.getByText(/선택 부서:/)).toHaveTextContent('미선택');
+      expect(screen.getByRole('button', { name: '최상위 부서 추가' })).toBeEnabled();
+    });
+
+    test('TC-07 (integration-style): 첫 루트 생성 후 하위 부서 추가는 기존과 동작', async () => {
+      getUserPermissionHierarchy
+        .mockResolvedValueOnce({ data: [] })
+        .mockResolvedValue({
+          data: [{ code: 'NEW', name: '새루트', children: [], users: [] }],
+        });
+
+      await renderUserManagement(adminUser);
+      await waitFor(() => expect(screen.getByText('등록된 부서가 없습니다.')).toBeInTheDocument());
+      await userEvent.click(screen.getByRole('button', { name: '최상위 부서 추가' }));
+      let dialog = await screen.findByRole('dialog', { name: '최상위 부서 추가' });
+      await userEvent.type(within(dialog).getByLabelText(/부서명/), '새루트');
+      await userEvent.type(within(dialog).getByLabelText(/부서코드/), 'NEW');
+      await userEvent.type(within(dialog).getByLabelText(/변경 사유/), '첫 루트');
+      await userEvent.click(within(dialog).getByRole('button', { name: '저장' }));
+
+      await waitFor(() => expect(screen.getByText('새루트')).toBeInTheDocument());
+      await userEvent.click(screen.getByRole('button', { name: '새루트' }));
+      await waitFor(() => expect(screen.getByRole('button', { name: '최상위 부서 추가' })).toBeDisabled());
+
+      await userEvent.click(screen.getByRole('button', { name: '하위 부서 추가' }));
+      dialog = await screen.findByRole('dialog', { name: '하위 부서 추가' });
+      await userEvent.type(within(dialog).getByLabelText(/부서명/), '자식');
+      await userEvent.type(within(dialog).getByLabelText(/부서코드/), 'NEW-C');
+      await userEvent.type(within(dialog).getByLabelText(/변경 사유/), '하위 추가');
+      await userEvent.click(within(dialog).getByRole('button', { name: '저장' }));
+
+      await waitFor(() => {
+        expect(createChildDepartmentV2).toHaveBeenCalled();
+      });
+    });
+
+    test('TC-08 (regression): 루트 생성 후 선택 해제가 없어도 하위 추가 경로는 유지', async () => {
+      getUserPermissionHierarchy.mockResolvedValue({
+        data: [{ code: 'P', name: '부모', children: [], users: [] }],
+      });
+      await renderUserManagement(adminUser);
+      await waitFor(() => expect(screen.getByText('부모')).toBeInTheDocument());
+      await userEvent.click(screen.getByRole('button', { name: '부모' }));
+      expect(screen.getByRole('button', { name: '최상위 부서 추가' })).toBeDisabled();
+      await userEvent.click(screen.getByRole('button', { name: '하위 부서 추가' }));
+      const dialog = await screen.findByRole('dialog', { name: '하위 부서 추가' });
+      await userEvent.type(within(dialog).getByLabelText(/부서명/), '자식');
+      await userEvent.type(within(dialog).getByLabelText(/부서코드/), 'P-C');
+      await userEvent.type(within(dialog).getByLabelText(/변경 사유/), '하위');
+      await userEvent.click(within(dialog).getByRole('button', { name: '저장' }));
+      await waitFor(() => expect(createChildDepartmentV2).toHaveBeenCalledWith('P', expect.objectContaining({ code: 'P-C' })));
     });
   });
 

@@ -161,6 +161,131 @@ describe('LogGrid PB FEP endpoints', () => {
     expect(body).not.toHaveProperty('showDecryptOption');
   });
 
+  test('pb-fep-log-search coerces singular keyword field to keywords array when replaying initialSearchParams', async () => {
+    global.fetch.mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        success: true,
+        data: {
+          data: [],
+          pagination: { totalPages: 1, currentPage: 1, totalCount: 0 },
+        },
+      }),
+    });
+
+    render(
+      <LogGrid
+        viewId="pb-fep-log-search"
+        logType={{ id: 'pb_feplog', name: 'PB FEP v2.0.0', description: '' }}
+        hasDecryptPermission={false}
+        initialSearchParams={{
+          startDate: '2026-04-13 09:00:00',
+          endDate: '2026-04-13 23:59:59',
+          loginId: 'alias_user',
+          tr_code: '',
+          keyword: 'alpha, beta',
+        }}
+        onInitialSearchDone={jest.fn()}
+      />
+    );
+
+    await waitFor(() => {
+      expect(global.fetch).toHaveBeenCalled();
+    });
+
+    const searchCall = global.fetch.mock.calls.find(
+      (c) => typeof c[0] === 'string' && c[0].includes('/pb-fep-log-search')
+    );
+    expect(searchCall).toBeDefined();
+    const body = JSON.parse(searchCall[1].body);
+    expect(body.keywords).toEqual(['alpha', 'beta']);
+    expect(body).not.toHaveProperty('keyword');
+  });
+
+  test('pb-fep-log-search coerces stored keywords string to array when replaying initialSearchParams', async () => {
+    global.fetch.mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        success: true,
+        data: {
+          data: [],
+          pagination: { totalPages: 1, currentPage: 1, totalCount: 0 },
+        },
+      }),
+    });
+
+    render(
+      <LogGrid
+        viewId="pb-fep-log-search"
+        logType={{ id: 'pb_feplog', name: 'PB FEP v2.0.0', description: '' }}
+        hasDecryptPermission={false}
+        initialSearchParams={{
+          startDate: '2026-04-13 09:00:00',
+          endDate: '2026-04-13 23:59:59',
+          loginId: 'local_decrypt',
+          tr_code: '',
+          keywords: 'LOCAL-PB, other',
+        }}
+        onInitialSearchDone={jest.fn()}
+      />
+    );
+
+    await waitFor(() => {
+      expect(global.fetch).toHaveBeenCalled();
+    });
+
+    const searchCall = global.fetch.mock.calls.find(
+      (c) => typeof c[0] === 'string' && c[0].includes('/pb-fep-log-search')
+    );
+    expect(searchCall).toBeDefined();
+    const body = JSON.parse(searchCall[1].body);
+    expect(body.keywords).toEqual(['LOCAL-PB', 'other']);
+    expect(body.decryptData).toBe(false);
+  });
+
+  test('pb-fep-log-search pagination POST retains keywords from last search', async () => {
+    const r1 = [makePbFepRow(101), makePbFepRow(102)];
+    const r2 = [makePbFepRow(201), makePbFepRow(202)];
+    mockPbFepTwoPageFetch(r1, r2);
+
+    render(
+      <LogGrid
+        viewId="pb-fep-log-search"
+        logType={{ id: 'pb_feplog', name: 'PB FEP v2.0.0', description: '' }}
+        hasDecryptPermission={false}
+      />
+    );
+
+    fireEvent.change(screen.getByPlaceholderText('Login ID'), { target: { value: 'user01' } });
+    fireEvent.change(screen.getByPlaceholderText(/쉼표로 구분/i), { target: { value: 'keep-me' } });
+    fireEvent.click(screen.getByRole('button', { name: '검색' }));
+
+    await waitFor(() => {
+      expect(screen.getByRole('table', { name: '로그 검색 결과' })).toBeInTheDocument();
+    });
+
+    const firstSearch = global.fetch.mock.calls.find(
+      (c) => typeof c[0] === 'string' && c[0].includes('/pb-fep-log-search')
+    );
+    expect(JSON.parse(firstSearch[1].body).keywords).toEqual(['keep-me']);
+
+    fireEvent.click(screen.getByRole('button', { name: '2' }));
+
+    await waitFor(() => {
+      const pageCalls = global.fetch.mock.calls.filter(
+        (c) => typeof c[0] === 'string' && c[0].includes('/pb-fep-log-search')
+      );
+      expect(pageCalls.length).toBeGreaterThanOrEqual(2);
+    });
+
+    const pageCalls = global.fetch.mock.calls.filter(
+      (c) => typeof c[0] === 'string' && c[0].includes('/pb-fep-log-search')
+    );
+    const page2Body = JSON.parse(pageCalls[pageCalls.length - 1][1].body);
+    expect(page2Body.page).toBe(2);
+    expect(page2Body.keywords).toEqual(['keep-me']);
+  });
+
   test('pb-feplog legacy view posts to db-refactored/search', async () => {
     global.fetch.mockResolvedValue({
       ok: true,

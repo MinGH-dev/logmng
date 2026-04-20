@@ -199,6 +199,11 @@ describe('UserActivityLogList', () => {
       ),
     );
     await waitForInitialSearchIdle();
+    // Ensure server date synced into the form before typing (getTodayStart uses real Date, not Date.now mock)
+    await waitFor(() => {
+      expect(screen.getByLabelText('시작 일시')).toHaveValue('2026-03-13T00:00');
+      expect(screen.getByLabelText('종료 일시')).toHaveValue('2026-03-13T23:59');
+    });
 
     expect(searchActivityLogs.mock.calls[0][0]).toEqual(
       expect.objectContaining({

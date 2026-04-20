@@ -4,7 +4,7 @@ import SearchForm from './SearchForm';
 import SearchFormLegacy from './SearchFormLegacy';
 import ImageLogSearchForm from './ImageLogSearchForm';
 import AdvancedSearchForm from './AdvancedSearchForm';
-import LogTable, { getPbFeplogRowKey } from './LogTable';
+import LogTable, { getPbFeplogRowKey, normalizeLogTableKeywords } from './LogTable';
 import ImageLogTable from './ImageLogTable';
 import { createSearchHistory } from '../services/searchHistoryService';
 import './LogGrid.css';
@@ -61,19 +61,60 @@ const normalizePbFepDateParam = (value) => {
 };
 
 /**
+ * Ensures API always receives `keywords` as string[] (backend builds match flags from this list).
+ * Search history / stored objects may use a comma string or omit the key.
+ */
+const coercePbFepKeywords = (value) => {
+  if (value == null) return [];
+  if (Array.isArray(value)) {
+    return value.map((k) => (k == null ? '' : String(k).trim())).filter(Boolean);
+  }
+  if (typeof value === 'string') {
+    return value.split(',').map((k) => k.trim()).filter(Boolean);
+  }
+  return [];
+};
+
+/**
+ * Prefer `keywords`; fall back to singular `keyword` (stored history / some API shapes).
+ * Ensures non-empty keyword searches still send a `keywords` array so rows can carry `keyword_match_*`.
+ */
+const pickPbFepKeywordsRaw = (params) => {
+  if (!params || typeof params !== 'object') return undefined;
+  if (params.keywords !== undefined) return params.keywords;
+  if (params.keyword !== undefined) return params.keyword;
+  return undefined;
+};
+
+/**
  * PB FEP search payload normalization (req 20260415-pb-fep-keyword-decrypt-and-plaintext-search §2 Frontend).
  * Keyword row filtering must not depend on clients sending decryptData: true; strip UI-only fields.
  */
 const normalizePbFepSearchParams = (params) => {
   if (!params || typeof params !== 'object') return params;
-  const { showDecryptOption: _showDecryptOption, decryptData: _decryptData, ...rest } = params;
+  const {
+    showDecryptOption: _showDecryptOption,
+    decryptData: _decryptData,
+    keywords: _ignoredKw,
+    keyword: _ignoredKeyword,
+    ...rest
+  } = params;
   return {
     ...rest,
     startDate: normalizePbFepDateParam(params.startDate),
     endDate: normalizePbFepDateParam(params.endDate),
     decryptData: false,
+    keywords: coercePbFepKeywords(pickPbFepKeywordsRaw(params)),
   };
 };
+
+/**
+ * pb_feplog POST bodies (search, sort, pagination): always run {@link normalizePbFepSearchParams}.
+ * JSON.stringify omits properties whose value is `undefined`, which would drop `keywords` and make
+ * the server treat the request as having no keyword terms (no keyword_match_* in the response).
+ */
+const buildPbFeplogPostBody = (searchParamsSnapshot, extras) =>
+  normalizePbFepSearchParams({ ...searchParamsSnapshot, ...extras });
 
 const LogGrid = ({
   logType,
@@ -127,7 +168,8 @@ const LogGrid = ({
     mediaCode: '',
     trCode: '',
     loginId: '',
-    accountNumbers: []
+    accountNumbers: [],
+    keywords: [],
   });
   
   // 검색 모드 상태 (기본: 필드별 검색)
@@ -295,19 +337,23 @@ const LogGrid = ({
     }
 
     try {
-      const requestData = {
-        ...normalizedParams,
-        logType: logType.id,
-        page: 1,
-        pageSize,
-        displayTemplate: 'detailed',
-      };
-      if (isPb) {
-        requestData.sortSpecs = specsFromCriteria(sortCriteria);
-      } else {
-        requestData.sortField = sortConfig.key;
-        requestData.sortDirection = sortConfig.direction;
-      }
+      const requestData = isPb
+        ? buildPbFeplogPostBody(params, {
+            logType: logType.id,
+            page: 1,
+            pageSize,
+            displayTemplate: 'detailed',
+            sortSpecs: specsFromCriteria(sortCriteria),
+          })
+        : {
+            ...params,
+            logType: logType.id,
+            page: 1,
+            pageSize,
+            displayTemplate: 'detailed',
+            sortField: sortConfig.key,
+            sortDirection: sortConfig.direction,
+          };
       logger.debug('📤 API로 전송할 데이터:', { 
         logType: requestData.logType,
         page: requestData.page,
@@ -335,6 +381,27 @@ const LogGrid = ({
             datastring: { present: 'datastring' in requestData, type: typeof requestData.datastring, length: requestData.datastring?.length ?? 0 },
             headerstring: { present: 'headerstring' in requestData, type: typeof requestData.headerstring, length: requestData.headerstring?.length ?? 0 },
             keywords: { present: 'keywords' in requestData, type: typeof requestData.keywords, isArray: Array.isArray(requestData.keywords), length: requestData.keywords?.length ?? 0 }
+          });
+        }
+      }
+
+      if (isWireframePbFep && logType?.id === 'pb_feplog') {
+        logger.debug('[LogGrid] PB FEP wireframe requestData diagnostic (keyword list meta only)', {
+          pbFepRequestDiagnostic: {
+            hasKeywords: 'keywords' in requestData,
+            keywordsIsArray: Array.isArray(requestData.keywords),
+            keywordsLength: requestData.keywords?.length ?? 0,
+          },
+        });
+        if (process.env.NODE_ENV === 'development') {
+          console.log('[LogGrid] PB FEP request body diagnostic (keys + keyword meta only)', {
+            requestBodyKeys: Object.keys(requestData),
+            keywords: {
+              present: 'keywords' in requestData,
+              type: typeof requestData.keywords,
+              isArray: Array.isArray(requestData.keywords),
+              length: requestData.keywords?.length ?? 0,
+            },
           });
         }
       }
@@ -403,14 +470,15 @@ const LogGrid = ({
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-        body: JSON.stringify({
-          ...searchParams,
-          logType: logType.id,
-          page: currentPage,
-          pageSize,
-          sortSpecs: specsFromCriteria(next),
-          displayTemplate: 'detailed',
-        }),
+        body: JSON.stringify(
+          buildPbFeplogPostBody(searchParams, {
+            logType: logType.id,
+            page: currentPage,
+            pageSize,
+            sortSpecs: specsFromCriteria(next),
+            displayTemplate: 'detailed',
+          })
+        ),
       });
       if (redirectIfUnauthorized(response)) {
         return;
@@ -510,16 +578,25 @@ const LogGrid = ({
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-        body: JSON.stringify({
-          ...searchParams,
-          logType: logType.id,
-          page: 1,
-          pageSize: newSize,
-          ...(logType?.id === 'pb_feplog'
-            ? { sortSpecs: specsFromCriteria(sortCriteria) }
-            : { sortField: sortConfig.key, sortDirection: sortConfig.direction }),
-          displayTemplate: 'detailed',
-        }),
+        body: JSON.stringify(
+          logType?.id === 'pb_feplog'
+            ? buildPbFeplogPostBody(searchParams, {
+                logType: logType.id,
+                page: 1,
+                pageSize: newSize,
+                sortSpecs: specsFromCriteria(sortCriteria),
+                displayTemplate: 'detailed',
+              })
+            : {
+                ...searchParams,
+                logType: logType.id,
+                page: 1,
+                pageSize: newSize,
+                sortField: sortConfig.key,
+                sortDirection: sortConfig.direction,
+                displayTemplate: 'detailed',
+              }
+        ),
       })
         .then((res) => {
           if (redirectIfUnauthorized(res)) {
@@ -561,16 +638,25 @@ const LogGrid = ({
             'Content-Type': 'application/json',
           },
           credentials: 'include', // 세션 쿠키 전달
-        body: JSON.stringify({
-          ...searchParams,
-          logType: logType.id,
-          page,
-          pageSize,
-          ...(logType?.id === 'pb_feplog'
-            ? { sortSpecs: specsFromCriteria(sortCriteria) }
-            : { sortField: sortConfig.key, sortDirection: sortConfig.direction }),
-          displayTemplate: 'detailed',
-        })
+          body: JSON.stringify(
+            logType?.id === 'pb_feplog'
+              ? buildPbFeplogPostBody(searchParams, {
+                  logType: logType.id,
+                  page,
+                  pageSize,
+                  sortSpecs: specsFromCriteria(sortCriteria),
+                  displayTemplate: 'detailed',
+                })
+              : {
+                  ...searchParams,
+                  logType: logType.id,
+                  page,
+                  pageSize,
+                  sortField: sortConfig.key,
+                  sortDirection: sortConfig.direction,
+                  displayTemplate: 'detailed',
+                }
+          ),
         });
 
         if (redirectIfUnauthorized(response)) {
@@ -841,7 +927,7 @@ const LogGrid = ({
             onPageChange={handlePageChange}
             pageSize={pageSize}
             onPageSizeChange={handlePageSizeChange}
-            keywords={searchParams.keywords || []}
+            keywords={normalizeLogTableKeywords(searchParams.keywords)}
             searchParams={searchParams}
             searchHistoryId={currentApprovalId}
             hasDecryptPermission={hasDecryptPermission}
@@ -863,7 +949,7 @@ const LogGrid = ({
             onPageChange={handlePageChange}
             pageSize={pageSize}
             onPageSizeChange={handlePageSizeChange}
-            keywords={Array.isArray(searchParams.keywords) ? searchParams.keywords : []}
+            keywords={normalizeLogTableKeywords(searchParams.keywords)}
             expandedRowKeys={expandedRowKeys}
             onRowExpandChange={handleRowExpandChange}
             layoutVariant={isWireframePbFep ? 'pb-fep-svg' : 'default'}

@@ -201,14 +201,33 @@
 }
 
 /* Tree panel top strip (TC-16, TC-18): bulk expand/collapse — not on the filter toolbar row */
+/* req 20260414: one row — left expand/collapse, right root create */
+.user-management-v2-tree-bulk-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sf-row-gap);
+  margin: 0 0 0.5rem 0;
+  padding: 0 0 0.5rem 0;
+  border-bottom: 1px solid #e2e5e9;
+}
+
 .user-management-v2-tree-bulk-actions {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   gap: var(--sf-row-gap);
-  margin: 0 0 0.5rem 0;
-  padding: 0 0 0.5rem 0;
-  border-bottom: 1px solid #e2e5e9;
+  margin: 0;
+  padding: 0;
+  border-bottom: none;
+}
+
+.user-management-v2-tree-bulk-root-wrap {
+  display: flex;
+  align-items: center;
+  flex: 0 0 auto;
+  margin-left: auto;
 }
 
 @media (max-width: 720px) {

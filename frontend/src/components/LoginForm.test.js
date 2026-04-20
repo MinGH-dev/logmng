@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, screen, waitFor } from '@testing-library/react';
+import { act, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import LoginForm from './LoginForm';
 
@@ -28,6 +28,38 @@ describe('LoginForm', () => {
   });
 
   describe('TC-04: Login form label, placeholder, validation refer to employee number', () => {
+    test('auth config hangs, then timeout fallback exits loading with local form', async () => {
+      jest.useFakeTimers();
+      try {
+        global.fetch = jest.fn((url, options) => {
+          if (String(url).includes('/auth/config')) {
+            return new Promise((_, reject) => {
+              const abortError = new Error('Aborted');
+              abortError.name = 'AbortError';
+              const signal = options?.signal;
+              if (signal?.aborted) {
+                reject(abortError);
+                return;
+              }
+              signal?.addEventListener('abort', () => reject(abortError), { once: true });
+            });
+          }
+          return Promise.reject(new Error(`unexpected fetch ${url}`));
+        });
+
+        render(<LoginForm onLogin={onLogin} />);
+        expect(screen.getByText('로그인 설정을 불러오는 중…')).toBeInTheDocument();
+
+        await act(async () => {
+          jest.advanceTimersByTime(4000);
+        });
+
+        expect(await screen.findByLabelText(/사용자 ID \(사번\)/)).toBeInTheDocument();
+      } finally {
+        jest.useRealTimers();
+      }
+    });
+
     test('first field label is "사용자 ID (사번)"', async () => {
       render(<LoginForm onLogin={onLogin} />);
       await waitFor(() => {

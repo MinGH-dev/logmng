@@ -35,7 +35,7 @@ BEGIN
             EXECUTE format(
                 'CREATE TABLE %I (
                 id BIGINT NOT NULL DEFAULT nextval(%L::regclass),
-                log_time VARCHAR(15),
+                log_time VARCHAR(20),
                 log_ch_cd VARCHAR(6),
                 log_io_cd VARCHAR(1),
                 log_len VARCHAR(6),
@@ -99,7 +99,7 @@ BEGIN
                 IF to_regclass(part_name) IS NULL THEN
                     EXECUTE format(
                         'CREATE TABLE %I PARTITION OF %I FOR VALUES FROM (%L) TO (%L)',
-                        part_name, k, to_char(d, 'YYYYMMDD') || '0000000', to_char(d + 1, 'YYYYMMDD') || '0000000'
+                        part_name, k, to_char(d, 'YYYYMMDD') || '000000000000', to_char(d + 1, 'YYYYMMDD') || '000000000000'
                     );
                 END IF;
                 EXECUTE format('DROP TRIGGER IF EXISTS update_%s_updated_at ON %I', k, part_name);
@@ -154,17 +154,10 @@ BEGIN
                 WHILE d <= d_end LOOP
                     part_name := format('%s_%s', k, to_char(d, 'YYYYMMDD'));
                     IF to_regclass(part_name) IS NULL THEN
-                        IF has_log_timestamp_col THEN
-                            EXECUTE format(
-                                'CREATE TABLE %I PARTITION OF %I FOR VALUES FROM (%L) TO (%L)',
-                                part_name, k, d::TEXT, (d + 1)::TEXT
-                            );
-                        ELSE
-                            EXECUTE format(
-                                'CREATE TABLE %I PARTITION OF %I FOR VALUES FROM (%L) TO (%L)',
-                                part_name, k, to_char(d, 'YYYYMMDD') || '0000000', to_char(d + 1, 'YYYYMMDD') || '0000000'
-                            );
-                        END IF;
+                        EXECUTE format(
+                            'CREATE TABLE %I PARTITION OF %I FOR VALUES FROM (%L) TO (%L)',
+                            part_name, k, to_char(d, 'YYYYMMDD') || '000000000000', to_char(d + 1, 'YYYYMMDD') || '000000000000'
+                        );
                     END IF;
                     EXECUTE format('DROP TRIGGER IF EXISTS update_%s_updated_at ON %I', k, part_name);
                     EXECUTE format(
@@ -184,17 +177,10 @@ BEGIN
             WHILE d <= win_max LOOP
                 part_name := format('%s_%s', k, to_char(d, 'YYYYMMDD'));
                 IF to_regclass(part_name) IS NULL THEN
-                    IF has_log_timestamp_col THEN
-                        EXECUTE format(
-                            'CREATE TABLE %I PARTITION OF %I FOR VALUES FROM (%L) TO (%L)',
-                            part_name, k, d::TEXT, (d + 1)::TEXT
-                        );
-                    ELSE
-                        EXECUTE format(
-                            'CREATE TABLE %I PARTITION OF %I FOR VALUES FROM (%L) TO (%L)',
-                            part_name, k, to_char(d, 'YYYYMMDD') || '0000000', to_char(d + 1, 'YYYYMMDD') || '0000000'
-                        );
-                    END IF;
+                    EXECUTE format(
+                        'CREATE TABLE %I PARTITION OF %I FOR VALUES FROM (%L) TO (%L)',
+                        part_name, k, to_char(d, 'YYYYMMDD') || '000000000000', to_char(d + 1, 'YYYYMMDD') || '000000000000'
+                    );
                 END IF;
                 EXECUTE format('DROP TRIGGER IF EXISTS update_%s_updated_at ON %I', k, part_name);
                 EXECUTE format(

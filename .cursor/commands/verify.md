@@ -6,6 +6,10 @@ Run the verification steps: after **test plan + unit/integration tests**, run re
 
 **Skill**: `.cursor/skills/test-workflow/SKILL.md`. **Order**: run-tests (§3 + run + §5) → then this (restart + health check).
 
+**Verification runtime (choose explicitly)**  
+- **Preferred for UI checks at `http://localhost:3001`**: the **Docker Compose** stack (dist-based containers). After `frontend/` or `backend/` source changes, run **`./scripts/docker-dev-sync.sh`** from the repo root **before** health checks and browser verification so `dist/` and images match the working tree. Details: `docs/workflow/DOCKER-LOCAL-AGENTS.md` (items 11–12), `scripts/docker-dev-sync.sh`.  
+- **Alternate**: host processes via `./scripts/dev-services.sh` (same ports when configured); use when you are not validating through Compose.
+
 ## 1. Order
 
 0. **Test plan + unit/integration tests (required first)**  
@@ -15,9 +19,18 @@ Run the verification steps: after **test plan + unit/integration tests**, run re
    - If this step was skipped, do the same as `/run-tests` then continue with step 1.
 
 1. **Determine scope**  
-   From the current requirement doc and changed files, decide **restart target**: frontend only → `frontend`; backend only → `backend`; db/schema only → `db`; both or unclear → `all`.
+   From the current requirement doc and changed files, decide **restart target**: frontend only → `frontend`; backend only → `backend`; db/schema only → `db`; both or unclear → `all`.  
+   If verification uses **Docker Compose**, treat “restart” as satisfied by **`docker-dev-sync.sh`** (rebuilds bundle + recreates backend/frontend containers per script).
 
-2. **Restart**  
+2. **Restart / deploy to verification environment**  
+   **Option A — Docker Compose (recommended for manual UI at :3001)**  
+   From project root (after unit tests):
+   ```bash
+   ./scripts/docker-dev-sync.sh
+   ```
+   If sync fails (e.g. macOS `._*` files on external volumes), remove `dist/**/._*` and retry, or follow `docs/workflow/DOCKER-LOCAL-AGENTS.md`. Wait until backend and frontend containers are up, then continue to step 3.
+
+   **Option B — Host `dev-services.sh` (no Compose)**  
    From project root:
    ```bash
    ./scripts/dev-services.sh {frontend|backend|db|all} restart
@@ -53,6 +66,7 @@ Run the verification steps: after **test plan + unit/integration tests**, run re
 ## 2. References
 
 - **Tests first**: `/run-tests`. If verification is run without tests, run tests first.
+- **Docker UI verification**: `scripts/docker-dev-sync.sh`, `docs/workflow/DOCKER-LOCAL-AGENTS.md` (sync before health/browser when using Compose on :3001).
 - **Workflow**: `docs/workflow/DEVELOPMENT_WORKFLOW.md`
 - **Bugfix template**: `docs/template/BUGFIX_CHILD_TEMPLATE.md`
 - **Script**: `scripts/dev-services.sh` (frontend | backend | db | all) (start | stop | restart)

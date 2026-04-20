@@ -22,7 +22,7 @@
 -- (B) Date range for daily children (per table, on *_migr_tmp):
 --   Let win_min = CURRENT_DATE − back_days, win_max = CURRENT_DATE + fwd_days (inclusive days).
 --   Let data_min = MIN(to_date(substr(log_time,1,8),'YYYYMMDD')), data_max = MAX(...) from the
---   temp table (NULL if empty).
+--   temp table (NULL if empty). log_time is 20-char lexical yyyyMMddHHmmssSSSSSS; substr(log_time,1,8) is calendar date.
 --   Partition days run from d_start = LEAST(COALESCE(data_min, win_min), win_min) through
 --   d_end = GREATEST(COALESCE(data_max, win_max), win_max) inclusive, so every existing row
 --   has a home partition and the same rolling window as (A)/(C) is also covered.
@@ -75,7 +75,7 @@ BEGIN
             EXECUTE format(
                 'CREATE TABLE %I (
                 id BIGINT NOT NULL DEFAULT nextval(%L::regclass),
-                log_time VARCHAR(15),
+                log_time VARCHAR(20),
                 log_ch_cd VARCHAR(6),
                 log_io_cd VARCHAR(1),
                 log_len VARCHAR(6),
@@ -143,8 +143,8 @@ BEGIN
                         'CREATE TABLE %I PARTITION OF %I FOR VALUES FROM (%L) TO (%L)',
                         part_name,
                         k,
-                        to_char(d, 'YYYYMMDD') || '0000000',
-                        to_char(d + 1, 'YYYYMMDD') || '0000000'
+                        to_char(d, 'YYYYMMDD') || '000000000000',
+                        to_char(d + 1, 'YYYYMMDD') || '000000000000'
                     );
                 END IF;
                 EXECUTE format(
@@ -204,7 +204,7 @@ BEGIN
             EXECUTE format(
                 'CREATE TABLE %I (
                 id BIGINT NOT NULL DEFAULT nextval(%L::regclass),
-                log_time VARCHAR(15),
+                log_time VARCHAR(20),
                 log_ch_cd VARCHAR(6),
                 log_io_cd VARCHAR(1),
                 log_len VARCHAR(6),
@@ -307,8 +307,8 @@ BEGIN
                         'CREATE TABLE %I PARTITION OF %I FOR VALUES FROM (%L) TO (%L)',
                         part_name,
                         k,
-                        to_char(d, 'YYYYMMDD') || '0000000',
-                        to_char(d + 1, 'YYYYMMDD') || '0000000'
+                        to_char(d, 'YYYYMMDD') || '000000000000',
+                        to_char(d + 1, 'YYYYMMDD') || '000000000000'
                     );
                 END IF;
                 EXECUTE format(

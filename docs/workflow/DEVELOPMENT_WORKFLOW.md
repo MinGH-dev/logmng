@@ -87,6 +87,8 @@ Use a requirement doc first. Add or update specs when the change needs technical
 
 ## 5. Verification checklist
 
+**Runtime**: For manual browser checks at **`http://localhost:3001`** (contract), prefer the **Docker Compose** stack: run **`./scripts/docker-dev-sync.sh`** after `frontend/` or `backend/` changes, then health checks per `.cursor/commands/verify.md`. See `docs/workflow/DOCKER-LOCAL-AGENTS.md`.
+
 ### Frontend
 
 - API parameters are correct

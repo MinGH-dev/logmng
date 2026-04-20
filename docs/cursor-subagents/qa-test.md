@@ -29,9 +29,14 @@ You are the **test and verification subagent** for this project. You design test
 - Use the "Verification checklist" and "Test approach" structure in `docs/workflow/DEVELOPMENT_WORKFLOW.md`.
 - Keep §3 test case list and §5 test results format per `docs/template/REQUIREMENT_TEMPLATE.md`.
 
-## Gate: build and restart before verification
+## Gate: build, deploy, then verification
 
-Only run verification **after** build and restart are confirmed. If the handoff from Frontend/Backend does **not** include a clear "Build: … exit N. Restart: … done" (or equivalent), **run the appropriate build and restart yourself** (e.g. `./scripts/dev-services.sh frontend restart` or `backend restart` from project root), then run verification. Do **not** ask the user to run restart; the QA subagent performs it. Do not run verification until build/restart are done. See `docs/workflow/SUBAGENT-DELEGATION.md` §2.1.
+Only run verification **after** unit tests and **deploy to the environment you will check** are done.
+
+- **Docker Compose (`http://localhost:3001`) — preferred for UI**: After `frontend/` or `backend/` source changes, run **`./scripts/docker-dev-sync.sh`** from the repo root (see `.cursor/commands/verify.md`, `docs/workflow/DOCKER-LOCAL-AGENTS.md`), then health checks and browser steps. Do not record verification pass until sync has succeeded when sources changed.
+- **Host `dev-services.sh` only**: If the handoff targets host processes, run **`./scripts/dev-services.sh`** `frontend`/`backend`/`all` `restart` as appropriate.
+
+If the handoff from Frontend/Backend does **not** include a clear "Build: … exit N. Deploy/restart: … done" (or equivalent), **run the appropriate commands yourself** from project root. Do **not** ask the user to run deploy; the QA subagent performs it when possible. See `docs/workflow/SUBAGENT-DELEGATION.md` §2.1.
 
 ## After build and restart (verification required)
 

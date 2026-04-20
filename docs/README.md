@@ -39,6 +39,10 @@ docs/
     └── ...
 ```
 
+## 로컬 UI·포트 (수동 검증)
+
+프로젝트에서 **수동 브라우저 검증의 기준 UI**는 **`http://localhost:3001`**이다(Docker Compose 정적 프론트·dist 번들 등, **계약과 동일**). 소스 변경 후 검증할 때는 저장소 루트에서 **`./scripts/docker-dev-sync.sh`**로 컨테이너·`dist`를 맞춘 **다음** 헬스·브라우저 확인을 한다(상세: **[`workflow/DOCKER-LOCAL-AGENTS.md`](workflow/DOCKER-LOCAL-AGENTS.md)** §11–12, **[`.cursor/commands/verify.md`](../.cursor/commands/verify.md)**). PB FEP 등 화면별 절차는 **[`workflow/QA-MANUAL-PB-FEP-KEYWORD-EXPAND-CHECKLIST.md`](workflow/QA-MANUAL-PB-FEP-KEYWORD-EXPAND-CHECKLIST.md)** 상단 전제를 따른다. Create React App의 기본 포트 **3000**은 본 저장소의 검증 표준이 아니다. `frontend`에서 `npm start`로 띄우는 개발 서버는 **`frontend/package.json`**의 `start`로 **3002**를 쓴다(상세·백엔드·DB 포트 표: **[contract.md](contract.md)** 환경·포트 절).
+
 ## 🎯 처음 읽을 때 (진입 경로)
 
 새 요건·버그 수정을 할 때는 **먼저 워크플로우**를 이해한 뒤 요청하세요.
@@ -162,8 +166,8 @@ Agent가 작업을 완료한 후:
 | `/new-requirement` | 새 요건 시작 — 워크플로우 따라 요건 문서 작성 후 개발 |
 | `/verify` | 검증 수행 — 프론트/백엔드 검증 체크리스트 실행 |
 | `/follow-workflow` | 워크플로우 따르기 — DEVELOPMENT_WORKFLOW 기준으로 현재 작업 점검 |
-| `/check-frontend-backend` | 프론트엔드·백엔드 정상 실행 여부 확인 (포트 3001, 9200) |
-| `/check-frontend` | 프론트엔드만 실행 여부 확인 (포트 3001) |
+| `/check-frontend-backend` | 프론트·백엔드 확인 — Compose UI **3001** 또는 호스트 CRA **3002**·백엔드 **9200** (명령 본문 참고) |
+| `/check-frontend` | 프론트만 — 호스트 **3002** / Docker UI **3001** (명령 본문 참고) |
 | `/check-backend` | 백엔드 기동 + DB 연결 확인 (9200, /api/health, /api/db/test) |
 | `/check-db` | DB 연결만 확인 (9200, /api/db/test, 백엔드 필요) |
 | **서비스 제어** | |
@@ -173,7 +177,7 @@ Agent가 작업을 완료한 후:
 | `/start-db` | DB(PostgreSQL, 5432, Homebrew postgresql@16) 시작 |
 | `/stop-db` | DB 중지 |
 | `/restart-db` | DB 재시작 |
-| `/start-frontend` | 프론트엔드 시작 (3001) |
+| `/start-frontend` | 프론트엔드 시작 — 호스트 CRA 기본 **3002** (`dev-services.sh`; **3001**은 Docker 전용) |
 | `/stop-frontend` | 프론트엔드 중지 |
 | `/restart-frontend` | 프론트엔드 재시작 |
 | `/start-all` | DB·백엔드·프론트 모두 시작 |

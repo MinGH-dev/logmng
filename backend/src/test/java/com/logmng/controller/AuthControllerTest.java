@@ -4,6 +4,7 @@ import com.logmng.dto.request.ChangeMyPasswordRequest;
 import com.logmng.dto.request.LoginRequest;
 import com.logmng.dto.response.LoginResponse;
 import com.logmng.service.AuthService;
+import com.logmng.config.AuthProperties;
 import jakarta.servlet.http.HttpServletRequest;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -24,7 +25,7 @@ class AuthControllerTest {
 
     @BeforeEach
     void setUp() {
-        AuthController controller = new AuthController(new StubAuthService());
+        AuthController controller = new AuthController(new StubAuthService(), authProperties("local"));
         mockMvc = MockMvcBuilders.standaloneSetup(controller)
                 .setControllerAdvice(new com.logmng.exception.GlobalExceptionHandler())
                 .build();
@@ -59,7 +60,7 @@ class AuthControllerTest {
     /** TC-02: GET /api/auth/check with no/invalid session returns 200 and authenticated false */
     @Test
     void check_noSession_returns200WithAuthenticatedFalse() throws Exception {
-        AuthController controller = new AuthController(new StubAuthServiceNoSession());
+        AuthController controller = new AuthController(new StubAuthServiceNoSession(), authProperties("local"));
         MockMvc mvc = MockMvcBuilders.standaloneSetup(controller)
                 .setControllerAdvice(new com.logmng.exception.GlobalExceptionHandler())
                 .build();
@@ -83,7 +84,7 @@ class AuthControllerTest {
 
     @Test
     void changeMyPassword_returns200() throws Exception {
-        AuthController controller = new AuthController(new StubAuthPasswordNoOp());
+        AuthController controller = new AuthController(new StubAuthPasswordNoOp(), authProperties("local"));
         MockMvc mvc = MockMvcBuilders.standaloneSetup(controller)
                 .setControllerAdvice(new com.logmng.exception.GlobalExceptionHandler())
                 .build();
@@ -96,7 +97,7 @@ class AuthControllerTest {
 
     @Test
     void changeMyPassword_validationFailure_returns400() throws Exception {
-        AuthController controller = new AuthController(new StubAuthPasswordNoOp());
+        AuthController controller = new AuthController(new StubAuthPasswordNoOp(), authProperties("local"));
         MockMvc mvc = MockMvcBuilders.standaloneSetup(controller)
                 .setControllerAdvice(new com.logmng.exception.GlobalExceptionHandler())
                 .build();
@@ -106,6 +107,37 @@ class AuthControllerTest {
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.success").value(false))
                 .andExpect(jsonPath("$.code").value("VALIDATION_ERROR"));
+    }
+
+    @Test
+    void authConfig_returns200WithLoginModeAndAuthLoginMode() throws Exception {
+        mockMvc.perform(get("/api/auth/config"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.data.loginMode").value("local"))
+                .andExpect(jsonPath("$.data.authLoginMode").value("local"));
+    }
+
+    @Test
+    void authConfig_normalizesInvalidModeToLocal() throws Exception {
+        AuthController controller = new AuthController(new StubAuthService(), authProperties("unexpected"));
+        MockMvc mvc = MockMvcBuilders.standaloneSetup(controller)
+                .setControllerAdvice(new com.logmng.exception.GlobalExceptionHandler())
+                .build();
+
+        mvc.perform(get("/api/auth/config"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.data.loginMode").value("local"))
+                .andExpect(jsonPath("$.data.authLoginMode").value("local"));
+    }
+
+    private static AuthProperties authProperties(String loginMode) {
+        AuthProperties props = new AuthProperties();
+        AuthProperties.Login login = new AuthProperties.Login();
+        login.setMode(loginMode);
+        props.setLogin(login);
+        return props;
     }
 
     private static final class StubAuthService extends AuthService {

@@ -11,6 +11,7 @@ import {
 import {
   deleteUser,
   createChildDepartmentV2,
+  createRootDepartmentV2,
   updateDepartmentV2,
   createDirectUserV2,
   deleteDepartmentV2,
@@ -669,6 +670,7 @@ const UserManagement = ({ user }) => {
     const reason = v2TreeReason.trim();
     const isEdit = mode === 'edit';
     const isChild = mode === 'child';
+    const isRoot = mode === 'root';
     if (!name) {
       setV2TreeError('부서명을 입력하세요.');
       return;
@@ -715,6 +717,8 @@ const UserManagement = ({ user }) => {
       };
       if (isEdit) {
         await updateDepartmentV2(v2TreeEditDepartmentId, body);
+      } else if (isRoot) {
+        await createRootDepartmentV2({ name, code, changeReason: reason });
       } else {
         body.code = code;
         await createChildDepartmentV2(parentCodeForChild, body);
@@ -823,6 +827,18 @@ const UserManagement = ({ user }) => {
     setDepartmentModalOpen(true);
   };
 
+  const openRootDepartmentModal = () => {
+    departmentModalParentCodeRef.current = null;
+    setDepartmentModalParentCode(null);
+    setDepartmentModalMode('root');
+    setV2TreeName('');
+    setV2TreeCode('');
+    setV2TreeReason('');
+    setV2TreeError(null);
+    setV2TreeEditDepartmentId(null);
+    setDepartmentModalOpen(true);
+  };
+
   const openEditDepartmentModal = (departmentCode) => {
     const code = departmentCode || selectedDepartment?.code;
     if (!code) return;
@@ -885,6 +901,8 @@ const UserManagement = ({ user }) => {
       setDeleteDepartmentSubmitting(false);
     }
   };
+
+  const rootDepartmentToolbarDisabled = loading || selectedDepartment != null;
 
   return (
     <div className="user-management">
@@ -1043,31 +1061,49 @@ const UserManagement = ({ user }) => {
 
       <div className="user-permission-hierarchy-layout">
         <section className="user-permission-hierarchy-tree-section" aria-label="부서별 사용자 계층">
-          <div
-            className="user-management-v2-tree-bulk-actions"
-            role="group"
-            aria-label="부서 트리 일괄 펼침·접기"
-          >
-            <Button
-              type="button"
-              size="small"
-              variant="outlined"
-              className="user-management-v2-tree-bulk-btn"
-              disabled={treeFilterDisabled}
-              onClick={handleExpandAll}
+          <div className="user-management-v2-tree-bulk-row">
+            <div
+              className="user-management-v2-tree-bulk-actions"
+              role="group"
+              aria-label="부서 트리 일괄 펼침·접기"
             >
-              모두 펼치기
-            </Button>
-            <Button
-              type="button"
-              size="small"
-              variant="outlined"
-              className="user-management-v2-tree-bulk-btn"
-              disabled={treeFilterDisabled}
-              onClick={handleCollapseAll}
-            >
-              모두 접기
-            </Button>
+              <Button
+                type="button"
+                size="small"
+                variant="outlined"
+                className="user-management-v2-tree-bulk-btn"
+                disabled={treeFilterDisabled}
+                onClick={handleExpandAll}
+              >
+                모두 펼치기
+              </Button>
+              <Button
+                type="button"
+                size="small"
+                variant="outlined"
+                className="user-management-v2-tree-bulk-btn"
+                disabled={treeFilterDisabled}
+                onClick={handleCollapseAll}
+              >
+                모두 접기
+              </Button>
+            </div>
+            {canWrite && (
+              <div className="user-management-v2-tree-bulk-root-wrap">
+                <Button
+                  type="button"
+                  size="small"
+                  variant="outlined"
+                  className="user-management-v2-tree-bulk-btn"
+                  aria-label="최상위 부서 추가"
+                  title="최상위 부서 추가"
+                  disabled={rootDepartmentToolbarDisabled}
+                  onClick={openRootDepartmentModal}
+                >
+                  최상위 부서 추가
+                </Button>
+              </div>
+            )}
           </div>
           <div className="user-management-v2-tree-toolbar">
             <p className="user-management-v2-selected-dept">
@@ -1122,7 +1158,11 @@ const UserManagement = ({ user }) => {
           aria-labelledby={departmentDialogTitleId}
         >
           <DialogTitle id={departmentDialogTitleId}>
-            {departmentModalMode === 'edit' ? '부서 수정' : '하위 부서 추가'}
+            {departmentModalMode === 'edit'
+              ? '부서 수정'
+              : departmentModalMode === 'root'
+                ? '최상위 부서 추가'
+                : '하위 부서 추가'}
           </DialogTitle>
           <DialogContent dividers>
             <TextField

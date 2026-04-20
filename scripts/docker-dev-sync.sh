@@ -22,6 +22,15 @@ export NO_TAR="${NO_TAR:-1}"
 echo "[docker-dev-sync] Rebuilding offline bundle (VERSION=${VERSION}, NO_TAR=${NO_TAR})..."
 VERSION="$VERSION" NO_TAR="$NO_TAR" ./scripts/build-offline-bundle.sh
 
+# macOS / exFAT: AppleDouble `._*` files under dist/ break Docker build context (xattr "operation not permitted").
+if [[ -d dist ]]; then
+  n=$(find dist -name '._*' 2>/dev/null | wc -l | tr -d ' ')
+  if [[ "${n:-0}" != "0" ]]; then
+    find dist -name '._*' -delete 2>/dev/null || true
+    echo "[docker-dev-sync] Removed ${n} AppleDouble (._*) file(s) under dist/ before Docker build."
+  fi
+fi
+
 echo "[docker-dev-sync] Recreating backend + frontend from dist (SKIP_BUNDLE_BUILD=1, SKIP_DB_INIT=1)..."
 SKIP_BUNDLE_BUILD=1 SKIP_DB_INIT=1 ./scripts/docker-local-manual-test.sh up
 

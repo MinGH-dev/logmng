@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { ThemeProvider, Box } from '@mui/material';
 import { appTheme } from './theme';
 import './App.css';
@@ -36,6 +36,7 @@ import {
   clearUserData,
   hasEffectiveAppAccess,
 } from './utils/security';
+import { getLastViewId, setLastViewId, clearLastViewStorage } from './utils/lastViewStorage';
 import { getVisibleAdminSidebarChildViews } from './constants/screenAccessPolicy';
 import { isScreenAccessDiagnosticEnabled } from './config/screenAccessDiagnostic';
 import { isHrSyncPocMenuEnabled } from './config/hrSyncPocUi';
@@ -62,6 +63,8 @@ function App() {
   const [initialSearchApprovalId, setInitialSearchApprovalId] = useState(null);
   const [accessAuditInitialTargetId, setAccessAuditInitialTargetId] = useState(null);
   const [myPageOpen, setMyPageOpen] = useState(false);
+  const [lastViewRestoreDone, setLastViewRestoreDone] = useState(false);
+  const didRestoreLastViewRef = useRef(false);
 
   const { labelItems, setLabelItems, mergedMenuTree, logTypesByView } = useScreenDisplayLabels(
     isAuthenticated,
@@ -74,6 +77,19 @@ function App() {
       isSystemAdmin: user?.isSystemAdmin === true,
     });
 
+  /** Same rules as sidebar: policy + non-admin gate (req 20260420 preserve view on refresh). */
+  const isViewAllowedForLastView = (view, u) => {
+    if (!u) return false;
+    const ids = getAllowedScreenIds(u) ?? [];
+    const isAdmin = u?.isSystemAdmin === true;
+    return (
+      policyCanAccessView(view, {
+        allowedScreenIds: ids,
+        isSystemAdmin: isAdmin,
+      }) && (isAdmin || canNonAdminAccessCurrentView(view, ids))
+    );
+  };
+
   const getFirstAllowedScreen = (u) => {
     if (u?.isSystemAdmin === true) return ORDERED_SCREEN_IDS[0];
     const ids = getAllowedScreenIds(u);
@@ -85,6 +101,13 @@ function App() {
   useEffect(() => {
     checkAuthStatus();
   }, []);
+
+  useEffect(() => {
+    if (!isAuthenticated) {
+      didRestoreLastViewRef.current = false;
+      setLastViewRestoreDone(false);
+    }
+  }, [isAuthenticated]);
 
   /** Dev-only: compare session allowedScreenIds vs effective 관리 submenu (req 20260414 diagnostic). */
   useEffect(() => {
@@ -139,6 +162,46 @@ function App() {
     });
     if (ok) setCurrentView('user-management-v2-poc');
   }, [isAuthenticated, user]);
+
+  /**
+   * Restore last main-menu view from sessionStorage after deep-link effects (req 20260420).
+   * Runs once per authenticated session (didRestoreLastViewRef); reset when isAuthenticated becomes false.
+   */
+  useEffect(() => {
+    if (!isAuthenticated || !user || !hasEffectiveAppAccess(user)) return;
+    if (didRestoreLastViewRef.current) return;
+
+    const path = (window.location.pathname || '').replace(/\/$/, '');
+    const isDeepLinkPath =
+      path.endsWith('/user-management/hr-sync-poc') || path.endsWith('/user-management/poc-v2');
+
+    if (isDeepLinkPath) {
+      didRestoreLastViewRef.current = true;
+      setLastViewRestoreDone(true);
+      return;
+    }
+
+    const stored = getLastViewId();
+    if (stored && isViewAllowedForLastView(stored, user)) {
+      setCurrentView(stored);
+    } else if (stored) {
+      clearLastViewStorage();
+    }
+
+    didRestoreLastViewRef.current = true;
+    setLastViewRestoreDone(true);
+  }, [isAuthenticated, user]);
+
+  useEffect(() => {
+    if (!isAuthenticated || !user || !hasEffectiveAppAccess(user)) return;
+    if (!lastViewRestoreDone) return;
+
+    if (isViewAllowedForLastView(currentView, user)) {
+      setLastViewId(currentView);
+    } else {
+      clearLastViewStorage();
+    }
+  }, [isAuthenticated, user, currentView, lastViewRestoreDone]);
 
   const AUTH_CHECK_TIMEOUT_MS = 5000;
 

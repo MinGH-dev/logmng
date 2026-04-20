@@ -150,6 +150,18 @@ class LogDbServiceTest {
         return req;
     }
 
+    /** PB FEP wireframe search window + login (same as keyword PB tests). */
+    private LogDbSearchRequest pbFepWireframeSearchRequest() {
+        LogDbSearchRequest req = new LogDbSearchRequest();
+        req.setStartDate(PB_KW_LDT.toLocalDate().atStartOfDay().format(FMT));
+        req.setEndDate(PB_KW_LDT.toLocalDate().plusDays(1).atStartOfDay().minusSeconds(1).format(FMT));
+        req.setTrCode("TRK");
+        req.setLoginId("kwuser");
+        req.setPage(1);
+        req.setPageSize(25);
+        return req;
+    }
+
     private LogDbSearchRequest imageLogRequest(long startTs, long endTs) {
         LocalDateTime start = LocalDateTime.ofInstant(Instant.ofEpochMilli(startTs), ZoneId.systemDefault());
         LocalDateTime end = LocalDateTime.ofInstant(Instant.ofEpochMilli(endTs), ZoneId.systemDefault());
@@ -877,6 +889,113 @@ class LogDbServiceTest {
         LogDbSearchResponse wire = logDbService.searchPbFepLogWireframe(wfReq);
         assertThat(wire.getData()).hasSize(1);
         assertThat(wire.getData().get(0)).doesNotContainKey("decrypted_request_data");
+    }
+
+    /** TC-KF-01: decrypt-only match on response_data — response flags true; keyword_match_data true (aggregate OR). */
+    @Test
+    void searchPbFepLogWireframe_keywordFlags_decryptOnlyResponse_tcKf01() throws Exception {
+        String token = "LOCAL-PB-KF01-DECRYPT-ONLY";
+        String cipher = cryptoUtil.encryptPbFepPayload("prefix-" + token + "-suffix");
+        assertThat(cipher.toLowerCase(java.util.Locale.ROOT)).doesNotContain(token.toLowerCase(java.util.Locale.ROOT));
+
+        String lt = toPbLogTime(PB_KW_LDT);
+        insertPbSendPayload(910L, lt, "TRK", "kwuser", "no-match-req-KF01", cipher, "no-bmsg-match");
+
+        LogDbSearchRequest req = pbFepWireframeSearchRequest();
+        req.setKeywords(List.of(token));
+
+        Map<String, Object> row = logDbService.searchPbFepLogWireframe(req).getData().get(0);
+        assertThat(row.get("keyword_match_request_data")).isEqualTo(false);
+        assertThat(row.get("keyword_match_response_data")).isEqualTo(true);
+        assertThat(row.get("keyword_match_bmsg")).isEqualTo(false);
+        assertThat(row.get("keyword_match_data")).isEqualTo(true);
+    }
+
+    /** TC-KF-02: literal match on error_message (bmsg). */
+    @Test
+    void searchPbFepLogWireframe_keywordFlags_literalBmsg_tcKf02() throws Exception {
+        String lt = toPbLogTime(PB_KW_LDT);
+        insertPbSendPayload(911L, lt, "TRK", "kwuser", "other-req", "other-res", "ERR-LITERAL-KF02-ONLY");
+
+        LogDbSearchRequest req = pbFepWireframeSearchRequest();
+        req.setKeywords(List.of("ERR-LITERAL-KF02-ONLY"));
+
+        Map<String, Object> row = logDbService.searchPbFepLogWireframe(req).getData().get(0);
+        assertThat(row.get("keyword_match_request_data")).isEqualTo(false);
+        assertThat(row.get("keyword_match_response_data")).isEqualTo(false);
+        assertThat(row.get("keyword_match_bmsg")).isEqualTo(true);
+        assertThat(row.get("keyword_match_data")).isEqualTo(true);
+    }
+
+    /** TC-KF-03: match on request_data only (summary falls back to request when response empty). */
+    @Test
+    void searchPbFepLogWireframe_keywordFlags_requestOnly_tcKf03() throws Exception {
+        String lt = toPbLogTime(PB_KW_LDT);
+        insertPbSendPayload(912L, lt, "TRK", "kwuser", "REQ-ONLY-KF03-TOKEN", "", "");
+
+        LogDbSearchRequest req = pbFepWireframeSearchRequest();
+        req.setKeywords(List.of("REQ-ONLY-KF03-TOKEN"));
+
+        Map<String, Object> row = logDbService.searchPbFepLogWireframe(req).getData().get(0);
+        assertThat(row.get("keyword_match_request_data")).isEqualTo(true);
+        assertThat(row.get("keyword_match_response_data")).isEqualTo(false);
+        assertThat(row.get("keyword_match_bmsg")).isEqualTo(false);
+        assertThat(row.get("keyword_match_data")).isEqualTo(true);
+    }
+
+    /** TC-KF-04: no keyword filter — optional flags omitted (backward compatible). */
+    @Test
+    void searchPbFepLogWireframe_keywordFlags_omittedWhenNoKeywords_tcKf04() throws Exception {
+        String lt = toPbLogTime(PB_KW_LDT);
+        insertPbSendPayload(913L, lt, "TRK", "kwuser", "plain", "", "");
+
+        LogDbSearchRequest reqNullKw = pbFepWireframeSearchRequest();
+        Map<String, Object> row1 = logDbService.searchPbFepLogWireframe(reqNullKw).getData().get(0);
+        assertThat(row1).doesNotContainKeys("keyword_match_request_data", "keyword_match_response_data",
+                "keyword_match_bmsg", "keyword_match_data");
+
+        LogDbSearchRequest reqEmptyKw = pbFepWireframeSearchRequest();
+        reqEmptyKw.setKeywords(List.of());
+        Map<String, Object> row2 = logDbService.searchPbFepLogWireframe(reqEmptyKw).getData().get(0);
+        assertThat(row2).doesNotContainKeys("keyword_match_request_data", "keyword_match_response_data",
+                "keyword_match_bmsg", "keyword_match_data");
+    }
+
+    /**
+     * TC-KF-05: empty request/response payloads, match only on bmsg — keyword_match_data mirrors aggregate OR (bmsg) for stream/UI parity.
+     */
+    @Test
+    void searchPbFepLogWireframe_keywordFlags_bmsgOnlyEmptyReqRes_tcKf05() throws Exception {
+        String lt = toPbLogTime(PB_KW_LDT);
+        insertPbSendPayload(914L, lt, "TRK", "kwuser", "", "", "BMSG-ONLY-KF05-TOKEN");
+
+        LogDbSearchRequest req = pbFepWireframeSearchRequest();
+        req.setKeywords(List.of("BMSG-ONLY-KF05-TOKEN"));
+
+        Map<String, Object> row = logDbService.searchPbFepLogWireframe(req).getData().get(0);
+        assertThat(row.get("keyword_match_request_data")).isEqualTo(false);
+        assertThat(row.get("keyword_match_response_data")).isEqualTo(false);
+        assertThat(row.get("keyword_match_bmsg")).isEqualTo(true);
+        assertThat(row.get("keyword_match_data")).isEqualTo(true);
+    }
+
+    /**
+     * TC-KF-06: both request and response non-empty; keyword matches only request — keyword_match_data must be true
+     * (aggregate OR), not false from the old "summary follows response first" branch alone.
+     */
+    @Test
+    void searchPbFepLogWireframe_keywordFlags_requestMatchWhenResponseNonempty_tcKf06() throws Exception {
+        String lt = toPbLogTime(PB_KW_LDT);
+        insertPbSendPayload(915L, lt, "TRK", "kwuser", "REQ-ONLY-KF06-UNIQUE-TOKEN", "other-res-no-token-KF06", "");
+
+        LogDbSearchRequest req = pbFepWireframeSearchRequest();
+        req.setKeywords(List.of("REQ-ONLY-KF06-UNIQUE-TOKEN"));
+
+        Map<String, Object> row = logDbService.searchPbFepLogWireframe(req).getData().get(0);
+        assertThat(row.get("keyword_match_request_data")).isEqualTo(true);
+        assertThat(row.get("keyword_match_response_data")).isEqualTo(false);
+        assertThat(row.get("keyword_match_bmsg")).isEqualTo(false);
+        assertThat(row.get("keyword_match_data")).isEqualTo(true);
     }
 
     /**

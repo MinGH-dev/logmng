@@ -414,6 +414,19 @@ public class LogDbService {
         return filtered;
     }
 
+    /**
+     * Map key for JDBC row maps: PostgreSQL returns physical names from {@link ResultSetMetaData#getColumnName(int)}
+     * for aliased columns (e.g. {@code vlen AS request_data}) while {@link ResultSetMetaData#getColumnLabel(int)}
+     * returns the alias. Downstream PB FEP code expects wire keys ({@code request_data}, etc.).
+     */
+    private static String jdbcColumnKeyForRowMap(ResultSetMetaData metaData, int columnIndex) throws SQLException {
+        String label = metaData.getColumnLabel(columnIndex);
+        if (label == null || label.isBlank()) {
+            label = metaData.getColumnName(columnIndex);
+        }
+        return label == null ? "" : label.trim();
+    }
+
     private List<Map<String, Object>> readPbFeplogResultSet(ResultSet rs) throws SQLException {
         List<Map<String, Object>> list = new ArrayList<>();
         ResultSetMetaData metaData = rs.getMetaData();
@@ -421,12 +434,12 @@ public class LogDbService {
         while (rs.next()) {
             Map<String, Object> row = new LinkedHashMap<>();
             for (int i = 1; i <= columnCount; i++) {
-                String columnName = metaData.getColumnName(i);
+                String columnKey = jdbcColumnKeyForRowMap(metaData, i);
                 Object value = rs.getObject(i);
                 if (value instanceof Timestamp) {
                     value = ((Timestamp) value).toLocalDateTime().format(DATE_FORMATTER);
                 }
-                row.put(columnName, value);
+                row.put(columnKey, value);
             }
             list.add(row);
         }
@@ -536,10 +549,11 @@ public class LogDbService {
     public LogDbSearchResponse searchPbFepLogWireframe(LogDbSearchRequest request) {
         validatePbFepWireframeSearchRequest(request);
         LogDbSearchRequest exec = copyRequestForPbFeplogWireframeExecution(request);
+        List<String> keywordTerms = buildPbFeplogKeywordTerms(exec);
         LogDbSearchResponse raw = executePbFeplogUnionSearch(exec);
         List<Map<String, Object>> mapped = new ArrayList<>(raw.getData().size());
         for (Map<String, Object> row : raw.getData()) {
-            mapped.add(mapPbFepRowToWireframe(row));
+            mapped.add(mapPbFepRowToWireframe(row, keywordTerms));
         }
         return new LogDbSearchResponse(mapped, raw.getPagination());
     }
@@ -672,7 +686,48 @@ public class LogDbService {
         return pick.substring(0, max) + "...";
     }
 
-    private static Map<String, Object> mapPbFepRowToWireframe(Map<String, Object> row) {
+    /**
+     * Optional PB FEP wireframe keyword-match hints (req 20260416): same per-cell semantics as
+     * {@link #pbFeplogCellMatchesKeyword}; omitted when {@code keywordTerms} is empty (no plaintext fields).
+     */
+    private void putPbFepWireframeKeywordMatchFlags(Map<String, Object> out, String reqWire, String resWire, String bmsgWire,
+            List<String> keywordTerms) {
+        if (keywordTerms == null || keywordTerms.isEmpty()) {
+            return;
+        }
+        boolean matchReq = false;
+        boolean matchRes = false;
+        boolean matchBmsg = false;
+        for (String kw : keywordTerms) {
+            if (kw == null || kw.isEmpty()) {
+                continue;
+            }
+            if (pbFeplogCellMatchesKeyword(reqWire, kw)) {
+                matchReq = true;
+            }
+            if (pbFeplogCellMatchesKeyword(resWire, kw)) {
+                matchRes = true;
+            }
+            if (pbFeplogCellMatchesKeyword(bmsgWire, kw)) {
+                matchBmsg = true;
+            }
+        }
+        out.put("keyword_match_request_data", matchReq);
+        out.put("keyword_match_response_data", matchRes);
+        out.put("keyword_match_bmsg", matchBmsg);
+
+        String res = resWire != null ? resWire : "";
+        String req = reqWire != null ? reqWire : "";
+        // Aggregate for wireframe `data` column / stream bulk hint: any of req|res|bmsg matched (aligns row filter OR).
+        // bmsg-only rows previously had keyword_match_data false while keyword_match_bmsg true — stream UI had no bulk hint.
+        if (!res.isEmpty() || !req.isEmpty()) {
+            out.put("keyword_match_data", matchRes || matchReq || matchBmsg);
+        } else {
+            out.put("keyword_match_data", matchBmsg);
+        }
+    }
+
+    private Map<String, Object> mapPbFepRowToWireframe(Map<String, Object> row, List<String> keywordTerms) {
         Map<String, Object> out = new LinkedHashMap<>();
         String branch = row.get("log_type") != null ? row.get("log_type").toString().trim().toLowerCase(Locale.ROOT) : "";
         out.put("id", row.get("id"));
@@ -682,7 +737,8 @@ public class LogDbService {
         out.put("tr_code", jdbcValueToString(row.get("tr_code")));
         out.put("login_id", jdbcValueToString(row.get("user_id")));
         out.put("msg_code", formatPbFepMsgCode(row.get("status_code")));
-        out.put("bmsg", jdbcValueToString(row.get("error_message")));
+        String bmsgOut = jdbcValueToString(row.get("error_message"));
+        out.put("bmsg", bmsgOut);
         out.put("log_ch_cd", jdbcValueToString(row.get("device_type")));
         if ("send".equals(branch)) {
             out.put("send_recv", "SEND");
@@ -704,6 +760,7 @@ public class LogDbService {
         out.put("request_data", reqOut);
         out.put("response_data", resOut);
         out.put("data", buildWireframeDataCellSummary(reqOut, resOut));
+        putPbFepWireframeKeywordMatchFlags(out, reqOut, resOut, bmsgOut, keywordTerms);
         return out;
     }
     
@@ -1219,7 +1276,7 @@ public class LogDbService {
                         int columnCount = metaData.getColumnCount();
                         
                         for (int i = 1; i <= columnCount; i++) {
-                            String columnName = metaData.getColumnName(i);
+                            String columnKey = jdbcColumnKeyForRowMap(metaData, i);
                             Object value = rs.getObject(i);
                             
                             // Timestamp를 문자열로 변환
@@ -1227,7 +1284,7 @@ public class LogDbService {
                                 value = ((Timestamp) value).toLocalDateTime().format(DATE_FORMATTER);
                             }
                             
-                            row.put(columnName, value);
+                            row.put(columnKey, value);
                         }
                         row.put("log_type", type);
                         

@@ -150,8 +150,9 @@ services:
       PORT: "3001"
       # Browser on host loads UI at localhost:3001 — API base must be host-reachable.
       LOGMNG_API_BASE_URL: ${LOGMNG_API_BASE_URL:-http://localhost:9200/api}
+    # Bind host loopback only — avoids ambiguous 0.0.0.0 publish on some Docker Desktop / VPN setups.
     ports:
-      - "3001:3001"
+      - "127.0.0.1:3001:3001"
     depends_on:
       - backend
     networks:

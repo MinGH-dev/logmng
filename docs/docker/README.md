@@ -73,7 +73,8 @@ docker-compose --env-file .env.docker -f docker/docker-compose.yml --project-dir
 |----|------|-----------|
 | **TC-04** | 백엔드 헬스 | `curl -s http://localhost:9200/api/health` → HTTP 200 및 healthy JSON |
 | **TC-05** | DB 연결 | `curl -s http://localhost:9200/api/db/test` → `data.connected === true` 등 계약과 동일 |
-| **TC-06** | 프론트 정적 서버 | `curl -s -o /dev/null -w "%{http_code}" http://localhost:3001/` → 2xx (또는 문서화된 경로) |
+| **TC-06** | 프론트 정적 서버 | `curl -s -o /dev/null -w "%{http_code}" http://localhost:3001/` → 2xx (호스트에서 안 되면 Colima/포트 포워딩 확인). |
+| **한 번에** | 백엔드 + 컨테이너 내부 UI | 저장소 루트: `./scripts/verify-stack-health.sh` — API 9200 필수, Docker 프론트는 **컨테이너 안** `wget`으로 검증(호스트 `curl :3001`은 일부 환경에서 실패할 수 있음). |
 
 브라우저 스모크(TC-07)는 요건에 따라 선택입니다(문서 하단 **인터뷰 · 미결정 사항** 표 참고).
 

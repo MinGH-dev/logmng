@@ -20,7 +20,7 @@ Use for **test plan (§3), test execution, result recording (§5), and verificat
 | **§3 Test plan** | Before any development | Fill test case list in requirement doc (normal/exception/edge). Table format per requirement template. |
 | **Unit tests** | After backend/frontend change | Backend: `cd backend && mvn test`. Frontend: `cd frontend && npm test -- --watchAll=false`. Fix failures, re-run. |
 | **§5 Test results** | After each test run | Record in requirement doc: date, command, pass/fail, summary (and integration/curl if used). |
-| **Verify** | After tests pass | Restart scope (frontend/backend/db/all), health check per `verify.md`. On failure → bugfix child, repeat. |
+| **Verify** | After tests pass | **Docker UI (`:3001`)**: `./scripts/docker-dev-sync.sh` then health + browser per `verify.md`. **Host only**: `dev-services.sh` restart then health. On failure → bugfix child, repeat. |
 | **Commit** | When requirement fully resolved | After verify pass + §5/§6 updated, commit per `commit-on-complete.md`; message includes the requirement reference (`req yyyyMMdd-name` + §1 summary). No push unless the user asks. |
 
 ## When to use

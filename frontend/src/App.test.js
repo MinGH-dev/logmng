@@ -3,6 +3,8 @@ import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import App from './App';
 import { NO_PERMISSION_MESSAGE_KO } from './components/NoPermissionDialog';
+import { clearUserData } from './utils/security';
+import { LOGMNG_LAST_VIEW_SESSION_KEY } from './utils/lastViewStorage';
 
 jest.mock('./utils/logger', () => ({
   __esModule: true,
@@ -50,6 +52,36 @@ jest.mock('./hooks/useScreenDisplayLabels', () => ({
     logTypesByView: { 'pb-feplog': { id: 'pb_feplog' }, 'pb-fep-log-search': { id: 'pb_feplog' }, 'java-fw-imagelog': { id: 'java_fw_imglog' } },
   }),
 }));
+
+function createSessionStorageMock() {
+  let store = {};
+  return {
+    getItem: (k) => (Object.prototype.hasOwnProperty.call(store, k) ? store[k] : null),
+    setItem: (k, v) => {
+      store[k] = String(v);
+    },
+    removeItem: (k) => {
+      delete store[k];
+    },
+    clear: () => {
+      store = {};
+    },
+    _getStore: () => ({ ...store }),
+  };
+}
+
+function mockWindowPathname(pathname) {
+  delete window.location;
+  window.location = {
+    pathname,
+    href: `http://localhost${pathname}`,
+    search: '',
+    hash: '',
+    assign: jest.fn(),
+    replace: jest.fn(),
+    reload: jest.fn(),
+  };
+}
 
 describe('App zero-permission gate (TC-F02, TC-F03)', () => {
   beforeEach(() => {
@@ -232,6 +264,107 @@ describe('App horizontal scroll enablement for narrow viewport targets', () => {
     await userEvent.click(screen.getByRole('button', { name: 'to-pb-feplog' }));
     await waitFor(() => {
       expect(scrollContainer).toHaveAttribute('data-horizontal-scroll-enabled', 'false');
+    });
+  });
+});
+
+describe('App last view on refresh (req 20260420)', () => {
+  let sessionStorageMock;
+  let originalLocation;
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    localStorage.clear();
+    sessionStorageMock = createSessionStorageMock();
+    Object.defineProperty(window, 'sessionStorage', {
+      value: sessionStorageMock,
+      configurable: true,
+      writable: true,
+    });
+    originalLocation = window.location;
+    mockWindowPathname('/');
+  });
+
+  afterEach(() => {
+    window.location = originalLocation;
+  });
+
+  const fetchAuthedUser = (allowedScreenIds) => (url) => {
+    const u = String(url);
+    if (u.includes('/auth/check')) {
+      return Promise.resolve({
+        ok: true,
+        json: () =>
+          Promise.resolve({
+            success: true,
+            data: {
+              authenticated: true,
+              username: 'tester',
+              isSystemAdmin: false,
+              allowedScreenIds,
+            },
+          }),
+      });
+    }
+    if (u.includes('/auth/config')) {
+      return Promise.resolve({ ok: false, status: 404 });
+    }
+    return Promise.reject(new Error(`unexpected fetch ${url}`));
+  };
+
+  test('TC-02: deep-link pathname wins over stored view; persisted view matches deep link', async () => {
+    sessionStorageMock.setItem(LOGMNG_LAST_VIEW_SESSION_KEY, 'search-history');
+    mockWindowPathname('/user-management/hr-sync-poc');
+    global.fetch = jest.fn(
+      fetchAuthedUser(['pb-feplog', 'search-history', 'user-management', 'hr-sync-poc'])
+    );
+
+    render(<App />);
+
+    await waitFor(() => {
+      expect(sessionStorageMock.getItem(LOGMNG_LAST_VIEW_SESSION_KEY)).toBe('hr-sync-poc');
+    });
+  });
+
+  test('TC-03: disallowed stored screen id is cleared; not applied', async () => {
+    sessionStorageMock.setItem(LOGMNG_LAST_VIEW_SESSION_KEY, 'search-history');
+    mockWindowPathname('/');
+    global.fetch = jest.fn(fetchAuthedUser(['pb-feplog']));
+
+    render(<App />);
+
+    await waitFor(() => {
+      expect(sessionStorageMock.getItem(LOGMNG_LAST_VIEW_SESSION_KEY)).toBe('pb-feplog');
+    });
+  });
+
+  test('TC-04: clearUserData removes last-view session key', () => {
+    sessionStorageMock.setItem(LOGMNG_LAST_VIEW_SESSION_KEY, 'statistics');
+    clearUserData();
+    expect(sessionStorageMock.getItem(LOGMNG_LAST_VIEW_SESSION_KEY)).toBeNull();
+  });
+
+  test('navigation persists allowed view to sessionStorage', async () => {
+    global.fetch = jest.fn(
+      fetchAuthedUser([
+        'pb-feplog',
+        'pending-approvals',
+        'search-history',
+        'statistics',
+        'user-management',
+      ])
+    );
+
+    render(<App />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId('app-sidebar')).toBeInTheDocument();
+    });
+
+    await userEvent.click(screen.getByRole('button', { name: 'to-search-history' }));
+
+    await waitFor(() => {
+      expect(sessionStorageMock.getItem(LOGMNG_LAST_VIEW_SESSION_KEY)).toBe('search-history');
     });
   });
 });

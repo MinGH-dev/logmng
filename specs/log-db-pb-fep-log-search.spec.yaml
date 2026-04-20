@@ -1,6 +1,7 @@
 # PB FEP wireframe log search — dedicated route for screen pb-fep-log-search
 # Requirement: docs/requirements/20260326-pb-fep-log-search-screen-wireframe.md
 # Contract: docs/contract.md (PB FEP wireframe search API + PB FEP wire schema aliases), docs/api-definition.md §5.1.1
+# Keyword match flags: docs/requirements/20260416-pb-fep-keyword-match-flags-data-full-line-highlight.md
 # Schema boundary: PB FEP canonical product-facing time field is `log_time`.
 # `log_timestamp` is removed from PB FEP API contract.
 # Step 3 — API contract only; implementation: Backend/Frontend per handoff.
@@ -8,9 +9,10 @@
 ---
 metadata:
   title: "POST /api/logs/db-refactored/pb-fep-log-search"
-  version: "1.2"
+  version: "1.3"
   requirement: "20260326-pb-fep-log-search-screen-wireframe"
   wire_schema_requirement: "20260414-pb-fep-wire-schema-alignment"
+  keyword_match_flags_requirement: "20260416-pb-fep-keyword-match-flags-data-full-line-highlight"
   status: "draft"
 
 ---
@@ -87,6 +89,11 @@ type PbFepWireframeRow = {
   data: string | null;   // wire data / payload summary per product & decrypt rules
   request_data?: string | null;
   response_data?: string | null;
+  // Keyword match hints (non-plaintext): see "Keyword match hints" below; no decrypted payload on the wire.
+  keyword_match_request_data?: boolean;
+  keyword_match_response_data?: boolean;
+  keyword_match_bmsg?: boolean;
+  keyword_match_data?: boolean;
 };
 
 type PbFepLogSearchResponseData = {
@@ -94,6 +101,24 @@ type PbFepLogSearchResponseData = {
   pagination: Pagination;
 };
 ```
+
+## Keyword match hints (`PbFepWireframeRow`, non-plaintext)
+
+**Requirement:** `docs/requirements/20260416-pb-fep-keyword-match-flags-data-full-line-highlight.md` §2. **Security:** response adds **boolean hints only** — no `decrypted_*` payload plaintext; same separation as `docs/requirements/20260415-encrypted-field-search-no-client-plaintext.md`.
+
+When the request applies a **non-empty `keywords`** filter, each row **may** include optional fields naming **which wire columns contributed** to keyword matching, using the **same** per-cell rules as backend keyword filtering (wire substring **or** PB_FEP decrypt-for-match for payload cells).
+
+| JSON key | Meaning |
+|----------|---------|
+| `keyword_match_request_data` | `true` iff at least one keyword token matches `request_data` (same evaluation as row filter for that cell). |
+| `keyword_match_response_data` | `true` iff at least one keyword token matches `response_data`. |
+| `keyword_match_bmsg` | `true` iff at least one keyword token matches `error_message` / wire **`bmsg`**. |
+| `keyword_match_data` | `true` iff the wireframe **`data`** summary is “implicated” by a matched payload source: if the summary is built preferring non-empty `response_data`, mirror `keyword_match_response_data`; if it falls back to `request_data`, mirror `keyword_match_request_data` (aligns with `buildWireframeDataCellSummary` / UI `streamPayload` use of `data`). |
+
+**Omission vs `false` (normative):**
+
+- When **`keywords` is absent or empty** (no keyword clause): servers **should omit** all four keys on every row (smaller payload, backward compatible). Servers **may** instead include all four with value **`false`**. Clients **must** treat a **missing** key the same as **`false`** for hint purposes.
+- When **`keywords` is non-empty**: for each row, servers **should** emit all four keys with explicit **`true`** or **`false`** so clients do not rely on omission semantics under an active keyword filter.
 
 # 5. Errors
 
@@ -123,6 +148,7 @@ Requirement: `docs/requirements/20260414-pb-fep-wire-schema-alignment.md` §2 an
 
 # 7. References
 
+- Keyword match flags (wireframe row booleans): `20260416-pb-fep-keyword-match-flags-data-full-line-highlight` §2
 - Field mapping (UI → wireframe keys): `20260326-pb-fep-log-search-screen-wireframe` §2.D
 - Wire schema, partition key, legacy JSON aliases: `20260414-pb-fep-wire-schema-alignment` §2; `docs/contract.md` (PB FEP subsections)
 - Sort behavior: `20260326` §2.G, notes §9 (cumulative sortSpecs); sort field allowlist resolves legacy names to wire columns per contract

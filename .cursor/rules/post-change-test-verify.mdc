@@ -27,12 +27,12 @@ Reference: `docs/workflow/SUBAGENT-DELEGATION.md` (Step 5 → QA).
 - **Frontend changed**: Run `cd frontend && npm test -- --watchAll=false`. Fix failures and re-run.
 - **Both**: Run both. Record result (pass/fail, summary) in the requirement doc **§5 Test results**.
 
-## 2. Verification (restart and health check)
+## 2. Verification (deploy to test environment, then health check)
 
-- Read `.cursor/commands/verify.md` and follow its restart and check steps. For shortcuts: `.cursor/commands/restart-all.md`, `check-backend.md`, `check-frontend-backend.md`.
-- Restart: `./scripts/dev-services.sh {frontend|backend|all} restart` per scope. Wait 5–10s after backend restart.
-- **Health check**: Backend 9200 `curl -s http://localhost:9200/api/health` → 200 + JSON; frontend 3001 `curl -s -o /dev/null -w "%{http_code}" http://localhost:3001` → 2xx; if DB used, `curl -s http://localhost:9200/api/db/test` → `data.connected === true`.
-- **Local Docker stack**: If verification targets the **Docker Compose** dist-based stack (not `dev-services.sh` only), run `./scripts/docker-dev-sync.sh` after unit tests so `dist/` and backend/frontend images match the change (see `docs/workflow/DOCKER-LOCAL-AGENTS.md`).
+- Read `.cursor/commands/verify.md` and follow its steps. For shortcuts: `.cursor/commands/restart-all.md`, `check-backend.md`, `check-frontend-backend.md`.
+- **Preferred for manual UI at `http://localhost:3001`**: use the **Docker Compose** stack. After unit tests, from repo root run **`./scripts/docker-dev-sync.sh`** so `dist/` and backend/frontend **images/containers** match the change, **then** run health checks (and browser check when in scope). Do not treat verification as complete until sync has been run when `frontend/` or `backend/` sources changed. See `docs/workflow/DOCKER-LOCAL-AGENTS.md` (items 11–12).
+- **Alternate (host processes)**: `./scripts/dev-services.sh {frontend|backend|all} restart` per scope. Wait 5–10s after backend restart.
+- **Health check** (after whichever deploy path applies): Backend 9200 `curl -s http://localhost:9200/api/health` → 200 + JSON; frontend 3001 `curl -s -o /dev/null -w "%{http_code}" http://localhost:3001` → 2xx; if DB used, `curl -s http://localhost:9200/api/db/test` → `data.connected === true`.
 
 ## 3. On failure
 

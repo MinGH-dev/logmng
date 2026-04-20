@@ -382,6 +382,30 @@ if [ "$RECV_TABLE" = "1" ]; then
 fi
 echo ""
 
+# 6k. PB FEP log_time width (20-char microsecond lexical; req 20260415) — informational only
+echo "6k. PB FEP log_time 컬럼 폭 (SCHEMA_PB=${SCHEMA_PB}; VARCHAR(20) 권장)"
+if [ "$SEND_TABLE" = "1" ]; then
+  PB_SEND_LT=$(psql_app -d "$DB_A_NAME" -tAc "SELECT character_maximum_length FROM information_schema.columns WHERE table_schema='${SCHEMA_PB}' AND table_name='pb_send' AND column_name='log_time';" 2>/dev/null | tail -1 | tr -d '[:space:]' || echo "")
+  if [ "${PB_SEND_LT:-}" = "20" ]; then
+    echo "   ✅ pb_send.log_time VARCHAR(20)"
+  elif [ -n "${PB_SEND_LT:-}" ] && [ "${PB_SEND_LT:-}" != "" ]; then
+    echo "   ⚠️  pb_send.log_time VARCHAR(${PB_SEND_LT}) — migrate-pb-fep-log-time-varchar20-20260415.sql 적용 검토"
+  else
+    echo "   ℹ️  pb_send.log_time 메타데이터 조회 실패 또는 컬럼 없음"
+  fi
+fi
+if [ "$RECV_TABLE" = "1" ]; then
+  PB_RECV_LT=$(psql_app -d "$DB_A_NAME" -tAc "SELECT character_maximum_length FROM information_schema.columns WHERE table_schema='${SCHEMA_PB}' AND table_name='pb_recv' AND column_name='log_time';" 2>/dev/null | tail -1 | tr -d '[:space:]' || echo "")
+  if [ "${PB_RECV_LT:-}" = "20" ]; then
+    echo "   ✅ pb_recv.log_time VARCHAR(20)"
+  elif [ -n "${PB_RECV_LT:-}" ] && [ "${PB_RECV_LT:-}" != "" ]; then
+    echo "   ⚠️  pb_recv.log_time VARCHAR(${PB_RECV_LT}) — migrate-pb-fep-log-time-varchar20-20260415.sql 적용 검토"
+  else
+    echo "   ℹ️  pb_recv.log_time 메타데이터 조회 실패 또는 컬럼 없음"
+  fi
+fi
+echo ""
+
 # 7. 테이블 구조 확인
 echo "7. 테이블 구조 확인"
 if [ "$SEND_TABLE" = "1" ]; then

@@ -52,7 +52,7 @@
 ## Integration with other tools
 
 - **Single map** of how rules, commands, skills, agents, docs, and scripts connect: **docs/workflow/CURSOR-AND-TOOLS-INTEGRATION.md**
-- **Scripts**: Service control uses **`./scripts/dev-services.sh`** (frontend | backend | db | all) (start | stop | restart). Ports: 3001 (frontend), 9200 (backend), 5432 (DB) — same as `docs/contract.md` and `verify.md` / `check-*.md`.
+- **Scripts**: Service control uses **`./scripts/dev-services.sh`** (frontend | backend | db | all) (start | stop | restart). Ports: **3002** (host CRA via `dev-services.sh` / `npm start`), **3001** (Docker Compose static UI only), **9200** (backend), **5432** (DB) — see `docs/contract.md` and `./scripts/verify-stack-health.sh`.
 - **Tests**: `run-tests.md` and `post-change-test-verify.mdc` align with `mvn test` / `npm test -- --watchAll=false` and requirement doc §3·§5.
 - **Workflow**: `docs/workflow/WORKFLOW_CHECKLIST.md` and `DEVELOPMENT_WORKFLOW.md` are the single source for order and gates; `.cursor` rules and skills reference them.
 

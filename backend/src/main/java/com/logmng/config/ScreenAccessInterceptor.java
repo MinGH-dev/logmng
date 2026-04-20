@@ -32,6 +32,7 @@ import java.util.regex.Pattern;
 public class ScreenAccessInterceptor implements HandlerInterceptor {
 
     private static final Logger log = LoggerFactory.getLogger(ScreenAccessInterceptor.class);
+    private static final String AUTH_CONFIG_PATH = "/api/auth/config";
 
     private static final List<Pattern> EXCLUDE_PATTERNS = List.of(
             Pattern.compile("^/api/auth/.*"),
@@ -102,12 +103,18 @@ public class ScreenAccessInterceptor implements HandlerInterceptor {
 
     @Override
     public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) {
+        long startedAt = System.nanoTime();
         String path = request.getRequestURI();
         if (!path.startsWith("/api/")) {
             return true;
         }
         for (Pattern p : EXCLUDE_PATTERNS) {
             if (p.matcher(path).matches()) {
+                if (AUTH_CONFIG_PATH.equals(path) && log.isDebugEnabled()) {
+                    long elapsedMs = (System.nanoTime() - startedAt) / 1_000_000;
+                    log.debug("[diag-auth-config] ScreenAccessInterceptor excluded path={} pattern={} elapsedMs={}",
+                            path, p.pattern(), elapsedMs);
+                }
                 return true;
             }
         }
@@ -133,6 +140,10 @@ public class ScreenAccessInterceptor implements HandlerInterceptor {
         }
         List<String> requiredScreens = findRequiredScreens(path);
         if (requiredScreens == null || requiredScreens.isEmpty()) {
+            if (AUTH_CONFIG_PATH.equals(path) && log.isDebugEnabled()) {
+                long elapsedMs = (System.nanoTime() - startedAt) / 1_000_000;
+                log.debug("[diag-auth-config] ScreenAccessInterceptor no-rule path={} elapsedMs={}", path, elapsedMs);
+            }
             return true;
         }
         List<String> allowed = allowedScreenIds;

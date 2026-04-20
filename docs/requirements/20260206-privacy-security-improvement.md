@@ -205,7 +205,7 @@
 - 복호화된 데이터
 
 ### 테스트 환경
-- 개발 환경: `http://localhost:3000`
+- 개발 환경(UI 검증 기준): `http://localhost:3001` (`docs/contract.md`)
 - 프로덕션 빌드: `npm run build` 후 빌드 결과물 확인
 
 ## 4. 체크리스트

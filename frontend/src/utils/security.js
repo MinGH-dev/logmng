@@ -2,6 +2,8 @@
  * 보안 관련 유틸리티 함수
  */
 
+import { clearLastViewStorage } from './lastViewStorage';
+
 /**
  * localStorage에 안전하게 데이터 저장
  * @param {string} key - 저장할 키
@@ -219,6 +221,7 @@ export const clearUserData = () => {
   removeSecureStorage('accessToken');
   removeSecureStorage('refreshToken');
   removeSecureStorage('selectedLogType');
+  clearLastViewStorage();
 };
 
 /**

@@ -3,6 +3,9 @@
 # 사용법: ./scripts/dev-services.sh <frontend|backend|db|all> <start|stop|restart|status>
 # db: PostgreSQL (Homebrew postgresql@16, 포트 5432)
 #
+# Host CRA는 기본 FRONTEND_PORT=3002 — **3001은 Docker Compose 정적 UI 전용**으로 비워 두는 것을 권장한다.
+# 로컬에서 검증 UI는 http://localhost:3001 (docker-dev-sync 후). CRA: http://localhost:3002
+#
 # 승인 흐름 진단 로그([diag-approval])를 켜려면 백엔드 재시작 시:
 #   BACKEND_DIAGNOSTIC_APPROVAL=1 ./scripts/dev-services.sh backend restart
 # (또는 미리 export APP_DIAGNOSTIC_APPROVAL_FLOW=true)
@@ -11,7 +14,7 @@ set -e
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 DEV_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
-FRONTEND_PORT="${FRONTEND_PORT:-3001}"
+FRONTEND_PORT="${FRONTEND_PORT:-3002}"
 BACKEND_PORT="${BACKEND_PORT:-9200}"
 DB_PORT="${DB_PORT:-5432}"
 POSTGRES_SERVICE="${POSTGRES_SERVICE:-postgresql@16}"

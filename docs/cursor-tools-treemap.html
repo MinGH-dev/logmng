@@ -981,6 +981,7 @@ const TREEMAP_DATA = {
     "IMPROVEMENT-STRUCTURAL-ENFORCEMENT.md": "docs/workflow/IMPROVEMENT-STRUCTURAL-ENFORCEMENT.md",
     "PLAN-approval-only-group-tool-generalization.md": "docs/workflow/PLAN-approval-only-group-tool-generalization.md",
     "QA-FEEDBACK-TO-UX-activity-log-statistics-search.md": "docs/workflow/QA-FEEDBACK-TO-UX-activity-log-statistics-search.md",
+    "QA-MANUAL-PB-FEP-KEYWORD-EXPAND-CHECKLIST.md": "docs/workflow/QA-MANUAL-PB-FEP-KEYWORD-EXPAND-CHECKLIST.md",
     "RECOMMENDATION-requirement-doc-ref-display.md": "docs/workflow/RECOMMENDATION-requirement-doc-ref-display.md",
     "RELEASE_CHECKLIST.md": "docs/workflow/RELEASE_CHECKLIST.md",
     "REQUIREMENT-DATE-YEAR-ANALYSIS.md": "docs/workflow/REQUIREMENT-DATE-YEAR-ANALYSIS.md",
@@ -2222,6 +2223,11 @@ const TREEMAP_DATA = {
               "path": "./scripts/docker-dev-sync.sh"
             },
             {
+              "name": "docker-dev-sync.sh",
+              "type": "other",
+              "path": "docker-dev-sync.sh"
+            },
+            {
               "name": "DOCKER-LOCAL-AGENTS.md",
               "type": "workflow",
               "path": "docs/workflow/DOCKER-LOCAL-AGENTS.md"
@@ -2344,11 +2350,6 @@ const TREEMAP_DATA = {
               "name": "check-frontend-backend.md",
               "type": "other",
               "path": "check-frontend-backend.md"
-            },
-            {
-              "name": "dev-services.sh",
-              "type": "other",
-              "path": "dev-services.sh"
             },
             {
               "name": "docker-dev-sync.sh",
@@ -2777,9 +2778,19 @@ const TREEMAP_DATA = {
             "category": "workflow",
             "refs": [
               {
+                "name": "docker-dev-sync.sh",
+                "type": "other",
+                "path": "./scripts/docker-dev-sync.sh"
+              },
+              {
                 "name": "verify.md",
                 "type": "other",
                 "path": "verify.md"
+              },
+              {
+                "name": "dev-services.sh",
+                "type": "other",
+                "path": "dev-services.sh"
               },
               {
                 "name": "commit-on-complete.md",
@@ -4276,6 +4287,16 @@ const TREEMAP_DATA = {
                 "path": "TOPIC-INDEX.md"
               },
               {
+                "name": "docker-dev-sync.sh",
+                "type": "other",
+                "path": "./scripts/docker-dev-sync.sh"
+              },
+              {
+                "name": "verify",
+                "type": "commands",
+                "path": ".cursor/commands/verify.md"
+              },
+              {
                 "name": "REQUIREMENT_TEMPLATE.md",
                 "type": "templates",
                 "path": "docs/template/REQUIREMENT_TEMPLATE.md"
@@ -4284,11 +4305,6 @@ const TREEMAP_DATA = {
                 "name": "run-tests",
                 "type": "commands",
                 "path": ".cursor/commands/run-tests.md"
-              },
-              {
-                "name": "verify",
-                "type": "commands",
-                "path": ".cursor/commands/verify.md"
               },
               {
                 "name": "commit-on-complete",
@@ -5086,6 +5102,37 @@ const TREEMAP_DATA = {
             ]
           },
           {
+            "name": "QA-MANUAL-PB-FEP-KEYWORD-EXPAND-CHECKLIST.md",
+            "desc": "Manual QA checklist — PB FEP v2.0.0 keyword highlight (expand all)",
+            "refs": [
+              {
+                "name": "docker-dev-sync.sh",
+                "type": "other",
+                "path": "./scripts/docker-dev-sync.sh"
+              },
+              {
+                "name": "verify",
+                "type": "commands",
+                "path": ".cursor/commands/verify.md"
+              },
+              {
+                "name": "REQUIREMENT_TEMPLATE.md",
+                "type": "templates",
+                "path": "docs/template/REQUIREMENT_TEMPLATE.md"
+              },
+              {
+                "name": "docker-dev-sync.sh",
+                "type": "other",
+                "path": "scripts/docker-dev-sync.sh"
+              },
+              {
+                "name": "DOCKER-LOCAL-AGENTS.md",
+                "type": "other",
+                "path": "DOCKER-LOCAL-AGENTS.md"
+              }
+            ]
+          },
+          {
             "name": "RECOMMENDATION-requirement-doc-ref-display.md",
             "desc": "Recommendation: How to express requirement-doc refs (writing vs search)",
             "refs": [
@@ -5559,8 +5606,8 @@ const TREEMAP_DATA = {
       "name": "REQUIREMENT_TEMPLATE.md",
       "color": "template",
       "role": "§1·§2·§3·§5·§6 요건 문서의 구조 정의",
-      "refsTo": 31,
-      "barWidth": 82
+      "refsTo": 32,
+      "barWidth": 84
     },
     {
       "name": "search-fields-by-screen",

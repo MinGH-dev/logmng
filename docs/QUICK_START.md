@@ -57,8 +57,10 @@ cp src/components/LogGrid.js src/components/LogGrid.old.js
 cd frontend
 npm start
 ```
+기본 URL은 **`http://localhost:3002`** (`package.json` / `.env.development`). **3001**은 Docker Compose 정적 UI 전용이다. 통합 검증은 `./scripts/docker-dev-sync.sh` 후 **`http://localhost:3001`**.
 
 **검증:**
+- 한 번에 확인: 저장소 루트에서 `./scripts/verify-stack-health.sh`
 - 브라우저 콘솔에서 API 요청 파라미터 확인
 - `console.log`로 전송 데이터 확인
 

@@ -23,6 +23,7 @@ import java.util.regex.Pattern;
 public class AuthInterceptor implements HandlerInterceptor {
 
     private static final Logger log = LoggerFactory.getLogger(AuthInterceptor.class);
+    private static final String AUTH_CONFIG_PATH = "/api/auth/config";
 
     private static final String API_PREFIX = "/api/";
     private final List<String> corsAllowedOrigins;
@@ -47,10 +48,16 @@ public class AuthInterceptor implements HandlerInterceptor {
 
     @Override
     public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) {
+        long startedAt = System.nanoTime();
         // CORS preflight(OPTIONS): 인증 검사 없이 200 + CORS 헤더만 보내고 chain 중단 (컨트롤러 미호출)
         if ("OPTIONS".equalsIgnoreCase(request.getMethod()) && request.getRequestURI().startsWith(API_PREFIX)) {
             addCorsHeaders(request, response);
             response.setStatus(HttpServletResponse.SC_OK);
+            if (AUTH_CONFIG_PATH.equals(request.getRequestURI()) && log.isDebugEnabled()) {
+                long elapsedMs = (System.nanoTime() - startedAt) / 1_000_000;
+                log.debug("[diag-auth-config] AuthInterceptor preflight short-circuit path={} elapsedMs={}",
+                        request.getRequestURI(), elapsedMs);
+            }
             return false;
         }
         String path = request.getRequestURI();
@@ -59,13 +66,26 @@ public class AuthInterceptor implements HandlerInterceptor {
         }
         for (Pattern p : EXCLUDE_PATTERNS) {
             if (p.matcher(path).matches()) {
+                if (AUTH_CONFIG_PATH.equals(path) && log.isDebugEnabled()) {
+                    long elapsedMs = (System.nanoTime() - startedAt) / 1_000_000;
+                    log.debug("[diag-auth-config] AuthInterceptor excluded path={} pattern={} elapsedMs={}",
+                            path, p.pattern(), elapsedMs);
+                }
                 return true;
             }
         }
         if (!authService.checkAuth(request)) {
             log.warn("미인증 접근 차단: {} {}", request.getMethod(), path);
             sendUnauthorized(response);
+            if (AUTH_CONFIG_PATH.equals(path) && log.isDebugEnabled()) {
+                long elapsedMs = (System.nanoTime() - startedAt) / 1_000_000;
+                log.debug("[diag-auth-config] AuthInterceptor denied path={} elapsedMs={}", path, elapsedMs);
+            }
             return false;
+        }
+        if (AUTH_CONFIG_PATH.equals(path) && log.isDebugEnabled()) {
+            long elapsedMs = (System.nanoTime() - startedAt) / 1_000_000;
+            log.debug("[diag-auth-config] AuthInterceptor allowed path={} elapsedMs={}", path, elapsedMs);
         }
         return true;
     }

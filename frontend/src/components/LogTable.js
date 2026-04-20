@@ -1,7 +1,172 @@
 import React, { useState } from 'react';
 import { format } from 'date-fns';
 import DataTable, { EmptyTableBody } from './DataTable';
+import { highlightKeywordsAsHtml, lineHasKeywordHighlightHtml } from '../utils/keywordHighlight';
 import './LogTable.css';
+
+/**
+ * Coerce search keywords to a trimmed string[] (LogGrid may pass a comma string from some paths).
+ * @param {unknown} kw
+ * @returns {string[]}
+ */
+export function normalizeLogTableKeywords(kw) {
+  if (kw == null || kw === '') return [];
+  if (Array.isArray(kw)) {
+    return kw.map((k) => String(k).trim()).filter(Boolean);
+  }
+  if (typeof kw === 'string') {
+    return kw.split(',').map((k) => k.trim()).filter(Boolean);
+  }
+  return [];
+}
+
+/**
+ * PB FEP `keyword_match_*` may arrive as JSON booleans or as strings ("true"/"1") from loose serializers.
+ * Do not use arbitrary truthiness (e.g. non-empty string) — only known true representations.
+ * @param {unknown} v
+ * @returns {boolean}
+ */
+export function coerceKeywordMatchFlag(v) {
+  if (v === true) return true;
+  if (v === false) return false;
+  if (v == null) return false;
+  if (typeof v === 'string') {
+    const t = v.trim().toLowerCase();
+    return t === 'true' || t === '1';
+  }
+  if (typeof v === 'number' && v === 1) return true;
+  return false;
+}
+
+/**
+ * PB FEP `keyword_match_*` may arrive as snake_case from the API or camelCase if a gateway rewrites nested keys.
+ * Use snake_case first when defined, then camelCase.
+ * @param {unknown} log
+ * @param {string} snakeKey
+ * @param {string} camelKey
+ * @returns {unknown}
+ */
+export function resolveKeywordMatchField(log, snakeKey, camelKey) {
+  if (!log || typeof log !== 'object') return undefined;
+  const fromSnake = log[snakeKey];
+  if (fromSnake !== undefined) return fromSnake;
+  return log[camelKey];
+}
+
+/**
+ * ImageLog-style flags + PB FEP wireframe `keyword_match_*` (server decrypt/plaintext match) so
+ * highlightKeywordsAsHtml can use encrypted heuristics when ciphertext has no literal keyword.
+ */
+function getPbFepOptionalEncryptedMatchHint(log) {
+  if (!log || typeof log !== 'object') return false;
+  if (
+    log.hasEncryptedMatchData ||
+    log.hasEncryptedMatchDatastring ||
+    log.hasEncryptedMatchHeader ||
+    log.hasEncryptedMatchHeaderstring ||
+    log._datastring_has_encrypted_match
+  ) {
+    return true;
+  }
+  return (
+    coerceKeywordMatchFlag(
+      resolveKeywordMatchField(log, 'keyword_match_request_data', 'keywordMatchRequestData')
+    ) ||
+    coerceKeywordMatchFlag(
+      resolveKeywordMatchField(log, 'keyword_match_response_data', 'keywordMatchResponseData')
+    ) ||
+    coerceKeywordMatchFlag(resolveKeywordMatchField(log, 'keyword_match_data', 'keywordMatchData')) ||
+    coerceKeywordMatchFlag(resolveKeywordMatchField(log, 'keyword_match_bmsg', 'keywordMatchBmsg'))
+  );
+}
+
+function pbFepSvgPayloadStringNonEmpty(value) {
+  return value != null && String(value).trim() !== '';
+}
+
+/** Wireframe rows may be snake_case (Jackson Map) or camelCase (proxies); read both. */
+function pbFepWireframeRequestData(log) {
+  if (!log || typeof log !== 'object') return '';
+  const v = log.request_data ?? log.requestData;
+  return v == null ? '' : v;
+}
+
+function pbFepWireframeResponseData(log) {
+  if (!log || typeof log !== 'object') return '';
+  const v = log.response_data ?? log.responseData;
+  return v == null ? '' : v;
+}
+
+function pbFepWireframeBmsg(log) {
+  if (!log || typeof log !== 'object') return '';
+  const v = log.bmsg ?? log.error_message ?? log.Bmsg ?? log.errorMessage;
+  return v == null ? '' : v;
+}
+
+/**
+ * PB FEP SVG stream body — align with backend wireframe preview priority: full `response_data`, else full
+ * `request_data`, else `bmsg`, else `data` (200-char summary / legacy rows). API may camelCase keys; bmsg
+ * still maps from error_message for parity with row filter.
+ */
+function pbFepSvgStreamPayloadRaw(log) {
+  if (!log || typeof log !== 'object') return '';
+  const res = pbFepWireframeResponseData(log);
+  if (pbFepSvgPayloadStringNonEmpty(res)) return res;
+  const req = pbFepWireframeRequestData(log);
+  if (pbFepSvgPayloadStringNonEmpty(req)) return req;
+  const bmsg = pbFepWireframeBmsg(log);
+  if (pbFepSvgPayloadStringNonEmpty(bmsg)) return bmsg;
+  if (pbFepSvgPayloadStringNonEmpty(log.data)) return log.data;
+  return '';
+}
+
+/**
+ * Which physical column family drives the displayed stream (align with `pbFepSvgStreamPayloadRaw`).
+ */
+function pbFepSvgStreamSourceKey(log) {
+  if (!log || typeof log !== 'object') return null;
+  if (pbFepSvgPayloadStringNonEmpty(pbFepWireframeResponseData(log))) return 'response_data';
+  if (pbFepSvgPayloadStringNonEmpty(pbFepWireframeRequestData(log))) return 'request_data';
+  if (pbFepSvgPayloadStringNonEmpty(pbFepWireframeBmsg(log))) return 'bmsg';
+  if (pbFepSvgPayloadStringNonEmpty(log.data)) return 'data';
+  return null;
+}
+
+/**
+ * Mirrors `pbFepSvgStreamPayloadRaw` + server `keyword_match_*`.
+ * For `data` stream source (summary/legacy when no full req/res/bmsg): if `keyword_match_data` is set, treat
+ * as aggregate OR with other column flags (older APIs); otherwise rely on `keyword_match_bmsg` only.
+ */
+function pbFepSvgStreamKeywordMatchFlag(log) {
+  if (!log || typeof log !== 'object') return false;
+  const src = pbFepSvgStreamSourceKey(log);
+  if (!src) return false;
+  const kmData = resolveKeywordMatchField(log, 'keyword_match_data', 'keywordMatchData');
+  const kmReq = resolveKeywordMatchField(log, 'keyword_match_request_data', 'keywordMatchRequestData');
+  const kmRes = resolveKeywordMatchField(log, 'keyword_match_response_data', 'keywordMatchResponseData');
+  const mReq = coerceKeywordMatchFlag(kmReq);
+  const mRes = coerceKeywordMatchFlag(kmRes);
+  const mBmsg = coerceKeywordMatchFlag(
+    resolveKeywordMatchField(log, 'keyword_match_bmsg', 'keywordMatchBmsg')
+  );
+  if (src === 'data') {
+    if (kmData !== undefined && kmData !== null) {
+      const mData = coerceKeywordMatchFlag(kmData);
+      return Boolean(mData || mRes || mReq || mBmsg);
+    }
+    return mBmsg;
+  }
+  if (src === 'request_data') {
+    return mReq || mBmsg;
+  }
+  if (src === 'response_data') {
+    return mRes || mBmsg;
+  }
+  if (src === 'bmsg') {
+    return mBmsg;
+  }
+  return false;
+}
 
 /** Legacy POST .../search columns + sort keys (pb-feplog). */
 const LOG_COLUMNS_PB_FEP_LEGACY = [
@@ -143,19 +308,21 @@ const LogTable = ({
     }
   };
 
-  const highlightKeywords = (text, kwList) => {
-    if (!kwList || kwList.length === 0 || typeof text !== 'string') return text;
-    const parts = kwList.map((k) => String(k).trim()).filter(Boolean);
-    if (parts.length === 0) return text;
-    const escaped = parts.map((k) => k.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|');
-    const regex = new RegExp(`(${escaped})`, 'gi');
-    const split = text.split(regex);
-    return split.map((part, index) => {
-      if (parts.some((p) => p.toLowerCase() === part.toLowerCase())) {
-        return <span key={`keyword-${index}`} className="highlight-keyword">{part}</span>;
-      }
-      return part;
-    });
+  const kwList = normalizeLogTableKeywords(keywords);
+
+  const renderHighlightedText = (displayValue, log) => {
+    const text = displayValue == null ? '' : String(displayValue);
+    if (kwList.length === 0) {
+      return text;
+    }
+    const hasEncHint = getPbFepOptionalEncryptedMatchHint(log);
+    return (
+      <span
+        dangerouslySetInnerHTML={{
+          __html: highlightKeywordsAsHtml(text, kwList, null, hasEncHint, null, false),
+        }}
+      />
+    );
   };
 
   const effectiveSortConfig = sortCriteria != null && sortCriteria.length > 0 ? null : (sortConfig && sortConfig.key ? sortConfig : null);
@@ -168,32 +335,63 @@ const LogTable = ({
 
   const streamPayload = (log) => {
     if (isPbFepSvg) {
-      return log.data ?? log.request_data ?? log.response_data ?? '';
+      return pbFepSvgStreamPayloadRaw(log);
     }
     return log.request_data || log.response_data || log.data || log.trData || log.decryptedData || '';
   };
 
   const renderStreamBody = (log) => {
     const raw = String(streamPayload(log) ?? '');
+    const lines = raw.length === 0 ? [''] : raw.split('\n');
+    const hasEncHint = getPbFepOptionalEncryptedMatchHint(log);
+    const streamHtml = (chunk) =>
+      kwList.length === 0
+        ? chunk
+        : highlightKeywordsAsHtml(chunk, kwList, null, hasEncHint, null, false);
+    const lineHasHtmlHit = (line) =>
+      kwList.length > 0 &&
+      lineHasKeywordHighlightHtml(line, kwList, null, hasEncHint, null, false);
+    const anyLineHasHtmlHit = lines.some((line) => lineHasHtmlHit(line));
+    const decryptOnlyStreamBulkHint =
+      isPbFepSvg &&
+      kwList.length > 0 &&
+      pbFepSvgStreamKeywordMatchFlag(log) &&
+      !anyLineHasHtmlHit;
+    const lineHit = (line) => lineHasHtmlHit(line) || decryptOnlyStreamBulkHint;
+
+    const streamLineNodes = lines.map((line, i) => {
+      const hit = lineHit(line);
+      const lineClass = `stream-line${hit ? ' stream-line--keyword-hit' : ''}`;
+      if (kwList.length === 0) {
+        return (
+          <div key={`sl-${i}`} className={lineClass}>
+            {line}
+          </div>
+        );
+      }
+      return (
+        <div
+          key={`sl-${i}`}
+          className={lineClass}
+          dangerouslySetInnerHTML={{ __html: streamHtml(line) }}
+        />
+      );
+    });
+
     if (isPbFepSvg) {
-      const lines = raw.length === 0 ? [''] : raw.split('\n');
       return (
         <div className="pb-fep-stream-panel">
           <span className="stream-data-chip">STREAM DATA</span>
           <div className="stream-lines" aria-label="스트림 데이터">
-            {lines.map((line, i) => (
-              <div key={`sl-${i}`} className="stream-line">
-                {highlightKeywords(line, Array.isArray(keywords) ? keywords : [])}
-              </div>
-            ))}
+            {streamLineNodes}
           </div>
         </div>
       );
     }
     return (
-      <pre className="tr-data-stream" aria-label="전문 데이터">
-        {highlightKeywords(raw, Array.isArray(keywords) ? keywords : [])}
-      </pre>
+      <div className="stream-lines tr-data-stream" aria-label="전문 데이터">
+        {streamLineNodes}
+      </div>
     );
   };
 
@@ -220,6 +418,15 @@ const LogTable = ({
         logs.map((log) => {
           const rowKey = getPbFeplogRowKey(log);
           const isExpanded = expandedRows.has(rowKey);
+          const bmsgText = log.bmsg ?? log.error_message ?? '';
+          const bmsgEncHint = getPbFepOptionalEncryptedMatchHint(log);
+          const bmsgDecryptOnlyFullLine =
+            isPbFepSvg &&
+            kwList.length > 0 &&
+            coerceKeywordMatchFlag(
+              resolveKeywordMatchField(log, 'keyword_match_bmsg', 'keywordMatchBmsg')
+            ) &&
+            !lineHasKeywordHighlightHtml(String(bmsgText), kwList, null, bmsgEncHint, null, false);
           if (isPbFepSvg) {
             return (
               <React.Fragment key={rowKey}>
@@ -230,19 +437,24 @@ const LogTable = ({
                         {isExpanded ? '▾' : '▸'}
                       </span>
                       <span className="pb-fep-timestamp-value">
-                        {formatLogTableTime(log.log_time || log.timestamp || log.prc_time)}
+                        {renderHighlightedText(
+                          formatLogTableTime(log.log_time || log.timestamp || log.prc_time),
+                          log
+                        )}
                       </span>
                     </div>
                   </td>
-                  <td>{log.tr_code ?? ''}</td>
-                  <td>{log.login_id ?? log.user_id ?? log.loginId ?? ''}</td>
-                  <td>{log.msg_code ?? log.status_code ?? ''}</td>
-                  <td>{log.bmsg ?? log.error_message ?? ''}</td>
-                  <td>{log.log_ch_cd ?? log.device_type ?? ''}</td>
-                  <td>{log.send_recv ?? log.log_type ?? ''}</td>
-                  <td>{log.src_ip ?? log.ip_address ?? ''}</td>
-                  <td>{log.dest_ip ?? ''}</td>
-                  <td>{log.app_id ?? log.session_id ?? ''}</td>
+                  <td>{renderHighlightedText(log.tr_code ?? '', log)}</td>
+                  <td>{renderHighlightedText(log.login_id ?? log.user_id ?? log.loginId ?? '', log)}</td>
+                  <td>{renderHighlightedText(log.msg_code ?? log.status_code ?? '', log)}</td>
+                  <td className={bmsgDecryptOnlyFullLine ? 'pb-fep-bmsg--keyword-hit' : undefined}>
+                    {renderHighlightedText(bmsgText, log)}
+                  </td>
+                  <td>{renderHighlightedText(log.log_ch_cd ?? log.device_type ?? '', log)}</td>
+                  <td>{renderHighlightedText(log.send_recv ?? log.log_type ?? '', log)}</td>
+                  <td>{renderHighlightedText(log.src_ip ?? log.ip_address ?? '', log)}</td>
+                  <td>{renderHighlightedText(log.dest_ip ?? '', log)}</td>
+                  <td>{renderHighlightedText(log.app_id ?? log.session_id ?? '', log)}</td>
                   <td className="tr-data-cell tr-data-cell--pb-fep-svg">
                     <button
                       type="button"
@@ -268,16 +480,26 @@ const LogTable = ({
           return (
             <React.Fragment key={rowKey}>
               <tr>
-                <td>{formatLogTableTime(log.log_time || log.timestamp || log.prc_time)}</td>
-                <td>{log.tr_code || log.trCode}</td>
-                <td>{log.user_id || log.loginId || log.brodid}</td>
-                <td>{log.status_code || log.msg_code}</td>
-                <td>{log.error_message || log.bmsg}</td>
-                <td>{log.device_type || log.log_ch_cd}</td>
-                <td>{log.log_type || log.log_io_cd}</td>
-                <td>{log.ip_address || log.pub_ip}</td>
-                <td>{log.session_id || log.prt_ip}</td>
-                <td>{log.response_time != null ? log.response_time : log.term_no}</td>
+                <td>
+                  {renderHighlightedText(
+                    formatLogTableTime(log.log_time || log.timestamp || log.prc_time),
+                    log
+                  )}
+                </td>
+                <td>{renderHighlightedText(log.tr_code || log.trCode, log)}</td>
+                <td>{renderHighlightedText(log.user_id || log.loginId || log.brodid, log)}</td>
+                <td>{renderHighlightedText(log.status_code || log.msg_code, log)}</td>
+                <td>{renderHighlightedText(log.error_message || log.bmsg, log)}</td>
+                <td>{renderHighlightedText(log.device_type || log.log_ch_cd, log)}</td>
+                <td>{renderHighlightedText(log.log_type || log.log_io_cd, log)}</td>
+                <td>{renderHighlightedText(log.ip_address || log.pub_ip, log)}</td>
+                <td>{renderHighlightedText(log.session_id || log.prt_ip, log)}</td>
+                <td>
+                  {renderHighlightedText(
+                    log.response_time != null ? log.response_time : log.term_no,
+                    log
+                  )}
+                </td>
                 <td className="tr-data-cell tr-data-cell--pb-fep">
                   <button
                     type="button"

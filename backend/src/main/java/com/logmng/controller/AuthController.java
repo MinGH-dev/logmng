@@ -1,6 +1,7 @@
 package com.logmng.controller;
 
 import com.logmng.annotation.ActivityLog;
+import com.logmng.config.AuthProperties;
 import com.logmng.dto.request.ChangeMyPasswordRequest;
 import com.logmng.dto.request.LoginRequest;
 import com.logmng.dto.response.ApiResponse;
@@ -24,11 +25,15 @@ import java.util.Map;
 public class AuthController {
     
     private static final Logger log = LoggerFactory.getLogger(AuthController.class);
+    private static final String LOGIN_MODE_LOCAL = "local";
+    private static final String LOGIN_MODE_AD = "ad";
     
     private final AuthService authService;
+    private final AuthProperties authProperties;
     
-    public AuthController(AuthService authService) {
+    public AuthController(AuthService authService, AuthProperties authProperties) {
         this.authService = authService;
+        this.authProperties = authProperties;
     }
     
     /**
@@ -130,6 +135,41 @@ public class AuthController {
             data.put("message", "인증되지 않았습니다.");
             return ResponseEntity.ok(ApiResponse.success(data));
         }
+    }
+
+    /**
+     * 로그인 모드 설정 조회
+     * GET /api/auth/config
+     */
+    @GetMapping("/config")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> getAuthConfig() {
+        long startedAt = System.nanoTime();
+        log.debug("[diag-auth-config] AuthController entry /api/auth/config");
+        String rawMode = authProperties != null && authProperties.getLogin() != null
+                ? authProperties.getLogin().getMode()
+                : null;
+        String resolvedMode = normalizeLoginMode(rawMode);
+
+        Map<String, Object> data = new HashMap<>();
+        // Keep both keys for backward compatibility with existing frontend callers.
+        data.put("loginMode", resolvedMode);
+        data.put("authLoginMode", resolvedMode);
+
+        long elapsedMs = (System.nanoTime() - startedAt) / 1_000_000;
+        log.debug("[diag-auth-config] AuthController exit /api/auth/config rawMode={} resolvedMode={} elapsedMs={}",
+                rawMode, resolvedMode, elapsedMs);
+        return ResponseEntity.ok(ApiResponse.success(data));
+    }
+
+    private String normalizeLoginMode(String mode) {
+        if (mode == null) {
+            return LOGIN_MODE_LOCAL;
+        }
+        String trimmed = mode.trim().toLowerCase();
+        if (LOGIN_MODE_AD.equals(trimmed)) {
+            return LOGIN_MODE_AD;
+        }
+        return LOGIN_MODE_LOCAL;
     }
     
     /**

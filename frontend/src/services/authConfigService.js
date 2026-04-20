@@ -4,14 +4,21 @@
  */
 import { getApiBaseUrl } from '../config/runtimeApi';
 
+const AUTH_CONFIG_TIMEOUT_MS = 4000;
+
 /**
  * @returns {Promise<'local'|'ad'>}
  */
 export async function fetchAuthLoginMode() {
   const apiBaseUrl = getApiBaseUrl();
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => {
+    controller.abort();
+  }, AUTH_CONFIG_TIMEOUT_MS);
   try {
     const response = await fetch(`${apiBaseUrl}/auth/config`, {
       credentials: 'include',
+      signal: controller.signal,
     });
     if (!response.ok) {
       throw new Error(`auth config HTTP ${response.status}`);
@@ -23,6 +30,8 @@ export async function fetchAuthLoginMode() {
     }
   } catch {
     // Contract gap: public config endpoint may be absent — fall back to build-time env.
+  } finally {
+    clearTimeout(timeoutId);
   }
   const env = process.env.REACT_APP_AUTH_LOGIN_MODE;
   if (env === 'ad' || env === 'local') {

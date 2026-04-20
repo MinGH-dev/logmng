@@ -28,8 +28,8 @@ FROM (VALUES
 ) AS v(uid, trc, msg)
 WHERE p.brodid = v.uid
   AND p.tr_code = v.trc
-  AND p.log_timestamp >= TIMESTAMP '2025-10-10'
-  AND p.log_timestamp < TIMESTAMP '2025-10-11';
+  AND p.log_time >= '20251010000000000000'
+  AND p.log_time < '20251011000000000000';
 
 UPDATE pb_recv AS p
 SET bmsg = v.msg
@@ -43,16 +43,19 @@ FROM (VALUES
 ) AS v(uid, trc, msg)
 WHERE p.brodid = v.uid
   AND p.tr_code = v.trc
-  AND p.log_timestamp >= TIMESTAMP '2025-10-10'
-  AND p.log_timestamp < TIMESTAMP '2025-10-11';
+  AND p.log_time >= '20251010000000000000'
+  AND p.log_time < '20251011000000000000';
 
 -- 52 send + 52 recv per user (user001, user002, user003) => 104 rows/user on 2025-10-10.
 INSERT INTO pb_send (
-  log_timestamp, media_gb, tr_code, brodid, pub_ip, prt_ip, log_ch_cd,
+  log_time, media_gb, tr_code, brodid, pub_ip, prt_ip, log_ch_cd,
   msg_code, data, bmsg, tr_seq, wire_ts
 )
 SELECT
-  timestamp '2025-10-10 00:00:00' + (((u.user_ord * 30000) + (n * 137)) % 86400) * interval '1 second',
+  to_char(
+    timestamp '2025-10-10 00:00:00' + (((u.user_ord * 30000) + (n * 137)) % 86400) * interval '1 second',
+    'YYYYMMDDHH24MISS'
+  ) || '000000',
   (ARRAY['01', '02', '03'])[1 + (n % 3)],
   'S' || (ARRAY['A', 'B', 'C'])[1 + (n % 3)] || 'T' || lpad(n::text, 4, '0'),
   u.uid,
@@ -82,11 +85,14 @@ FROM (VALUES
 CROSS JOIN generate_series(1, 52) AS n;
 
 INSERT INTO pb_recv (
-  log_timestamp, media_gb, tr_code, brodid, pub_ip, prt_ip, log_ch_cd,
+  log_time, media_gb, tr_code, brodid, pub_ip, prt_ip, log_ch_cd,
   msg_code, data, bmsg, tr_seq, wire_ts
 )
 SELECT
-  timestamp '2025-10-10 00:00:05' + (((u.user_ord * 30000) + (n * 139)) % 86390) * interval '1 second',
+  to_char(
+    timestamp '2025-10-10 00:00:05' + (((u.user_ord * 30000) + (n * 139)) % 86390) * interval '1 second',
+    'YYYYMMDDHH24MISS'
+  ) || '000000',
   (ARRAY['01', '02', '03'])[1 + ((n + 1) % 3)],
   'R' || (ARRAY['A', 'B', 'C'])[1 + ((n + 1) % 3)] || 'T' || lpad(n::text, 4, '0'),
   u.uid,

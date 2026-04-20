@@ -1,4 +1,5 @@
 -- One-time: monthly RANGE partitions (pb_*_YYYYMM) -> daily (pb_*_YYYYMMDD) on log_time.
+-- Daily bounds: FOR VALUES FROM (YYYYMMDD || '000000000000') TO (next_day || '000000000000') — 20-char lexical (req 20260415).
 -- log_timestamp is physically removed by dedicated migration script.
 -- Prerequisites: migrate-pb-send-recv-partitioning-20260408.sql (legacy monthly) already applied.
 --
@@ -76,8 +77,8 @@ BEGIN
                     EXECUTE format(
                         'CREATE TABLE %I PARTITION OF pb_send FOR VALUES FROM (%L) TO (%L)',
                         pnm,
-                        d::TEXT,
-                        (d + 1)::TEXT
+                        to_char(d, 'YYYYMMDD') || '000000000000',
+                        to_char(d + 1, 'YYYYMMDD') || '000000000000'
                     );
                 END IF;
                 EXECUTE format(
@@ -127,8 +128,8 @@ BEGIN
                     EXECUTE format(
                         'CREATE TABLE %I PARTITION OF pb_recv FOR VALUES FROM (%L) TO (%L)',
                         pnm,
-                        d::TEXT,
-                        (d + 1)::TEXT
+                        to_char(d, 'YYYYMMDD') || '000000000000',
+                        to_char(d + 1, 'YYYYMMDD') || '000000000000'
                     );
                 END IF;
                 EXECUTE format(

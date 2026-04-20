@@ -314,7 +314,7 @@ VALUES
 ```
 
 ### 테스트 환경
-- 프론트엔드: `http://localhost:3000`
+- 프론트엔드: `http://localhost:3001` (계약·검증 기준; `docs/contract.md`)
 - 백엔드: `http://localhost:9200`
 - 데이터베이스: PostgreSQL
 

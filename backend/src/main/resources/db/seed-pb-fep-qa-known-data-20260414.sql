@@ -2,8 +2,8 @@
 --  - docs/requirements/20260414-pb-fep-log-timestamp-physical-removal-bugfix.md
 --  - docs/requirements/20260414-pb-fep-log-timestamp-physical-removal-bugfix-1.md
 --
--- Deterministic one-day condition:
---   date window: 2026-04-14 00:00:00 ~ 2026-04-14 23:59:59
+-- Deterministic one-day condition (log_time lexical 20 digits yyyyMMddHHmmssSSSSSS):
+--   calendar day 2026-04-14: [20260414000000000000, 20260415000000000000)
 --   brodid(loginId): qa_log_time
 --   tr_code: QA
 --
@@ -16,39 +16,39 @@ SET search_path TO public, public;
 BEGIN;
 
 DELETE FROM pb_send
-WHERE log_time >= '20260414000000'
-  AND log_time <= '20260414235959'
+WHERE log_time >= '20260414000000000000'
+  AND log_time < '20260415000000000000'
   AND brodid = 'qa_log_time'
   AND tr_code = 'QA';
 
 DELETE FROM pb_recv
-WHERE log_time >= '20260414000000'
-  AND log_time <= '20260414235959'
+WHERE log_time >= '20260414000000000000'
+  AND log_time < '20260415000000000000'
   AND brodid = 'qa_log_time'
   AND tr_code = 'QA';
 
 INSERT INTO pb_send (log_time, tr_code, brodid, media_gb, prc_time, con_key, data)
 VALUES
-('20260414091011', 'QA', 'qa_log_time', '01', '091011000', 'QA-SEND-001', 'QA deterministic send row 1'),
-('20260414123456', 'QA', 'qa_log_time', '01', '123456000', 'QA-SEND-002', 'QA deterministic send row 2'),
-('20260414182030', 'QA', 'qa_log_time', '01', '182030000', 'QA-SEND-003', 'QA deterministic send row 3');
+('20260414091011000000', 'QA', 'qa_log_time', '01', '091011000', 'QA-SEND-001', 'QA deterministic send row 1'),
+('20260414123456000000', 'QA', 'qa_log_time', '01', '123456000', 'QA-SEND-002', 'QA deterministic send row 2'),
+('20260414182030000000', 'QA', 'qa_log_time', '01', '182030000', 'QA-SEND-003', 'QA deterministic send row 3');
 
 INSERT INTO pb_recv (log_time, tr_code, brodid, media_gb, prc_time, con_key, data)
 VALUES
-('20260414102233', 'QA', 'qa_log_time', '01', '102233000', 'QA-RECV-001', 'QA deterministic recv row 1'),
-('20260414154500', 'QA', 'qa_log_time', '01', '154500000', 'QA-RECV-002', 'QA deterministic recv row 2');
+('20260414102233000000', 'QA', 'qa_log_time', '01', '102233000', 'QA-RECV-001', 'QA deterministic recv row 1'),
+('20260414154500000000', 'QA', 'qa_log_time', '01', '154500000', 'QA-RECV-002', 'QA deterministic recv row 2');
 
 COMMIT;
 
 -- Validation snippets:
 -- SELECT COUNT(*) FROM pb_send
---  WHERE log_time >= '20260414000000' AND log_time <= '20260414235959'
+--  WHERE log_time >= '20260414000000000000' AND log_time < '20260415000000000000'
 --    AND brodid='qa_log_time' AND tr_code='QA';
 -- SELECT COUNT(*) FROM pb_recv
---  WHERE log_time >= '20260414000000' AND log_time <= '20260414235959'
+--  WHERE log_time >= '20260414000000000000' AND log_time < '20260415000000000000'
 --    AND brodid='qa_log_time' AND tr_code='QA';
 -- SELECT COUNT(*) FROM (
---   SELECT 1 FROM pb_send WHERE log_time >= '20260414000000' AND log_time <= '20260414235959' AND brodid='qa_log_time' AND tr_code='QA'
+--   SELECT 1 FROM pb_send WHERE log_time >= '20260414000000000000' AND log_time < '20260415000000000000' AND brodid='qa_log_time' AND tr_code='QA'
 --   UNION ALL
---   SELECT 1 FROM pb_recv WHERE log_time >= '20260414000000' AND log_time <= '20260414235959' AND brodid='qa_log_time' AND tr_code='QA'
+--   SELECT 1 FROM pb_recv WHERE log_time >= '20260414000000000000' AND log_time < '20260415000000000000' AND brodid='qa_log_time' AND tr_code='QA'
 -- ) t;
