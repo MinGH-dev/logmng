@@ -173,14 +173,14 @@ Per `docs/workflow/REQUIREMENTS-CHANGE-TARGET-CHECKLIST.md` §1:
 
 ### Frontend verification
 
-- [ ] Full-line class applies for decrypt-only hits when server flags indicate matching column for displayed stream
-- [ ] No plaintext fields added to client state from new API keys
-- [ ] §3 automated Frontend TCs pass
+- [x] Full-line class applies for decrypt-only hits when server flags indicate matching column for displayed stream
+- [x] No plaintext fields added to client state from new API keys
+- [x] §3 automated Frontend TCs pass
 
 ### Backend verification
 
-- [ ] Flags match `pbFeplogCellMatchesKeyword` semantics
-- [ ] §3 Backend TCs pass
+- [x] Flags match `pbFeplogCellMatchesKeyword` semantics
+- [x] §3 Backend TCs pass
 
 ### Integration
 
@@ -189,26 +189,33 @@ Per `docs/workflow/REQUIREMENTS-CHANGE-TARGET-CHECKLIST.md` §1:
 
 ### Documentation
 
-- [ ] Requirement doc completed (§1–§3)
-- [ ] Parent docs cross-referenced (see References)
+- [x] Requirement doc completed (§1–§3)
+- [x] Parent docs cross-referenced (see References)
 
 ## 5. Test results
 
-*(To be filled after implementation and QA verification.)*
+*(Recorded after implementation verification on 2026-04-20.)*
 
 ### Test run date
 
-- TBD
+- 2026-04-20
 
 ### Test results
 
 #### Frontend
 
-- TBD
+- `cd frontend && npm test -- --watchAll=false --testPathPattern=LogTable.test.js` — **Pass** (64 tests, 3 suites including `LogTable.test.js`).
 
 #### Backend
 
-- TBD
+- `cd backend && mvn test -q -Dtest='LogDbServiceTest#searchPbFeplog_keywords_attachKeywordMatchFlagsOnRawRows_tcKf07'` — **Pass** (tcKf07: legacy/raw row path attaches `keyword_match_*` when keywords non-empty; decrypt error paths log at WARN/ERROR as expected for invalid ciphertext fixtures).
+
+#### Docker / local stack
+
+- 2026-04-20: `./scripts/docker-dev-sync.sh` — **Success** (offline bundle + backend image recreate; frontend image rebuilt with synced `www/`).
+- `curl -s http://localhost:9200/api/health` — **200**, `success:true`.
+- `curl -s http://localhost:9200/api/db/test` — **200**, `data.connected` implied via PB table flags in response body.
+- `curl -s -o /dev/null -w "%{http_code}" http://localhost:3001/` — **200**.
 
 ---
 

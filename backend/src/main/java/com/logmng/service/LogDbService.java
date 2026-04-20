@@ -415,6 +415,23 @@ public class LogDbService {
     }
 
     /**
+     * When keywords are non-empty, attach {@code keyword_match_*} to each raw JDBC row (legacy
+     * {@code POST .../search} with {@code logType=pb_feplog}) using the same semantics as the wireframe mapper
+     * (req 20260416). Wireframe responses still recompute flags in {@link #mapPbFepRowToWireframe}.
+     */
+    private void attachPbFeplogKeywordMatchFlagsIfNeeded(List<Map<String, Object>> rows, List<String> keywordTerms) {
+        if (rows == null || rows.isEmpty() || keywordTerms == null || keywordTerms.isEmpty()) {
+            return;
+        }
+        for (Map<String, Object> row : rows) {
+            String req = jdbcValueToString(row.get("request_data"));
+            String res = jdbcValueToString(row.get("response_data"));
+            String bmsg = jdbcValueToString(row.get("error_message"));
+            putPbFepWireframeKeywordMatchFlags(row, req, res, bmsg, keywordTerms);
+        }
+    }
+
+    /**
      * Map key for JDBC row maps: PostgreSQL returns physical names from {@link ResultSetMetaData#getColumnName(int)}
      * for aliased columns (e.g. {@code vlen AS request_data}) while {@link ResultSetMetaData#getColumnLabel(int)}
      * returns the alias. Downstream PB FEP code expects wire keys ({@code request_data}, etc.).
@@ -484,6 +501,8 @@ public class LogDbService {
                 List<Map<String, Object>> pageResults = fromIndex >= filtered.size()
                         ? new ArrayList<>()
                         : new ArrayList<>(filtered.subList(fromIndex, Math.min(fromIndex + pageSize, filtered.size())));
+
+                attachPbFeplogKeywordMatchFlagsIfNeeded(pageResults, keywordTerms);
 
                 log.info("✅ PB FEP 검색 완료 (키워드 필터): {}건 중 {}건 반환 (페이지: {}/{})",
                         totalCount, pageResults.size(), page, totalPages);

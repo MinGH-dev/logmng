@@ -133,14 +133,26 @@ function pbFepSvgStreamSourceKey(log) {
 }
 
 /**
- * Mirrors `pbFepSvgStreamPayloadRaw` + server `keyword_match_*`.
- * For `data` stream source (summary/legacy when no full req/res/bmsg): if `keyword_match_data` is set, treat
- * as aggregate OR with other column flags (older APIs); otherwise rely on `keyword_match_bmsg` only.
+ * Legacy {@code POST .../search} row stream body: {@code request_data || response_data || data || ...}
+ * (same order as non-wireframe {@code streamPayload} in this component).
  */
-function pbFepSvgStreamKeywordMatchFlag(log) {
-  if (!log || typeof log !== 'object') return false;
-  const src = pbFepSvgStreamSourceKey(log);
-  if (!src) return false;
+function pbFepLegacyStreamSourceKey(log) {
+  if (!log || typeof log !== 'object') return null;
+  if (log.request_data || log.requestData) return 'request_data';
+  if (log.response_data || log.responseData) return 'response_data';
+  if (log.data) return 'data';
+  if (log.trData) return 'trData';
+  if (log.decryptedData) return 'decryptedData';
+  return null;
+}
+
+/**
+ * Mirrors server {@code keyword_match_*} for a resolved stream column (wireframe or legacy order).
+ * For {@code data} stream source (summary): if {@code keyword_match_data} is set, treat as aggregate OR with other
+ * column flags; otherwise rely on {@code keyword_match_bmsg} only.
+ */
+function pbFepStreamKeywordMatchFlagForSource(log, src) {
+  if (!log || typeof log !== 'object' || !src) return false;
   const kmData = resolveKeywordMatchField(log, 'keyword_match_data', 'keywordMatchData');
   const kmReq = resolveKeywordMatchField(log, 'keyword_match_request_data', 'keywordMatchRequestData');
   const kmRes = resolveKeywordMatchField(log, 'keyword_match_response_data', 'keywordMatchResponseData');
@@ -352,10 +364,11 @@ const LogTable = ({
       kwList.length > 0 &&
       lineHasKeywordHighlightHtml(line, kwList, null, hasEncHint, null, false);
     const anyLineHasHtmlHit = lines.some((line) => lineHasHtmlHit(line));
+    const streamSourceKey = isPbFepSvg ? pbFepSvgStreamSourceKey(log) : pbFepLegacyStreamSourceKey(log);
     const decryptOnlyStreamBulkHint =
-      isPbFepSvg &&
       kwList.length > 0 &&
-      pbFepSvgStreamKeywordMatchFlag(log) &&
+      streamSourceKey != null &&
+      pbFepStreamKeywordMatchFlagForSource(log, streamSourceKey) &&
       !anyLineHasHtmlHit;
     const lineHit = (line) => lineHasHtmlHit(line) || decryptOnlyStreamBulkHint;
 

@@ -999,6 +999,27 @@ class LogDbServiceTest {
     }
 
     /**
+     * TC-KF-07: legacy {@code searchLogs} (pb_feplog) attaches {@code keyword_match_*} on keyword-filtered rows
+     * (same semantics as wireframe).
+     */
+    @Test
+    void searchPbFeplog_keywords_attachKeywordMatchFlagsOnRawRows_tcKf07() throws Exception {
+        String token = "LOCAL-PB-KF07-LEGACY-FLAGS";
+        String cipher = cryptoUtil.encryptPbFepPayload("prefix-" + token + "-suffix");
+        String lt = toPbLogTime(PB_KW_LDT);
+        insertPbSendPayload(916L, lt, "TRK", "kwuser", "no-req-KF07", cipher, "");
+
+        LogDbSearchRequest req = pbFeplogKeywordRequest();
+        req.setKeywords(List.of(token));
+
+        Map<String, Object> row = logDbService.searchLogs(req).getData().get(0);
+        assertThat(row.get("keyword_match_request_data")).isEqualTo(false);
+        assertThat(row.get("keyword_match_response_data")).isEqualTo(true);
+        assertThat(row.get("keyword_match_bmsg")).isEqualTo(false);
+        assertThat(row.get("keyword_match_data")).isEqualTo(true);
+    }
+
+    /**
      * Wrong key: bracket-wrapped ImageLog ciphertext must not appear in output as if decrypted (no E002 echo).
      */
     @Test
